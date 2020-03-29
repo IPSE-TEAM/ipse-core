@@ -29,6 +29,8 @@ net_difficulty = 4 398 046 511 104 / 9 / base_target
 
 ### 改写挖矿软件版本0.1
 
+改写的挖矿软件来源[scavenger](https://github.com/PoC-Consortium/scavenger)
+
 - 1. 循环从链上获取上一个挖矿的区块高度数据、上一个挖矿transaction的tx作为32 byte的GenSig。
 - 2. 用这两个数据计算出scoop_number。扫描所有P盘的scoop_number。
 - 3. 计算deadline和比较选出最小的deadline。
