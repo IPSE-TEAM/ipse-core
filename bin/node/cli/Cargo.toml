@@ -6,7 +6,7 @@ description = "Substrate node implementation in Rust."
 build = "build.rs"
 edition = "2018"
 license = "GPL-3.0"
-default-run = "bhd-chain"
+default-run = "conjugate-poc"
 homepage = "https://substrate.dev"
 repository = "https://github.com/paritytech/substrate/"
 
@@ -22,7 +22,7 @@ is-it-maintained-issue-resolution = { repository = "paritytech/substrate" }
 is-it-maintained-open-issues = { repository = "paritytech/substrate" }
 
 [[bin]]
-name = "bhd-chain"
+name = "conjugate-poc"
 path = "bin/main.rs"
 required-features = ["cli"]
 

@@ -20,10 +20,10 @@
 
 fn main() -> sc_cli::Result<()> {
 	let version = sc_cli::VersionInfo {
-		name: "BHD Node",
+		name: "Conjugate-PoC Node",
 		commit: env!("VERGEN_SHA_SHORT"),
 		version: env!("CARGO_PKG_VERSION"),
-		executable_name: "bhd-chain",
+		executable_name: "conjugate-poc",
 		author: "Parity Technologies <admin@parity.io>",
 		description: "Generic substrate node",
 		support_url: "https://github.com/paritytech/substrate/issues/new",
