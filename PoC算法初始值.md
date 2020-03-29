@@ -31,6 +31,8 @@ net_difficulty = 4 398 046 511 104 / 9 / base_target
 
 改写的挖矿软件来源[scavenger](https://github.com/PoC-Consortium/scavenger)
 
+Rust语言整合Substrate的导入私钥、签名、请求接口等，来源： [substrate-subxt](https://github.com/paritytech/substrate-subxt)
+
 - 1. 循环从链上获取上一个挖矿的区块高度数据、上一个挖矿transaction的tx作为32 byte的GenSig。
 - 2. 用这两个数据计算出scoop_number。扫描所有P盘的scoop_number。
 - 3. 计算deadline和比较选出最小的deadline。
