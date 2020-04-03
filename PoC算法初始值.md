@@ -59,5 +59,5 @@ Rust语言整合Substrate的导入私钥、签名、请求接口等，来源： 
 - 4. on_finalize()每一次挖矿后都要进行一次难度调整，重新计算base_target和difficulty。之前每次挖矿所花费的时间（timestamp模块）和base_target都要进行记录。调整的时候，依据这些数据进行调整。base_target调整和difficulty调整是一回事，主要目的是为了保持大家提交最佳答案的时间基本能维持在7-8秒左右。
 	- 调整的算法也非常简单，若提交deadline的时间>=18s,base_target调整为前24个base_target的平均值*2
 	- 若提交deadline的时间<=4s,base_target调整为前24个base_target的平均值/2
-	- 其他情况，前24个base_target平均值 
+	- 其他情况，前24个base_target平均值,少于24个的，也取平均值
 
