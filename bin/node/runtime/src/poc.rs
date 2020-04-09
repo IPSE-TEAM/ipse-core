@@ -3,6 +3,7 @@
 extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 
+use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
@@ -20,6 +21,13 @@ pub trait Trait: system::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
+pub struct MiningInfo<AccountId> {
+    miner: Option<AccountId>,
+    best_dl: u64,
+    mining_time: u64,
+}
+
 decl_storage! {
     trait Store for Module<T: Trait> as PoC {
         // timestamp of last mining
@@ -29,8 +37,7 @@ decl_storage! {
         TargetInfo get(target_info): map hasher(blake2_128_concat) u64 = 0 => (u64, u64) = (488671834567, 1);
         // deadline info
         // key: Block Number of last mining
-        // value: (Current best deadline,  mining_time)
-        DlInfo get(dl_info): map hasher(blake2_128_concat) u64 => (u64, u64);
+        DlInfo get(dl_info): map hasher(blake2_128_concat) u64 => MiningInfo<T::AccountId>;
     }
 }
 
@@ -39,7 +46,6 @@ pub enum Event<T>
     where
     AccountId = <T as system::Trait>::AccountId
     {
-        MiningSuccess(AccountId),
         VerifyDeadline(AccountId, bool),
     }
 }
@@ -62,16 +68,24 @@ decl_module! {
             let miner = ensure_signed(origin)?;
 
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
-            let now = Self::get_now_ts();
+            if let Some(block, dl_info) = Self::get_last_dl_info() {
+                if dl_info.best_dl <= deadline && current_block/3 == block/3{
+                    return Ok(())
+                }
+            };
             if Self::verify_dl(account_id, current_block, sig, nonce, deadline) {
                 let now = Self::get_now_ts();
                 let mining_time = now - Self::lts();
-                DlInfo::<T>::mutate(current_block, |dl| { *dl = (deadline, mining_time) });
+                DlInfo::<T>::insert(current_block,
+                    MiningInfo{
+                        miner: Some(miner),
+                        best_dl: deadline,
+                        mining_time
+                    }
+                );
                 LastMiningTs::<T>::mutate(|ts| *ts = now );
-                info!("reward!!!");
-                Self::deposit_event(RawEvent::MiningSuccess(miner));
-            }
-
+            };
+            Ok(())
         }
 
         #[weight = SimpleDispatchInfo::FixedNormal(1000)]
@@ -86,13 +100,29 @@ decl_module! {
         #[weight = SimpleDispatchInfo::FixedNormal(2000)]
         fn on_finalize(n: T::BlockNumber) {
             let current_block = n.saturated_into::<u64>();
-            let last_block = Self::get_last_mining_block();
+            let last_mining_block_opt = Self::get_last_mining_block();
+            if last_mining_block_opt.is_none() {
+                return
+            }
+            let last_mining_block = last_mining_block_opt.unwrap();
+            let last_adjust_block = Self::get_last_adjust_block();
 
-            if current_block - last_block == 3 {
+            if current_block - last_adjust_block == 10 {
                 Self::adjust_difficulty();
             }
-            if current_block - last_block > 3 {
-                info!("no new deadline, reward treasury")
+
+            if current_block - last_mining_block == 3 {
+                DlInfo::<T>::insert(current_block,
+                    MiningInfo{
+                        miner: None,
+                        best_dl: 0,
+                        mining_time: 18000,
+                    })
+                info!("reward treasury!!!")
+            }
+
+            if current_block - last_mining_block < 3 && current_block - last_mining_block/3 == 3 {
+                info!("reward miner")
             }
         }
 
@@ -105,7 +135,7 @@ impl<T: Trait> Module<T> {
         info!("adjust base_target and net_difficulty");
     }
 
-    fn get_last_dl_info() -> Option<&(u64, (u64, u64))>{
+    fn get_last_dl_info() -> Option<&(u64, MiningInfo<T::AccountId>)>{
         DlInfo::<T>::iter().last()
     }
 
@@ -114,17 +144,20 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_current_base_target() -> u64 {
-        let (_, (base_target, _)) = TargetInfo::<T>::iter().last().unwrap();
+        let (_, (base_target, _)) = Self::get_last_target_info().unwrap();
         base_target
     }
 
-    fn get_last_mining_block() -> u64 {
-        let (block, _) = DlInfo::<T>::iter().last().unwrap();
-        block
+    fn get_last_mining_block() -> Option<u64> {
+        if let Some(dl) = Self::get_last_dl_info() {
+            Some(dl.0)
+        } else {
+            None
+        }
     }
 
     fn get_last_adjust_block() -> u64 {
-        let (block, _) = TargetInfo::<T>::iter().last().unwrap();
+        let (block, _) = Self::get_last_target_info().unwrap();
         block
     }
 
