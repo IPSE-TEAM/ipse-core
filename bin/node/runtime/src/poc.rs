@@ -13,6 +13,7 @@ use system::{ensure_signed};
 use sp_runtime::traits::SaturatedConversion;
 use sp_std::vec::Vec;
 use sp_std::vec;
+use sp_std::convert::TryInto;
 use log::info;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
@@ -36,7 +37,7 @@ decl_storage! {
         LastMiningTs get(lts): u64;
         // key: Block Number of last adjusting difficulty
         // value: (base_target, net_difficulty)
-        TargetInfo get(target_info): map hasher(blake2_128_concat) u64 = 0 => (u64, u64) = (GENESIS_BASE_TARGET, 1);
+        TargetInfo get(target_info): map hasher(blake2_128_concat) u64  => (u64, u64);
         // deadline info
         // key: Block Number of last mining
         DlInfo get(dl_info): map hasher(blake2_128_concat) u64 => MiningInfo<T::AccountId>;
@@ -60,7 +61,7 @@ decl_module! {
         fn verify_deadline(origin, account_id: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
             let height = <system::Module<T>>::block_number().saturated_into::<u64>();
-            let is_ok = Self::verify_dl(account_id, current_block, sig, nonce, deadline);
+            let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
             Self::deposit_event(RawEvent::VerifyDeadline(miner, is_ok));
             Ok(())
         }
@@ -102,7 +103,8 @@ decl_module! {
             let n = n.saturated_into::<u64>();
             if n == 0 {
                let now = Self::get_now_ts();
-               LastMiningTs::<T>::put(now);
+               LastMiningTs::put(now);
+               TargetInfo::insert(0, (GENESIS_BASE_TARGET, 1));
             }
         }
 
@@ -121,17 +123,17 @@ decl_module! {
             }
 
             if current_block - last_mining_block == 3 {
-                DlInfo::<T>::insert(current_block,
+                <DlInfo<T>>::insert(current_block,
                     MiningInfo{
                         miner: None,
                         best_dl: 0,
                         mining_time: 18000,
-                    })
-                info!("reward treasury!!!")
+                    });
+                info!("reward treasury on block {}", current_block);
             }
 
             if current_block - last_mining_block < 3 && current_block - last_mining_block/3 == 3 {
-                info!("reward miner")
+                info!("reward miner on block {}", current_block);
             }
         }
 
@@ -141,7 +143,7 @@ decl_module! {
 impl<T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
-        info!("adjust base_target and net_difficulty");
+        info!("adjust base_target and net_difficulty on block {}", block);
         let base_target_avg = Self::get_base_target_avg();
         let mining_time_avg = Self::get_mining_time_avg();
         if mining_time_avg >= 18000 {
