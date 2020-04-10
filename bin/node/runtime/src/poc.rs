@@ -140,7 +140,7 @@ decl_module! {
      }
 }
 
-impl<T: Trait> Module<T> {
+impl<'a, T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
         info!("adjust base_target and net_difficulty on block {}", block);
@@ -156,11 +156,11 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    fn get_last_dl_info() -> Option<&(u64, MiningInfo<T::AccountId>)>{
+    fn get_last_dl_info<'a>() -> Option<&'a (u64, MiningInfo<T::AccountId>)>{
         DlInfo::<T>::iter().last()
     }
 
-    fn get_last_target_info() -> Option<&(u64, (u64, u64))>{
+    fn get_last_target_info<'a>() -> Option<&'a (u64, (u64, u64))>{
         TargetInfo::<T>::iter().last()
     }
 
