@@ -21,6 +21,8 @@ pub trait Trait: system::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
+const GENESIS_BASE_TARGET: u64 = 488671834567;
+
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
 pub struct MiningInfo<AccountId> {
     miner: Option<AccountId>,
@@ -34,7 +36,7 @@ decl_storage! {
         LastMiningTs get(lts): u64;
         // key: Block Number of last adjusting difficulty
         // value: (base_target, net_difficulty)
-        TargetInfo get(target_info): map hasher(blake2_128_concat) u64 = 0 => (u64, u64) = (488671834567, 1);
+        TargetInfo get(target_info): map hasher(blake2_128_concat) u64 = 0 => (u64, u64) = (GENESIS_BASE_TARGET, 1);
         // deadline info
         // key: Block Number of last mining
         DlInfo get(dl_info): map hasher(blake2_128_concat) u64 => MiningInfo<T::AccountId>;
@@ -72,8 +74,14 @@ decl_module! {
                 if dl_info.best_dl <= deadline && current_block/3 == block/3{
                     return Ok(())
                 }
-            };
-            if Self::verify_dl(account_id, current_block, sig, nonce, deadline) {
+                if Self::verify_dl(account_id, current_block, sig, nonce, deadline) {
+
+                // delete the old deadline in this mining cycle
+                if current_block/3 == block/3 {
+                    DlInfo::<T>::remove(block)
+                }
+
+                // insert a better deadline
                 let now = Self::get_now_ts();
                 let mining_time = now - Self::lts();
                 DlInfo::<T>::insert(current_block,
@@ -81,10 +89,11 @@ decl_module! {
                         miner: Some(miner),
                         best_dl: deadline,
                         mining_time
-                    }
-                );
+                    });
                 LastMiningTs::<T>::mutate(|ts| *ts = now );
+                };
             };
+
             Ok(())
         }
 
@@ -108,7 +117,7 @@ decl_module! {
             let last_adjust_block = Self::get_last_adjust_block();
 
             if current_block - last_adjust_block == 10 {
-                Self::adjust_difficulty();
+                Self::adjust_difficulty(current_block);
             }
 
             if current_block - last_mining_block == 3 {
@@ -131,8 +140,18 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
 
-    fn adjust_difficulty() {
+    fn adjust_difficulty(block: u64) {
         info!("adjust base_target and net_difficulty");
+        let base_target_avg = Self::get_base_target_avg();
+        let mining_time_avg = Self::get_mining_time_avg();
+        if mining_time_avg >= 18000 {
+            let new = base_target_avg * 2;
+            TargetInfo::<T>::insert(block, (new, GENESIS_BASE_TARGET / new))
+        }
+        if mining_time_avg <= 4000 {
+            let new = base_target_avg / 2;
+            TargetInfo::<T>::insert(block, (new, GENESIS_BASE_TARGET / new))
+        }
     }
 
     fn get_last_dl_info() -> Option<&(u64, MiningInfo<T::AccountId>)>{
@@ -164,6 +183,36 @@ impl<T: Trait> Module<T> {
     fn get_now_ts() -> u64 {
         let now = <timestamp::Module<T>>::get();
         <T::Moment as TryInto<u64>>::try_into(now).unwrap()
+    }
+
+    fn get_base_target_avg() -> u64 {
+        let mut iter = TargetInfo::<T>::iter().rev();
+        let mut total = 0_u64;
+        let mut count = 0_u64;
+        while let Some(target) = iter.next() {
+            if count == 24 {
+                break;
+            }
+            let (base_target, _) = target.1;
+            total += base_target;
+            count += 1;
+        }
+        total/count
+    }
+
+    fn get_mining_time_avg() -> u64 {
+        let mut iter = DlInfo::<T>::iter().rev();
+        let mut total = 0_u64;
+        let mut count = 0_u64;
+        while let Some(dl) = iter.next() {
+            if count == 10 {
+                break;
+            }
+            let (_, m) = dl.1;
+            total += m.mining_time;
+            count += 1;
+        }
+        total/count
     }
 
     fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> bool {
