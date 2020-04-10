@@ -140,7 +140,7 @@ decl_module! {
      }
 }
 
-impl<'a, T: Trait> Module<T> {
+impl<T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
         info!("adjust base_target and net_difficulty on block {}", block);
