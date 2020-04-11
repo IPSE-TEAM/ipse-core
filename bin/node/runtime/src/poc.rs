@@ -72,7 +72,7 @@ decl_module! {
             let miner = ensure_signed(origin)?;
 
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
-            if let Some(dl) = Self::get_last_dl_info() {
+            if let Some(dl) = DlInfo::<T>::iter().last() {
                 let (block, dl_info) = dl;
                 if dl_info.best_dl <= deadline && current_block/3 == block/3{
                     return Ok(())
@@ -158,21 +158,13 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    fn get_last_dl_info<'a>() -> Option<&'a (u64, MiningInfo<T::AccountId>)>{
-        DlInfo::<T>::iter().last()
-    }
-
-    fn get_last_target_info<'a>() -> Option<&'a (u64, (u64, u64))>{
-        TargetInfo::iter().last()
-    }
-
     fn get_current_base_target() -> u64 {
-        let (_, (base_target, _)) = Self::get_last_target_info().unwrap();
+        let (_, (base_target, _)) = TargetInfo::iter().last().unwrap();
         *base_target
     }
 
     fn get_last_mining_block() -> Option<u64> {
-        if let Some(dl) = Self::get_last_dl_info() {
+        if let Some(dl) = DlInfo::<T>::iter().last() {
             Some(dl.0)
         } else {
             None
@@ -180,7 +172,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_last_adjust_block() -> u64 {
-        let (block, _) = Self::get_last_target_info().unwrap();
+        let (block, _) = TargetInfo::iter().last().unwrap();
         *block
     }
 
@@ -190,7 +182,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_base_target_avg() -> u64 {
-        let mut iter = TargetInfo::<T>::iter().rev();
+        let mut iter = TargetInfo::iter().rev();
         let mut total = 0_u64;
         let mut count = 0_u64;
         while let Some(target) = iter.next() {
