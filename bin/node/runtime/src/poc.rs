@@ -6,7 +6,6 @@ extern crate pallet_timestamp as timestamp;
 use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
-    storage::StorageValue::append,
     dispatch::DispatchResult,
     weights::{SimpleDispatchInfo, DispatchInfo, DispatchClass, ClassifyDispatch, WeighData, Weight, PaysFee},
 };
@@ -97,13 +96,13 @@ decl_module! {
                 // insert a better deadline
                 let now = Self::get_now_ts();
                 let mining_time = now - Self::lts();
-                DlInfo::<T>::append(
+                DlInfo::<T>::mutate(|dl| dl.push(
                     MiningInfo{
                         miner: Some(miner),
                         best_dl: deadline,
                         block: current_block,
                         mining_time
-                    });
+                    }));
                 LastMiningTs::mutate(|ts| *ts = now );
                 };
             };
@@ -117,12 +116,12 @@ decl_module! {
             if n == 0 {
                let now = Self::get_now_ts();
                LastMiningTs::put(now);
-               TargetInfo::append(
+               TargetInfo::mutate(|target| target.push(
                     Difficulty{
                         base_target: GENESIS_BASE_TARGET,
                         net_difficulty: 1,
                         block: 0,
-                    });
+                    }));
             }
         }
 
@@ -141,13 +140,13 @@ decl_module! {
             }
 
             if current_block - last_mining_block == 3 {
-                <DlInfo<T>>::append(
+                <DlInfo<T>>::mutate(|dl| dl.push(
                     MiningInfo{
                         miner: None,
                         best_dl: 0,
                         mining_time: 18000,
                         block: current_block,
-                    });
+                    }));
                 info!("reward treasury on block {}", current_block);
             }
 
@@ -167,21 +166,21 @@ impl<T: Trait> Module<T> {
         let mining_time_avg = Self::get_mining_time_avg();
         if mining_time_avg >= 18000 {
             let new = base_target_avg * 2;
-            TargetInfo::append(
+            TargetInfo::mutate(|target| target.push(
                 Difficulty{
                     block,
                     base_target: new,
                     net_difficulty: GENESIS_BASE_TARGET / new,
-                });
+                }));
         }
         if mining_time_avg <= 4000 {
             let new = base_target_avg / 2;
-            TargetInfo::append(
+            TargetInfo::mutate(|target| target.push(
                 Difficulty{
                     block,
                     base_target: new,
                     net_difficulty: GENESIS_BASE_TARGET / new,
-                });
+                }));
         }
     }
 
