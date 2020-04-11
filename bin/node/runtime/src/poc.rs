@@ -6,6 +6,7 @@ extern crate pallet_timestamp as timestamp;
 use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
+    storage::IterableStorageMap,
     dispatch::DispatchResult,
     weights::{SimpleDispatchInfo, DispatchInfo, DispatchClass, ClassifyDispatch, WeighData, Weight, PaysFee},
 };
@@ -24,7 +25,7 @@ pub trait Trait: system::Trait + timestamp::Trait {
 
 const GENESIS_BASE_TARGET: u64 = 488671834567;
 
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
+#[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MiningInfo<AccountId> {
     miner: Option<AccountId>,
     best_dl: u64,
@@ -71,7 +72,8 @@ decl_module! {
             let miner = ensure_signed(origin)?;
 
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
-            if let Some(block, dl_info) = Self::get_last_dl_info() {
+            if let Some(dl) = Self::get_last_dl_info() {
+                let (block, dl_info) = dl;
                 if dl_info.best_dl <= deadline && current_block/3 == block/3{
                     return Ok(())
                 }
@@ -91,7 +93,7 @@ decl_module! {
                         best_dl: deadline,
                         mining_time
                     });
-                LastMiningTs::<T>::mutate(|ts| *ts = now );
+                LastMiningTs::mutate(|ts| *ts = now );
                 };
             };
 
@@ -148,11 +150,11 @@ impl<T: Trait> Module<T> {
         let mining_time_avg = Self::get_mining_time_avg();
         if mining_time_avg >= 18000 {
             let new = base_target_avg * 2;
-            TargetInfo::<T>::insert(block, (new, GENESIS_BASE_TARGET / new))
+            TargetInfo::insert(block, (new, GENESIS_BASE_TARGET / new))
         }
         if mining_time_avg <= 4000 {
             let new = base_target_avg / 2;
-            TargetInfo::<T>::insert(block, (new, GENESIS_BASE_TARGET / new))
+            TargetInfo::insert(block, (new, GENESIS_BASE_TARGET / new))
         }
     }
 
@@ -161,12 +163,12 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_last_target_info<'a>() -> Option<&'a (u64, (u64, u64))>{
-        TargetInfo::<T>::iter().last()
+        TargetInfo::iter().last()
     }
 
     fn get_current_base_target() -> u64 {
         let (_, (base_target, _)) = Self::get_last_target_info().unwrap();
-        base_target
+        *base_target
     }
 
     fn get_last_mining_block() -> Option<u64> {
@@ -179,12 +181,12 @@ impl<T: Trait> Module<T> {
 
     fn get_last_adjust_block() -> u64 {
         let (block, _) = Self::get_last_target_info().unwrap();
-        block
+        *block
     }
 
     fn get_now_ts() -> u64 {
         let now = <timestamp::Module<T>>::get();
-        <T::Moment as TryInto<u64>>::try_into(now).unwrap()
+        <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
     }
 
     fn get_base_target_avg() -> u64 {
