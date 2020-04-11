@@ -206,7 +206,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_base_target_avg() -> u64 {
-        let mut iter = Self::target_info.iter().rev();
+        let mut iter = Self::target_info().iter().rev();
         let mut total = 0_u64;
         let mut count = 0_u64;
         while let Some(target) = iter.next() {
