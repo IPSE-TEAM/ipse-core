@@ -6,7 +6,6 @@ extern crate pallet_timestamp as timestamp;
 use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
-    storage::IterableStorageMap,
     dispatch::DispatchResult,
     weights::{SimpleDispatchInfo, DispatchInfo, DispatchClass, ClassifyDispatch, WeighData, Weight, PaysFee},
 };
@@ -30,6 +29,16 @@ pub struct MiningInfo<AccountId> {
     miner: Option<AccountId>,
     best_dl: u64,
     mining_time: u64,
+    // the block height of mining success
+    block: u64,
+}
+
+#[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
+pub struct Difficulty {
+    base_target: u64,
+    net_difficulty: u64,
+    // the block height of adjust difficulty
+    block: u64,
 }
 
 decl_storage! {
@@ -38,10 +47,9 @@ decl_storage! {
         LastMiningTs get(lts): u64;
         // key: Block Number of last adjusting difficulty
         // value: (base_target, net_difficulty)
-        TargetInfo get(target_info): map hasher(blake2_128_concat) u64  => (u64, u64);
-        // deadline info
-        // key: Block Number of last mining
-        DlInfo get(dl_info): map hasher(blake2_128_concat) u64 => MiningInfo<T::AccountId>;
+        TargetInfo get(target_info): Vec<Difficulty>;
+        // deadline info of mining success
+        DlInfo get(dl_info): Vec<MiningInfo<T::AccountId>>;
     }
 }
 
@@ -72,25 +80,27 @@ decl_module! {
             let miner = ensure_signed(origin)?;
 
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
-            if let Some(dl) = DlInfo::<T>::iter().last() {
-                let (block, dl_info) = dl;
-                if dl_info.best_dl <= deadline && current_block/3 == block/3{
+            if let Some(dl_info) = Self::dl_info().iter().last() {
+                let block = dl_info.clone().block;
+                let best_dl = dl_info.best_dl;
+                if best_dl <= deadline && current_block/3 == block/3{
                     return Ok(())
                 }
                 if Self::verify_dl(account_id, current_block, sig, nonce, deadline) {
 
                 // delete the old deadline in this mining cycle
                 if current_block/3 == block/3 {
-                    DlInfo::<T>::remove(block)
+                    DlInfo::<T>::mutate(|dl| *dl.pop());
                 }
 
                 // insert a better deadline
                 let now = Self::get_now_ts();
                 let mining_time = now - Self::lts();
-                DlInfo::<T>::insert(current_block,
+                DlInfo::<T>::append(
                     MiningInfo{
                         miner: Some(miner),
                         best_dl: deadline,
+                        block: current_block,
                         mining_time
                     });
                 LastMiningTs::mutate(|ts| *ts = now );
@@ -106,7 +116,12 @@ decl_module! {
             if n == 0 {
                let now = Self::get_now_ts();
                LastMiningTs::put(now);
-               TargetInfo::insert(0, (GENESIS_BASE_TARGET, 1));
+               TargetInfo::append(
+                    Difficulty{
+                        base_target: GENESIS_BASE_TARGET,
+                        net_difficulty: 1,
+                        block: 0,
+                    });
             }
         }
 
@@ -125,11 +140,12 @@ decl_module! {
             }
 
             if current_block - last_mining_block == 3 {
-                <DlInfo<T>>::insert(current_block,
+                <DlInfo<T>>::append(
                     MiningInfo{
                         miner: None,
                         best_dl: 0,
                         mining_time: 18000,
+                        block: current_block,
                     });
                 info!("reward treasury on block {}", current_block);
             }
@@ -150,30 +166,38 @@ impl<T: Trait> Module<T> {
         let mining_time_avg = Self::get_mining_time_avg();
         if mining_time_avg >= 18000 {
             let new = base_target_avg * 2;
-            TargetInfo::insert(block, (new, GENESIS_BASE_TARGET / new))
+            TargetInfo::append(
+                Difficulty{
+                    block,
+                    base_target: new,
+                    net_difficulty: GENESIS_BASE_TARGET / new,
+                })
         }
         if mining_time_avg <= 4000 {
             let new = base_target_avg / 2;
-            TargetInfo::insert(block, (new, GENESIS_BASE_TARGET / new))
+            TargetInfo::append(
+                Difficulty{
+                    block,
+                    base_target: new,
+                    net_difficulty: GENESIS_BASE_TARGET / new,
+                })
         }
     }
 
     fn get_current_base_target() -> u64 {
-        let (_, (base_target, _)) = TargetInfo::iter().last().unwrap();
-        base_target
+        Self::target_info().iter().last().unwrap().base_target
     }
 
     fn get_last_mining_block() -> Option<u64> {
-        if let Some(dl) = DlInfo::<T>::iter().last() {
-            Some(dl.0)
+        if let Some(dl) = Self::dl_info().iter().last() {
+            Some(dl.block)
         } else {
             None
         }
     }
 
     fn get_last_adjust_block() -> u64 {
-        let (block, _) = TargetInfo::iter().last().unwrap();
-        block
+        Self::target_info().iter().last().unwrap().block
     }
 
     fn get_now_ts() -> u64 {
@@ -182,7 +206,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_base_target_avg() -> u64 {
-        let mut iter = TargetInfo::iter().rev();
+        let mut iter = Self::target_info.iter().rev();
         let mut total = 0_u64;
         let mut count = 0_u64;
         while let Some(target) = iter.next() {
@@ -197,7 +221,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_mining_time_avg() -> u64 {
-        let mut iter = DlInfo::<T>::iter().rev();
+        let mut iter = Self::dl_info().iter().rev();
         let mut total = 0_u64;
         let mut count = 0_u64;
         while let Some(dl) = iter.next() {
