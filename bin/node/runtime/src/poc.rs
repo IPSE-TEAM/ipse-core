@@ -213,8 +213,7 @@ impl<T: Trait> Module<T> {
             if count == 24 {
                 break;
             }
-            let (base_target, _) = target.1;
-            total += base_target;
+            total += target.base_target;
             count += 1;
         }
         total/count
