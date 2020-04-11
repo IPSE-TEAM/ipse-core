@@ -6,6 +6,7 @@ extern crate pallet_timestamp as timestamp;
 use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
+    storage::StorageValue::append,
     dispatch::DispatchResult,
     weights::{SimpleDispatchInfo, DispatchInfo, DispatchClass, ClassifyDispatch, WeighData, Weight, PaysFee},
 };
@@ -90,7 +91,7 @@ decl_module! {
 
                 // delete the old deadline in this mining cycle
                 if current_block/3 == block/3 {
-                    DlInfo::<T>::mutate(|dl| *dl.pop());
+                    DlInfo::<T>::mutate(|dl| dl.pop());
                 }
 
                 // insert a better deadline
@@ -171,7 +172,7 @@ impl<T: Trait> Module<T> {
                     block,
                     base_target: new,
                     net_difficulty: GENESIS_BASE_TARGET / new,
-                })
+                });
         }
         if mining_time_avg <= 4000 {
             let new = base_target_avg / 2;
@@ -180,7 +181,7 @@ impl<T: Trait> Module<T> {
                     block,
                     base_target: new,
                     net_difficulty: GENESIS_BASE_TARGET / new,
-                })
+                });
         }
     }
 
@@ -228,8 +229,7 @@ impl<T: Trait> Module<T> {
             if count == 10 {
                 break;
             }
-            let (_, m) = dl.1;
-            total += m.mining_time;
+            total += dl.mining_time;
             count += 1;
         }
         total/count
