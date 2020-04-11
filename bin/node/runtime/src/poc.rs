@@ -160,7 +160,7 @@ impl<T: Trait> Module<T> {
 
     fn get_current_base_target() -> u64 {
         let (_, (base_target, _)) = TargetInfo::iter().last().unwrap();
-        *base_target
+        base_target
     }
 
     fn get_last_mining_block() -> Option<u64> {
@@ -173,7 +173,7 @@ impl<T: Trait> Module<T> {
 
     fn get_last_adjust_block() -> u64 {
         let (block, _) = TargetInfo::iter().last().unwrap();
-        *block
+        block
     }
 
     fn get_now_ts() -> u64 {
