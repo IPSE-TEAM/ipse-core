@@ -7,7 +7,7 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
     dispatch::DispatchResult,
-    weights::{SimpleDispatchInfo, DispatchInfo, DispatchClass, ClassifyDispatch, WeighData, Weight, PaysFee},
+    weights::{SimpleDispatchInfo},
 };
 use system::{ensure_signed};
 use sp_runtime::traits::SaturatedConversion;
