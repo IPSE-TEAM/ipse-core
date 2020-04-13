@@ -98,7 +98,7 @@ decl_module! {
                     let mining_time = now - Self::lts();
                     DlInfo::<T>::mutate(|dl| dl.push(
                         MiningInfo{
-                            miner: Some(miner),
+                            miner: Some(miner.clone()),
                             best_dl: deadline,
                             block: current_block,
                             mining_time
