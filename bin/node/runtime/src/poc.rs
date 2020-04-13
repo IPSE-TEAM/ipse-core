@@ -45,9 +45,8 @@ decl_storage! {
     trait Store for Module<T: Trait> as PoC {
         // timestamp of last mining
         LastMiningTs get(lts): u64;
-        // key: Block Number of last adjusting difficulty
-        // value: (base_target, net_difficulty)
-        TargetInfo get(target_info): Vec<Difficulty>;
+        // info of base_target and difficulty
+        pub TargetInfo get(target_info): Vec<Difficulty>;
         // deadline info of mining success
         DlInfo get(dl_info): Vec<MiningInfo<T::AccountId>>;
     }
@@ -87,25 +86,26 @@ decl_module! {
                 if best_dl <= deadline && current_block/3 == block/3{
                     return Ok(())
                 }
-                if Self::verify_dl(account_id, current_block, sig, nonce, deadline) {
+                let verify_ok = Self::verify_dl(account_id, current_block, sig, nonce, deadline);
+                if verify_ok {
+                    // delete the old deadline in this mining cycle
+                    if current_block/3 == block/3 {
+                        DlInfo::<T>::mutate(|dl| dl.pop());
+                    }
 
-                // delete the old deadline in this mining cycle
-                if current_block/3 == block/3 {
-                    DlInfo::<T>::mutate(|dl| dl.pop());
-                }
-
-                // insert a better deadline
-                let now = Self::get_now_ts();
-                let mining_time = now - Self::lts();
-                DlInfo::<T>::mutate(|dl| dl.push(
-                    MiningInfo{
-                        miner: Some(miner),
-                        best_dl: deadline,
-                        block: current_block,
-                        mining_time
-                    }));
-                LastMiningTs::mutate(|ts| *ts = now );
+                    // insert a better deadline
+                    let now = Self::get_now_ts();
+                    let mining_time = now - Self::lts();
+                    DlInfo::<T>::mutate(|dl| dl.push(
+                        MiningInfo{
+                            miner: Some(miner),
+                            best_dl: deadline,
+                            block: current_block,
+                            mining_time
+                        }));
+                    LastMiningTs::mutate(|ts| *ts = now );
                 };
+                Self::deposit_event(RawEvent::VerifyDeadline(miner, verify_ok));
             };
 
             Ok(())
