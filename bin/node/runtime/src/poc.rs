@@ -117,7 +117,7 @@ decl_module! {
             if n == 0 {
                let now = Self::get_now_ts();
                LastMiningTs::put(now);
-               DlInfo::<T>::put(Vec::new());
+               DlInfo::<T>::put(Vec::<MiningInfo<T::AccountId>>::new());
                let mut targets = Vec::new();
                targets.push(
                     Difficulty{
