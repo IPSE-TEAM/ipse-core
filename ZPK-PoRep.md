@@ -132,3 +132,74 @@ comm_r是综合了每一层的所有Encoder输出和Replica_ID的信息。
 
 
 
+### Filecoin的PoRep解读
+
+首先专注在storage-proofs这部分，里面有三个重要的组成目录：
+
+- core :复制证明底层的逻辑部分。
+- porep :复制证明的逻辑。
+- post :在复制证明的基础上进行时空证明的逻辑。
+
+#### core部分
+
+从`Cargo.toml`分析，除了依赖另外一个porep部分，还有依赖上一个目录的sha2raw模块，那让我们先分析下`sha2raw`部分。
+
+##### sha2
+
+SHA-2加密哈希函数的实现，有6个标准算法实现，算法上，只有两个核心算法:Sha256和Sha512。所有其他算法都是这些算法的应用，它们具有不同的初始散列值，并被截断为不同的摘要位长度。
+
+Sha256的实现，重点是对固定大小的块进行hashing，不需要填充。
+
+##### drgraph 
+
+drgraph是core中最为重要的模块，这里的Graph就是DRG（depth robust graoh）。
+
+用于所有DRG图的`BASE_DEGREE`=6。此值的一个DEGREE值用于确保给定节点始终将其直接前辈作为父节点，从而确保图节点具有惟一的拓扑次序。也就是能让计算具有串行计算的属性，这是VDF所必须要求的属性。
+
+这个`Graph` Trait具有哪些方法：
+
+- expected_size: 返回在图中所有节点加起来的大小。NODE_SIZE配置为32字节。
+- merkle_tree_depth: 返回merkle树的深度，根据叶子节点的数量推算出默克尔树的高度。
+- parents：返回一个节点其排好序的父节点列表。其父节点可能是重复的。如果一个节点没有父节点，其父节点列表向量需要在第一个元素放置一个该请求的节点，用来表示这个节点是没有父节点的。
+- size: 返回这个图的节点数量，也就是图的大小。
+- degree: 返回在图中每个节点的父节点数量。
+- new: 构建一个图。
+- create_key: 创建用于encoding的key，将Window的编号和Stacked DRG的节点关系通过sha256算法，生成“key“。
+
+##### data
+
+data模块是一个包装器，磁盘上或内存片上的数据包装器，可以将其删除并读入内存，以便更好地控制内存消耗。
+
+对原始数据进行加载，包装成`Data`结构体，其中有一些构造方法from，也有对原始数据`RawData`进行的解引用方法`deref`,`deref_mut`，还有给`Data`的引用方法`as_ref`,`as_mut`。
+
+##### parameter_cache
+
+这个是非常简单的，就是加载zk-snark所需的setup参数。
+
+##### fr32
+
+`Fr32`是什么？
+
+	pub type Fr32 = [u8];
+	pub type Fr32Vec = Vec<u8>;	
+	pub type Fr32Any = [u8;32];
+	
+`Fr32`包含一个或多个32字节的chunks，其小端值表示的就是Frs。有两点需要注意，每个32字节的chunk一定表示有效的Frs，总长度必须是32的倍数。也就是说，单独使用的每个32字节chunk必须是有效的Fr32。
+
+- bytes_info_fr: 输入一个字节数组，如果其刚好是32字节，返回一个Fr，否则，返回一个`BadFrBytesError`。
+- trim_bytes_to_fr_safe: 去掉多余的，返回一个Fr。
+- bytes_into_fr_repr_safe:返回一个FrRepr。
+- fr_into_bytes: 输入一个Fr，返回一个刚好32字节长度的向量。
+- bytes_into_frs:输入一个字节数组，返回一组Fr的向量，如果字节数量不是32的倍数，返回一个错误。
+- frs_into_bytes:一组Fr的向量输入，返回一个字节向量。
+- u32_into_fr:输入u32，返回一个Fr。
+
+paired模块中引入了`bls12_381`方法，这是最新的对zk-snark椭圆曲线的构造方法。
+
+	use paired::bls12_381::{Fr, FrRepr};
+
+BLS12-381是BLS族的一种友好配对的椭圆曲线结构，嵌入度为12。它建立在一个381位的基本字段GF(p)上。
+
+zk-snark的验证者需要一个paired，能够支持加法和乘法的同态隐藏。椭圆曲线能够帮助我们获得有限制的，但满足需求的支持乘法的同态隐藏的方法。
+
+
