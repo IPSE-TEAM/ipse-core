@@ -202,4 +202,95 @@ BLS12-381是BLS族的一种友好配对的椭圆曲线结构，嵌入度为12。
 
 zk-snark的验证者需要一个paired，能够支持加法和乘法的同态隐藏。椭圆曲线能够帮助我们获得有限制的，但满足需求的支持乘法的同态隐藏的方法。
 
+##### merkle
+
+首先是`builders`模块：
+
+- create_disk_tree:这里的DiskTree继承了MerkleTreeWrapper。从提供的参数，base_tree_len来创建一个DiskTree，每一个参数配置都代表一个基础层的树。
+- create_lc_tree:对数据进行复制生成备份后，生成的LCTree。
+- create_tree:输入树的参数配置，可选输入复制备份路径，返回一个DiskTree或者LCTree，是由树的参数配置来制定的。
+- create_base_merkle_tree:创建基础默克尔树。
+- create_base_lcmerkle_tree:
+- split_config:
+- split_config_wrapped:
+- split_config_and_replica:
+- get_base_tree_count:
+- get_base_tree_leafs:
+
+其次是`tree`模块：
+
+- trait MerkleTreeTrait
+- struct MerkleTreeWrapper
+- new:直接输入data数据，生成Merkle树。
+- new_with_config：输入可迭代的数据和参数配置，生成Merkle树。
+- from_data_with_config：输入可迭代的数据和参数配置，生成Merkle树。
+- from_data_store：输入存储数据和叶子节点，生成Merkle树。
+- from_tree_slice：输入数组数据和叶子节点，生成Merkle树。
+- from_tree_silice_with_config：输入数组数据和叶子节点和参数配置，生成Merkle树。
+- from_trees：输入Merkle树包装器向量数据，生成Merkle树。
+- from_sub_trees：输入Merkle树包装器向量数据，生成Merkle树。
+- from_sub_trees_as_trees：输入Merkle树包装器向量数据，生成Merkle树。
+- from_slices：输入由Merkle树组成的数组和叶子节点，生成Merkle树。
+- from_slices_with_configs：输入由Merkle树组成的数组和叶子节点和参数配置，生成Merkle树。
+- from_stores：输入叶子节点和存储向量数据，生成Merkle树。
+- from_store_configs：输入叶子节点和存储配置，生成Merkle树。
+- from_store_configs_and_replicas：输入叶子节点，存储配置和复制文件路径，生成Merkle树。
+- from_sub_tree_store_configs：输入叶子节点和存储配置，生成Merkle树。
+- try_from_iter：输入迭代器，生成Merkle树。
+- from_sub_tree_store_configs_and_replicas：输入叶子节点，存储配置和复制文件路径，生成Merkle树。
+- try_from_iter_with_config：输入迭代器和存储配置，生成Merkle树。
+- from_par_iter：输入迭代器，生成Merkle树。
+- from_par_iter_with_config：输入迭代器，生成Merkle树。
+
+最后是`proof`模块：
+
+- trait MerkleProofTrait: 默克尔树的证明Trait
+- base_path_length：输入叶子节点leafs，得到基础路径长度，等于整个图的高度-1。
+- compound_path_length:计算整个路径的期望长度，给定基层中的叶子数量。
+- compound_tree_height:基础层、子树层和顶级树层高度组合起来。
+- struct InclusionPath: 是PathElement组成的向量，代表着树的路径。
+- root:输入叶子节点，计算组成路径的Merkle根。
+- struct PathElement:由hash值组成的向量和索引构成的结构体。
+- struct MerkleProof:一个默克尔证明的表示结构体。
+- enum ProofData:证明数据有三种，单个叶子节点证明，子树证明，树根证明。
+- struct SingleProof：包括三个部分，默克尔树根root，单个叶子节点数据leaf，叶子到根的路径path。
+- struct SubProof：子树证明包括4个部分，base_proof和sub_proof是InclusionPath，root是默克尔树根，leaf是证明的叶子节点数据。
+- struct TopProof：树根证明包括5个部分，base_proof、sub_proof和top_proof是InclusionPath，root是默克尔树根，leaf是证明的叶子节点数据。
+
+
+##### por
+
+目前这个por是最容易看懂的部分了，有如下这些数据结构体：
+
+- struct DataProof:包括两部分，proof是MerkleProofTrait，data是叶子节点数据。这个结构体就是矿工进行PoR证明最终要生成的证明。
+- struct PublicParams：矿工证明者和验证者都需要知道的公共参数，其实就一个，底层默克尔树有多少叶子节点。
+- struct PublicInputs：验证者给出公共输入，矿工证明者要根据这些输入完成PoR的证明。包括底层默克尔树的根hash，另外就是挑战，随机挑选一个叶子，要让证明着生成证明。
+- struct PrivateInputs：只有矿工作为证明着自己能看到的输入，包括两部分，叶子节点的数据和底层默克尔树。
+- struct SetupParams：设置参数，PoR中首先就要设置参数，默克尔树有多少叶子节点作为参数设置进去。
+- struct PoR：基于默克尔树的数据可检索证明。
+
+证明验证逻辑主要是三个方法：
+
+- setup：设置参数。
+- prove：核心的一步就是`tree.gen_proof(challenge)`。
+- verify：核心的两步是`proof.proof.validate_data(proof.data)`和 `proof.proof.validate(pub_inputs.challenge)`
+
+###### tree.gen_proof(challenge)
+
+从底层默克尔树，随机挑选一个叶子节点进行挑战，然后生成证明。
+
+###### proof.proof.validate_data(proof.data)
+
+首先是 `verify()`，针对不同的默克尔树，都需要验证，比如是TopProof，需要计算top_proof的根是否跟原有证明里的root是否相同。
+
+然后才是输入的叶子节点数据是否相同。
+
+###### proof.proof.validate(pub_inputs.challenge)
+
+同样也是先 `verify()`，然后验证选中用来挑战的叶子节点谁不是同一个。
+
+##### proof
+
+
+
 
