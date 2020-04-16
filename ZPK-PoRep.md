@@ -184,6 +184,12 @@ data模块是一个包装器，磁盘上或内存片上的数据包装器，可�
 	pub type Fr32Vec = Vec<u8>;	
 	pub type Fr32Any = [u8;32];
 	
+> 想要理解Fr是什么，就需要了解有限域上的椭圆曲线基础知识。Fp是有限域，在这个基础上建立的椭圆曲线点点运算都是在这个域范围内。有限域上的椭圆曲线上有很多循环子群Fr，具有加法同态的性质。核心利用的就是离散对数问题：在循环子群上已知两点，却很难知道两点的标量。
+> 
+> 循环子裙是怎么来的？在有限域上的椭圆曲线中一个点标量乘法的结果，组成一个在加法操作下的循环子群。在子群中的点，所有的加法的结果都还在子群中。而且，存在一个点，幂次（加法操作）能生成子群中的所有点。这样的点，称为“生成元”。
+
+具体要了解更多椭圆曲线的基础知识可以参考这篇博客 [零知识证明 - 椭圆曲线基础](https://mp.weixin.qq.com/s?__biz=MzU5MzMxNTk2Nw==&mid=2247486862&idx=1&sn=38b326ce8d694617252e58ea3f0c3a3c&chksm=fe131c9ec96495888fe990458b5f164440a4ca386db93904ce30ce5096344d17083daab9030e&scene=21#wechat_redirect)
+	
 `Fr32`包含一个或多个32字节的chunks，其小端值表示的就是Frs。有两点需要注意，每个32字节的chunk一定表示有效的Frs，总长度必须是32的倍数。也就是说，单独使用的每个32字节chunk必须是有效的Fr32。
 
 - bytes_info_fr: 输入一个字节数组，如果其刚好是32字节，返回一个Fr，否则，返回一个`BadFrBytesError`。
@@ -291,6 +297,53 @@ zk-snark的验证者需要一个paired，能够支持加法和乘法的同态隐
 
 ##### proof
 
+`proof`是非常简单的，就一个`ProofScheme`的trait，然后就是`setup`，`prove`，`prove_all_partitions`，`verify`，`verify_all_partitions`几个方法。
+
+- setup:从初识设置参数中生成公共参数。
+- prove:生成证明。
+- prove_all_partitions:生成多份证明。
+- verify:验证。
+- verify_all_partitions:对所有证明进行验证。
+
+##### gadgets
+
+DRG电路设计是PoRep和PoST所需要的。这个模块就是如何搭建相应的电路。
+
+###### constrait
+
+实现了限制条件的集中运算的方法。
+
+- equal
+- sum
+- add
+- sub
+- difference
+
+###### encode
+
+- encode:encode就是模加操作。
+- decode:decode就是模减操作。
+
+###### insertion
+
+插入排列，在任意位置向序列中插入AllocatedNum。
+
+- insert
+- select
+- pick,根据输入condition判断真伪，返回输入a或者b，a和b都是AllocatedNum
+
+###### multipack
+
+- pack_bits:获取一个布尔值序列，并将它们暴露为单个紧凑Num。
+
+###### pedersen
+
+###### por
+
+###### variables
+
+###### xor
+	
 
 
 
