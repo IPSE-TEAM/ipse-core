@@ -26,19 +26,19 @@ const GENESIS_BASE_TARGET: u64 = 488671834567;
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MiningInfo<AccountId> {
-    miner: Option<AccountId>,
-    best_dl: u64,
-    mining_time: u64,
+    pub miner: Option<AccountId>,
+    pub best_dl: u64,
+    pub mining_time: u64,
     // the block height of mining success
-    block: u64,
+    pub block: u64,
 }
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Difficulty {
-    base_target: u64,
-    net_difficulty: u64,
+    pub base_target: u64,
+    pub net_difficulty: u64,
     // the block height of adjust difficulty
-    block: u64,
+    pub block: u64,
 }
 
 decl_storage! {
@@ -48,7 +48,7 @@ decl_storage! {
         // info of base_target and difficulty
         pub TargetInfo get(target_info): Vec<Difficulty>;
         // deadline info of mining success
-        DlInfo get(dl_info): Vec<MiningInfo<T::AccountId>>;
+        pub DlInfo get(dl_info): Vec<MiningInfo<T::AccountId>>;
     }
 }
 
@@ -136,7 +136,7 @@ decl_module! {
             let last_mining_block = last_mining_block_opt.unwrap();
             let last_adjust_block = Self::get_last_adjust_block();
 
-            if current_block - last_adjust_block == 10 {
+            if current_block - last_adjust_block >= 10 {
                 Self::adjust_difficulty(current_block);
             }
 
