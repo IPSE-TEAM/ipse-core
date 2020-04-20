@@ -66,27 +66,37 @@ decl_module! {
         fn deposit_event() = default;
 
         #[weight = SimpleDispatchInfo::FixedNormal(1000)]
-        fn verify_deadline(origin, account_id: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
+        fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
-            let height = <system::Module<T>>::block_number().saturated_into::<u64>();
             let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
             Self::deposit_event(RawEvent::VerifyDeadline(miner, is_ok));
             Ok(())
         }
 
 		#[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-        fn mining(origin, account_id: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
+        fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
-
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
+
+            // illegal block height
+            if height > current_block {
+                return Ok(())
+            }
+
             let dl = Self::dl_info();
             if let Some(dl_info) = dl.iter().last() {
                 let block = dl_info.clone().block;
-                let best_dl = dl_info.best_dl;
-                if best_dl <= deadline && current_block/3 == block/3{
+
+                // the verifying expired
+                if height/3 - block/3 > 1 {
                     return Ok(())
                 }
-                let verify_ok = Self::verify_dl(account_id, current_block, sig, nonce, deadline);
+
+                let best_dl = dl_info.best_dl;
+                if best_dl <= deadline && current_block/3 == block/3 {
+                    return Ok(())
+                }
+                let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
                 if verify_ok {
                     // delete the old deadline in this mining cycle
                     if current_block/3 == block/3 {
