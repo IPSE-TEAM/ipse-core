@@ -61,7 +61,7 @@ pub use pallet_contracts::Gas;
 pub use frame_support::StorageValue;
 pub use pallet_staking::StakerStatus;
 
-mod poc;
+pub mod poc;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
