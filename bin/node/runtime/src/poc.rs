@@ -86,40 +86,41 @@ decl_module! {
             }
 
             let dl = Self::dl_info();
-            if let Some(dl_info) = dl.iter().last() {
-                let block = dl_info.clone().block;
+            let (block, best_dl) = if let Some(dl_info) = dl.iter().last() {
+                (dl_info.clone().block, dl_info.best_dl)
+            } else {
+                (0, core::u64::MAX)
+            }
 
-                // the verifying expired
-                if height/3 - block/3 > 1 {
-                    return Ok(())
+            // the verifying expired
+            if height/3 - block/3 > 1 {
+                return Ok(())
+            }
+            // Someone(miner) has mined a better deadline at this mining cycle before.
+            if best_dl <= deadline && current_block/3 == block/3 {
+                return Ok(())
+            }
+            verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+            if verify_ok {
+                // delete the old deadline in this mining cycle
+                if current_block/3 == block/3 {
+                    DlInfo::<T>::mutate(|dl| dl.pop());
                 }
 
-                // Someone(miner) has mined a better deadline at this mining cycle.
-                let best_dl = dl_info.best_dl;
-                if best_dl <= deadline && current_block/3 == block/3 {
-                    return Ok(())
-                }
-                verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
-                debug::info!("verify result: {}", verify_ok);
-                if verify_ok {
-                    // delete the old deadline in this mining cycle
-                    if current_block/3 == block/3 {
-                        DlInfo::<T>::mutate(|dl| dl.pop());
-                    }
-
-                    // insert a better deadline
-                    let now = Self::get_now_ts();
-                    let mining_time = now - Self::lts();
-                    DlInfo::<T>::mutate(|dl| dl.push(
-                        MiningInfo{
-                            miner: Some(miner.clone()),
-                            best_dl: deadline,
-                            block: current_block,
-                            mining_time
-                        }));
-                    LastMiningTs::mutate(|ts| *ts = now );
-                };
+                // insert a better deadline
+                let now = Self::get_now_ts();
+                let mining_time = now - Self::lts();
+                DlInfo::<T>::mutate(|dl| dl.push(
+                    MiningInfo{
+                        miner: Some(miner.clone()),
+                        best_dl: deadline,
+                        block: current_block,
+                        mining_time
+                    }));
+                LastMiningTs::mutate(|ts| *ts = now );
             };
+
+            debug::info!("verify result: {}", verify_ok);
             Self::deposit_event(RawEvent::VerifyDeadline(miner, verify_ok));
 
             Ok(())
@@ -209,7 +210,7 @@ impl<T: Trait> Module<T> {
         if let Some(dl) = dl.iter().last() {
             Some(dl.block)
         } else {
-            None
+            Some(0)
         }
     }
 
