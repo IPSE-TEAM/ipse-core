@@ -78,7 +78,6 @@ decl_module! {
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
 
             debug::info!("starting Verify Deadline !!!");
-            let mut verify_ok = false;
 
             // illegal block height
             if height > current_block {
@@ -100,7 +99,7 @@ decl_module! {
             if best_dl <= deadline && current_block/3 == block/3 {
                 return Ok(())
             }
-            verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+            let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
             if verify_ok {
                 // delete the old deadline in this mining cycle
                 if current_block/3 == block/3 {
