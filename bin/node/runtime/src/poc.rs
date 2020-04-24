@@ -6,7 +6,7 @@ extern crate pallet_timestamp as timestamp;
 use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
-    dispatch::DispatchResult,
+    dispatch::DispatchResult, debug,
     weights::{SimpleDispatchInfo},
 };
 use system::{ensure_signed};
@@ -14,7 +14,6 @@ use sp_runtime::traits::SaturatedConversion;
 use sp_std::vec::Vec;
 use sp_std::vec;
 use sp_std::convert::TryInto;
-use log::info;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
 
@@ -100,7 +99,7 @@ decl_module! {
                     return Ok(())
                 }
                 verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
-                info!("verify result: {}", verify_ok);
+                debug::info!("verify result: {}", verify_ok);
                 if verify_ok {
                     // delete the old deadline in this mining cycle
                     if current_block/3 == block/3 {
@@ -162,11 +161,11 @@ decl_module! {
                         mining_time: 18000,
                         block: current_block,
                     }));
-                info!("reward treasury on block {}", current_block);
+                debug::info!("reward treasury on block {}", current_block);
             }
 
             if current_block - last_mining_block < 3 && current_block - last_mining_block/3 == 3 {
-                info!("reward miner on block {}", current_block);
+                debug::info!("reward miner on block {}", current_block);
             }
         }
 
@@ -176,7 +175,7 @@ decl_module! {
 impl<T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
-        info!("adjust base_target and net_difficulty on block {}", block);
+        debug::info!("adjust base_target and net_difficulty on block {}", block);
         let base_target_avg = Self::get_base_target_avg();
         let mining_time_avg = Self::get_mining_time_avg();
         if mining_time_avg >= 18000 {
@@ -255,18 +254,18 @@ impl<T: Trait> Module<T> {
 
     fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> bool {
         let scoop_data = calculate_scoop(height, &sig) as u64;
-        info!("scoop_data: {:?}",scoop_data);
-        info!("sig: {:?}",sig);
+        debug::info!("scoop_data: {:?}",scoop_data);
+        debug::info!("sig: {:?}",sig);
 
         let mut cache = vec![0_u8; 262144];
         noncegen_rust(&mut cache[..], account_id, nonce, 1);
         let mirror_scoop_data = Self::gen_mirror_scoop_data(scoop_data, cache);
 
         let (target, _) = find_best_deadline_rust(mirror_scoop_data.as_ref(), 1, &sig);
-        info!("target: {:?}",target);
+        debug::info!("target: {:?}",target);
         let base_target = Self::get_current_base_target();
         let deadline_ = target/base_target;
-        info!("deadline: {:?}",deadline_);
+        debug::info!("deadline: {:?}",deadline_);
         deadline == target/base_target
     }
 
