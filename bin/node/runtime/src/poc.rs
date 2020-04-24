@@ -90,7 +90,7 @@ decl_module! {
                 (dl_info.clone().block, dl_info.best_dl)
             } else {
                 (0, core::u64::MAX)
-            }
+            };
 
             // the verifying expired
             if height/3 - block/3 > 1 {
