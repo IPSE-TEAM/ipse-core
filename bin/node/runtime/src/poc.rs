@@ -77,6 +77,7 @@ decl_module! {
             let miner = ensure_signed(origin)?;
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
 
+            debug::info!("starting Verify Deadline !!!");
             let mut verify_ok = false;
 
             // illegal block height
