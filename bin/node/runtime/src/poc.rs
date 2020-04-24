@@ -92,11 +92,13 @@ decl_module! {
                     return Ok(())
                 }
 
+                // Someone(miner) has mined a better deadline at this mining cycle.
                 let best_dl = dl_info.best_dl;
                 if best_dl <= deadline && current_block/3 == block/3 {
                     return Ok(())
                 }
                 let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+                info!("verify result: {}", verify_ok);
                 if verify_ok {
                     // delete the old deadline in this mining cycle
                     if current_block/3 == block/3 {
