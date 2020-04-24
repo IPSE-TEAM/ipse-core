@@ -78,6 +78,8 @@ decl_module! {
             let miner = ensure_signed(origin)?;
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
 
+            let mut verify_ok = false;
+
             // illegal block height
             if height > current_block {
                 return Ok(())
@@ -97,7 +99,7 @@ decl_module! {
                 if best_dl <= deadline && current_block/3 == block/3 {
                     return Ok(())
                 }
-                let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+                verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
                 info!("verify result: {}", verify_ok);
                 if verify_ok {
                     // delete the old deadline in this mining cycle
@@ -117,8 +119,8 @@ decl_module! {
                         }));
                     LastMiningTs::mutate(|ts| *ts = now );
                 };
-                Self::deposit_event(RawEvent::VerifyDeadline(miner, verify_ok));
             };
+            Self::deposit_event(RawEvent::VerifyDeadline(miner, verify_ok));
 
             Ok(())
         }
