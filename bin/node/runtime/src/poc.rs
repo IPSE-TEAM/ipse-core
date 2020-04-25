@@ -101,6 +101,8 @@ decl_module! {
             }
             // Someone(miner) has mined a better deadline at this mining cycle before.
             if best_dl <= deadline && current_block/3 == block/3 {
+                debug::info!("Some miner has mined a better deadline at this cycle.  height = {} !", height);
+                Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
                 return Ok(())
             }
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
@@ -139,7 +141,7 @@ decl_module! {
                     Difficulty{
                         base_target: GENESIS_BASE_TARGET,
                         net_difficulty: 1,
-                        block: 1,
+                        block: 0,
                     }));
             }
         }
