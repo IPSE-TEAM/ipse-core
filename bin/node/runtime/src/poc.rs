@@ -152,6 +152,8 @@ decl_module! {
             let last_mining_block = Self::get_last_mining_block();
             let last_adjust_block = Self::get_last_adjust_block();
 
+            debug::info!("current-block = {}, last-mining-block = {}, last-adjust-block = {} ", current_block, last_mining_block, last_adjust_block);
+
             if current_block - last_adjust_block >= 10 {
                 Self::adjust_difficulty(current_block);
             }
