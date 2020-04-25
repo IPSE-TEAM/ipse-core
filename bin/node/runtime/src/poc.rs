@@ -25,6 +25,7 @@ const GENESIS_BASE_TARGET: u64 = 488671834567;
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MiningInfo<AccountId> {
+    // when miner is None, it means Treasury
     pub miner: Option<AccountId>,
     pub best_dl: u64,
     pub mining_time: u64,
@@ -150,27 +151,26 @@ decl_module! {
         fn on_finalize(n: T::BlockNumber) {
             let current_block = n.saturated_into::<u64>();
             let last_mining_block = Self::get_last_mining_block();
-            let last_adjust_block = Self::get_last_adjust_block();
 
-            debug::info!("current-block = {}, last-mining-block = {}, last-adjust-block = {} ", current_block, last_mining_block, last_adjust_block);
+            debug::info!("current-block = {}, last-mining-block = {}", current_block, last_mining_block);
 
-            if current_block - last_adjust_block >= 10 {
+            if current_block%10 == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
-            if current_block - last_mining_block == 3 {
-                <DlInfo<T>>::mutate(|dl| dl.push(
-                    MiningInfo{
-                        miner: None,
-                        best_dl: 0,
-                        mining_time: 18000,
-                        block: current_block,
-                    }));
-                debug::info!("reward treasury on block {}", current_block);
-            }
-
-            if current_block - last_mining_block < 3 && current_block - last_mining_block/3 == 3 {
-                debug::info!("reward miner on block {}", current_block);
+            if current_block%3 == 0 {
+                if current_block/3 - last_mining_block/3 <= 1 {
+                    debug::info!("<<REWARD>> miner on block {}", current_block);
+                } else {
+                    <DlInfo<T>>::mutate(|dl| dl.push(
+                        MiningInfo{
+                            miner: None,
+                            best_dl: 0,
+                            mining_time: 18000,
+                            block: current_block,
+                        }));
+                    debug::info!("<<REWARD>> treasury on block {}", current_block);
+                }
             }
         }
 
@@ -180,11 +180,13 @@ decl_module! {
 impl<T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
-        debug::info!("adjust base_target and net_difficulty on block {}", block);
+        debug::info!("[ADJUST] difficulty on block {}", block);
         let base_target_avg = Self::get_base_target_avg();
         let mining_time_avg = Self::get_mining_time_avg();
+        debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
         if mining_time_avg >= 18000 {
             let new = base_target_avg * 2;
+            debug::info!("[DIFFICULTY] make easier = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
                     block,
@@ -194,6 +196,7 @@ impl<T: Trait> Module<T> {
         }
         if mining_time_avg <= 4000 {
             let new = base_target_avg / 2;
+            debug::info!("[DIFFICULTY] make more difficult = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
                     block,
