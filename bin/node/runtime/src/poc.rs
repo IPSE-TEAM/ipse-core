@@ -143,11 +143,7 @@ decl_module! {
         #[weight = SimpleDispatchInfo::FixedNormal(2000)]
         fn on_finalize(n: T::BlockNumber) {
             let current_block = n.saturated_into::<u64>();
-            let last_mining_block_opt = Self::get_last_mining_block();
-            if last_mining_block_opt.is_none() {
-                return
-            }
-            let last_mining_block = last_mining_block_opt.unwrap();
+            let last_mining_block = Self::get_last_mining_block();
             let last_adjust_block = Self::get_last_adjust_block();
 
             if current_block - last_adjust_block >= 10 {
@@ -204,18 +200,22 @@ impl<T: Trait> Module<T> {
         ti.iter().last().unwrap().base_target
     }
 
-    fn get_last_mining_block() -> Option<u64> {
+    fn get_last_mining_block() -> u64 {
         let dl = Self::dl_info();
         if let Some(dl) = dl.iter().last() {
-            Some(dl.block)
+            dl.block
         } else {
-            Some(0)
+            0
         }
     }
 
     fn get_last_adjust_block() -> u64 {
-        let ti = Self::target_info();
-        ti.iter().last().unwrap().block
+        let tis = Self::target_info();
+        if let Some(ti) = tis.iter().last() {
+            ti.block
+        } else {
+            0
+        }
     }
 
     fn get_now_ts() -> u64 {
