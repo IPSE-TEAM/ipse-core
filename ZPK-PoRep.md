@@ -71,6 +71,8 @@ PoRep就是Proof of Replicate，数据存储证明。
 
 首先是对原始存储数据进行密封，密封完后会有一个Replica_ID。数据的复制逻辑是比较复杂的，可以采用Stacked-DRG的方式组织，直观理解就是将Sector中未seal的原始数据依次切成一个个小数据node，比如每个小数据32个字节，这些小的数据按照DRG（Depth Robust Graph）建立连接关系。按照每个小数据的依赖关系，通过VDE（Verifiable Delay Encode）函数，计算出下一层的所有小数据。PoRep的计算过程是有好几层。
 
+矿工作为证明者，需要将原始数据编码成复制数据，并且需要对这个复制数据进行承诺，PoRep对这个承诺提供一个证明。
+
 Sector处理，理解为precommit阶段，把原始数据用sha256构造默克尔树tree_d，树根为comm_d。
 
 原始数据，每32字节，称为一个Node，每32M分为一个Window，128M的Sector就会有4个Window，每个Window按照Stacked DRG算法，生成2个layer的数据，从上一个layer，通过Encode计算生成下一个layer的数据，Encode计算可以采用简单模加操作。具体也是超级简单，将Window的编号和Stacked DRG的节点关系通过sha256算法，生成“key”，然后用来和原始数据模加操作Encode计算得出结果。
