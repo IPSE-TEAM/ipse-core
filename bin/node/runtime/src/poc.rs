@@ -81,6 +81,8 @@ decl_module! {
 
             // illegal block height
             if height > current_block {
+                debug::info!("illegal height = {} !", height);
+                Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
                 return Ok(())
             }
 
@@ -93,6 +95,8 @@ decl_module! {
 
             // the verifying expired
             if height/3 - block/3 > 1 {
+                debug::info!("verifying expired height = {} !", height);
+                Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
                 return Ok(())
             }
             // Someone(miner) has mined a better deadline at this mining cycle before.
@@ -128,14 +132,14 @@ decl_module! {
         #[weight = SimpleDispatchInfo::FixedNormal(1000)]
         fn on_initialize(n: T::BlockNumber) {
             let n = n.saturated_into::<u64>();
-            if n == 0 {
+            if n == 1 {
                let now = Self::get_now_ts();
                LastMiningTs::put(now);
                TargetInfo::mutate(|target| target.push(
                     Difficulty{
                         base_target: GENESIS_BASE_TARGET,
                         net_difficulty: 1,
-                        block: 0,
+                        block: 1,
                     }));
             }
         }
@@ -235,7 +239,7 @@ impl<T: Trait> Module<T> {
             total += target.base_target;
             count += 1;
         }
-        total/count
+        if count == 0 { GENESIS_BASE_TARGET } else { total/count }
     }
 
     fn get_mining_time_avg() -> u64 {
@@ -250,7 +254,7 @@ impl<T: Trait> Module<T> {
             total += dl.mining_time;
             count += 1;
         }
-        total/count
+        if count == 0 { 18000 } else { total/count }
     }
 
     fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> bool {
