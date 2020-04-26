@@ -13,7 +13,6 @@ use system::{ensure_signed};
 use sp_runtime::traits::SaturatedConversion;
 use sp_std::vec::Vec;
 use sp_std::vec;
-use sp_std::convert::TryInto;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
 use crate::constants::time::MILLISECS_PER_BLOCK;
