@@ -369,6 +369,8 @@ impl Circuit for PoRCircuit
 ###### variables
 
 ###### xor
+
+异或运算。
 	
 ##### compound_proof
 
