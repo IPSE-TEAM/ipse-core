@@ -16,12 +16,13 @@ use sp_std::vec;
 use sp_std::convert::TryInto;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
+use crate::constants::time::MILLISECS_PER_BLOCK;
 
 pub trait Trait: system::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
-const GENESIS_BASE_TARGET: u64 = 488671834567;
+pub const GENESIS_BASE_TARGET: u64 = 488671834567;
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MiningInfo<AccountId> {
@@ -102,7 +103,7 @@ decl_module! {
             }
             // Someone(miner) has mined a better deadline at this mining cycle before.
             if best_dl <= deadline && current_block/3 == block/3 {
-                debug::info!("Some miner has mined a better deadline at this cycle.  height = {} !", height);
+                debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
                 Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
                 return Ok(())
             }
@@ -113,8 +114,8 @@ decl_module! {
                     DlInfo::<T>::mutate(|dl| dl.pop());
                 }
 
-                // insert a better deadline
-                let now = Self::get_now_ts();
+                // append a better deadline
+                let now = Self::get_now_ts(current_block);
                 let mining_time = now - Self::lts();
                 DlInfo::<T>::mutate(|dl| dl.push(
                     MiningInfo{
@@ -123,7 +124,7 @@ decl_module! {
                         block: current_block,
                         mining_time
                     }));
-                LastMiningTs::mutate(|ts| *ts = now );
+                LastMiningTs::mutate( |ts| *ts = now );
             };
 
             debug::info!("verify result: {}", verify_ok);
@@ -136,8 +137,7 @@ decl_module! {
         fn on_initialize(n: T::BlockNumber) {
             let n = n.saturated_into::<u64>();
             if n == 1 {
-               let now = Self::get_now_ts();
-               LastMiningTs::put(now);
+               LastMiningTs::put(0);
                TargetInfo::mutate(|target| target.push(
                     Difficulty{
                         base_target: GENESIS_BASE_TARGET,
@@ -229,9 +229,10 @@ impl<T: Trait> Module<T> {
         }
     }
 
-    fn get_now_ts() -> u64 {
-        let now = <timestamp::Module<T>>::get();
-        <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
+    fn get_now_ts(block_num: u64) -> u64 {
+        //let now = <timestamp::Module<T>>::get();
+        //<T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
+        block_num * MILLISECS_PER_BLOCK
     }
 
     fn get_base_target_avg() -> u64 {
