@@ -63,6 +63,8 @@ pub use pallet_staking::StakerStatus;
 
 pub mod poc;
 
+pub mod ipse;
+
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
 use impls::{CurrencyToVoteHandler, Author, LinearWeightToFee, TargetedFeeAdjustment};
@@ -627,6 +629,10 @@ impl poc::Trait for Runtime {
 	type Event = Event;
 }
 
+impl ipse::Trait for Runtime {
+	type Event = Event;
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -662,6 +668,7 @@ construct_runtime!(
 		Recovery: pallet_recovery::{Module, Call, Storage, Event<T>},
 		Vesting: pallet_vesting::{Module, Call, Storage, Event<T>, Config<T>},
 		PoC: poc::{Module, Call, Storage, Event<T>},
+		Ipse: ipse::{Module, Call, Storage, Event<T>},
 	}
 );
 
