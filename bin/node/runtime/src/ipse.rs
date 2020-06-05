@@ -13,12 +13,11 @@ use sp_runtime::traits::SaturatedConversion;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use system::ensure_signed;
+use core::u64;
 
 pub const KB: u64 =  1024;
 /// Miner locks some funds per KB for staking.
 pub const STAKING_PER_KB: BalanceOf<dyn Trait> = 1000;
-/// Lock some funds of user.
-pub const USER_LOCK: [u8; 8] = *b"user    ";
 /// Lock some funds of miner.
 pub const MINER_LOCK: [u8; 8] = *b"miner   ";
 
@@ -37,6 +36,7 @@ pub struct Miner<Balance> {
     pub region: Vec<u8>,
     // the miner's url
     pub url: Vec<u8>,
+    // capacity of data miner can store
     pub capacity: u64,
     // price per KB
     pub unit_price: Balance,
@@ -97,7 +97,12 @@ decl_module! {
             let miner = ensure_signed(origin)?;
             let total_staking = capacity * STAKING_PER_KB / KB;
             // lock for staking
-
+            T::Currency::set_lock(
+                MINER_LOCK,
+                &miner,
+                total_staking,
+                WithdrawReasons::all()
+            );
             Miners::<T>::insert(&miner, Miner {
                 nickname,
                 region,
@@ -136,7 +141,7 @@ decl_module! {
         }
 
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-        fn confirm_order(origin, order_id: usize) {
+        fn confirm_order(origin, order_id: u64) {
             let miner = ensure_signed(origin)?;
             Orders::<T>::try_mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
@@ -144,7 +149,7 @@ decl_module! {
                 miner_order.confirm_ts = Self::get_now_ts();
                 // lock some user's balance
                 T::Currency::set_lock(
-                    USER_LOCK,
+                    Self::order_id_to_lock_id(order_id),
                     &order.user,
                     miner_order.total_price,
                     WithdrawReasons::all()
@@ -154,7 +159,7 @@ decl_module! {
         }
 
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-        fn delete(origin, order_id: usize) {
+        fn delete(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
             Orders::<T>::try_mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
@@ -163,7 +168,7 @@ decl_module! {
                 order.status = OrderStatus::Deleted;
                 order.update_ts = Self::get_now_ts();
                 // unlock some user's balance
-                T::Currency::remove_lock(USER_LOCK, &order.user);
+                T::Currency::remove_lock(Self::order_id_to_lock_id(order_id), &order.user);
                 OK(())
             })?;
         }
@@ -173,7 +178,7 @@ decl_module! {
             let miner = ensure_signed(origin)?;
 
 
-            Self::deposit_event(RawEvent::VerifyStorage(miner, false));
+            Self::deposit_event(RawEvent::VerifyStorage(miner, true));
         }
 
         fn on_finalize(n: T::BlockNumber) {
@@ -199,6 +204,14 @@ impl<T: Trait> Module<T> {
             }
         }
         return None;
+    }
+
+    fn lock_id_to_order_id(lock_id: [u8; 8]) -> u64 {
+        u64::from_be_bytes(lock_id)
+    }
+
+    fn order_id_to_lock_id(order_id: u64) -> [u8; 8] {
+        order_id.to_be_bytes()
     }
 }
 
