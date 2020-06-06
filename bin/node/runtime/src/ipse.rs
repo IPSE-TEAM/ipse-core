@@ -14,12 +14,14 @@ use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use system::ensure_signed;
 use core::u64;
+use crate::constants::time::DAYS;
 
 pub const KB: u64 =  1024;
 /// Miner locks some funds per KB for staking.
 pub const STAKING_PER_KB: BalanceOf<dyn Trait> = 1000;
+/// WARNING: Possiblely MINER_LOCK is the same as order_id
 /// Lock some funds of miner.
-pub const MINER_LOCK: [u8; 8] = *b"miner   ";
+pub const MINER_LOCK: [u8; 8] = order_id_to_lock_id(u64::MAX);
 
 pub type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -38,8 +40,10 @@ pub struct Miner<Balance> {
     pub url: Vec<u8>,
     // capacity of data miner can store
     pub capacity: u64,
-    // price per KB
+    // price per KB every day
     pub unit_price: Balance,
+    // number of violations
+    pub violation_num: u64,
 }
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
@@ -109,16 +113,17 @@ decl_module! {
                 url,
                 capacity,
                 unit_price,
+                violation_num: 0,
             });
         }
 
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-        fn create_order(origin, key: Vec<u8>, merkle_root: Vec<u8>, data_length: u64, miners: Vec<T::AccountId>, duration: u64) {
+        fn create_order(origin, key: Vec<u8>, merkle_root: Vec<u8>, data_length: u64, miners: Vec<T::AccountId>, days: u64) {
             let user = ensure_signed(origin)?;
             let mut miner_orders = Vec::new();
             for m in miners {
                 let miner = Self::miner(&m).ok_or(Error::<T>::MinerNotFound)?;
-                let total_price = miner.unit_price * data_length / KB;
+                let total_price = miner.unit_price * data_length * days / KB ;
                 let miner_order = MinerOrder {
                     miner,
                     total_price,
@@ -136,20 +141,21 @@ decl_module! {
                 orders: miner_orders,
                 status: OrderStatus::Created,
                 update_ts: Self::get_now_ts(),
-                duration,
+                duration: days * DAYS,
             ));
         }
 
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-        fn confirm_order(origin, order_id: u64) {
+        fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
             Orders::<T>::try_mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
                 let mut miner_order = Self::find_miner_order(miner, order.orders).ok_or(Error::<T>::MinerOrderNotFound)?;
                 miner_order.confirm_ts = Self::get_now_ts();
+                miner_order.url = Some(url);
                 // lock some user's balance
                 T::Currency::set_lock(
-                    Self::order_id_to_lock_id(order_id),
+                    order_id_to_lock_id(order_id),
                     &order.user,
                     miner_order.total_price,
                     WithdrawReasons::all()
@@ -168,7 +174,7 @@ decl_module! {
                 order.status = OrderStatus::Deleted;
                 order.update_ts = Self::get_now_ts();
                 // unlock some user's balance
-                T::Currency::remove_lock(Self::order_id_to_lock_id(order_id), &order.user);
+                T::Currency::remove_lock(order_id_to_lock_id(order_id), &order.user);
                 OK(())
             })?;
         }
@@ -176,13 +182,36 @@ decl_module! {
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn verify_storage(origin) {
             let miner = ensure_signed(origin)?;
-
+            // todo: zk verify
 
             Self::deposit_event(RawEvent::VerifyStorage(miner, true));
         }
 
         fn on_finalize(n: T::BlockNumber) {
-            // check zk verify result
+            let n = n.saturated_into::<u64>();
+            // Check verifying result per 20 blocks,
+            // 20 blocks just 1 minute.
+            if n%20 != 0 { return }
+            let now = Self::get_now_ts();
+            let orders = Self::order();
+            for order in orders {
+                if &order.status == &OrderStatus::Created {
+                    let create_ts = order.update_ts;
+                    for mo in order.orders {
+                        if now > mo.duration + create_ts {
+                            order.status = OrderStatus::Expired
+                        } else {
+                            if now - mo.verify_ts < DAYS && mo.verify_result {
+                                // todo: verify result is ok, transfer one day's funds to miner
+                                Self::deposit_event(RawEvent::VerifyStorage(miner, true));
+                            } else {
+                                // todo: verify result expired or no verifying, punish miner
+                                Self::deposit_event(RawEvent::VerifyStorage(miner, false));
+                            }
+                        }
+                    }
+                }
+            }
         }
 
     }
@@ -206,13 +235,21 @@ impl<T: Trait> Module<T> {
         return None;
     }
 
-    fn lock_id_to_order_id(lock_id: [u8; 8]) -> u64 {
-        u64::from_be_bytes(lock_id)
+    fn transfer(user: T::AccountId, miner: T::AccountId) {
+
     }
 
-    fn order_id_to_lock_id(order_id: u64) -> [u8; 8] {
-        order_id.to_be_bytes()
+    fn punish(miner: T::AccountId) {
+
     }
+}
+
+fn lock_id_to_order_id(lock_id: [u8; 8]) -> u64 {
+    u64::from_be_bytes(lock_id)
+}
+
+fn order_id_to_lock_id(order_id: u64) -> [u8; 8] {
+    order_id.to_be_bytes()
 }
 
 decl_event! {
