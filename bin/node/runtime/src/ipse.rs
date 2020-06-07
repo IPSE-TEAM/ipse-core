@@ -4,7 +4,7 @@ extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 
 use codec::{Decode, Encode};
-use frame_support::traits::{Currency, LockableCurrency, WithdrawReasons};
+use frame_support::traits::{Currency, WithdrawReasons, ReservableCurrency};
 use frame_support::{
     debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
     weights::SimpleDispatchInfo,
@@ -13,22 +13,17 @@ use sp_runtime::traits::SaturatedConversion;
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
 use system::ensure_signed;
-use core::u64;
+use core::{u64, u128};
 use crate::constants::time::DAYS;
 
 pub const KB: u64 =  1024;
-/// Miner locks some funds per KB for staking.
-pub const STAKING_PER_KB: BalanceOf<dyn Trait> = 1000;
-/// WARNING: Possiblely MINER_LOCK is the same as order_id
-/// Lock some funds of miner.
-pub const MINER_LOCK: [u8; 8] = order_id_to_lock_id(u64::MAX);
 
 pub type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 pub trait Trait: system::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
-    type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>;
+    type Currency: ReservableCurrency<Self::AccountId>;
 }
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
@@ -96,17 +91,15 @@ decl_module! {
 
         fn deposit_event() = default;
 
+        const STAKING_PER_KB: BalanceOf<T> = 1000;
+
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn register_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
             let miner = ensure_signed(origin)?;
-            let total_staking = capacity * STAKING_PER_KB / KB;
+            let total_staking = capacity * Self::STAKING_PER_KB / KB;
+            ensure!(T::Currency::can_reserve(&miner, total_staking), Error::<T>::CannotStake);
             // lock for staking
-            T::Currency::set_lock(
-                MINER_LOCK,
-                &miner,
-                total_staking,
-                WithdrawReasons::all()
-            );
+            T::Currency::reserve(&miner,total_staking)?;
             Miners::<T>::insert(&miner, Miner {
                 nickname,
                 region,
@@ -154,12 +147,7 @@ decl_module! {
                 miner_order.confirm_ts = Self::get_now_ts();
                 miner_order.url = Some(url);
                 // lock some user's balance
-                T::Currency::set_lock(
-                    order_id_to_lock_id(order_id),
-                    &order.user,
-                    miner_order.total_price,
-                    WithdrawReasons::all()
-                );
+                T::Currency::reserve(&order.user,miner_order.total_price)?;
                 Ok(())
             })?;
         }
@@ -174,7 +162,15 @@ decl_module! {
                 order.status = OrderStatus::Deleted;
                 order.update_ts = Self::get_now_ts();
                 // unlock some user's balance
-                T::Currency::remove_lock(order_id_to_lock_id(order_id), &order.user);
+                let now = Self::get_now_ts();
+                let days = order.duration/DAYS;
+                let days_to_deadline = (order.duration + order.update_ts - now)/DAYS;
+                let mut refund = 0;
+                for mo in order.orders {
+                    refund += mo.total_price;
+                }
+                refund = refund * days_to_deadline/days;
+                T::Currency::unreserve(&order.user, refund);
                 OK(())
             })?;
         }
@@ -205,7 +201,8 @@ decl_module! {
                                 // todo: verify result is ok, transfer one day's funds to miner
                                 Self::deposit_event(RawEvent::VerifyStorage(miner, true));
                             } else {
-                                // todo: verify result expired or no verifying, punish miner
+                                // verify result expired or no verifying, punish miner
+                                Self::punish(&miner);
                                 Self::deposit_event(RawEvent::VerifyStorage(miner, false));
                             }
                         }
@@ -239,17 +236,9 @@ impl<T: Trait> Module<T> {
 
     }
 
-    fn punish(miner: T::AccountId) {
+    fn punish(miner: &T::AccountId) {
 
     }
-}
-
-fn lock_id_to_order_id(lock_id: [u8; 8]) -> u64 {
-    u64::from_be_bytes(lock_id)
-}
-
-fn order_id_to_lock_id(order_id: u64) -> [u8; 8] {
-    order_id.to_be_bytes()
 }
 
 decl_event! {
@@ -274,5 +263,7 @@ decl_error! {
         OrderDeleted,
         /// Order is already expired.
         OrderExpired,
+        /// Balance is not enough to stake.
+        CannotStake,
     }
 }
