@@ -158,16 +158,27 @@ decl_module! {
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
-            // todo: must check if violation times of miner is more than MAX_VIOLATION_TIMES
+            // must check total staking, if is zero, cannot confirm order.
             let miner_info = Self::miner(&m).ok_or(Error::<T>::MinerNotFound)?;
             ensure!(miner_info.total_staking > 0, Error::<T>::NoneStaking);
+
+            let now = Self::get_now_ts();
             Orders::<T>::try_mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
+                if order.status == OrderStatus::Deleted {
+                    return Error::<T>::OrderDeleted
+                }
+                if order.status == OrderStatus::Expired {
+                    return Error::<T>::OrderExpired
+                }
                 let mut miner_order = Self::find_miner_order(miner, order.orders).ok_or(Error::<T>::MinerOrderNotFound)?;
-                miner_order.confirm_ts = Self::get_now_ts();
+                miner_order.confirm_ts = now;
                 miner_order.url = Some(url);
-                // todo: update order's status and update_ts
-
+                // update order's status and update_ts
+                if order.status == OrderStatus::Created {
+                    order.status = OrderStatus::Confirmed;
+                    order.update_ts = now;
+                }
                 // reserve some user's funds for the order
                 T::Currency::reserve(&order.user, miner_order.total_price)?;
                 Ok(())
@@ -185,10 +196,10 @@ decl_module! {
                 if order.status == OrderStatus::Expired {
                     return Error::<T>::OrderExpired
                 }
-                order.status = OrderStatus::Deleted;
-                order.update_ts = Self::get_now_ts();
-                // unlock some user's balance
                 let now = Self::get_now_ts();
+                order.status = OrderStatus::Deleted;
+                order.update_ts = now;
+                // unreserve some user's funds
                 let days_to_deadline = (order.duration + order.update_ts - now)/DAYS;
                 let mut refund = 0;
                 for mo in order.orders {
@@ -261,7 +272,7 @@ impl<T: Trait> Module<T> {
 
     fn find_miner_order(
         miner: T::AccountId,
-        os: Vec<MinerOrder<T::AccountId, BalanceOf<T>>>,
+        os: Vec<MinerOrder<T::AccountId, BalanceOf<T>>>
     ) -> Option<MinerOrder<T::AccountId, BalanceOf<T>>> {
         for o in os {
             if o.miner == miner {
