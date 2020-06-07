@@ -66,6 +66,9 @@ pub struct Order<AccountId, Balance> {
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MinerOrder<AccountId, Balance> {
     pub miner: AccountId,
+    // one day price = unit_price * data_length
+    pub day_price: Balance,
+    // total_price = day_price * days
     pub total_price: Balance,
     // last verify result
     pub verify_result: bool,
@@ -80,8 +83,8 @@ pub struct MinerOrder<AccountId, Balance> {
 #[derive(Encode, Decode, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OrderStatus {
     Created,
-    // Once one miner confirm,
-    // this order is confirmed.
+    // Once one miner confirms it,
+    // this order becomes confirmed.
     Confirmed,
     Expired,
     Deleted,
@@ -127,9 +130,11 @@ decl_module! {
             let mut miner_orders = Vec::new();
             for m in miners {
                 let miner = Self::miner(&m).ok_or(Error::<T>::MinerNotFound)?;
-                let total_price = miner.unit_price * data_length * days / KB ;
+                let day_price = miner.unit_price * data_length / KB;
+                let total_price = day_price * days;
                 let miner_order = MinerOrder {
                     miner,
+                    day_price,
                     total_price,
                     verify_result: false,
                     verify_ts: 0,
@@ -154,12 +159,15 @@ decl_module! {
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
             // todo: must check if violation times of miner is more than MAX_VIOLATION_TIMES
-
+            let miner_info = Self::miner(&m).ok_or(Error::<T>::MinerNotFound)?;
+            ensure!(miner_info.total_staking > 0, Error::<T>::NoneStaking);
             Orders::<T>::try_mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
                 let mut miner_order = Self::find_miner_order(miner, order.orders).ok_or(Error::<T>::MinerOrderNotFound)?;
                 miner_order.confirm_ts = Self::get_now_ts();
                 miner_order.url = Some(url);
+                // todo: update order's status and update_ts
+
                 // reserve some user's funds for the order
                 T::Currency::reserve(&order.user, miner_order.total_price)?;
                 Ok(())
@@ -171,19 +179,22 @@ decl_module! {
             let user = ensure_signed(origin)?;
             Orders::<T>::try_mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
-                ensure!(&order.status == &OrderStatus::Deleted, Error::<T>::OrderDeleted);
-                ensure!(&order.status == &OrderStatus::Expired, Error::<T>::OrderExpired);
+                if order.status == OrderStatus::Deleted {
+                    return Error::<T>::OrderDeleted
+                }
+                if order.status == OrderStatus::Expired {
+                    return Error::<T>::OrderExpired
+                }
                 order.status = OrderStatus::Deleted;
                 order.update_ts = Self::get_now_ts();
                 // unlock some user's balance
                 let now = Self::get_now_ts();
-                let days = order.duration/DAYS;
                 let days_to_deadline = (order.duration + order.update_ts - now)/DAYS;
                 let mut refund = 0;
                 for mo in order.orders {
-                    refund += mo.total_price;
+                    refund += mo.day_price;
                 }
-                refund = refund * days_to_deadline/days;
+                refund = refund * days_to_deadline;
                 T::Currency::unreserve(&order.user, refund);
                 OK(())
             })?;
@@ -192,11 +203,14 @@ decl_module! {
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
         fn verify_storage(origin, order_id: u64) {
             let miner = ensure_signed(origin)?;
+            let orders = Self::order();
+            let mut order = orders.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
+
+            ensure!(order.status == OrderStatus::Confirmed, Error::<T>::OrderUnconfirmed);
             // todo: zk verify
 
             let now = Self::get_now_ts();
-            let orders = Self::order();
-            let mut order = orders.get_mut(order_id).ok_or(Error::<T>::OrderNotFound)?;
+
             for mo in order.orders {
                 if mo.miner ==  miner {
                     mo.verify_ts = now;
@@ -222,10 +236,8 @@ decl_module! {
                             order.status = OrderStatus::Expired
                         } else {
                             if now - mo.verify_ts < DAYS && mo.verify_result {
-                                // todo: verify result is ok, transfer one day's funds to miner
-                                let days = order.duration / DAYS;
-                                let amount = mo.total_price / days;
-                                T::Currency::repatriate_reserved(&order.user, &mo.miner, amount, BalanceStatus::Free);
+                                // verify result is ok, transfer one day's funds to miner
+                                T::Currency::repatriate_reserved(&order.user, &mo.miner, mo.day_price, BalanceStatus::Free);
                                 Self::deposit_event(RawEvent::VerifyStorage(&mo.miner, true));
                             } else {
                                 // verify result expired or no verifying, punish miner
@@ -304,5 +316,7 @@ decl_error! {
         OrderUnconfirmed,
         /// Balance is not enough to stake.
         CannotStake,
+        /// Total staking is zero.
+        NoneStaking,
     }
 }
