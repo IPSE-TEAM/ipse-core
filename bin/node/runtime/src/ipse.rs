@@ -159,7 +159,7 @@ decl_module! {
         }
 
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-        fn confirm_order(origin, order_id: u64, url: Option<Vec<u8>>) {
+        fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
             // must check total staking, if is zero, cannot confirm order.
             let miner_info = Self::miner(&miner).ok_or(Error::<T>::MinerNotFound)?;
@@ -173,7 +173,7 @@ decl_module! {
 
                 let mut miner_order = Self::find_miner_order(miner, &mut order.orders).ok_or(Error::<T>::MinerOrderNotFound)?;
                 miner_order.confirm_ts = now;
-                miner_order.url = url;
+                miner_order.url = Some(url);
                 // update order's status and update_ts
                 if order.status == OrderStatus::Created {
                     order.status = OrderStatus::Confirmed;
