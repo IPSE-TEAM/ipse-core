@@ -52,7 +52,7 @@ pub struct Order<AccountId, Balance> {
     // the key of this data
     pub key: Vec<u8>,
     // the merkle root of data
-    pub merkle_root: Vec<u8>,
+    pub merkle_root: [u8; 32],
     // the length of storing data
     pub data_length: u64,
     pub user: AccountId,
@@ -126,7 +126,7 @@ decl_module! {
         }
 
         #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
-        fn create_order(origin, key: Vec<u8>, merkle_root: Vec<u8>, data_length: u64, miners: Vec<T::AccountId>, days: u64) {
+        fn create_order(origin, key: Vec<u8>, merkle_root: [u8; 32], data_length: u64, miners: Vec<T::AccountId>, days: u64) {
             let user = ensure_signed(origin)?;
             let mut miner_orders = Vec::new();
             for m in miners {
