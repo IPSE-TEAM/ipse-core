@@ -6,6 +6,7 @@ use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup}, testing::Header, Perbill,
 };
+use frame_system as system;
 
 impl_outer_origin! {
 	pub enum Origin for Test {}
@@ -23,6 +24,7 @@ parameter_types! {
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 }
 impl system::Trait for Test {
+	type BaseCallFilter = ();
 	type Origin = Origin;
 	type Call = ();
 	type Index = u64;
@@ -35,6 +37,10 @@ impl system::Trait for Test {
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
 	type MaximumBlockWeight = MaximumBlockWeight;
+	type DbWeight = ();
+	type BlockExecutionWeight = ();
+	type ExtrinsicBaseWeight = ();
+	type MaximumExtrinsicWeight = MaximumBlockWeight;
 	type MaximumBlockLength = MaximumBlockLength;
 	type AvailableBlockRatio = AvailableBlockRatio;
 	type Version = ();

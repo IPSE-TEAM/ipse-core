@@ -7,7 +7,7 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
     dispatch::DispatchResult, debug,
-    weights::{SimpleDispatchInfo},
+    weights::Weight,
 };
 use system::{ensure_signed};
 use sp_runtime::traits::SaturatedConversion;
@@ -44,11 +44,11 @@ pub struct Difficulty {
 decl_storage! {
     trait Store for Module<T: Trait> as PoC {
         // timestamp of last mining
-        LastMiningTs get(lts): u64;
+        LastMiningTs get(fn lts): u64;
         // info of base_target and difficulty
-        pub TargetInfo get(target_info): Vec<Difficulty>;
+        pub TargetInfo get(fn target_info): Vec<Difficulty>;
         // deadline info of mining success
-        pub DlInfo get(dl_info): Vec<MiningInfo<T::AccountId>>;
+        pub DlInfo get(fn dl_info): Vec<MiningInfo<T::AccountId>>;
     }
 }
 
@@ -65,7 +65,7 @@ decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
-        #[weight = SimpleDispatchInfo::FixedNormal(1000)]
+        #[weight = 1000]
         fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
             let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
@@ -73,7 +73,7 @@ decl_module! {
             Ok(())
         }
 
-		#[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+		#[weight = 10_000]
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
@@ -132,8 +132,7 @@ decl_module! {
             Ok(())
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(1000)]
-        fn on_initialize(n: T::BlockNumber) {
+        fn on_initialize(n: T::BlockNumber) -> Weight{
             let n = n.saturated_into::<u64>();
             if n == 1 {
                LastMiningTs::put(0);
@@ -144,9 +143,9 @@ decl_module! {
                         block: 0,
                     }));
             }
+            0
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(2000)]
         fn on_finalize(n: T::BlockNumber) {
             let current_block = n.saturated_into::<u64>();
             let last_mining_block = Self::get_last_mining_block();

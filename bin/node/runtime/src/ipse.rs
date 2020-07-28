@@ -7,7 +7,7 @@ use codec::{Decode, Encode};
 use frame_support::traits::{Currency, BalanceStatus, ReservableCurrency};
 use frame_support::{
     debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-    weights::SimpleDispatchInfo, StorageMap, StorageValue,
+    StorageMap, StorageValue,
 };
 use sp_runtime::traits::SaturatedConversion;
 use sp_std::convert::TryInto;
@@ -93,9 +93,9 @@ pub enum OrderStatus {
 
 decl_storage! {
     trait Store for Module<T: Trait> as Ipse {
-        pub Miners get(miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<BalanceOf<T>>>;
+        pub Miners get(fn miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<BalanceOf<T>>>;
         // order id is the index of vec.
-        pub Orders get(order): Vec<Order<T::AccountId, BalanceOf<T>>>;
+        pub Orders get(fn order): Vec<Order<T::AccountId, BalanceOf<T>>>;
     }
 }
 
@@ -105,7 +105,7 @@ decl_module! {
 
         fn deposit_event() = default;
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10_000]
         fn register_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
             let miner = ensure_signed(origin)?;
             // staking per kb is  1000;
@@ -125,7 +125,7 @@ decl_module! {
             });
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10_000]
         fn create_order(origin, key: Vec<u8>, merkle_root: [u8; 32], data_length: u64, miners: Vec<T::AccountId>, days: u64) {
             let user = ensure_signed(origin)?;
             let mut miner_orders = Vec::new();
@@ -158,7 +158,7 @@ decl_module! {
             ));
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10_000]
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
             // must check total staking, if is zero, cannot confirm order.
@@ -185,7 +185,7 @@ decl_module! {
             })?;
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10_000]
         fn delete(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
             Orders::<T>::mutate( |os| -> DispatchResult {
@@ -209,7 +209,7 @@ decl_module! {
             })?;
         }
 
-        #[weight = SimpleDispatchInfo::FixedNormal(10_000)]
+        #[weight = 10_000]
         fn verify_storage(origin, order_id: u64) {
             let miner = ensure_signed(origin)?;
             let mut orders = Self::order();
