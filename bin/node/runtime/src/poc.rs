@@ -15,6 +15,7 @@ use sp_std::vec::Vec;
 use sp_std::vec;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
+
 use crate::constants::time::MILLISECS_PER_BLOCK;
 
 pub trait Trait: system::Trait + timestamp::Trait {
