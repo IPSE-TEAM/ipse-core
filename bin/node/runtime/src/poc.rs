@@ -66,6 +66,7 @@ decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
+
         #[weight = 1000]
         fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
@@ -82,6 +83,7 @@ decl_module! {
             debug::info!("starting Verify Deadline !!!");
 
             // illegal block height
+            // 高度大于当前即非法
             if height > current_block {
                 debug::info!("illegal height = {} !", height);
                 Self::deposit_event(RawEvent::VerifyDeadline(miner, false));

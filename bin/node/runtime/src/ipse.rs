@@ -105,6 +105,8 @@ decl_module! {
 
         fn deposit_event() = default;
 
+
+        /// 矿工进行注册登记
         #[weight = 10_000]
         fn register_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
             let miner = ensure_signed(origin)?;
@@ -125,6 +127,8 @@ decl_module! {
             });
         }
 
+
+        /// 用户创建订单
         #[weight = 10_000]
         fn create_order(origin, key: Vec<u8>, merkle_root: [u8; 32], data_length: u64, miners: Vec<T::AccountId>, days: u64) {
             let user = ensure_signed(origin)?;
@@ -158,6 +162,8 @@ decl_module! {
             ));
         }
 
+
+        /// 矿工确认订单
         #[weight = 10_000]
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
@@ -179,12 +185,15 @@ decl_module! {
                     order.status = OrderStatus::Confirmed;
                     order.update_ts = now;
                 }
+
                 // reserve some user's funds for the order
                 T::Currency::reserve(&order.user, miner_order.total_price)?;
                 Ok(())
             })?;
         }
 
+
+        /// 用户删除订单
         #[weight = 10_000]
         fn delete(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
@@ -209,6 +218,8 @@ decl_module! {
             })?;
         }
 
+
+        /// 数据验证
         #[weight = 10_000]
         fn verify_storage(origin, order_id: u64) {
             let miner = ensure_signed(origin)?;
