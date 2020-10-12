@@ -37,6 +37,7 @@ use sp_consensus_babe::{AuthorityId as BabeId};
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
+use serde_json::map::Map;
 
 pub use node_primitives::{AccountId, Balance, Signature};
 pub use node_runtime::GenesisConfig;
@@ -337,6 +338,11 @@ fn development_config_genesis() -> GenesisConfig {
 
 /// Development config (single validator Alice)
 pub fn development_config() -> ChainSpec {
+
+	let mut properties = Map::new();
+	properties.insert("tokenSymbol".into(),"POST2".into());
+	properties.insert("tokenDecimals".into(),14.into());
+
 	ChainSpec::from_genesis(
 		"Development",
 		"dev",
@@ -345,7 +351,7 @@ pub fn development_config() -> ChainSpec {
 		vec![],
 		None,
 		None,
-		None,
+		Some(properties),
 		Default::default(),
 	)
 }
