@@ -67,6 +67,7 @@ decl_module! {
         fn deposit_event() = default;
 
 
+		/// 验证
         #[weight = 1000]
         fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
@@ -75,6 +76,8 @@ decl_module! {
             Ok(())
         }
 
+
+		/// 挖矿
 		#[weight = 10_000]
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
@@ -155,10 +158,12 @@ decl_module! {
 
             debug::info!("current-block = {}, last-mining-block = {}", current_block, last_mining_block);
 
+			// 调整挖矿难度
             if current_block%10 == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
+			//
             if current_block%3 == 0 {
                 if current_block/3 - last_mining_block/3 <= 1 {
                     debug::info!("<<REWARD>> miner on block {}", current_block);
