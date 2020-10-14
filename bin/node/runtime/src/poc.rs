@@ -277,7 +277,9 @@ impl<T: Trait> Module<T> {
         debug::info!("sig: {:?}",sig);
 
         let mut cache = vec![0_u8; 262144];
+
         noncegen_rust(&mut cache[..], account_id, nonce, 1);
+
         let mirror_scoop_data = Self::gen_mirror_scoop_data(scoop_data, cache);
 
         let (target, _) = find_best_deadline_rust(mirror_scoop_data.as_ref(), 1, &sig);
