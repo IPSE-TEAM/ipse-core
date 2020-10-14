@@ -125,6 +125,7 @@ decl_module! {
                 violation_times: 0,
                 total_staking,
             });
+            Self::deposit_event(RawEvent::Registered(miner));
         }
 
 
@@ -153,13 +154,18 @@ decl_module! {
                     key,
                     merkle_root,
                     data_length,
-                    user,
+                    user: user.clone(),
                     orders: miner_orders,
                     status: OrderStatus::Created,
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
                 }
             ));
+
+            // 获取订单id
+            let order_id = (<Orders<T>>::get().len() as u64) -(1 as u64);
+            Self::deposit_event(RawEvent::CreatedOrder(user, order_id));
+
         }
 
 
@@ -167,6 +173,8 @@ decl_module! {
         #[weight = 10_000]
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
+            let miner_cp = miner.clone();
+
             // must check total staking, if is zero, cannot confirm order.
             let miner_info = Self::miner(&miner).ok_or(Error::<T>::MinerNotFound)?;
             ensure!(miner_info.total_staking > 0.saturated_into::<BalanceOf<T>>(), Error::<T>::NoneStaking);
@@ -190,6 +198,7 @@ decl_module! {
                 T::Currency::reserve(&order.user, miner_order.total_price)?;
                 Ok(())
             })?;
+            Self::deposit_event(RawEvent::ConfirmedOrder(miner_cp, order_id));
         }
 
 
@@ -197,6 +206,7 @@ decl_module! {
         #[weight = 10_000]
         fn delete(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
+            let user_cp = user.clone();
             Orders::<T>::mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
                 ensure!(user == order.user , Error::<T>::PermissionDenyed);
@@ -216,6 +226,7 @@ decl_module! {
                 T::Currency::unreserve(&order.user, refund);
                 Ok(())
             })?;
+            Self::deposit_event(RawEvent::Deleted(user_cp, order_id));
         }
 
 
@@ -316,7 +327,11 @@ decl_event! {
         where
         AccountId = <T as system::Trait>::AccountId
         {
+        	Registered(AccountId),
             VerifyStorage(AccountId, bool),
+			CreatedOrder(AccountId, u64),
+			ConfirmedOrder(AccountId, u64),
+			Deleted(AccountId, u64),
         }
 }
 
