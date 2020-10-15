@@ -93,6 +93,7 @@ pub enum OrderStatus {
 
 decl_storage! {
     trait Store for Module<T: Trait> as Ipse {
+    	/// 矿工的信息
         pub Miners get(fn miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<BalanceOf<T>>>;
         // order id is the index of vec.
         pub Orders get(fn order): Vec<Order<T::AccountId, BalanceOf<T>>>;
@@ -163,8 +164,8 @@ decl_module! {
             ));
 
             // 获取订单id
-            let order_id = (<Orders<T>>::get().len() as u64) -(1 as u64);
-            Self::deposit_event(RawEvent::CreatedOrder(user, order_id));
+//             let order_id = (<Orders<T>>::get().len() as u64) -(1 as u64);
+            Self::deposit_event(RawEvent::CreatedOrder(user));
 
         }
 
@@ -329,7 +330,7 @@ decl_event! {
         {
         	Registered(AccountId),
             VerifyStorage(AccountId, bool),
-			CreatedOrder(AccountId, u64),
+			CreatedOrder(AccountId),
 			ConfirmedOrder(AccountId, u64),
 			Deleted(AccountId, u64),
         }
