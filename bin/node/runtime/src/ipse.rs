@@ -163,8 +163,6 @@ decl_module! {
                 }
             ));
 
-            // 获取订单id
-//             let order_id = (<Orders<T>>::get().len() as u64) -(1 as u64);
             Self::deposit_event(RawEvent::CreatedOrder(user));
 
         }

@@ -72,6 +72,11 @@ enum oprate {
     * root权限
 
 ***
+8. fn on_finalize(n: T::BlockNumber)
+    * 轮询检查时代是否到期，到期重新选择出最新的矿工，并作抵押信息的快照
+***
+9. fn on_initialize(n: T::BlockNumber)
+    * 检查是否是声明期，如果是，把声明变量改成true
 
 ### 辅助方法
 1. 根据抵押金额进行排序
