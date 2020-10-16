@@ -66,6 +66,8 @@ decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
         fn deposit_event() = default;
 
+
+		/// 验证
         #[weight = 1000]
         fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
@@ -74,6 +76,8 @@ decl_module! {
             Ok(())
         }
 
+
+		/// 挖矿
 		#[weight = 10_000]
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
@@ -82,6 +86,7 @@ decl_module! {
             debug::info!("starting Verify Deadline !!!");
 
             // illegal block height
+            // 高度大于当前即非法
             if height > current_block {
                 debug::info!("illegal height = {} !", height);
                 Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
@@ -153,10 +158,12 @@ decl_module! {
 
             debug::info!("current-block = {}, last-mining-block = {}", current_block, last_mining_block);
 
+			// 调整挖矿难度
             if current_block%10 == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
+			//
             if current_block%3 == 0 {
                 if current_block/3 - last_mining_block/3 <= 1 {
                     debug::info!("<<REWARD>> miner on block {}", current_block);
@@ -270,7 +277,9 @@ impl<T: Trait> Module<T> {
         debug::info!("sig: {:?}",sig);
 
         let mut cache = vec![0_u8; 262144];
+
         noncegen_rust(&mut cache[..], account_id, nonce, 1);
+
         let mirror_scoop_data = Self::gen_mirror_scoop_data(scoop_data, cache);
 
         let (target, _) = find_best_deadline_rust(mirror_scoop_data.as_ref(), 1, &sig);

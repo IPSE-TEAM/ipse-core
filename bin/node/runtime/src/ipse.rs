@@ -93,6 +93,7 @@ pub enum OrderStatus {
 
 decl_storage! {
     trait Store for Module<T: Trait> as Ipse {
+    	/// 矿工的信息
         pub Miners get(fn miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<BalanceOf<T>>>;
         // order id is the index of vec.
         pub Orders get(fn order): Vec<Order<T::AccountId, BalanceOf<T>>>;
@@ -105,6 +106,8 @@ decl_module! {
 
         fn deposit_event() = default;
 
+
+        /// 矿工进行注册登记
         #[weight = 10_000]
         fn register_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
             let miner = ensure_signed(origin)?;
@@ -123,8 +126,11 @@ decl_module! {
                 violation_times: 0,
                 total_staking,
             });
+            Self::deposit_event(RawEvent::Registered(miner));
         }
 
+
+        /// 用户创建订单
         #[weight = 10_000]
         fn create_order(origin, key: Vec<u8>, merkle_root: [u8; 32], data_length: u64, miners: Vec<T::AccountId>, days: u64) {
             let user = ensure_signed(origin)?;
@@ -149,18 +155,25 @@ decl_module! {
                     key,
                     merkle_root,
                     data_length,
-                    user,
+                    user: user.clone(),
                     orders: miner_orders,
                     status: OrderStatus::Created,
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
                 }
             ));
+
+            Self::deposit_event(RawEvent::CreatedOrder(user));
+
         }
 
+
+        /// 矿工确认订单
         #[weight = 10_000]
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
+            let miner_cp = miner.clone();
+
             // must check total staking, if is zero, cannot confirm order.
             let miner_info = Self::miner(&miner).ok_or(Error::<T>::MinerNotFound)?;
             ensure!(miner_info.total_staking > 0.saturated_into::<BalanceOf<T>>(), Error::<T>::NoneStaking);
@@ -179,15 +192,20 @@ decl_module! {
                     order.status = OrderStatus::Confirmed;
                     order.update_ts = now;
                 }
+
                 // reserve some user's funds for the order
                 T::Currency::reserve(&order.user, miner_order.total_price)?;
                 Ok(())
             })?;
+            Self::deposit_event(RawEvent::ConfirmedOrder(miner_cp, order_id));
         }
 
+
+        /// 用户删除订单
         #[weight = 10_000]
         fn delete(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
+            let user_cp = user.clone();
             Orders::<T>::mutate( |os| -> DispatchResult {
                 let mut order = os.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
                 ensure!(user == order.user , Error::<T>::PermissionDenyed);
@@ -207,8 +225,11 @@ decl_module! {
                 T::Currency::unreserve(&order.user, refund);
                 Ok(())
             })?;
+            Self::deposit_event(RawEvent::Deleted(user_cp, order_id));
         }
 
+
+        /// 数据验证
         #[weight = 10_000]
         fn verify_storage(origin, order_id: u64) {
             let miner = ensure_signed(origin)?;
@@ -305,7 +326,11 @@ decl_event! {
         where
         AccountId = <T as system::Trait>::AccountId
         {
+        	Registered(AccountId),
             VerifyStorage(AccountId, bool),
+			CreatedOrder(AccountId),
+			ConfirmedOrder(AccountId, u64),
+			Deleted(AccountId, u64),
         }
 }
 

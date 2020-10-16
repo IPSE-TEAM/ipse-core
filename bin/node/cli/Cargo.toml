@@ -43,6 +43,8 @@ rand = "0.7.2"
 structopt = { version = "0.3.8", optional = true }
 tracing = "0.1.19"
 parking_lot = "0.10.0"
+serde_json = "1.0.41"
+
 
 # primitives
 sp-authority-discovery = { version = "2.0.0",  path = "../../../primitives/authority-discovery" }

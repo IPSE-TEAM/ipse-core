@@ -92,6 +92,7 @@ pub mod poc;
 pub mod ocw_common;
 pub mod exchange;
 
+pub mod ipse_staking;
 
 /// Weights for pallets used in the runtime.
 mod weights;
@@ -117,7 +118,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 259,
+	spec_version: 261,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -197,6 +198,10 @@ impl frame_system::Trait for Runtime {
 impl ipse::Trait for Runtime {
 	type Event = Event;
 	type Currency = Balances;
+}
+
+impl ipse_staking::Trait for Runtime {
+	type Event = Event;
 }
 
 impl poc::Trait for Runtime {
@@ -958,6 +963,7 @@ construct_runtime!(
 		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>},
 		Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
 		Ipse: ipse::{Module, Call, Storage, Event<T>},
+		IpseStaking: ipse_staking::{Module, Call, Storage, Event<T>},
 		PoC: poc::{Module, Call, Storage, Event<T>},
 		Exchange: exchange::{Module, Call, Storage, Event<T>, Config<T>},
 	}
