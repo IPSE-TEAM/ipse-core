@@ -104,6 +104,7 @@ pub fn config_endowed(
 		pallet_grandpa: Some(GrandpaConfig {
 			authorities: vec![],
 		}),
+		exchange:Some(Default::default()),
 		pallet_im_online: Some(Default::default()),
 		pallet_authority_discovery: Some(Default::default()),
 		pallet_democracy: Some(Default::default()),
