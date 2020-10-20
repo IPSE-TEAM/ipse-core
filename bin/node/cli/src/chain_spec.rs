@@ -322,6 +322,7 @@ pub fn testnet_genesis(
 			max_members: 999,
 		}),
 		pallet_vesting: Some(Default::default()),
+		exchange:Some(Default::default()),
 	}
 }
 

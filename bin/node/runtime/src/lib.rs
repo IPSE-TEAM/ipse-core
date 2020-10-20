@@ -32,7 +32,7 @@ use frame_support::{
 	},
 	traits::{Currency, Imbalance, KeyOwnerProofSystem, OnUnbalanced, Randomness, LockIdentifier},
 };
-use frame_system::{EnsureRoot, EnsureOneOf};
+use frame_system::{EnsureRoot, EnsureOneOf, Trait};
 use frame_support::traits::InstanceFilter;
 use codec::{Encode, Decode};
 use sp_core::{
@@ -84,9 +84,14 @@ use impls::{CurrencyToVoteHandler, Author};
 pub mod constants;
 use constants::{time::*, currency::*};
 use sp_runtime::generic::Era;
+// use crate::exchange::Event;
+use sp_core::sr25519::Public;
 
 pub mod ipse;
 pub mod poc;
+pub mod ocw_common;
+pub mod exchange;
+
 pub mod ipse_staking;
 
 /// Weights for pallets used in the runtime.
@@ -201,6 +206,21 @@ impl ipse_staking::Trait for Runtime {
 
 impl poc::Trait for Runtime {
 	type Event = Event;
+}
+
+
+parameter_types! {
+	pub const TxsMaxCount: u32 = 1000;
+	pub const Hours:BlockNumber = HOURS;
+	pub const OffchainWorkUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+}
+
+impl exchange::Trait for Runtime {
+	type Event = Event;
+	type AuthorityId = exchange::eos_crypto::AuthorityId;
+	type TxsMaxCount = TxsMaxCount;
+	type Duration = Hours;
+	type UnsignedPriority = OffchainWorkUnsignedPriority;
 }
 
 impl pallet_utility::Trait for Runtime {
@@ -945,6 +965,7 @@ construct_runtime!(
 		Ipse: ipse::{Module, Call, Storage, Event<T>},
 		IpseStaking: ipse_staking::{Module, Call, Storage, Event<T>},
 		PoC: poc::{Module, Call, Storage, Event<T>},
+		Exchange: exchange::{Module, Call, Storage, Event<T>, Config<T>},
 	}
 );
 
