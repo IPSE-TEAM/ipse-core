@@ -236,6 +236,7 @@ decl_module! {
             let mut orders = Self::order();
             let order = orders.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
 
+			/// 已经提交
             ensure!(order.status == OrderStatus::Confirmed, Error::<T>::OrderUnconfirmed);
             // todo: zk verify
 
