@@ -131,6 +131,7 @@ decl_module! {
 
                 // append a better deadline
                 let now = Self::get_now_ts(current_block);
+                // 上次出块与本次出块的时间间隔
                 let mining_time = now - Self::lts();
                 DlInfo::<T>::mutate(|dl| dl.push(
                     MiningInfo{
@@ -139,7 +140,7 @@ decl_module! {
                         block: current_block,
                         mining_time
                     }));
-                LastMiningTs::mutate( |ts| *ts = now );
+                LastMiningTs::mutate( |ts| *ts = now);
             };
 
             debug::info!("verify result: {}", verify_ok);
@@ -179,6 +180,7 @@ decl_module! {
                     debug::info!("<<REWARD>> miner on block {}", current_block);
                     // 如果这个周期没有人提交deadline  那么就让矿工来
                 } else {
+                	let now = Self::get_now_ts(current_block);
                     <DlInfo<T>>::mutate(|dl| dl.push(
                         MiningInfo{
                             miner: None,
@@ -186,6 +188,7 @@ decl_module! {
                             mining_time: 18000,
                             block: current_block, // 记录当前区块
                         }));
+                    LastMiningTs::mutate( |ts| *ts = now);
                     debug::info!("<<REWARD>> treasury on block {}", current_block);
                 }
             }
@@ -201,6 +204,7 @@ impl<T: Trait> Module<T> {
         let base_target_avg = Self::get_base_target_avg();
         let mining_time_avg = Self::get_mining_time_avg();
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
+        // base_target跟出块的平均时间成正比
         if mining_time_avg >= 16000 {
             let new = base_target_avg * 2;
             debug::info!("[DIFFICULTY] make easier = {}", new);
@@ -281,6 +285,7 @@ impl<T: Trait> Module<T> {
         if count == 0 { GENESIS_BASE_TARGET } else { total/count }
     }
 
+	/// 平均的出块时间
     fn get_mining_time_avg() -> u64 {
         let dl = Self::dl_info();
         let mut iter = dl.iter().rev();

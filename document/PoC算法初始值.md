@@ -17,7 +17,7 @@ nonces = (2^64-1)/9-1 = 2 049 638 230 412 173 000
 
 那genesis base target需要多少TiB呢， 488 671 834 567 TiB * 9 = 4 398 046 511 104 TiB
 
-这个base_target其实取决于blocktime，也就是多长时间内扫描完盘。
+这个base_target其实取决于blocktime，也就是多长时间内扫描完盘（代码里是用时间间隔来表示)。
 
 genesis_base_target = 4 398 046 511 104 / 9 = 488 671 834 567
 
