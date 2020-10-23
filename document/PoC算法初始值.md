@@ -23,6 +23,7 @@ genesis_base_target = 4 398 046 511 104 / 9 = 488 671 834 567
 
 net_difficulty = 4 398 046 511 104 / 9 / base_target
 
+genesis_base_target是常量
 等价于 net_difficulty = genesis_base_target / base_target
 
 
