@@ -135,6 +135,9 @@ decl_error! {
 
 	  /// 账号错误
 	  MemoInvalid,
+
+	  /// tx 已经被兑换过了
+	  TxExChanged,
     }
 }
 
@@ -164,8 +167,11 @@ decl_storage! {
 		/// The current set of notary keys that may send bridge transactions to Eos chain.
 		NotaryKeys get(fn notary_keys) config(): Vec<T::AccountId>;   // 使用 json文件来配置
 
-       /// 记录是否已经兑换过  AccountId, tx => (token_address, AddressStatus)
-		pub EosExchangeInfo: double_map hasher(blake2_128_concat) T::AccountId,  hasher(blake2_128_concat) Vec<u8> => AddressStatus;
+        /// 只记录成功兑换的 tx  tx=>bool
+        SucTxExchange get(fn suc_tx_exchange): map hasher(blake2_128_concat) Vec<u8> => Option<bool>;
+
+       /// 兑换记录  AccountId,tx => (AddressStatus,兑换的个数)
+		EosExchangeInfo get(fn eos_exchange_info): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) Vec<u8> => (AddressStatus, u64);
 
        ///记录查询结果,key: T::BlockNumber(1小时的周期数)+T::AccountId, val:(成功次数,2000x 状态码次数,5000x状态码次数).不会删除
        FetchRecord get(fn fetch_record): double_map hasher(blake2_128_concat) T::BlockNumber,hasher(blake2_128_concat) T::AccountId => (u32,u32,u32);
@@ -210,6 +216,12 @@ decl_module! {
         // let account =  T::AccountId::from(memo.clone());
         let account = Self::vec_convert_account(memo.clone()).ok_or(Error::<T>::MemoInvalid)?;
         ensure!(account == who, Error::<T>::MemoMissMatch);
+        // 判断是否已经 兑换成功过了就直接返回
+       match SucTxExchange::get(&tx){
+            None => return Err(Error::<T>::TxExChanged)?,
+            _ => (),
+       }
+
         // 初始化状态码
         let curent_status = <TokenStatus<T>>::get(tx.clone()).0;
         // 等于0表示没被占用,继续向下执行
@@ -227,13 +239,13 @@ decl_module! {
     #[weight = 0]
     pub fn record_address(
       origin,
-      _block_num:T::BlockNumber,
+      _block_num: T::BlockNumber,
       account_id: T::AccountId,  // 本地验证者账号
       key: T::AuthorityId,
       tx:Vec<u8>,
-      status: u64,
+      post_tx_transfer_data: PostTxTransferData,
       _signature: <T::AuthorityId as RuntimeAppPublic>::Signature
-    ) ->DispatchResult {
+    ) ->DispatchResult{
       ensure_none(origin)?;
       let now = <timestamp::Module<T>>::get();
       let block_num = <system::Module<T>>::block_number();
@@ -245,11 +257,16 @@ decl_module! {
 //        1009: 终止，网络全部失败   todo: 怎么处理？ 目前按照 failed处理
 //        1109: pass 处理
 
-       debug::info!("response status={:?}",status);
+       debug::info!("response status={:?}",post_tx_transfer_data.verify_status);
        let (token_status,accept_account) = <TokenStatus<T>>::get(tx.clone());
        debug::info!("token_status={:?},accept_account={:?}",token_status,accept_account);
        ensure!(<TokenStatus<T>>::contains_key(tx.clone()), "不需要再操作,tx已经从TokenStatus移除");
-       debug::info!("获取到了本地服务的返回信息,对状态位操作");
+       match SucTxExchange::get(&tx){  // 也可以不需要此判断
+        None => return Err(Error::<T>::TxExChanged)?,
+        _ => (),
+      }
+      debug::info!("获取到了本地服务的返回信息,对状态位操作");
+      let status = post_tx_transfer_data.verify_status;
       if status== 0{   // 20000
         // 成功
        <FetchRecord<T>>::mutate(
@@ -275,7 +292,7 @@ decl_module! {
             });
              <TokenStatus<T>>::mutate(&tx,|val|val.0 = val.0.checked_add(10).unwrap()); // 失败次数加1,总次数加1
       }
-      Self::verify_handle(&tx);
+      Self::verify_handle(&tx, post_tx_transfer_data.quantity);
       debug::info!("----上链成功: record_address:{:?}-----", duration);
       Ok(())
     }
@@ -308,7 +325,7 @@ decl_module! {
             };
             let status:u64 = <TokenStatus<T>>::get(tx.clone()).0;
             debug::info!("------验证失败:status={:?},tx={:?}-------",status,hex::encode(&tx));
-            Self::verify_handle(&tx);
+            Self::verify_handle(&tx, 0);
             <FetchFailed<T>>::mutate(&account, |fetch_failed| {
             if fetch_failed.len()>50{  // 最多保留50个的长度
                 fetch_failed.pop();
@@ -360,13 +377,17 @@ impl<T: Trait> Module<T> {
             };
             // post请求,并结果上链
             match Self::fetch_http_result_status(EOS_NODE_URL,body){
-                Ok(status) => {
+                Ok(mut post_tx_transfer_data) => {
                     let tx_hex = hex::encode(&tx);
                     debug::info!("*** fetch ***: {:?}:{:?}",
                             core::str::from_utf8(EOS_NODE_URL).unwrap(),
                             tx_hex,
                         );
-                    Self::call_record_address(block_num, key.clone(), local_account, &tx, status)?;
+                    let verify_status = Self::get_verify_status(&mut post_tx_transfer_data,accept_account).
+                        ok_or("status is None")?;
+                    //todo : 需要把 结构体传进去,记录post数量,最后执行转账
+                    debug::info!("verify_status = {:?}", verify_status);
+                    Self::call_record_address(block_num, key.clone(), local_account, &tx, post_tx_transfer_data)?;
                 },
                 Err(e) => {
                     debug::info!("~~~~~~ Error address fetching~~~~~~~~:  {:?}: {:?}",tx_hex,e);
@@ -377,8 +398,7 @@ impl<T: Trait> Module<T> {
             break;
         }
         Ok(())
-        
-        
+
     }
 
     fn call_record_fail_verify<'a>(
@@ -402,21 +422,21 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn call_record_address<'a>(
+    fn call_record_address(
         block_num: T::BlockNumber,
         key: T::AuthorityId,
         account_id: &T::AccountId,  // 本地验证者
-        tx: &'a [u8],  //tx
-        status: u64
-    )-> StrDispatchResult{
-        let signature = key.sign(&(block_num,account_id,tx.to_vec(),status).encode()).ok_or("Offchain error: signing failed!")?;
+        tx: &[u8],  //tx
+        post_tx_transfer_data: PostTxTransferData
+    ) -> StrDispatchResult{
+        let signature = key.sign(&(block_num,account_id,tx.to_vec(),post_tx_transfer_data.verify_status).encode()).ok_or("Offchain error: signing failed!")?;
         debug::info!("record_address调用前签名,block_num = {:?},tx={:?}",block_num, hex::encode(tx));
         let call = Call::record_address(
             block_num,
             account_id.clone(),
             key,
             tx.to_vec(),
-            status,
+            post_tx_transfer_data,
             signature
         );
 
@@ -432,13 +452,10 @@ impl<T: Trait> Module<T> {
 
 
     // 组成 post json
-    fn get_json<'a>(tx: &'a [u8], accept_account: &T::AccountId) -> Option<Vec<u8>> {
+    fn get_json(tx: &[u8], accept_account: &T::AccountId) -> Option<Vec<u8>> {
 
         let keys:[&[u8];2] = [b"tx",b"account"];
         let tx_vec= hex_to_u8(tx);
-
-        // 首先转换为
-
         let vals:[&[u8];2] = [&tx_vec,&Self::account_convert_u8(accept_account.clone())];
 
         let mut json_val = vec![POST_KEYWORD[0]];
@@ -479,7 +496,7 @@ impl<T: Trait> Module<T> {
         return (None,None);
     }
 
-    fn verify_handle(tx: &[u8]) -> StdResult<VerifyStatus>{
+    fn verify_handle(tx: &[u8], quantity: u64) -> StdResult<VerifyStatus>{
         // 是否举报, true 表示举报
 //        判断
 //        1.十位的数字 >=7 fail ,   记录失败个数
@@ -526,8 +543,8 @@ impl<T: Trait> Module<T> {
                 if num > 0{
                     TokenStatusLen::mutate(|n|*n -= 1);
                 }
-                <EosExchangeInfo<T>>::insert(accept_account.clone(), tx.clone(), AddressStatus::inActive);
-                // Self::insert_active_status(accept_account.clone(), tx, AddressStatus::inActive);
+                <EosExchangeInfo<T>>::insert(accept_account.clone(),tx.clone(), (AddressStatus::InActive, quantity));
+                // Self::insert_active_status(accept_account.clone(), tx, AddressStatus::InActive);
             }
             VerifyStatus::Pass => {  // 成功
             debug::info!("--注册成功--");
@@ -536,8 +553,8 @@ impl<T: Trait> Module<T> {
                 if num >0{
                     TokenStatusLen::mutate(|n|*n -= 1);
                 }
-                <EosExchangeInfo<T>>::insert(accept_account.clone(), tx.clone(), AddressStatus::active);
-
+                <EosExchangeInfo<T>>::insert(accept_account.clone(), tx.clone(), (AddressStatus::Active, quantity));
+                <SucTxExchange>::insert(tx.clone(),true);
                 // Self::insert_active_status(accept_account.clone(), tx, AddressStatus::active);
             }
             _ => {}
@@ -565,14 +582,14 @@ impl<T: Trait> Module<T> {
     //
     // }
 
-    fn fetch_http_result_status<'a>(
-        remote_url: &'a [u8],
+    fn fetch_http_result_status(
+        remote_url: &[u8],
         body:Vec<u8>
-    ) -> StdResult<u64> {
+    ) -> StdResult<PostTxTransferData> {
         let json = Self::fetch_json(remote_url, body)?; // http请求
-        let status = Self::fetch_parse(json)  // 解析
+        let post_tx_transfer_data: PostTxTransferData = Self::fetch_parse(json)  // 解析
                 .map_err(|_| "fetch_price_from_localhost error")?;
-        Ok(status)
+        Ok(post_tx_transfer_data)
     }
 
 
@@ -609,20 +626,49 @@ impl<T: Trait> Module<T> {
         Ok(json_result)
     }
 
-    fn fetch_parse(resp_bytes: Vec<u8>) -> StdResult<u64> {
+    fn fetch_parse(resp_bytes: Vec<u8>) -> StdResult<PostTxTransferData> {
         let resp_str = core::str::from_utf8(&resp_bytes).map_err(|_| "Error in fetch_parse")?;
         // Print out our fetched JSON string
         debug::info!("{}", resp_str);
 
         // Deserializing JSON to struct, thanks to `serde` and `serde_derive`
-        let status: ResponseStatus =
+        let post_tx_transfer_data: PostTxTransferData =
             serde_json::from_str(&resp_str).map_err(|_| "convert to ResponseStatus failed")?;
 
-        debug::info!("获取到的状态是:{:?}", status.verify_status);
-        Ok(status.verify_status)
+        debug::info!("获取到的状态是:{:?}", post_tx_transfer_data.verify_status);
+        Ok(post_tx_transfer_data)
+    }
+
+    fn get_verify_status(post_transfer_data: &mut PostTxTransferData, acc: T::AccountId) -> Option<u64>{
+       /// 验证, 返回状态码
+        if post_transfer_data.verify_status != 255 {
+            // 255和0是本地服务返回来的状态
+            // 对状态进行赋值
+            if !post_transfer_data.irreversible && post_transfer_data.is_post_transfer{ // 首先保证不可逆 和post转账
+                if post_transfer_data.contract_account == CONTRACT_ACCOUNT{
+                    let memo = Self::vec_convert_account(post_transfer_data.memo.clone())?;
+                    if acc == memo{
+                        post_transfer_data.verify_status = 0;   // 验证通过
+
+                    }else{
+                        post_transfer_data.verify_status = 2003;
+                    }
+                }else{
+                    post_transfer_data.verify_status = 2002;
+                }
+
+
+            }else{
+                post_transfer_data.verify_status = 2001;
+            }
+
+        }
+
+        Some(post_transfer_data.verify_status)
     }
 
 
+    // 以下两个函数都是以 AuthorityId 作为中介转换
     fn vec_convert_account(acc: Vec<u8>) -> Option<T::AccountId>{
         /// 将 Vec<u8> 转换为 accountId
         if acc.len() != 32{
@@ -635,6 +681,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn account_convert_u8(acc: T::AccountId) -> Vec<u8>{
+        /// 将账号转换为字符串
         let author: T::AuthorityId = acc.into();
         author.to_raw_vec()
     }
