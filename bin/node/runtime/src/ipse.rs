@@ -110,6 +110,7 @@ decl_module! {
         /// 矿工进行注册登记
         #[weight = 10_000]
         fn register_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        	// 容量单位是kb
             let miner = ensure_signed(origin)?;
             // staking per kb is  1000;
             let total_staking_u64 = capacity * 1000 / KB;

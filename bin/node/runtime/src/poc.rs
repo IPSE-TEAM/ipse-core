@@ -5,14 +5,15 @@ extern crate pallet_timestamp as timestamp;
 
 use codec::{Decode, Encode};
 use frame_support::{
-    decl_event, decl_module, decl_storage,
-    dispatch::DispatchResult, debug,
-    weights::Weight,
+    decl_event, decl_module, decl_storage, decl_error,
+    dispatch::{DispatchResult, DispatchError}, debug,
+    weights::Weight, traits::{Get},
 };
 use system::{ensure_signed};
 use sp_runtime::traits::SaturatedConversion;
 use sp_std::vec::Vec;
 use sp_std::vec;
+use sp_std::result;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
 
@@ -20,6 +21,8 @@ use crate::constants::time::MILLISECS_PER_BLOCK;
 
 pub trait Trait: system::Trait + timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    // 多少个区块高度挖一次矿
+    type MiningDuration: Get<u64>;
 }
 
 pub const GENESIS_BASE_TARGET: u64 = 488671834567;
@@ -64,7 +67,11 @@ pub enum Event<T>
 
 decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+
+     	type Error = Error<T>;
         fn deposit_event() = default;
+        /// 多少个区块poc挖一次矿
+        const MiningDuration: u64 = T::MiningDuration::get();
 
 
 		/// 验证
@@ -93,6 +100,7 @@ decl_module! {
                 return Ok(())
             }
 
+			// 获取区块高度和最佳的deadline
             let dl = Self::dl_info();
             let (block, best_dl) = if let Some(dl_info) = dl.iter().last() {
                 (dl_info.clone().block, dl_info.best_dl)
@@ -101,13 +109,14 @@ decl_module! {
             };
 
             // the verifying expired
-            if height/3 - block/3 > 1 {
+            if height/Self::get_mining_duration()? - block/Self::get_mining_duration()? > 1 {  // 挖矿时候提交的高度不能太偏离最后一个dl_info的 高度
                 debug::info!("verifying expired height = {} !", height);
                 Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
                 return Ok(())
             }
             // Someone(miner) has mined a better deadline at this mining cycle before.
-            if best_dl <= deadline && current_block/3 == block/3 {
+            // 如果之前已经有比较好的deadline 那么就终止执行
+            if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
                 Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
                 return Ok(())
@@ -115,7 +124,8 @@ decl_module! {
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
             if verify_ok {
                 // delete the old deadline in this mining cycle
-                if current_block/3 == block/3 {
+                // 这里保证了dl_info的最后一个总是最优解
+                if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
                     DlInfo::<T>::mutate(|dl| dl.pop());
                 }
 
@@ -163,17 +173,18 @@ decl_module! {
                 Self::adjust_difficulty(current_block);
             }
 
-			//
-            if current_block%3 == 0 {
-                if current_block/3 - last_mining_block/3 <= 1 {
+			// 每三个区块出一个块
+            if current_block%Self::get_mining_duration().unwrap() == 0 {
+                if current_block/Self::get_mining_duration().unwrap() - last_mining_block/Self::get_mining_duration().unwrap() <= 1 {
                     debug::info!("<<REWARD>> miner on block {}", current_block);
+                    // 如果这个周期没有人提交deadline  那么就让矿工来
                 } else {
                     <DlInfo<T>>::mutate(|dl| dl.push(
                         MiningInfo{
                             miner: None,
-                            best_dl: 0,
+                            best_dl: 20,
                             mining_time: 18000,
-                            block: current_block,
+                            block: current_block, // 记录当前区块
                         }));
                     debug::info!("<<REWARD>> treasury on block {}", current_block);
                 }
@@ -190,7 +201,7 @@ impl<T: Trait> Module<T> {
         let base_target_avg = Self::get_base_target_avg();
         let mining_time_avg = Self::get_mining_time_avg();
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
-        if mining_time_avg >= 18000 {
+        if mining_time_avg >= 16000 {
             let new = base_target_avg * 2;
             debug::info!("[DIFFICULTY] make easier = {}", new);
             TargetInfo::mutate(|target| target.push(
@@ -200,7 +211,8 @@ impl<T: Trait> Module<T> {
                     net_difficulty: GENESIS_BASE_TARGET / new,
                 }));
         }
-        if mining_time_avg <= 4000 {
+
+        else if mining_time_avg <= 8000 {
             let new = base_target_avg / 2;
             debug::info!("[DIFFICULTY] make more difficult = {}", new);
             TargetInfo::mutate(|target| target.push(
@@ -210,6 +222,18 @@ impl<T: Trait> Module<T> {
                     net_difficulty: GENESIS_BASE_TARGET / new,
                 }));
         }
+
+        else {
+        	let new = base_target_avg;
+            debug::info!("[DIFFICULTY]  = {}", new);
+            TargetInfo::mutate(|target| target.push(
+                Difficulty{
+                    block,
+                    base_target: new,
+                    net_difficulty: GENESIS_BASE_TARGET / new,
+                }));
+        }
+
     }
 
     fn get_current_base_target() -> u64 {
@@ -221,6 +245,7 @@ impl<T: Trait> Module<T> {
         let dl = Self::dl_info();
         if let Some(dl) = dl.iter().last() {
             dl.block
+            // 这个0应该是第一次启动链的时候才存在
         } else {
             0
         }
@@ -262,13 +287,13 @@ impl<T: Trait> Module<T> {
         let mut total = 0_u64;
         let mut count = 0_u64;
         while let Some(dl) = iter.next() {
-            if count == 10 {
+            if count == 24 {
                 break;
             }
             total += dl.mining_time;
             count += 1;
         }
-        if count == 0 { 18000 } else { total/count }
+        if count == 0 { 16000 } else { total/count }
     }
 
     fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> bool {
@@ -298,5 +323,23 @@ impl<T: Trait> Module<T> {
         mirror_scoop_data[0..32].clone_from_slice(&cache[addr..addr + 32]);
         mirror_scoop_data[32..64].clone_from_slice(&cache[mirror_addr + 32..mirror_addr + 64]);
         mirror_scoop_data
+    }
+
+    fn get_mining_duration() -> result::Result<u64, DispatchError> {
+		if T::MiningDuration::get() == 0u64{
+			return Err(Error::<T>::DivZero)?;
+
+		}
+		else{
+			Ok(T::MiningDuration::get())
+		}
+    }
+}
+
+decl_error! {
+    /// Error for the ipse module.
+    pub enum Error for Module<T: Trait> {
+		/// 除以0错误
+		DivZero,
     }
 }

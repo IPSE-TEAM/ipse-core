@@ -2,7 +2,7 @@
 
 矿工从众多nonce中找deadline，每一个nonce都会提供一个deadline，每个nonce的大小为256kb，4个为1M大小。每个deadline是一个64位的整数，这个64位的整数分布范围是0到2^64-1。而这个deadline是独立均匀分布的，符合independent identically distributed（i.i.d)。扫盘找寻deadline就意味着找到最小的deadline（相比于base_deadline）。
 
-E(X) = (b + a*n)/(n+1) 
+E(X) = (b + a*n)/(n+1)
 
 - (a,b)是deadline 分布在(0..2^64)之间的一个可能的值。
 - n是表示有多少nonce被扫描到，也就是有多少个deadline。
@@ -21,7 +21,10 @@ nonces = (2^64-1)/9-1 = 2 049 638 230 412 173 000
 
 genesis_base_target = 4 398 046 511 104 / 9 = 488 671 834 567
 
-net_difficulty = 4 398 046 511 104 / 9 / base_target 
+net_difficulty = 4 398 046 511 104 / 9 / base_target
+
+genesis_base_target是常量
+等价于 net_difficulty = genesis_base_target / base_target
 
 
 全网容量的估算：？？？
