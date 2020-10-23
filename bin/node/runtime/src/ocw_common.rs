@@ -12,31 +12,42 @@ use sp_runtime::{offchain::http};
 use alt_serde::{Deserialize, Deserializer};
 use frame_support::{StorageMap,StorageValue,traits::{LockableCurrency,Currency}}; // 含有get
 
-
+pub const CONTRACT_ACCOUNT: &[u8] = b"ipseaccounts";
 pub const VERIFY_STATUS: &[u8] = b"verify_status";  // 验证的返回状态
 pub const PENDING_TIME_OUT: &'static str = "Error in waiting http response back";
 pub const WAIT_HTTP_CONVER_REPONSE: &'static str ="Error in waiting http_result convert response";
 
 #[cfg_attr(feature = "std", derive())]
-#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
 /// 这个用于表述地址状态
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
 pub enum AddressStatus{
-    active,  // 已经激活
-    inActive,  // 未激活
+    Active,  // 已经激活
+    InActive,  // 未激活
 }
 
 /// enum中derive不了Default
 impl Default for AddressStatus{
     fn default() -> Self {
-        Self::inActive
+        Self::InActive
     }
 }
 
 
 #[serde(crate = "alt_serde")]
-#[derive(Deserialize, Encode, Decode, Default)]
-pub(crate) struct ResponseStatus {
+#[derive(Deserialize, Encode, Decode,Clone,Debug,PartialEq, Eq, Default)]
+pub struct PostTxTransferData {
     pub verify_status: u64,
+    pub irreversible: bool,
+    pub is_post_transfer: bool,
+
+    #[serde(deserialize_with = "de_string_to_bytes")]
+    pub contract_account: Vec<u8>,   // 必须要验证合约账号是否一致
+    #[serde(deserialize_with = "de_string_to_bytes")]
+    pub from: Vec<u8>,
+    pub to: Vec<u8>,
+    #[serde(deserialize_with = "de_float_to_integer")]
+    pub quantity: u64,
+    pub memo: Vec<u8>,
 }
 
 pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
@@ -45,6 +56,13 @@ pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
 {
     let s: &str = Deserialize::deserialize(de)?;
     Ok(s.as_bytes().to_vec())
+}
+
+
+pub fn de_float_to_integer<'de, D>(de: D) -> Result<u64, D::Error>
+    where D: Deserializer<'de> {
+    let f: f64 = Deserialize::deserialize(de)?;
+    Ok(f as u64)
 }
 
 // post json中常用的关键字符
