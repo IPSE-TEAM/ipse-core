@@ -206,11 +206,16 @@ impl ipse_staking::Trait for Runtime {
 
 parameter_types! {
 	pub const MiningDuration: u64 = 1;
+	pub const GENESIS_BASE_TARGET: u64 = 488671834567;
 }
 
 impl poc::Trait for Runtime {
 	type Event = Event;
 	type MiningDuration = MiningDuration;
+	type GENESIS_BASE_TARGET = GENESIS_BASE_TARGET;
+	type PocCurrency = Balances;
+	type PocAddOrigin = ();
+
 }
 
 
