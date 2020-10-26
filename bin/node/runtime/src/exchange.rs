@@ -640,7 +640,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_verify_status(post_transfer_data: &mut PostTxTransferData, acc: T::AccountId) -> Option<u64>{
-       /// 验证, 返回状态码
+       // 验证, 返回状态码
         if post_transfer_data.verify_status != 255 {
             // 255和0是本地服务返回来的状态
             // 对状态进行赋值
@@ -670,7 +670,7 @@ impl<T: Trait> Module<T> {
 
     // 以下两个函数都是以 AuthorityId 作为中介转换
     fn vec_convert_account(acc: Vec<u8>) -> Option<T::AccountId>{
-        /// 将 Vec<u8> 转换为 accountId
+        // 将 Vec<u8> 转换为 accountId
         if acc.len() != 32{
             return None;
         }
