@@ -681,7 +681,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn account_convert_u8(acc: T::AccountId) -> Vec<u8>{
-        /// 将账号转换为字符串
+        // 将账号转换为字符串
         let author: T::AuthorityId = acc.into();
         author.to_raw_vec()
     }
