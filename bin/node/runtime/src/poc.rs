@@ -76,7 +76,7 @@ pub enum Event<T>
     where
     AccountId = <T as system::Trait>::AccountId
     {
-        VerifyDeadline(AccountId, bool),
+        Minning(AccountId, bool),
     }
 }
 
@@ -95,7 +95,7 @@ decl_module! {
         fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
             let miner = ensure_signed(origin)?;
             let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
-            Self::deposit_event(RawEvent::VerifyDeadline(miner, is_ok));
+            Self::deposit_event(RawEvent::Minning(miner, is_ok));
             Ok(())
         }
 
@@ -112,7 +112,7 @@ decl_module! {
             // 高度大于当前即非法
             if height > current_block {
                 debug::info!("illegal height = {} !", height);
-                Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
+                Self::deposit_event(RawEvent::Minning(miner, false));
                 return Ok(())
             }
 
@@ -127,14 +127,14 @@ decl_module! {
             // the verifying expired
             if height/Self::get_mining_duration()? - block/Self::get_mining_duration()? > 1 {  // 挖矿时候提交的高度不能太偏离最后一个dl_info的 高度
                 debug::info!("verifying expired height = {} !", height);
-                Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
+                Self::deposit_event(RawEvent::Minning(miner, false));
                 return Ok(())
             }
             // Someone(miner) has mined a better deadline at this mining cycle before.
             // 如果之前已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
-                Self::deposit_event(RawEvent::VerifyDeadline(miner, false));
+                Self::deposit_event(RawEvent::Minning(miner, false));
                 return Ok(())
             }
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
@@ -160,7 +160,7 @@ decl_module! {
             };
 
             debug::info!("verify result: {}", verify_ok);
-            Self::deposit_event(RawEvent::VerifyDeadline(miner, verify_ok));
+            Self::deposit_event(RawEvent::Minning(miner, verify_ok));
 
             Ok(())
         }
