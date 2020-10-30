@@ -112,6 +112,7 @@ decl_module! {
         fn register_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
             let miner = ensure_signed(origin)?;
+//             let haha: u32 = miner.try_into().unwrap();
             // staking per kb is  1000;
             let total_staking_u64 = capacity * 1000 / KB;
             let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>();

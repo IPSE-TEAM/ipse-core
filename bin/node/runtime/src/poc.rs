@@ -130,6 +130,7 @@ decl_module! {
                 Self::deposit_event(RawEvent::Minning(miner, false));
                 return Ok(())
             }
+
             // Someone(miner) has mined a better deadline at this mining cycle before.
             // 如果之前已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
@@ -202,7 +203,7 @@ decl_module! {
                             miner: None,
                             best_dl: core::u64::MAX,
 
-                            mining_time: 20000,
+                            mining_time: 12000,
                             block: current_block, // 记录当前区块
                         }));
                     LastMiningTs::mutate( |ts| *ts = now);
@@ -222,7 +223,7 @@ impl<T: Trait> Module<T> {
         let mining_time_avg = Self::get_mining_time_avg();
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
         // base_target跟出块的平均时间成正比
-        if mining_time_avg >= 16000 {
+        if mining_time_avg > 16000 {
             let new = base_target_avg * 2;
             debug::info!("[DIFFICULTY] make easier = {}", new);
             TargetInfo::mutate(|target| target.push(
@@ -233,7 +234,7 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-        else if mining_time_avg <= 8000 {
+        else if mining_time_avg < 8000 {
             let new = base_target_avg / 2;
             debug::info!("[DIFFICULTY] make more difficult = {}", new);
             TargetInfo::mutate(|target| target.push(
