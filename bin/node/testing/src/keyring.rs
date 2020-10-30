@@ -23,6 +23,7 @@ use node_primitives::{AccountId, Balance, Index};
 use node_runtime::{CheckedExtrinsic, UncheckedExtrinsic, SessionKeys, SignedExtra};
 use sp_runtime::generic::Era;
 use codec::Encode;
+use hex_literal::hex;
 
 /// Alice's account id.
 pub fn alice() -> AccountId {
@@ -53,6 +54,11 @@ pub fn eve() -> AccountId {
 pub fn ferdie() -> AccountId {
 	AccountKeyring::Ferdie.into()
 }
+
+
+// pub fn get_account_id(public_key: &str) -> AccountId{
+// 	hex![public_key].into()
+// }
 
 /// Convert keyrings into `SessionKeys`.
 pub fn to_session_keys(

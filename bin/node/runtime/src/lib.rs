@@ -970,7 +970,7 @@ construct_runtime!(
 		Ipse: ipse::{Module, Call, Storage, Event<T>},
 		IpseStaking: ipse_staking::{Module, Call, Storage, Event<T>},
 		PoC: poc::{Module, Call, Storage, Event<T>},
-		Exchange: exchange::{Module, Call, Storage, Event<T>, Config<T>},
+		Exchange: exchange::{Module, Call, Storage, Event<T>,ValidateUnsigned, Config<T>},
 	}
 );
 

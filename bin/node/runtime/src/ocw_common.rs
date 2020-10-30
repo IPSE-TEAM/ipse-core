@@ -12,7 +12,9 @@ use sp_runtime::{offchain::http};
 use alt_serde::{Deserialize, Deserializer};
 use frame_support::{StorageMap,StorageValue,traits::{LockableCurrency,Currency}}; // 含有get
 
-pub const CONTRACT_ACCOUNT: &[u8] = b"ipseaccounts";
+pub const CONTRACT_ACCOUNT: &[u8] = b"ipsecontract";
+pub const DESTROY_ACCOUNT: &[u8] = b"ipsecontract";
+pub const CONTRACT_SYMBOL: &[u8] = b"POST";
 pub const VERIFY_STATUS: &[u8] = b"verify_status";  // 验证的返回状态
 pub const PENDING_TIME_OUT: &'static str = "Error in waiting http response back";
 pub const WAIT_HTTP_CONVER_REPONSE: &'static str ="Error in waiting http_result convert response";
@@ -36,7 +38,7 @@ impl Default for AddressStatus{
 #[serde(crate = "alt_serde")]
 #[derive(Deserialize, Encode, Decode,Clone,Debug,PartialEq, Eq, Default)]
 pub struct PostTxTransferData {
-    pub verify_status: u64,
+    pub code: u64,
     pub irreversible: bool,
     pub is_post_transfer: bool,
 
@@ -44,10 +46,16 @@ pub struct PostTxTransferData {
     pub contract_account: Vec<u8>,   // 必须要验证合约账号是否一致
     #[serde(deserialize_with = "de_string_to_bytes")]
     pub from: Vec<u8>,
+    #[serde(deserialize_with = "de_string_to_bytes")]
     pub to: Vec<u8>,
+    #[serde(deserialize_with = "de_string_to_bytes")]
+    pub contract_symbol: Vec<u8>,
     #[serde(deserialize_with = "de_float_to_integer")]
     pub quantity: u64,
+    #[serde(deserialize_with = "de_string_to_bytes")]
     pub memo: Vec<u8>,
+    #[serde(deserialize_with = "de_string_to_bytes")]
+    pub pk: Vec<u8>,
 }
 
 pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
@@ -129,11 +137,12 @@ pub fn num_to_char<'a>(n:u64)->&'a str{
     }
 }
 
-pub fn hex_to_u8<'a>(param: &'a [u8]) -> Vec<u8>{
+pub fn hex_to_u8(param: &[u8]) -> Vec<u8> {
+    // 将 param 加上 0x
     // 将 param  首先转化为 16进制字符串,然后加上0x  . 将tx等16进制保持字符串传递
     // 例如: param的十六进制形式为0x1122,变为"0x"+"1122"的字符串,然后编码为&[u8]
     let hex_0x = "0x".as_bytes();
-    let tx_hex =  hex::encode(param);   // tx_hex 是 16进制的字符串
+    let tx_hex =  hex::encode(param);   // tx_hex 是 16进制的字符串,只是表现形式是字符串而已
     let tx_vec = &[hex_0x,tx_hex.as_bytes()].concat();
 
     return tx_vec.to_vec();

@@ -23,8 +23,9 @@ use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
 use node_runtime::{
 	GenesisConfig, BalancesConfig, SessionConfig, StakingConfig, SystemConfig,
 	GrandpaConfig, IndicesConfig, ContractsConfig, SocietyConfig, wasm_binary_unwrap,
-	AccountId, StakerStatus,
+	AccountId, StakerStatus,ExchangeConfig,
 };
+use hex_literal::hex;
 use node_runtime::constants::currency::*;
 use sp_core::ChangesTrieConfiguration;
 use sp_runtime::Perbill;
@@ -33,6 +34,7 @@ use sp_runtime::Perbill;
 pub fn config(support_changes_trie: bool, code: Option<&[u8]>) -> GenesisConfig {
 	config_endowed(support_changes_trie, code, Default::default())
 }
+
 
 /// Create genesis runtime configuration for tests with some extra
 /// endowed accounts.
@@ -104,7 +106,11 @@ pub fn config_endowed(
 		pallet_grandpa: Some(GrandpaConfig {
 			authorities: vec![],
 		}),
-		exchange:Some(Default::default()),
+		exchange:Some(ExchangeConfig{
+			notary_keys: vec![
+				hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into(),
+			],
+		}),
 		pallet_im_online: Some(Default::default()),
 		pallet_authority_discovery: Some(Default::default()),
 		pallet_democracy: Some(Default::default()),
