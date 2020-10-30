@@ -689,7 +689,7 @@ impl<T: Trait> Module<T> {
 
     // 以下两个函数都是以 AuthorityId 作为中介转换
     fn vec_convert_account(acc: Vec<u8>) -> Option<T::AccountId>{
-        /// 将 Vec<u8> 转换为 accountId
+        // 将 Vec<u8> 转换为 accountId
         if acc.len() != 32{
             return None;
         }
@@ -700,8 +700,12 @@ impl<T: Trait> Module<T> {
     }
 
     fn account_convert_u8(acc: T::AccountId) -> Vec<u8>{
+<<<<<<< HEAD
         /// 将账号转换为字符串(公钥)
         debug::info!("acc={:?}",acc);
+=======
+        // 将账号转换为字符串
+>>>>>>> d3e688f1c4d03391d92d85aec02d9d94e88a7ac7
         let author: T::AuthorityId = acc.into();
         debug::info!("author={:?}",author);
         let author_vec = author.to_raw_vec();
