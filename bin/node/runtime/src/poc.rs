@@ -139,6 +139,7 @@ decl_module! {
                 return Ok(())
             }
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+
             if verify_ok {
                 // delete the old deadline in this mining cycle
                 // 这里保证了dl_info的最后一个总是最优解
@@ -196,6 +197,7 @@ decl_module! {
                 if current_block/Self::get_mining_duration().unwrap() - last_mining_block/Self::get_mining_duration().unwrap() <= 1 {
                     debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
                     // 如果这个周期没有人提交deadline  那么就让矿工来
+//                    if
                 } else {
                 	let now = Self::get_now_ts(current_block);
                     <DlInfo<T>>::mutate(|dl| dl.push(
@@ -267,13 +269,13 @@ impl<T: Trait> Module<T> {
         let dl = Self::dl_info();
         if let Some(dl) = dl.iter().last() {
         	// 如果上次是矿工提交
-        	if dl.miner.is_some() {
-        		dl.block
-        	}
-        	// 如果上次出块是国库
-        	else{
-        		0
-        	}
+//        	if dl.miner.is_some() {
+			dl.block
+//        	}
+//        	// 如果上次出块是国库
+//        	else{
+//        		0
+//        	}
 
             // 这个0应该是第一次启动链的时候才存在
         } else {
