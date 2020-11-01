@@ -197,7 +197,7 @@ decl_module! {
                 if current_block/Self::get_mining_duration().unwrap() - last_mining_block/Self::get_mining_duration().unwrap() <= 1 {
                     debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
                     // 如果这个周期没有人提交deadline  那么就让矿工来
-//                    if
+
                 } else {
                 	let now = Self::get_now_ts(current_block);
                     <DlInfo<T>>::mutate(|dl| dl.push(
@@ -225,7 +225,7 @@ impl<T: Trait> Module<T> {
         let mining_time_avg = Self::get_mining_time_avg();
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
         // base_target跟出块的平均时间成正比
-        if mining_time_avg > 16000 {
+        if mining_time_avg >= 16000 {
             let new = base_target_avg * 2;
             debug::info!("[DIFFICULTY] make easier = {}", new);
             TargetInfo::mutate(|target| target.push(
@@ -236,7 +236,7 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-        else if mining_time_avg < 8000 {
+        else if mining_time_avg <= 8000 {
             let new = base_target_avg / 2;
             debug::info!("[DIFFICULTY] make more difficult = {}", new);
             TargetInfo::mutate(|target| target.push(
@@ -247,16 +247,6 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-        else {
-        	let new = base_target_avg;
-            debug::info!("[DIFFICULTY]  = {}", new);
-            TargetInfo::mutate(|target| target.push(
-                Difficulty{
-                    block,
-                    base_target: new,
-                    net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
-                }));
-        }
 
     }
 
@@ -268,16 +258,9 @@ impl<T: Trait> Module<T> {
     fn get_last_mining_block() -> u64 {
         let dl = Self::dl_info();
         if let Some(dl) = dl.iter().last() {
-        	// 如果上次是矿工提交
-//        	if dl.miner.is_some() {
-			dl.block
-//        	}
-//        	// 如果上次出块是国库
-//        	else{
-//        		0
-//        	}
 
-            // 这个0应该是第一次启动链的时候才存在
+			dl.block
+
         } else {
             0
         }
@@ -310,6 +293,7 @@ impl<T: Trait> Module<T> {
             total += target.base_target;
             count += 1;
         }
+
         if count == 0 { T::GENESIS_BASE_TARGET::get() } else { total/count }
     }
 
