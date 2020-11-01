@@ -192,9 +192,28 @@ decl_module! {
                 Self::adjust_difficulty(current_block);
             }
 
+
 			// 每三个区块出一个块
             if current_block%Self::get_mining_duration().unwrap() == 0 {
                 if current_block/Self::get_mining_duration().unwrap() - last_mining_block/Self::get_mining_duration().unwrap() <= 1 {
+                	let dl = Self::dl_info();
+
+                	if dl.is_empty() || dl.last().unwrap().miner.is_none() {
+                		{
+							let now = Self::get_now_ts(current_block);
+							<DlInfo<T>>::mutate(|dl| dl.push(
+								MiningInfo{
+									miner: None,
+									best_dl: core::u64::MAX,
+
+									mining_time: 12000,
+									block: current_block, // 记录当前区块
+								}));
+							LastMiningTs::mutate( |ts| *ts = now);
+							debug::info!("<<REWARD>> treasury on block {}", current_block);
+						}
+                	}
+
                     debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
                     // 如果这个周期没有人提交deadline  那么就让矿工来
 
