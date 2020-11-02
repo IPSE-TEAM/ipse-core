@@ -290,12 +290,13 @@ impl<T: Trait> Module<T> {
 
 	/// 判断是否已经注册
 	fn is_register(miner: T::AccountId) -> result::Result<bool, DispatchError> {
-		if <DiskOf<T>>::contains_key(&miner) || <StakingInfoOf<T>>::contains_key(&miner) {
-			return Err(Error::<T>::AlreadyRegister)?;
+
+		if <DiskOf<T>>::contains_key(&miner) && <StakingInfoOf<T>>::contains_key(&miner) {
+			Ok(true)
 
 		}
 
-		Ok(false)
+		return Err(Error::<T>::NotRegister)?;
 	}
 
 
