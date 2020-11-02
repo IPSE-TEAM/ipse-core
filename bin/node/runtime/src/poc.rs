@@ -15,6 +15,7 @@ use sp_std::vec::Vec;
 use sp_std::vec;
 use sp_std::result;
 use pallet_treasury as treasury;
+use sp_std::convert::TryInto;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
 
@@ -275,10 +276,12 @@ impl<T: Trait> Module<T> {
 
 	}
 
+
     fn get_current_base_target() -> u64 {
         let ti = Self::target_info();
         ti.iter().last().unwrap().base_target
     }
+
 
     fn get_last_mining_block() -> u64 {
         let dl = Self::dl_info();
@@ -291,6 +294,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
+
     fn get_last_adjust_block() -> u64 {
         let tis = Self::target_info();
         if let Some(ti) = tis.iter().last() {
@@ -300,11 +304,13 @@ impl<T: Trait> Module<T> {
         }
     }
 
+
     fn get_now_ts(block_num: u64) -> u64 {
-        //let now = <timestamp::Module<T>>::get();
-        //<T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
-        block_num * MILLISECS_PER_BLOCK
+        let now = <timestamp::Module<T>>::get();
+        <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
+
     }
+
 
     fn get_base_target_avg() -> u64 {
         let ti = Self::target_info();
@@ -324,6 +330,7 @@ impl<T: Trait> Module<T> {
         if count == 0 { T::GENESIS_BASE_TARGET::get() } else { total/count }
     }
 
+
 	/// 平均的出块时间
     fn get_mining_time_avg() -> u64 {
         let dl = Self::dl_info();
@@ -339,6 +346,7 @@ impl<T: Trait> Module<T> {
         }
         if count == 0 { 12000 } else { total/count }
     }
+
 
     fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> bool {
         let scoop_data = calculate_scoop(height, &sig) as u64;
@@ -359,6 +367,7 @@ impl<T: Trait> Module<T> {
         deadline == target/base_target
     }
 
+
     fn gen_mirror_scoop_data(scoop_data: u64, cache: Vec<u8>) -> Vec<u8>{
         let addr = 64 * scoop_data as usize;
         let mirror_scoop = 4095 - scoop_data as usize;
@@ -368,6 +377,7 @@ impl<T: Trait> Module<T> {
         mirror_scoop_data[32..64].clone_from_slice(&cache[mirror_addr + 32..mirror_addr + 64]);
         mirror_scoop_data
     }
+
 
     fn get_mining_duration() -> result::Result<u64, DispatchError> {
 		if T::MiningDuration::get() == 0u64{
