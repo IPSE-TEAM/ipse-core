@@ -206,7 +206,6 @@ decl_module! {
                 		debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
                 	}
 
-
                 } else {
                 	Self::treasury_minning(current_block);
                 }
@@ -225,7 +224,7 @@ impl<T: Trait> Module<T> {
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
         // base_target跟出块的平均时间成正比
         if mining_time_avg >= 16000 {
-            let new = base_target_avg * 2;
+            let new = base_target_avg.saturating_mul(2);
             debug::info!("[DIFFICULTY] make easier = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
@@ -305,7 +304,9 @@ impl<T: Trait> Module<T> {
             if count == 24 {
                 break;
             }
-            total += target.base_target;
+
+            total = total.saturating_add(target.base_target);
+
             count += 1;
         }
 
