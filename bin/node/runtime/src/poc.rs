@@ -245,6 +245,17 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
+        else {
+        	let new = base_target_avg;
+            debug::info!("[DIFFICULTY]  = {}", new);
+            TargetInfo::mutate(|target| target.push(
+                Difficulty{
+                    block,
+                    base_target: new,
+                    net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
+                }));
+        }
+
 
     }
 

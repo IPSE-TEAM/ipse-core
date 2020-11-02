@@ -282,21 +282,39 @@ impl<T: Trait> Module<T> {
 
 	}
 
+
+	/// 获取当前区块
 	fn now() -> T::BlockNumber {
 
 		<system::Module<T>>::block_number()
 	}
 
 
+	/// todo 判断自己是否是某个矿工的抵押者(是的话在什么位置)
+	fn staker_pos(miner: T::AccountId, staker: T::AccountId) -> Option<u32> {
+		Some(0u32)
+	}
+
+
+	/// todo 判断是否进入冷却期
+	fn update_chill() {
+		<IsChillTime>::put(true)
+
+	}
+
 	/// 判断是否已经注册
 	fn is_register(miner: T::AccountId) -> result::Result<bool, DispatchError> {
 
 		if <DiskOf<T>>::contains_key(&miner) && <StakingInfoOf<T>>::contains_key(&miner) {
-			Ok(true)
+			return Ok(true);
 
 		}
 
-		return Err(Error::<T>::NotRegister)?;
+		else {
+			return Err(Error::<T>::NotRegister)?;
+		}
+
+
 	}
 
 
