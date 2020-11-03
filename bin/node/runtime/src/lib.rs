@@ -203,12 +203,16 @@ impl ipse::Trait for Runtime {
 parameter_types! {
 
 	pub const ChillDuration: BlockNumber = 1 * HOURS;
-
+	pub const StakingDeposit: Balance = 1 * DOLLARS;
 }
 
 impl ipse_staking::Trait for Runtime {
 	type Event = Event;
 	type ChillDuration = ChillDuration;
+
+	type StakingCurrency = Balances;
+
+	type StakingDeposit = StakingDeposit;
 }
 
 parameter_types! {

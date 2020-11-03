@@ -37,6 +37,7 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait {
     type PocAddOrigin: OnUnbalanced<PositiveImbalanceOf<Self>>;
 
     type PocCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+
     /// GENESIS_BASE_TARGET tib为单位
     type GENESIS_BASE_TARGET: Get<u64>;
 }

@@ -7,7 +7,7 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
     dispatch::{DispatchResult, DispatchError,}, debug,
-	traits::{Get},
+	traits::{Get, Currency, ReservableCurrency},
     weights::Weight,
 	StorageMap, StorageValue,
 	decl_error, ensure,
@@ -15,15 +15,22 @@ use frame_support::{
 use sp_std::result;
 
 use system::{ensure_signed};
-use sp_runtime::{traits::SaturatedConversion, Percent};
+use sp_runtime::{traits::{SaturatedConversion, Saturating}, Percent};
 use sp_std::vec::Vec;
 use sp_std::vec;
 use node_primitives::KIB;
+use num_traits::{CheckedAdd, CheckedSub};
+
+type BalanceOf<T> =
+	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 pub trait Trait: system::Trait + timestamp::Trait + balances::Trait {
 
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
     type ChillDuration: Get<Self::BlockNumber>;
+	type StakingCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+
+	type StakingDeposit: Get<BalanceOf<Self>>;
 
 }
 
@@ -80,7 +87,7 @@ decl_storage! {
 		pub IsChillTime get(fn is_chill_time): bool = true;
 
 		/// 每个矿工对应的抵押信息
-		pub StakingInfoOf get(fn stking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, T::Balance>>;
+		pub StakingInfoOf get(fn stking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, BalanceOf<T>>>;
 
 		/// 用户抵押的矿工
 		pub MinersOf get(fn mminers_of): map hasher(twox_64_concat) T::AccountId => Option<Vec<T::AccountId>>;
@@ -97,8 +104,10 @@ decl_event! {
 pub enum Event<T>
     where
     AccountId = <T as system::Trait>::AccountId,
-    Balance = <T as balances::Trait>::Balance,
+//    Balance = <T as balances::Trait>::Balance,
+	Balance = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
     {
+
         UpdateDiskInfo(AccountId, KIB),
         Register(AccountId, u64),
         StopMining(AccountId),
@@ -136,7 +145,7 @@ decl_module! {
 
         			miner: miner.clone(),
         			miner_portation: miner_portation,
-        			total_staking: T::Balance::from(0u32),
+        			total_staking: <BalanceOf<T>>::from(0u32),
         			others: vec![],
         		}
         	);
@@ -194,7 +203,20 @@ decl_module! {
 				}
 			});
 
-			// todo 对抵押的用户进行解抵押
+			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
+			let others = staking_info.others;
+			for staker_info in others.iter() {
+
+				T::StakingCurrency::unreserve(&staker_info.0, staker_info.1.clone());
+				T::StakingCurrency::unreserve(&staker_info.0, staker_info.2.clone());
+			}
+
+			staking_info.total_staking = <BalanceOf<T>>::from(0u32);
+
+			staking_info.others = vec![];
+
+			<StakingInfoOf<T>>::insert(&miner, staking_info);
+
 
 			Self::deposit_event(RawEvent::StopMining(miner));
         }
@@ -205,13 +227,7 @@ decl_module! {
         fn remove_staker(origin, staker: T::AccountId) {
 			let miner = ensure_signed(origin)?;
 
-			Self::is_can_mining(miner.clone())?;
-
-			let staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
-
-			// todo 查询是否有这个人 没有抛出错误 NotYourStaker
-
-			// todo 归还抵押（抵押 + 保留), 改变总抵押金额
+			Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, true)?;
 
 			Self::deposit_event(RawEvent::RemoveStaker(miner, staker));
         }
@@ -219,7 +235,7 @@ decl_module! {
 
 		/// 用户第一次抵押
         #[weight = 10_000]
-        fn staking(origin, miner: T::AccountId, amount: T::Balance) {
+        fn staking(origin, miner: T::AccountId, amount: BalanceOf<T>) {
 
         	let who = ensure_signed(origin)?;
 
@@ -228,12 +244,29 @@ decl_module! {
 			// 不在冷冻期
 			ensure!(!<IsChillTime>::get(), Error::<T>::ChillTime);
 
-			// todo 自己还没有对这个矿工进行抵押
+			if Self::staker_pos(miner.clone(), who.clone()).is_some() {
 
+				return Err(Error::<T>::AlreadyStaking)?;
+			}
 
-			// todo 自己有足够余额进行抵押
+			let bond = amount.checked_add(&T::StakingDeposit::get()).ok_or(Error::<T>::Overflow)?;
 
-			// todo 修改存储
+			let staker_info = (who.clone(), amount.clone(), T::StakingDeposit::get());
+
+			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
+
+			let total_amount = staking_info.clone().total_staking;
+
+			let now_amount = total_amount.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+
+			T::StakingCurrency::reserve(&who, bond)?;
+
+			staking_info.total_staking = now_amount;
+
+			staking_info.others.push(staker_info);
+
+			<StakingInfoOf<T>>::insert(miner.clone(), staking_info);
+
 
 			Self::deposit_event(RawEvent::Staking(who, miner, amount));
 
@@ -242,13 +275,14 @@ decl_module! {
 
 		/// 抵押者更新抵押金额
         #[weight = 10_000]
-        fn update_staking(origin, miner: T::AccountId, oprate: Oprate, amount: T::Balance) {
+        fn update_staking(origin, miner: T::AccountId, oprate: Oprate, amount: BalanceOf<T>) {
 
-        	let who = ensure_signed(origin)?;
+        	let staker = ensure_signed(origin)?;
 
-			// todo 使用saturating进行操作
+			Self::update_staking_info(miner, staker.clone(), oprate, Some(amount), false)?;
 
-			Self::deposit_event(RawEvent::UpdateStaking(who, amount));
+			Self::deposit_event(RawEvent::UpdateStaking(staker, amount));
+
         }
 
 
@@ -336,6 +370,90 @@ impl<T: Trait> Module<T> {
 		Ok(())
 	}
 
+	///
+	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
+
+		Self::is_can_mining(miner.clone())?;
+
+		let mut amount: BalanceOf<T>;
+
+
+		if let Some(pos) = Self::staker_pos(miner.clone(), staker.clone()) {
+
+			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
+
+			let mut staker_info = staking_info.others.swap_remove(pos);
+
+			///
+			if amount_opt.is_none() {
+				amount = staker_info.1.clone()
+			}
+			else {
+				amount = amount_opt.unwrap()
+			}
+
+			match  oprate {
+
+				Oprate::Add => {
+					let bond = staker_info.1.clone();
+					let now_bond = bond.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+					let total_staking = staking_info.total_staking;
+					let now_staking = total_staking.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+					T::StakingCurrency::reserve(&staker, amount)?;
+
+					staker_info.1 = now_bond;
+
+					staking_info.total_staking = now_staking;
+				},
+
+				_ => {
+					let bond = staker_info.1.clone();
+					let now_bond = bond.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
+					let total_staking = staking_info.total_staking;
+					let now_staking = total_staking.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
+
+					T::StakingCurrency::unreserve(&staker, amount);
+
+					staker_info.1 = now_bond;
+
+					staking_info.total_staking = now_staking;
+
+				},
+
+			}
+
+			if staker_info.1 == <BalanceOf<T>>::from(0u32) {
+				if is_slash {
+					// todo
+					T::StakingCurrency::slash_reserved(&staker, staker_info.2.clone());
+				}
+				else {
+					T::StakingCurrency::unreserve(&staker, staker_info.2.clone());
+				}
+
+			}
+
+			else{
+				staking_info.others.push(staker_info);
+
+			}
+
+			<StakingInfoOf<T>>::insert(&miner, staking_info);
+
+
+		} else {
+			return Err(Error::<T>::NotYourStaker)?;
+
+		}
+
+		Ok(())
+
+
+	}
+
+
+
+
 }
 
 decl_error! {
@@ -355,6 +473,10 @@ decl_error! {
 		AlreadyStopMining,
 		/// 不是当前矿工的抵押者
 		NotYourStaker,
+		///
+		AlreadyStaking,
+		///
+		Overflow,
 
     }
 }
