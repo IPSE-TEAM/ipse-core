@@ -193,23 +193,16 @@ decl_module! {
                 Self::adjust_difficulty(current_block);
             }
 
-
-			// 每三个区块出一个块
             if current_block%Self::get_mining_duration().unwrap() == 0 {
-                if current_block/Self::get_mining_duration().unwrap() - last_mining_block/Self::get_mining_duration().unwrap() <= 1 {
-                	let dl = Self::dl_info();
 
-                	if dl.is_empty() || dl.last().unwrap().miner.is_none() {
-                		Self::treasury_minning(current_block);
-                	}
+            	if current_block == last_mining_block {
+            		debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+            	}
 
-                	else {
-                		debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
-                	}
+            	else {
+            		Self::treasury_minning(current_block);
+            	}
 
-                } else {
-                	Self::treasury_minning(current_block);
-                }
             }
         }
 

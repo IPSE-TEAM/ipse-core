@@ -7,7 +7,7 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
     dispatch::{DispatchResult, DispatchError,}, debug,
-
+	traits::{Get},
     weights::Weight,
 	StorageMap, StorageValue,
 	decl_error, ensure,
@@ -21,7 +21,10 @@ use sp_std::vec;
 use node_primitives::KIB;
 
 pub trait Trait: system::Trait + timestamp::Trait + balances::Trait {
+
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    type ChillDuration: Get<Self::BlockNumber>;
+
 }
 
 
@@ -227,6 +230,7 @@ decl_module! {
 
 			// todo 自己还没有对这个矿工进行抵押
 
+
 			// todo 自己有足够余额进行抵押
 
 			// todo 修改存储
@@ -290,14 +294,18 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// todo 判断自己是否是某个矿工的抵押者(是的话在什么位置)
-	fn staker_pos(miner: T::AccountId, staker: T::AccountId) -> Option<u32> {
-		Some(0u32)
+	/// 判断自己是否是某个矿工的抵押者(是的话在什么位置)
+	fn staker_pos(miner: T::AccountId, staker: T::AccountId) -> Option<usize> {
+		let staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
+		let others = staking_info.others;
+		let pos = others.iter().position(|h| h.0 == staker);
+		pos
 	}
 
 
 	/// todo 判断是否进入冷却期
 	fn update_chill() {
+
 		<IsChillTime>::put(true)
 
 	}
