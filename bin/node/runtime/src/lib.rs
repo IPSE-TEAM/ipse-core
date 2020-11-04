@@ -92,7 +92,7 @@ pub mod poc;
 pub mod ocw_common;
 pub mod exchange;
 
-pub mod ipse_staking;
+pub mod poc_staking;
 
 /// Weights for pallets used in the runtime.
 mod weights;
@@ -207,7 +207,7 @@ parameter_types! {
 	pub const StakerMaxNumber: usize = 64;
 }
 
-impl ipse_staking::Trait for Runtime {
+impl poc_staking::Trait for Runtime {
 	type Event = Event;
 
 	type ChillDuration = ChillDuration;
@@ -990,7 +990,7 @@ construct_runtime!(
 		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>},
 		Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
 		Ipse: ipse::{Module, Call, Storage, Event<T>},
-		IpseStaking: ipse_staking::{Module, Call, Storage, Event<T>},
+		PocStaking: poc_staking::{Module, Call, Storage, Event<T>},
 		PoC: poc::{Module, Call, Storage, Event<T>},
 		Exchange: exchange::{Module, Call, Storage, Event<T>,ValidateUnsigned, Config<T>},
 	}
