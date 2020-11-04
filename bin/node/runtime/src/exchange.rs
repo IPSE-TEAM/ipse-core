@@ -151,7 +151,7 @@ decl_event!(
 
         FailedEvent(AccountId,BlockNumber,Vec<u8>), // 记录返回错误的情况
 
-        AddExchangeQueueEvent(AccountId, Vec<u8>), //
+        AddExchangeQueueEvent(Vec<u8>), //
   }
 );
 
@@ -210,13 +210,13 @@ decl_module! {
        }
 
      #[weight = 0]
-     fn exchange(origin, tx: Vec<u8>, memo: Vec<u8>) -> DispatchResult{
+     fn exchange(origin, tx: Vec<u8>) -> DispatchResult{
         //用户填写 eos 的转账tx, memo 表示 ipse的接收地址
         // 根据 转账的 post 个数兑换相应的 post2
         let who = ensure_signed(origin)?;
         // let account =  T::AccountId::from(memo.clone());
-        let account = Self::vec_convert_account(memo.clone()).ok_or(Error::<T>::MemoInvalid)?;
-        ensure!(account == who, Error::<T>::MemoMissMatch);
+        // let account = Self::vec_convert_account(memo.clone()).ok_or(Error::<T>::MemoInvalid)?;
+        // ensure!(account == who, Error::<T>::MemoMissMatch);
         // 判断是否已经 兑换成功过了就直接返回
         let tx_hex = hex::encode(&tx);
         debug::info!("验证 tx = {:?}",tx_hex);
@@ -234,21 +234,22 @@ decl_module! {
         <TokenStatus<T>>::insert(tx.clone(),(1000,who.clone()));
         debug::info!("TokenStatus 初始化状态为:{:?}",<TokenStatus<T>>::get(tx.clone()).0);
         TokenStatusLen::mutate(|n|*n += 1);
-        Self::deposit_event(RawEvent::AddExchangeQueueEvent(account,tx.clone()));
+        Self::deposit_event(RawEvent::AddExchangeQueueEvent(tx.clone()));
         Ok(())
      }
 
 
     #[weight = 0]
-    pub fn record_address(
+    fn record_suc_verify(
       origin,
-      _block_num: T::BlockNumber,
-      account_id: T::AccountId,  // 本地验证者账号
+      block_num: T::BlockNumber,
+      account: T::AccountId,  // 本地验证者账号
       key: T::AuthorityId,
       tx:Vec<u8>,
-      post_tx_transfer_data: PostTxTransferData,
+      status: u64,
+      quantity: u64,
       _signature: <T::AuthorityId as RuntimeAppPublic>::Signature
-    ) ->DispatchResult{
+    ) -> DispatchResult{
       ensure_none(origin)?;
       let now = <timestamp::Module<T>>::get();
       let block_num = <system::Module<T>>::block_number();
@@ -260,43 +261,42 @@ decl_module! {
 //        1009: 终止，网络全部失败   todo: 怎么处理？ 目前按照 failed处理
 //        1109: pass 处理
 
-       debug::info!("response status={:?}",post_tx_transfer_data.code);
        let (token_status,accept_account) = <TokenStatus<T>>::get(tx.clone());
        debug::info!("token_status={:?},accept_account={:?}",token_status,accept_account);
        ensure!(<TokenStatus<T>>::contains_key(tx.clone()), "不需要再操作,tx已经从TokenStatus移除");
        match SucTxExchange::get(&tx){  // 也可以不需要此判断
-        None => return Err(Error::<T>::TxExChanged)?,
+        Some(_) => return Err(Error::<T>::TxExChanged)?,
         _ => (),
       }
       debug::info!("获取到了本地服务的返回信息,对状态位操作");
-      let status = post_tx_transfer_data.code;
-      if status== 0{   // 20000
+      // let status = post_tx_transfer_data.code;
+      if status == 0{   // 0
         // 成功
        <FetchRecord<T>>::mutate(
-        duration,account_id.clone(),
+        duration,account.clone(),
         |val|{
             val.0 = val.0.checked_add(1).unwrap();
         });
        <TokenStatus<T>>::mutate(&tx,|val|val.0 = val.0.checked_add(100).unwrap());//  通过次数加1,总次数加1
       }else if status == 1 { // query  ./token-query 没有收到返回的消息
          <FetchRecord<T>>::mutate(
-            duration,account_id.clone(),
+            duration,account.clone(),
             |val|{
                 val.2 = val.2.checked_add(1).unwrap();
 //                val
             });
              <TokenStatus<T>>::mutate(&tx,|val|val.0 = val.0.checked_add(1).unwrap());// 仅仅对总次数加1
       }else{
-        <FetchRecord<T>>::mutate( // 可能是200x 400x
-            duration,account_id.clone(),
+        <FetchRecord<T>>::mutate( // 200x
+            duration,account.clone(),
             |val|{
                 val.1 = val.1.checked_add(1).unwrap();
 //                val
             });
              <TokenStatus<T>>::mutate(&tx,|val|val.0 = val.0.checked_add(10).unwrap()); // 失败次数加1,总次数加1
       }
-      Self::verify_handle(&tx, post_tx_transfer_data.quantity);
-      debug::info!("----上链成功: record_address:{:?}-----", duration);
+      Self::verify_handle(&tx, quantity);
+      debug::info!("----上链成功: record_suc_verify:{:?}-----", duration);
       Ok(())
     }
 
@@ -416,7 +416,7 @@ impl<T: Trait> Module<T> {
     ) -> StrDispatchResult{
         // 错误信息上链
         let signature = key.sign(&(block_num,account.clone(),tx.to_vec()).encode()).ok_or("signing failed!")?;
-        debug::info!("record_fail_verify调用前签名,block_num = {:?},tx={:?}",block_num, hex::encode(&tx));
+        debug::info!("record_fail_verify signed,block_num = {:?},tx={:?}",block_num, hex::encode(&tx));
 
         let call = Call::record_fail_verify(block_num,account.clone(),key.clone(),tx.to_vec(), e.as_bytes().to_vec(),signature);
         SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
@@ -431,18 +431,19 @@ impl<T: Trait> Module<T> {
     fn call_record_address(
         block_num: T::BlockNumber,
         key: T::AuthorityId,
-        account_id: &T::AccountId,  // 本地验证者
+        account: &T::AccountId,  // 本地验证者
         tx: &[u8],  //tx
         post_tx_transfer_data: PostTxTransferData
     ) -> StrDispatchResult{
-        let signature = key.sign(&(block_num,account_id,tx.to_vec(),post_tx_transfer_data.code).encode()).ok_or("Offchain error: signing failed!")?;
-        debug::info!("record_address调用前签名,block_num = {:?},tx={:?}",block_num, hex::encode(tx));
-        let call = Call::record_address(
+        let signature = key.sign(&(block_num,account.clone(),tx.to_vec()).encode()).ok_or("signing failed!")?;
+        debug::info!("record_suc_verify signed,block_num = {:?},tx={:?}",block_num, hex::encode(tx));
+        let call = Call::record_suc_verify(
             block_num,
-            account_id.clone(),
-            key,
+            account.clone(),
+            key.clone(),
             tx.to_vec(),
-            post_tx_transfer_data,
+            post_tx_transfer_data.code,
+            post_tx_transfer_data.quantity,
             signature
         );
 
@@ -522,7 +523,7 @@ impl<T: Trait> Module<T> {
             return Err("status 小于 1000");
         }
 
-        debug::info!("当前状态 status={:?}",status);
+        debug::info!("--------onchain set status={:?}--------",status);
         let units_digit = status%10;     // 个位数
         let tens_digit = status/10%10;   // 十位数
         let hundreds_digit  = status/100%10;  // 百位数
@@ -597,7 +598,6 @@ impl<T: Trait> Module<T> {
     ) -> StdResult<PostTxTransferData> {
         let json = Self::fetch_json(remote_url, body)?; // http请求
         let mut post_tx_transfer_data: PostTxTransferData = Self::fetch_parse(json)?; // json parse
-        //
         Self::get_verify_status(&mut post_tx_transfer_data,accept_account);
         debug::info!("----verified status = {:?}----", post_tx_transfer_data.code);
         Ok(post_tx_transfer_data)
@@ -634,7 +634,7 @@ impl<T: Trait> Module<T> {
         let json_result: Vec<u8> = response.body().collect::<Vec<u8>>();
 
         // Print out the whole JSON blob
-        debug::info!("---response---{:?}",&core::str::from_utf8(&json_result).unwrap());
+        // debug::info!("---response---{:?}",&core::str::from_utf8(&json_result).unwrap());
         Ok(json_result)
     }
 
@@ -720,24 +720,24 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
     ) -> TransactionValidity {
         let now = <timestamp::Module<T>>::get();
         debug::info!("--------------validate_unsigned time:{:?}--------------------",now);
-        match call {
-            Call::record_address(block_num,account_id,key,tx,.., signature) => {
-                debug::info!("############## record_address : now = {:?},block_num = {:?}##############",now,block_num);
+        match call {   // Call::record_address(block_num,account_id,key,tx,.., signature)
+            Call::record_suc_verify(block_num,account,key,tx,status,quantity,signature) => {
+                debug::info!("############## record_suc_verify : now = {:?},block_num = {:?}##############",now,block_num);
 
                 // check signature (this is expensive so we do it last).
-                let signature_valid = &(block_num,account_id,tx).using_encoded(|encoded_sign| {
+                let signature_valid = &(block_num,account,tx).using_encoded(|encoded_sign| {
                     key.verify(&encoded_sign, &signature)
                 });
 
                 if !signature_valid {
-                    debug::error!("................ record_address 签名验证失败 .....................");
+                    debug::error!("................ record_suc_verify 签名验证失败 .....................");
                     return InvalidTransaction::BadProof.into();
                 }
-
+                debug::info!("................ record_suc_verify 签名验证成功 .....................");
                 Ok(ValidTransaction {
                     priority: <T as Trait>::UnsignedPriority::get(),
                     requires: vec![],
-                    provides: vec![(block_num,account_id,tx).encode()],
+                    provides: vec![(block_num,tx,status,account).encode()],
                     longevity: TransactionLongevity::max_value(),
                     propagate: true,
                 })
@@ -757,9 +757,11 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
                     priority: <T as Trait>::UnsignedPriority::get(),
                     requires: vec![],
                     provides: vec![(block,tx,err,account).encode()], // vec![(now).encode()],
-                    longevity: TransactionLongevity::max_value(),
+                    longevity: TransactionLongevity::max_value()-1,
                     propagate: true,
-                })},
+                })
+            },
+
             _ => InvalidTransaction::Call.into()
         }
     }
