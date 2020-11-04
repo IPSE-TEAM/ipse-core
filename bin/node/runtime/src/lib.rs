@@ -91,6 +91,7 @@ pub mod ipse;
 pub mod poc;
 pub mod ocw_common;
 pub mod exchange;
+pub mod ipse_traits;
 
 pub mod poc_staking;
 
@@ -219,6 +220,8 @@ impl poc_staking::Trait for Runtime {
 	type StakingSlash = ();
 
 	type StakerMaxNumber = StakerMaxNumber;
+
+	type PocHandler = PoC;
 }
 
 parameter_types! {

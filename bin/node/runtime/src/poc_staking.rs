@@ -22,6 +22,7 @@ use sp_std::vec::Vec;
 use sp_std::vec;
 use node_primitives::KIB;
 use num_traits::{CheckedAdd, CheckedSub};
+use crate::ipse_traits::PocHandler;
 
 type BalanceOf<T> =
 	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -41,6 +42,7 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 	type StakingSlash: OnUnbalanced<NegativeImbalanceOf<Self>>;
 
 	type StakerMaxNumber: Get<usize>;
+	type PocHandler: PocHandler<Self::AccountId>;
 
 }
 
@@ -192,6 +194,8 @@ decl_module! {
 
 			/// 必须在非冷冻期
 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
+
+			T::PocHandler::remove_history(miner.clone());
 
         	let now = Self::now();
 

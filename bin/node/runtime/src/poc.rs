@@ -19,6 +19,7 @@ use sp_std::vec;
 use sp_std::result;
 use pallet_treasury as treasury;
 use sp_std::convert::TryInto;
+use crate::ipse_traits::PocHandler;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
 
@@ -219,14 +220,16 @@ decl_module! {
             if current_block%Self::get_mining_duration().unwrap() == 0 {
 
             	if current_block == last_mining_block {
-//             		if let Some(miner_info) = Self::dl_info().last() {
-// 						let miner = *miner_info.miner;
-// 						if miner.is_some() {
-// 							Self::reward_miner(miner.unwrap(), reward);
-// 						}
-//
-//             		}
-            		debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+
+             		if let Some(miner_info) = Self::dl_info().last() {
+ 						let miner: Option<T::AccountId> = miner_info.clone().miner;
+ 						if miner.is_some() {
+ 							Self::reward_miner(miner.unwrap(), reward);
+ 							debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+ 						}
+
+             		}
+
             	}
 
             	else {
@@ -444,7 +447,7 @@ impl<T: Trait> Module<T> {
 		// todo 假设一个块挖一次（也有可能几个块挖一次）
 		let net_mining_num = (now - update_time).saturated_into::<u64>();
 
-		let miner_mining_num = match <History<T>>::get(&miner) {
+		let mut miner_mining_num = match <History<T>>::get(&miner) {
 			Some(h) => {h.total_num + 1u64},
 			None => 0u64,
 		};
@@ -460,6 +463,30 @@ impl<T: Trait> Module<T> {
 			Self::reward_staker(miner.clone(), reward);
 		}
 
+
+		miner_mining_num += 1;
+
+		let history_opt = <History<T>>::get(&miner);
+
+		if history_opt.is_some() {
+			let history = vec![(now, reward)];
+
+			<History<T>>::insert(miner.clone(), MiningHistory {
+
+				total_num: miner_mining_num,
+				history: history,
+			});
+
+		}
+
+		else{
+
+			<History<T>>::mutate(miner.clone(), |i| if let Some(h) = i  {
+				h.total_num = miner_mining_num;
+				h.history.push((now, reward));
+			});
+		}
+
 		Ok(())
     }
 
@@ -468,7 +495,6 @@ impl<T: Trait> Module<T> {
 		let staking_info = <staking::Module<T>>::stking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let stakers = staking_info.clone().others;
 		if stakers.len() == 0 {
-			/// todo 平衡
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, reward));
 		}
 		else {
@@ -491,7 +517,17 @@ impl<T: Trait> Module<T> {
     fn get_total_capacity() -> KIB {
 		0 as KIB
     }
+
+
 }
+
+impl<T: Trait> PocHandler<T::AccountId> for Module<T> {
+	fn remove_history(miner: T::AccountId) {
+		<History<T>>::remove(miner);
+
+	}
+}
+
 
 decl_error! {
     /// Error for the ipse module.
