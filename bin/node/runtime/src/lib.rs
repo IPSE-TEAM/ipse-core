@@ -230,7 +230,7 @@ impl poc::Trait for Runtime {
 	type Event = Event;
 	type MiningDuration = MiningDuration;
 	type GENESIS_BASE_TARGET = GENESIS_BASE_TARGET;
-	type PocCurrency = Balances;
+// 	type PocCurrency = Balances;
 	type PocAddOrigin = ();
 
 }

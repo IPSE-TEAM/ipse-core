@@ -49,9 +49,9 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MachineInfo<BlockNumber> {
 	/// 磁盘空间
-	disk: KIB,
+	pub disk: KIB,
 	/// 更新时间
-	update_time: BlockNumber,
+	pub update_time: BlockNumber,
 	/// 机器是否在运行（这个是用户抵押的依据)
 	is_stop: bool,
 }
@@ -61,13 +61,13 @@ pub struct MachineInfo<BlockNumber> {
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct StakingInfo<AccountId, Balance> {
 	/// 矿工
-	miner: AccountId,
+	pub miner: AccountId,
 	/// 矿工分润占比
-	miner_portation: Percent,
+	pub miner_portation: Percent,
 	/// 总的抵押金额
-	total_staking: Balance,
+	pub total_staking: Balance,
 	/// 其他人的抵押 （staker， 抵押金额， 保留金额)
-	others: Vec<(AccountId, Balance, Balance)>,
+	pub others: Vec<(AccountId, Balance, Balance)>,
 }
 
 
@@ -91,7 +91,7 @@ decl_storage! {
     trait Store for Module<T: Trait> as IpseStakingModule {
 
 		/// 矿工磁盘空间信息
-		pub DiskOf get(fn maner_info): map hasher(twox_64_concat) T::AccountId => Option<MachineInfo<T::BlockNumber>>;
+		pub DiskOf get(fn disk_of): map hasher(twox_64_concat) T::AccountId => Option<MachineInfo<T::BlockNumber>>;
 
 		/// 是否在非抵押操作期间（冷冻期，只有矿工能改变信息)
 		pub IsChillTime get(fn is_chill_time): bool = true;
@@ -131,15 +131,24 @@ pub enum Event<T>
 
 decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+     	/// 冷却期时长（从每个era开始计算，前面的区块是冷却期)
+     	const ChillDuration: T::BlockNumber = T::ChillDuration::get();
+     	/// staking时候需要保留的余额
+     	const StakingDeposit: BalanceOf<T> = T::StakingDeposit::get();
+     	/// 一名矿工最多有多少名抵押者
+     	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
         fn deposit_event() = default;
 
 
 		/// 矿工注册
 		#[weight = 10_000]
-		fn register(origin, disk: KIB, miner_portation: Percent) {
+		fn register(origin, kib: KIB, miner_portation: Percent) {
 			let miner = ensure_signed(origin)?;
 
-			ensure!(disk != 0 as KIB, Error::<T>::DiskEmpty);
+			ensure!(kib != 0 as KIB, Error::<T>::DiskEmpty);
+
+			// 把kib转变成b
+			let disk = kib.checked_mul(1000 as KIB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(Self::is_register(miner.clone())?, Error::<T>::NotRegister);
 
@@ -350,7 +359,7 @@ impl<T: Trait> Module<T> {
 
 
 	/// 获取当前区块
-	fn now() -> T::BlockNumber {
+	pub fn now() -> T::BlockNumber {
 
 		<system::Module<T>>::block_number()
 	}
@@ -403,13 +412,13 @@ impl<T: Trait> Module<T> {
 
 
 	/// 判断矿工是否可以挖矿
-	fn is_can_mining(miner: T::AccountId) -> result::Result<(), DispatchError> {
+	pub fn is_can_mining(miner: T::AccountId) -> result::Result<bool, DispatchError> {
 		ensure!(Self::is_register(miner.clone())?, Error::<T>::NotRegister);
 
 		// 已经停止挖矿不能再操作
 		ensure!(!<DiskOf<T>>::get(&miner).unwrap().is_stop, Error::<T>::AlreadyStopMining);
 
-		Ok(())
+		Ok(true)
 	}
 
 
@@ -521,6 +530,7 @@ decl_error! {
 		Overflow,
 		/// 抵押人数超过限制
 		StakerNumberToMax,
+
 
 	}
 }
