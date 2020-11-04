@@ -63,6 +63,11 @@
 
     "Oprate": {
         "_enum": ["Add", "Sub"]
+    },
+    
+    "MiningHistor": {
+    	"total_num": "u64",
+    	"history": "Vec<(BlockNumber, Balance)>"
     }
 
 }
