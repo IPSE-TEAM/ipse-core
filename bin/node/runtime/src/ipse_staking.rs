@@ -2,12 +2,14 @@
 extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 extern crate pallet_balances as balances;
+extern crate pallet_babe as babe;
+use crate::constants::time::MILLISECS_PER_BLOCK;
 
 use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
     dispatch::{DispatchResult, DispatchError,}, debug,
-	traits::{Get, Currency, ReservableCurrency},
+	traits::{Get, Currency, ReservableCurrency, OnUnbalanced},
     weights::Weight,
 	StorageMap, StorageValue,
 	decl_error, ensure,
@@ -23,14 +25,22 @@ use num_traits::{CheckedAdd, CheckedSub};
 
 type BalanceOf<T> =
 	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> =
+	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
-pub trait Trait: system::Trait + timestamp::Trait + balances::Trait {
+pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trait {
 
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+
     type ChillDuration: Get<Self::BlockNumber>;
+
 	type StakingCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 	type StakingDeposit: Get<BalanceOf<Self>>;
+
+	type StakingSlash: OnUnbalanced<NegativeImbalanceOf<Self>>;
+
+	type StakerMaxNumber: Get<usize>;
 
 }
 
@@ -115,6 +125,7 @@ pub enum Event<T>
         Staking(AccountId, AccountId, Balance),
         UpdatePortation(AccountId, Percent),
 		UpdateStaking(AccountId, Balance),
+		ExitStaking(AccountId, AccountId),
     }
 }
 
@@ -217,7 +228,6 @@ decl_module! {
 
 			<StakingInfoOf<T>>::insert(&miner, staking_info);
 
-
 			Self::deposit_event(RawEvent::StopMining(miner));
         }
 
@@ -255,6 +265,8 @@ decl_module! {
 
 			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
 
+			ensure!(staking_info.others.len() <= T::StakerMaxNumber::get(), Error::<T>::StakerNumberToMax);
+
 			let total_amount = staking_info.clone().total_staking;
 
 			let now_amount = total_amount.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
@@ -286,6 +298,15 @@ decl_module! {
         }
 
 
+        /// 用户退出抵押
+        #[weight = 10_000]
+        fn exit_Staking(origin, miner: T::AccountId) {
+        	let staker = ensure_signed(origin)?;
+        	Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, false)?;
+        	Self::deposit_event(RawEvent::ExitStaking(staker, miner));
+        }
+
+
 		/// 矿工更改分润比
         #[weight = 10_000]
         fn update_portation(origin, portation: Percent) {
@@ -306,17 +327,24 @@ decl_module! {
 			Self::deposit_event(RawEvent::UpdatePortation(miner, portation));
         }
 
-//		fn on_initialize(n: T::BlockNumber) {
-//
-//        }
+
+		fn on_initialize(n: T::BlockNumber) -> Weight {
+			let _ = Self::update_chill();
+			0
+
+       }
 
      }
 }
 
 impl<T: Trait> Module<T> {
 
-	fn get_era() -> u64 {
-		0u64
+
+	fn current_epoch_start() -> result::Result<u64, DispatchError> {
+
+		let time = <babe::Module<T>>::current_epoch_start();
+		let block_number = time.checked_div(MILLISECS_PER_BLOCK).ok_or((Error::<T>::Overflow))?;
+		Ok(block_number)
 
 	}
 
@@ -337,10 +365,24 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// todo 判断是否进入冷却期
-	fn update_chill() {
+	/// 判断是否进入冷却期
+	fn update_chill() -> DispatchResult {
 
-		<IsChillTime>::put(true)
+		let now = Self::now().saturated_into::<u64>();
+		let chill_duration = T::ChillDuration::get().saturated_into::<u64>();
+		let start_time = Self::current_epoch_start()?;
+
+		let time = chill_duration.checked_add(start_time).ok_or(Error::<T>::Overflow)?;
+
+		if now <= time {
+			<IsChillTime>::put(true)
+		}
+
+		else {
+			<IsChillTime>::put(false)
+		}
+
+		Ok(())
 
 	}
 
@@ -370,9 +412,11 @@ impl<T: Trait> Module<T> {
 		Ok(())
 	}
 
-	///
-	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
 
+	/// 更新已经抵押过的用户的抵押金额
+	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
+		// 如果操作是减仓 那么amount_opt是none意味着抵押者退出
+		// 如果操作是加仓 那么amount_opt 不能是none值
 		Self::is_can_mining(miner.clone())?;
 
 		let mut amount: BalanceOf<T>;
@@ -384,7 +428,7 @@ impl<T: Trait> Module<T> {
 
 			let mut staker_info = staking_info.others.swap_remove(pos);
 
-			///
+			/// 这个是减仓的时候
 			if amount_opt.is_none() {
 				amount = staker_info.1.clone()
 			}
@@ -424,9 +468,10 @@ impl<T: Trait> Module<T> {
 
 			if staker_info.1 == <BalanceOf<T>>::from(0u32) {
 				if is_slash {
-					// todo
-					T::StakingCurrency::slash_reserved(&staker, staker_info.2.clone());
+
+					T::StakingSlash::on_unbalanced(T::StakingCurrency::slash_reserved(&staker, staker_info.2.clone()).0);
 				}
+
 				else {
 					T::StakingCurrency::unreserve(&staker, staker_info.2.clone());
 				}
@@ -448,10 +493,7 @@ impl<T: Trait> Module<T> {
 
 		Ok(())
 
-
 	}
-
-
 
 
 }
@@ -473,10 +515,12 @@ decl_error! {
 		AlreadyStopMining,
 		/// 不是当前矿工的抵押者
 		NotYourStaker,
-		///
+		/// 已经抵押
 		AlreadyStaking,
-		///
+		/// 数据溢出
 		Overflow,
+		/// 抵押人数超过限制
+		StakerNumberToMax,
 
-    }
+	}
 }
