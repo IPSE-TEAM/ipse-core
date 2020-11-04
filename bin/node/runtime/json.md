@@ -46,8 +46,24 @@
         "base_target": "u64",
         "net_difficulty": "u64",
         "block": "u64"
-    }
+    },
 
+    "MachineInfo": {
+        "disk": "u64",
+        "update_time": "BlockNumber",
+        "is_stop": "bool"
+    },
+
+    "StakingInfo": {
+        "miner": "AccountId",
+        "miner_portatio": "Percent",
+        "total_staking": "Balance",
+        "others": "Vec<(AccountId, Balance, Balance)>"
+    },
+
+    "Oprate": {
+        "_enum": ["Add", "Sub"]
+    }
 
 }
 ```

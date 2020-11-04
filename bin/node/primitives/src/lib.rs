@@ -55,6 +55,8 @@ pub type Hash = sp_core::H256;
 /// time scale is milliseconds.
 pub type Timestamp = u64;
 
+pub type KIB = u64;
+
 /// Digest item type.
 pub type DigestItem = generic::DigestItem<Hash>;
 /// Header type.

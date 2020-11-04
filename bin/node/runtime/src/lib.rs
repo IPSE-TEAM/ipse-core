@@ -92,7 +92,7 @@ pub mod poc;
 pub mod ocw_common;
 pub mod exchange;
 
-pub mod ipse_staking;
+pub mod poc_staking;
 
 /// Weights for pallets used in the runtime.
 mod weights;
@@ -118,7 +118,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 264,
+	spec_version: 267,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -200,8 +200,25 @@ impl ipse::Trait for Runtime {
 	type Currency = Balances;
 }
 
-impl ipse_staking::Trait for Runtime {
+parameter_types! {
+
+	pub const ChillDuration: BlockNumber = EPOCH_DURATION_IN_BLOCKS;
+	pub const StakingDeposit: Balance = 1 * DOLLARS;
+	pub const StakerMaxNumber: usize = 64;
+}
+
+impl poc_staking::Trait for Runtime {
 	type Event = Event;
+
+	type ChillDuration = ChillDuration;
+
+	type StakingCurrency = Balances;
+
+	type StakingDeposit = StakingDeposit;
+
+	type StakingSlash = ();
+
+	type StakerMaxNumber = StakerMaxNumber;
 }
 
 parameter_types! {
@@ -213,7 +230,7 @@ impl poc::Trait for Runtime {
 	type Event = Event;
 	type MiningDuration = MiningDuration;
 	type GENESIS_BASE_TARGET = GENESIS_BASE_TARGET;
-	type PocCurrency = Balances;
+// 	type PocCurrency = Balances;
 	type PocAddOrigin = ();
 
 }
@@ -973,7 +990,7 @@ construct_runtime!(
 		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>},
 		Multisig: pallet_multisig::{Module, Call, Storage, Event<T>},
 		Ipse: ipse::{Module, Call, Storage, Event<T>},
-		IpseStaking: ipse_staking::{Module, Call, Storage, Event<T>},
+		PocStaking: poc_staking::{Module, Call, Storage, Event<T>},
 		PoC: poc::{Module, Call, Storage, Event<T>},
 		Exchange: exchange::{Module, Call, Storage, Event<T>,ValidateUnsigned, Config<T>},
 	}
