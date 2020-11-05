@@ -1,5 +1,7 @@
 ```
 {
+    "KIB": "u64",
+
     "Miner": {
           "nickname": "Vec<u8>",
           "region": "Vec<u8>",
@@ -56,7 +58,7 @@
 
     "StakingInfo": {
         "miner": "AccountId",
-        "miner_portatio": "Percent",
+        "miner_proportion": "Percent",
         "total_staking": "Balance",
         "others": "Vec<(AccountId, Balance, Balance)>"
     },
@@ -64,8 +66,8 @@
     "Oprate": {
         "_enum": ["Add", "Sub"]
     },
-    
-    "MiningHistor": {
+
+    "MiningHistory": {
     	"total_num": "u64",
     	"history": "Vec<(BlockNumber, Balance)>"
     }

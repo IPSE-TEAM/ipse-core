@@ -65,7 +65,7 @@ pub struct StakingInfo<AccountId, Balance> {
 	/// 矿工
 	pub miner: AccountId,
 	/// 矿工分润占比
-	pub miner_portation: Percent,
+	pub miner_proportion: Percent,
 	/// 总的抵押金额
 	pub total_staking: Balance,
 	/// 其他人的抵押 （staker， 抵押金额， 保留金额)
@@ -101,7 +101,7 @@ decl_storage! {
 		/// 每个矿工对应的抵押信息
 		pub StakingInfoOf get(fn stking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, BalanceOf<T>>>;
 
-		/// 用户抵押的矿工
+		/// 用户现在抵押的矿工
 		pub MinersOf get(fn mminers_of): map hasher(twox_64_concat) T::AccountId => Option<Vec<T::AccountId>>;
 
 		/// 自增的p盘id
@@ -125,9 +125,10 @@ pub enum Event<T>
         StopMining(AccountId),
         RemoveStaker(AccountId, AccountId),
         Staking(AccountId, AccountId, Balance),
-        UpdatePortation(AccountId, Percent),
+        UpdateProportion(AccountId, Percent),
 		UpdateStaking(AccountId, Balance),
 		ExitStaking(AccountId, AccountId),
+		UpdatePid(AccountId, u64),
     }
 }
 
@@ -144,7 +145,7 @@ decl_module! {
 
 		/// 矿工注册
 		#[weight = 10_000]
-		fn register(origin, kib: KIB, miner_portation: Percent) {
+		fn register(origin, kib: KIB, miner_proportion: Percent) {
 			let miner = ensure_signed(origin)?;
 
 			ensure!(kib != 0 as KIB, Error::<T>::DiskEmpty);
@@ -166,7 +167,7 @@ decl_module! {
         		StakingInfo {
 
         			miner: miner.clone(),
-        			miner_portation: miner_portation,
+        			miner_proportion: miner_proportion,
         			total_staking: <BalanceOf<T>>::from(0u32),
         			others: vec![],
         		}
@@ -180,6 +181,17 @@ decl_module! {
         	<Pid>::put(p_id);
 
         	Self::deposit_event(RawEvent::Register(miner, disk));
+
+		}
+
+
+		/// 矿工修改p盘id
+		#[weight = 10_000]
+		fn update_pid(origin, pid: u64) {
+			let miner = ensure_signed(origin)?;
+			Self::is_can_mining(miner.clone())?;
+			<PidOf<T>>::insert(miner.clone(), pid);
+			Self::deposit_event(RawEvent::Register(miner, pid));
 
 		}
 
@@ -248,6 +260,7 @@ decl_module! {
         /// 矿工删除抵押者
         #[weight = 10_000]
         fn remove_staker(origin, staker: T::AccountId) {
+
 			let miner = ensure_signed(origin)?;
 
 			Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, true)?;
@@ -322,7 +335,7 @@ decl_module! {
 
 		/// 矿工更改分润比
         #[weight = 10_000]
-        fn update_portation(origin, portation: Percent) {
+        fn update_proportion(origin, proportion: Percent) {
 
         	let miner = ensure_signed(origin)?;
 
@@ -333,11 +346,11 @@ decl_module! {
 
         	let mut staking_info = <StakingInfoOf<T>>::get(miner.clone()).unwrap();
 
-        	staking_info.miner_portation = portation.clone();
+        	staking_info.miner_proportion = proportion.clone();
 
         	<StakingInfoOf<T>>::insert(miner.clone(), staking_info);
 
-			Self::deposit_event(RawEvent::UpdatePortation(miner, portation));
+			Self::deposit_event(RawEvent::UpdateProportion(miner, proportion));
         }
 
 
@@ -423,6 +436,17 @@ impl<T: Trait> Module<T> {
 		ensure!(!<DiskOf<T>>::get(&miner).unwrap().is_stop, Error::<T>::AlreadyStopMining);
 
 		Ok(true)
+	}
+
+
+	/// staker删除自己抵押的矿工记录
+	fn staker_remove_miner(staker: T::AccountId, miner: T::AccountId) {
+
+		<MinersOf<T>>::mutate(staker.clone(), |miners_opt| if let Some(miners) = miners_opt {
+			miners.retain(|h| h != &miner);
+
+		});
+
 	}
 
 
