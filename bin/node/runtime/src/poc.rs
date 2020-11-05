@@ -4,6 +4,8 @@ extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 use crate::poc_staking as staking;
 use node_primitives::KIB;
+use num_traits::CheckedDiv;
+use sp_std::convert::{TryInto,TryFrom, Into};
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -18,12 +20,16 @@ use sp_std::vec::Vec;
 use sp_std::vec;
 use sp_std::result;
 use pallet_treasury as treasury;
-use sp_std::convert::TryInto;
+
+use crate::ipse_traits::PocHandler;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
 
-use crate::constants::time::MILLISECS_PER_BLOCK;
+use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}};
 
+pub const YEAR: u32 = 365*DAYS;
+
+// pub const TotalMiningReward: BalanceOf<T> = <BalanceOf<T>>::from(2100_0000u32);
 
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -41,6 +47,9 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
 
     /// GENESIS_BASE_TARGET tib为单位
     type GENESIS_BASE_TARGET: Get<u64>;
+
+    type TotalMiningReward: Get<BalanceOf<Self>>;
+
 }
 
 
@@ -101,6 +110,8 @@ decl_module! {
         /// 多少个区块poc挖一次矿
         const MiningDuration: u64 = T::MiningDuration::get();
         const GENESIS_BASE_TARGET: u64 = T::GENESIS_BASE_TARGET::get();
+        /// poc总共挖矿奖励
+        const TotalMiningReward: BalanceOf<T> = T::TotalMiningReward::get();
 
 
 		/// 验证
@@ -209,24 +220,34 @@ decl_module! {
 
             debug::info!("current-block = {}, last-mining-block = {}", current_block, last_mining_block);
 
-			let reward = Self::get_reward_amount();
+			let reward_result = Self::get_reward_amount();
+			let mut reward: BalanceOf<T>;
+
+			if reward_result.is_ok() {
+				reward = reward_result.unwrap();
+			}
+			else {
+				return
+			}
 
 			// 调整挖矿难度
-            if current_block%10 == 0 {
+            if current_block%3 == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
             if current_block%Self::get_mining_duration().unwrap() == 0 {
 
             	if current_block == last_mining_block {
-//             		if let Some(miner_info) = Self::dl_info().last() {
-// 						let miner = *miner_info.miner;
-// 						if miner.is_some() {
-// 							Self::reward_miner(miner.unwrap(), reward);
-// 						}
-//
-//             		}
-            		debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+
+             		if let Some(miner_info) = Self::dl_info().last() {
+ 						let miner: Option<T::AccountId> = miner_info.clone().miner;
+ 						if miner.is_some() {
+ 							Self::reward_miner(miner.unwrap(), reward);
+ 							debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+ 						}
+
+             		}
+
             	}
 
             	else {
@@ -419,9 +440,40 @@ impl<T: Trait> Module<T> {
     	<treasury::Module<T>>::account_id()
     }
 
+
     /// 获取本次奖励
-    fn get_reward_amount() -> BalanceOf<T> {
-    	<BalanceOf<T>>::from(0u32)
+    fn get_reward_amount() -> result::Result<BalanceOf<T>, DispatchError> {
+    	let now = <staking::Module<T>>::now();
+
+    	let year = now.checked_div(&T::BlockNumber::from(YEAR)).ok_or(Error::<T>::DivZero)?;
+    	let duration = year / T::BlockNumber::from(2u32);
+
+    	let duration = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(duration).map_err(|_| Error::<T>::ConvertErr)?;
+
+		let n_opt = 2u32.checked_pow(duration + 1u32);
+
+		let reward: BalanceOf<T>;
+
+		if n_opt.is_some() {
+
+			let n = <BalanceOf<T>>::from(n_opt.unwrap());
+
+			reward = T::TotalMiningReward::get() / n / Self::block_convert_to_balance(year)?;
+
+			Ok(reward)
+		}
+
+		else{
+			Ok(<BalanceOf<T>>::from(0u32))
+		}
+    }
+
+
+    /// block_num类型数据转变成balance
+    fn block_convert_to_balance(n: T::BlockNumber) -> result::Result<BalanceOf<T>, DispatchError> {
+		let n_u = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(n).map_err(|_| Error::<T>::ConvertErr)?;
+		let n_b = <	BalanceOf<T> as TryFrom::<u32>>::try_from(n_u).map_err(|_| Error::<T>::ConvertErr)?;
+		Ok(n_b)
     }
 
 
@@ -444,7 +496,7 @@ impl<T: Trait> Module<T> {
 		// todo 假设一个块挖一次（也有可能几个块挖一次）
 		let net_mining_num = (now - update_time).saturated_into::<u64>();
 
-		let miner_mining_num = match <History<T>>::get(&miner) {
+		let mut miner_mining_num = match <History<T>>::get(&miner) {
 			Some(h) => {h.total_num + 1u64},
 			None => 0u64,
 		};
@@ -460,6 +512,30 @@ impl<T: Trait> Module<T> {
 			Self::reward_staker(miner.clone(), reward);
 		}
 
+
+		miner_mining_num += 1;
+
+		let history_opt = <History<T>>::get(&miner);
+
+		if history_opt.is_some() {
+			let history = vec![(now, reward)];
+
+			<History<T>>::insert(miner.clone(), MiningHistory {
+
+				total_num: miner_mining_num,
+				history: history,
+			});
+
+		}
+
+		else{
+
+			<History<T>>::mutate(miner.clone(), |i| if let Some(h) = i  {
+				h.total_num = miner_mining_num;
+				h.history.push((now, reward));
+			});
+		}
+
 		Ok(())
     }
 
@@ -468,12 +544,11 @@ impl<T: Trait> Module<T> {
 		let staking_info = <staking::Module<T>>::stking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let stakers = staking_info.clone().others;
 		if stakers.len() == 0 {
-			/// todo 平衡
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, reward));
 		}
 		else {
 			// 奖励矿工
-			let miner_reward = staking_info.clone().miner_portation * reward;
+			let miner_reward = staking_info.clone().miner_proportion * reward;
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, miner_reward));
 
 			let stakers_reward = reward - miner_reward;
@@ -491,7 +566,17 @@ impl<T: Trait> Module<T> {
     fn get_total_capacity() -> KIB {
 		0 as KIB
     }
+
+
 }
+
+impl<T: Trait> PocHandler<T::AccountId> for Module<T> {
+	fn remove_history(miner: T::AccountId) {
+		<History<T>>::remove(miner);
+
+	}
+}
+
 
 decl_error! {
     /// Error for the ipse module.
@@ -502,5 +587,7 @@ decl_error! {
 		NotRegister,
 		/// 提交的p盘id错误
 		PidErr,
+		/// 数据转换错误
+		ConvertErr,
     }
 }

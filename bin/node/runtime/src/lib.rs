@@ -91,6 +91,7 @@ pub mod ipse;
 pub mod poc;
 pub mod ocw_common;
 pub mod exchange;
+pub mod ipse_traits;
 
 pub mod poc_staking;
 
@@ -219,11 +220,14 @@ impl poc_staking::Trait for Runtime {
 	type StakingSlash = ();
 
 	type StakerMaxNumber = StakerMaxNumber;
+
+	type PocHandler = PoC;
 }
 
 parameter_types! {
 	pub const MiningDuration: u64 = 1;
 	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
+	pub const TotalMiningReward: Balance = 2100_0000 * DOLLARS;
 }
 
 impl poc::Trait for Runtime {
@@ -232,6 +236,7 @@ impl poc::Trait for Runtime {
 	type GENESIS_BASE_TARGET = GENESIS_BASE_TARGET;
 // 	type PocCurrency = Balances;
 	type PocAddOrigin = ();
+	type TotalMiningReward = TotalMiningReward;
 
 }
 
