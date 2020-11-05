@@ -214,9 +214,8 @@ decl_module! {
         //用户填写 eos 的转账tx, memo 表示 ipse的接收地址
         // 根据 转账的 post 个数兑换相应的 post2
         let who = ensure_signed(origin)?;
-        // let account =  T::AccountId::from(memo.clone());
         // let account = Self::vec_convert_account(memo.clone()).ok_or(Error::<T>::MemoInvalid)?;
-        // ensure!(account == who, Error::<T>::MemoMissMatch);
+        // debug::info!("memo is {:?}",account);
         // 判断是否已经 兑换成功过了就直接返回
         let tx_hex = hex::encode(&tx);
         debug::info!("验证 tx = {:?}",tx_hex);
@@ -660,17 +659,17 @@ impl<T: Trait> Module<T> {
             if post_transfer_data.code == 0 {post_transfer_data.code = 2100;}  // 设置一个初始值
             // 对状态进行赋值
             if post_transfer_data.irreversible && post_transfer_data.is_post_transfer{ // 首先保证不可逆 和post转账
-                if post_transfer_data.contract_account == CONTRACT_ACCOUNT{
+                if post_transfer_data.contract_account == CONTRACT_ACCOUNT.to_vec(){
                     match Self::vec_convert_account(post_transfer_data.pk.clone()){
-                        Some(public_key) =>{
-                            if acc == public_key{
+                        Some(new_acc) =>{
+                            if acc == new_acc{
                                 post_transfer_data.code = 0;   // 验证通过
 
                             }else{
                                 post_transfer_data.code = 2003;
                             }
                         },
-                        None =>(),
+                        None => debug::info!("can not parse account"),
                     }
 
                 }else{
@@ -679,6 +678,7 @@ impl<T: Trait> Module<T> {
 
 
             }else{
+                debug::info!("可逆 或者 不是post");
                 post_transfer_data.code = 2001;
             }
 
@@ -690,11 +690,14 @@ impl<T: Trait> Module<T> {
     // 以下两个函数都是以 AuthorityId 作为中介转换
     fn vec_convert_account(acc: Vec<u8>) -> Option<T::AccountId>{
         // 将 Vec<u8> 转换为 accountId
+        // debug::info!("------ acc ={:?} -------", hex::encode(&acc.clone()));
         if acc.len() != 32{
+            debug::error!("acc len={:?}",acc.len());
             return None;
         }
         let acc_u8: [u8;32]= acc.as_slice().try_into().expect("");
         let authority_id: T::AuthorityId = acc_u8.into();
+        // debug::info!("authority_id is {:?}",authority_id);
         Some(authority_id.into_account32())
 
     }

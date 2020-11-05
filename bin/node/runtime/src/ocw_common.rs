@@ -9,6 +9,7 @@ use frame_system::{self as system};
 use sp_core::{crypto::KeyTypeId,offchain::Timestamp};
 use pallet_authority_discovery as authority_discovery;
 use sp_runtime::{offchain::http};
+use alt_serde::de::{Error,Unexpected};  // declare_error_trait
 use alt_serde::{Deserialize, Deserializer};
 use frame_support::{StorageMap,StorageValue,traits::{LockableCurrency,Currency}}; // 含有get
 
@@ -54,7 +55,7 @@ pub struct PostTxTransferData {
     pub quantity: u64,
     #[serde(deserialize_with = "de_string_to_bytes")]
     pub memo: Vec<u8>,
-    #[serde(deserialize_with = "de_string_to_bytes")]
+    #[serde(deserialize_with = "de_string_decode_bytes")]
     pub pk: Vec<u8>,
 }
 
@@ -64,6 +65,23 @@ pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
 {
     let s: &str = Deserialize::deserialize(de)?;
     Ok(s.as_bytes().to_vec())
+}
+
+
+pub fn de_string_decode_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
+    where D: Deserializer<'de>,
+{
+    let s: &str = Deserialize::deserialize(de)?;
+    // debug::info!("获取到的字符串:{:?}",s);
+    match hex::decode(&s[2..]){  // 传入的是 0x开头字符串,去掉 0x
+        Ok(s_vec) =>{
+            Ok(s_vec)
+        },
+        Err(e) => {
+            debug::info!("{:?}",e);
+            Err(D::Error::invalid_value(Unexpected::Str(s), &""))}
+    }
+    // Ok(s.as_bytes().to_vec())
 }
 
 
@@ -147,6 +165,7 @@ pub fn hex_to_u8(param: &[u8]) -> Vec<u8> {
 
     return tx_vec.to_vec();
 }
+
 
 
 pub trait AccountIdPublicConver{
