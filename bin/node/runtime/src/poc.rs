@@ -458,7 +458,7 @@ impl<T: Trait> Module<T> {
 
 			let n = <BalanceOf<T>>::from(n_opt.unwrap());
 
-			reward = T::TotalMiningReward::get() / n / Self::block_convert_to_balance(year)?;
+			reward = T::TotalMiningReward::get() / n / Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
 
 			Ok(reward)
 		}
