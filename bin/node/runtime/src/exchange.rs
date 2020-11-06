@@ -3,7 +3,7 @@ use sp_core::{crypto::AccountId32 as AccountId};
 use sp_core::{crypto::KeyTypeId,offchain::Timestamp};
 
 use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug, traits::Get,IterableStorageMap,
-                    StorageDoubleMap,ensure,weights::Weight};
+                    StorageDoubleMap,ensure,weights::Weight, traits::Currency};
 use frame_system::{self as system,RawOrigin,Origin, ensure_signed,ensure_none, offchain};
 use hex;
 
@@ -218,7 +218,7 @@ decl_module! {
         // debug::info!("memo is {:?}",account);
         // 判断是否已经 兑换成功过了就直接返回
         let tx_hex = hex::encode(&tx);
-        debug::info!("验证 tx = {:?}",tx_hex);
+        debug::info!("verify tx = {:?}",tx_hex);
         match SucTxExchange::get(&tx){
             Some(tx) => return Err(Error::<T>::TxExChanged)?,
             _ => (),
@@ -684,6 +684,11 @@ impl<T: Trait> Module<T> {
 
         }
         post_transfer_data.code;
+    }
+
+    fn create_balance(who: T::AccountId, balance: T::Balance) -> DispatchResult{
+        // 铸币
+
     }
 
 
