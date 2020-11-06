@@ -116,7 +116,6 @@ decl_event! {
 pub enum Event<T>
     where
     AccountId = <T as system::Trait>::AccountId,
-//    Balance = <T as balances::Trait>::Balance,
 	Balance = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
     {
 
@@ -146,6 +145,7 @@ decl_module! {
 		/// 矿工注册
 		#[weight = 10_000]
 		fn register(origin, kib: KIB, miner_proportion: Percent) {
+
 			let miner = ensure_signed(origin)?;
 
 			ensure!(kib != 0 as KIB, Error::<T>::DiskEmpty);
@@ -153,7 +153,7 @@ decl_module! {
 			// 把kib转变成b
 			let disk = kib.checked_mul(1000 as KIB).ok_or(Error::<T>::Overflow)?;
 
-			ensure!(Self::is_register(miner.clone())?, Error::<T>::NotRegister);
+			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
 			let now = Self::now();
 			<DiskOf<T>>::insert(miner.clone(), MachineInfo {
@@ -198,11 +198,14 @@ decl_module! {
 
 		/// 更新磁盘信息
         #[weight = 10_000]
-        fn update_disk_info(origin, disk: KIB) {
+        fn update_disk_info(origin, kib: KIB) {
 
         	let miner = ensure_signed(origin)?;
 
-        	ensure!(disk != 0 as KIB, Error::<T>::DiskEmpty);
+			// 把kib转变成b
+			let disk = kib.checked_mul(1000 as KIB).ok_or(Error::<T>::Overflow)?;
+
+			ensure!(disk != 0 as KIB, Error::<T>::DiskEmpty);
 
 			/// 必须在非冷冻期
 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
@@ -211,7 +214,7 @@ decl_module! {
 
         	let now = Self::now();
 
-        	ensure!(Self::is_register(miner.clone())?, Error::<T>::NotRegister);
+        	ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
         	<DiskOf<T>>::insert(miner.clone(), MachineInfo {
         		disk: disk,
@@ -395,10 +398,14 @@ impl<T: Trait> Module<T> {
 	fn update_chill() -> DispatchResult {
 
 		let now = Self::now().saturated_into::<u64>();
+
 		let chill_duration = T::ChillDuration::get().saturated_into::<u64>();
+
 		let start_time = Self::current_epoch_start()?;
 
 		let time = chill_duration.checked_add(start_time).ok_or(Error::<T>::Overflow)?;
+
+		debug::info!("poc_staking era start_time: {:?}, chill end_time: {:?}", start_time, time);
 
 		if now <= time {
 			<IsChillTime>::put(true)
@@ -413,15 +420,14 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// 判断是否已经注册
-	fn is_register(miner: T::AccountId) -> result::Result<bool, DispatchError> {
+	fn is_register(miner: T::AccountId) -> bool {
 
 		if <DiskOf<T>>::contains_key(&miner) && <StakingInfoOf<T>>::contains_key(&miner) {
-			return Ok(true);
-
+			true
 		}
 
 		else {
-			return Err(Error::<T>::NotRegister)?;
+			false
 		}
 
 
@@ -430,7 +436,7 @@ impl<T: Trait> Module<T> {
 
 	/// 判断矿工是否可以挖矿
 	pub fn is_can_mining(miner: T::AccountId) -> result::Result<bool, DispatchError> {
-		ensure!(Self::is_register(miner.clone())?, Error::<T>::NotRegister);
+		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
 		// 已经停止挖矿不能再操作
 		ensure!(!<DiskOf<T>>::get(&miner).unwrap().is_stop, Error::<T>::AlreadyStopMining);

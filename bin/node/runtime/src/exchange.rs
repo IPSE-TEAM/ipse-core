@@ -2,10 +2,12 @@ use sp_std::{prelude::*,convert::TryInto,fmt::Debug};
 use sp_core::{crypto::AccountId32 as AccountId};
 use sp_core::{crypto::KeyTypeId,offchain::Timestamp};
 
-use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug, traits::Get,IterableStorageMap,
+use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug, traits::{Get, Currency, OnUnbalanced},IterableStorageMap,
                     StorageDoubleMap,ensure,weights::Weight};
 use frame_system::{self as system,RawOrigin,Origin, ensure_signed,ensure_none, offchain};
 use hex;
+use crate::poc_staking as staking;
+use crate::poc;
 
 use pallet_timestamp as timestamp;
 use pallet_authority_discovery as authority_discovery;
@@ -32,6 +34,8 @@ use crate::ocw_common::*;
 
 // 请求的查询接口
 const EOS_NODE_URL: &[u8] = b"http://localhost:8421/v1/eosio/tx/";
+
+type BalanceOf<T> = <<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 type Signature = AnySignature;
 pub mod eos_crypto {
@@ -99,7 +103,7 @@ enum VerifyStatus {
 }
 
 /// The module's configuration trait.
-pub trait Trait: timestamp::Trait + system::Trait + SendTransactionTypes<Call<Self>>{
+pub trait Trait: system::Trait + SendTransactionTypes<Call<Self>> + poc::Trait {
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
@@ -139,6 +143,9 @@ decl_error! {
 
 	  /// tx 已经被兑换过了
 	  TxExChanged,
+
+	  /// 没有铸币权限
+	  NoPermission,
     }
 }
 
@@ -146,12 +153,15 @@ decl_event!(
   pub enum Event<T> where
     AccountId = <T as system::Trait>::AccountId,
     BlockNumber = <T as system::Trait>::BlockNumber,
+    Amount = <<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
     {
         FetchedSuc(AccountId,BlockNumber, Vec<u8>, u64), // 当前address 状态记录事件
 
         FailedEvent(AccountId,BlockNumber,Vec<u8>), // 记录返回错误的情况
 
         AddExchangeQueueEvent(Vec<u8>), //
+
+        CreateToken(AccountId, Amount),
   }
 );
 
@@ -208,6 +218,23 @@ decl_module! {
         }
         0
        }
+
+    /// 创建资产
+    #[weight = 0]
+    fn create_token(origin, dest: T::AccountId, amount: BalanceOf<T>) {
+    	let who = ensure_signed(origin)?;
+    	let notary_keys = Self::notary_keys();
+		let contains = notary_keys.iter().position(|h| h == &who);
+		if contains.is_some() {
+			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&dest, amount));
+		}
+		else {
+			return Err(Error::<T>::NoPermission)?;
+		}
+
+		Self::deposit_event(RawEvent::CreateToken(dest, amount));
+
+    }
 
      #[weight = 0]
      fn exchange(origin, tx: Vec<u8>) -> DispatchResult{
