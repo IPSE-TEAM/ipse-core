@@ -52,6 +52,8 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 pub struct MachineInfo<BlockNumber> {
 	/// 磁盘空间
 	pub disk: KIB,
+	/// P盘id
+	pub pid: u128,
 	/// 更新时间
 	pub update_time: BlockNumber,
 	/// 机器是否在运行（这个是用户抵押的依据)
@@ -95,20 +97,18 @@ decl_storage! {
 		/// 矿工磁盘空间信息
 		pub DiskOf get(fn disk_of): map hasher(twox_64_concat) T::AccountId => Option<MachineInfo<T::BlockNumber>>;
 
-		/// 是否在非抵押操作期间（冷冻期，只有矿工能改变信息)
+		/// 是否在非抵押操作期间（冷却期，只有矿工能改变信息)
 		pub IsChillTime get(fn is_chill_time): bool = true;
 
 		/// 每个矿工对应的抵押信息
-		pub StakingInfoOf get(fn stking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, BalanceOf<T>>>;
+		pub StakingInfoOf get(fn staking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, BalanceOf<T>>>;
 
 		/// 用户现在抵押的矿工
-		pub MinersOf get(fn mminers_of): map hasher(twox_64_concat) T::AccountId => Option<Vec<T::AccountId>>;
+		pub MinersOf get(fn miners_of): map hasher(twox_64_concat) T::AccountId => Option<Vec<T::AccountId>>;
 
-		/// 自增的p盘id
-		pub Pid get(fn p_id): u64;
+		/// P盘id对应的矿工
+		pub AccountIdOfPid get(fn accouont_id_of_pid): map hasher(twox_64_concat) u128 => Option<T::AccountId>;
 
-		/// 矿工对应的p盘id
-		pub PidOf get(fn account_id_of): map hasher(twox_64_concat) T::AccountId => Option<u64>;
     }
 }
 
@@ -127,7 +127,7 @@ pub enum Event<T>
         UpdateProportion(AccountId, Percent),
 		UpdateStaking(AccountId, Balance),
 		ExitStaking(AccountId, AccountId),
-		UpdatePid(AccountId, u64),
+		UpdatePid(AccountId, u128),
     }
 }
 
@@ -139,12 +139,13 @@ decl_module! {
      	const StakingDeposit: BalanceOf<T> = T::StakingDeposit::get();
      	/// 一名矿工最多有多少名抵押者
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
+
         fn deposit_event() = default;
 
 
 		/// 矿工注册
 		#[weight = 10_000]
-		fn register(origin, kib: KIB, miner_proportion: Percent) {
+		fn register(origin, kib: KIB, pid: u128, miner_proportion: Percent) {
 
 			let miner = ensure_signed(origin)?;
 
@@ -155,9 +156,12 @@ decl_module! {
 
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
+			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::PidInUsing);
+
 			let now = Self::now();
 			<DiskOf<T>>::insert(miner.clone(), MachineInfo {
         		disk: disk,
+        		pid: pid,
         		update_time: now,
         		is_stop: false,
 
@@ -173,12 +177,7 @@ decl_module! {
         		}
         	);
 
-			// 映射p盘id
-        	let mut p_id = <Pid>::get();
-        	<PidOf<T>>::insert(miner.clone(), p_id);
-        	p_id = p_id.saturating_add(1);
-
-        	<Pid>::put(p_id);
+        	<AccountIdOfPid<T>>::insert(pid, miner.clone());
 
         	Self::deposit_event(RawEvent::Register(miner, disk));
 
@@ -187,11 +186,24 @@ decl_module! {
 
 		/// 矿工修改p盘id
 		#[weight = 10_000]
-		fn update_pid(origin, pid: u64) {
+		fn update_pid(origin, pid: u128) {
 			let miner = ensure_signed(origin)?;
 			Self::is_can_mining(miner.clone())?;
-			<PidOf<T>>::insert(miner.clone(), pid);
-			Self::deposit_event(RawEvent::Register(miner, pid));
+
+			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::PidInUsing);
+
+			let old_pid = <DiskOf<T>>::get(miner.clone()).unwrap().pid;
+
+			<AccountIdOfPid<T>>::remove(old_pid);
+
+			<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
+				i.pid = pid;
+			}
+			);
+
+			<AccountIdOfPid<T>>::insert(pid, miner.clone());
+
+			Self::deposit_event(RawEvent::UpdatePid(miner, pid));
 
 		}
 
@@ -216,12 +228,11 @@ decl_module! {
 
         	ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
-        	<DiskOf<T>>::insert(miner.clone(), MachineInfo {
-        		disk: disk,
-        		update_time: now,
-        		is_stop: false,
-
-        	});
+        	<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
+        		i.disk = disk;
+        		i.update_time = now;
+        	}
+        	);
 
         	Self::deposit_event(RawEvent::UpdateDiskInfo(miner, disk));
 
@@ -544,6 +555,8 @@ impl<T: Trait> Module<T> {
 decl_error! {
     /// Error for the ipse module.
     pub enum Error for Module<T: Trait> {
+    	/// p盘id已经被使用
+    	PidInUsing,
     	/// 已经注册过
 		AlreadyRegister,
 		/// 没有注册过
