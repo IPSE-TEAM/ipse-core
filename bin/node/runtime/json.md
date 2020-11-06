@@ -52,6 +52,7 @@
 
     "MachineInfo": {
         "disk": "u64",
+        "pid": "u128",
         "update_time": "BlockNumber",
         "is_stop": "bool"
     },

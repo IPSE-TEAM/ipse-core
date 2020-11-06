@@ -11,11 +11,41 @@
 ### 数据结构
 * 抵押信息
 ```
-struct stking_info {
-    矿工id: AccountId,
-    矿工分润比：Permill,
-    总抵押金额：Balance,
-    具体抵押情况：Vec<(AccountId, Balance)>,
+/// 矿工的机器信息
+#[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
+pub struct MachineInfo<BlockNumber> {
+	/// 磁盘空间
+	pub disk: KIB,
+	/// P盘id
+	pub pid: u128,
+	/// 更新时间
+	pub update_time: BlockNumber,
+	/// 机器是否在运行（这个是用户抵押的依据)
+	is_stop: bool,
+}
+```
+```
+// 抵押信息
+#[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
+pub struct StakingInfo<AccountId, Balance> {
+	/// 矿工
+	pub miner: AccountId,
+	/// 矿工分润占比
+	pub miner_proportion: Percent,
+	/// 总的抵押金额
+	pub total_staking: Balance,
+	/// 其他人的抵押 （staker， 抵押金额， 保留金额)
+	pub others: Vec<(AccountId, Balance, Balance)>,
+}
+```
+```
+/// 操作
+#[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
+pub enum Oprate {
+	/// 添加
+	Add,
+	/// 减少
+	Sub,
 }
 ```
 ***
@@ -41,17 +71,14 @@ enum oprate {
 		/// 用户现在抵押的矿工
 		pub MinersOf get(fn mminers_of): map hasher(twox_64_concat) T::AccountId => Option<Vec<T::AccountId>>;
 
-		/// 自增的p盘id
-		pub Pid get(fn p_id): u64;
-
-		/// 矿工对应的p盘id
-		pub PidOf get(fn account_id_of): map hasher(twox_64_concat) T::AccountId => Option<u64>;
+	    /// P盘id对应的矿工
+		pub AccountIdOfPid get(fn accouont_id_of_pid): map hasher(twox_64_concat) u128 => Option<T::AccountId>;
 
 ```
 ### 主要方法
 
 1. 矿工注册
-    * 代码: `fn register(origin, kib: KIB, miner_proportion: Percent)`
+    * 代码: `fn register(origin, kib: KIB, pid: u128, miner_proportion: Percent)`
     * 参数:
         * kib: P盘空间（以kib为单位)
         * miner_proportion: 矿工分润比
@@ -59,7 +86,6 @@ enum oprate {
         * 签名
         * kib不能为0
         * 没有注册过
-        * 获得一个自增的p盘id（p盘时候用到)
 ***
 2. 矿工修改P盘id
     * 代码：`n update_pid(origin, pid: u64) `
@@ -68,6 +94,7 @@ enum oprate {
     * 逻辑:
         * 签名
         * 自己是能挖矿的矿工
+        * pid还没有被使用过
 ***
 3. 更新磁盘信息
     * 代码：`fn update_disk_info(origin, kib: KIB)`

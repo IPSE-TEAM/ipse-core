@@ -128,10 +128,10 @@ decl_module! {
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
-            let pid = <staking::Module<T>>::account_id_of(&miner).ok_or(Error::<T>::NotRegister)?;
 
-            // 必须是本人才能够挖矿
-            ensure!(pid == account_id, Error::<T>::PidErr);
+			let real_pid = <staking::Module<T>>::disk_of(&miner).unwrap().pid;
+
+			ensure!(real_pid == account_id.into(), Error::<T>::PidErr);
 
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
 
@@ -225,6 +225,8 @@ decl_module! {
 			else {
 				return
 			}
+
+			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
 			// 调整挖矿难度
             if current_block%3 == 0 {
@@ -499,15 +501,18 @@ impl<T: Trait> Module<T> {
 
 		// 判断自己的挖矿概率是否达标
 		if disk.saturating_mul(net_mining_num) >= Self::get_total_capacity().saturating_mul(miner_mining_num) {
+			debug::info!("矿工抵押达标！");
 			reward = reward;
 			Self::reward_staker(miner.clone(), reward);
 		}
 		// 如果不达标 拿百分之10的奖励
 		else {
+			debug::info!("矿工抵押不达标！");
 			reward = Percent::from_percent(10) * reward;
 			Self::reward_staker(miner.clone(), reward);
 		}
 
+		debug::info!("本次挖矿实际奖励是：{:?}", reward);
 
 		miner_mining_num += 1;
 
@@ -537,7 +542,7 @@ impl<T: Trait> Module<T> {
 
    	// 奖励每一个成员（抵押者）
    	fn reward_staker(miner: T::AccountId, reward: BalanceOf<T>) -> DispatchResult {
-		let staking_info = <staking::Module<T>>::stking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
+		let staking_info = <staking::Module<T>>::staking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let stakers = staking_info.clone().others;
 		if stakers.len() == 0 {
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, reward));
