@@ -1,11 +1,14 @@
-use sp_std::{prelude::*,convert::TryInto,fmt::Debug};
+use sp_std::{prelude::*,fmt::Debug};
+use sp_std::convert::{TryInto,TryFrom, Into};
 use sp_core::{crypto::AccountId32 as AccountId};
 use sp_core::{crypto::KeyTypeId,offchain::Timestamp};
 
-use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug, traits::Get,IterableStorageMap,
-                    StorageDoubleMap,ensure,weights::Weight, traits::Currency};
+use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug, traits::{Get, Currency, OnUnbalanced},IterableStorageMap,
+                    StorageDoubleMap,ensure,weights::Weight};
 use frame_system::{self as system,RawOrigin,Origin, ensure_signed,ensure_none, offchain};
 use hex;
+use crate::poc_staking as staking;
+use crate::poc;
 
 use pallet_timestamp as timestamp;
 use pallet_authority_discovery as authority_discovery;
@@ -32,6 +35,8 @@ use crate::ocw_common::*;
 
 // 请求的查询接口
 const EOS_NODE_URL: &[u8] = b"http://localhost:8421/v1/eosio/tx/";
+
+type BalanceOf<T> = <<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 type Signature = AnySignature;
 pub mod eos_crypto {
@@ -99,7 +104,7 @@ enum VerifyStatus {
 }
 
 /// The module's configuration trait.
-pub trait Trait: timestamp::Trait + system::Trait + SendTransactionTypes<Call<Self>>{
+pub trait Trait: system::Trait + SendTransactionTypes<Call<Self>> + poc::Trait {
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
@@ -139,6 +144,9 @@ decl_error! {
 
 	  /// tx 已经被兑换过了
 	  TxExChanged,
+
+	  /// 没有铸币权限
+	  NoPermission,
     }
 }
 
@@ -146,12 +154,15 @@ decl_event!(
   pub enum Event<T> where
     AccountId = <T as system::Trait>::AccountId,
     BlockNumber = <T as system::Trait>::BlockNumber,
+    Amount = <<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
     {
         FetchedSuc(AccountId,BlockNumber, Vec<u8>, u64), // 当前address 状态记录事件
 
         FailedEvent(AccountId,BlockNumber,Vec<u8>), // 记录返回错误的情况
 
         AddExchangeQueueEvent(Vec<u8>), //
+
+        CreateToken(AccountId, Amount),
   }
 );
 
@@ -450,7 +461,7 @@ impl<T: Trait> Module<T> {
         SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
             .map_err(|e| {
                 debug::info!("{:?}",e);
-                "============fetch_price: submit_signed(call) error=================="})?;
+                "============fetch_price: submit_signed(call) error============"})?;
 
         debug::info!("***fetch price over ^_^***");
         Ok(())
@@ -556,6 +567,8 @@ impl<T: Trait> Module<T> {
             }
             VerifyStatus::Pass => {  // 成功
             debug::info!("--注册成功--");
+                // todo: 调用铸币
+                Self::create_token(accept_account.clone(),quantity);
                 debug::info!("移除 tx={:?},队列剩余:{:?} 个",hex::encode(tx.clone()),num);
                 <TokenStatus<T>>::remove(tx); // 移除掉
                 if num >0{
@@ -686,9 +699,18 @@ impl<T: Trait> Module<T> {
         post_transfer_data.code;
     }
 
-    fn create_balance(who: T::AccountId, balance: T::Balance) -> DispatchResult{
-        // 铸币
-
+    fn create_token(who: T::AccountId, quantity: u64){
+        let decimal = match <BalanceOf<T> as TryFrom::<u64>>::try_from(quantity).ok(){
+            Some(x) => x,
+            // 不会返回错误  这里不作处理
+            None => {
+                debug::error!("quantity convert balance error");
+                return
+            },
+        };
+        debug::info!("{:?}兑换的个数为:{:?}",&who,decimal);
+        T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&who, decimal));
+        Self::deposit_event(RawEvent::CreateToken(who, decimal));
     }
 
 

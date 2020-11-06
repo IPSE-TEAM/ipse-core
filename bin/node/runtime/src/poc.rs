@@ -29,14 +29,10 @@ use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}};
 
 pub const YEAR: u32 = 365*DAYS;
 
-// pub const TotalMiningReward: BalanceOf<T> = <BalanceOf<T>>::from(2100_0000u32);
-
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 type PositiveImbalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::PositiveImbalance;
-// type NegativeImbalanceOf<T> =
-// 	<<T as Trait>::PocCurrency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
