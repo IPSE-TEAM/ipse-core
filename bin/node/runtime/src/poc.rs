@@ -3,6 +3,7 @@
 extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 use crate::poc_staking as staking;
+use crate::poc_staking::AccountIdOfPid;
 use node_primitives::KIB;
 use num_traits::CheckedDiv;
 use sp_std::convert::{TryInto,TryFrom, Into};
@@ -113,7 +114,11 @@ decl_module! {
 		/// 验证
         #[weight = 1000]
         fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
+
             let miner = ensure_signed(origin)?;
+
+            ensure!(<AccountIdOfPid<T>>::contains_key(account_id as u128), Error::<T>::PidErr);
+
             let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
             Self::deposit_event(RawEvent::Verify(miner, is_ok));
             Ok(())
