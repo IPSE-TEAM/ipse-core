@@ -71,7 +71,29 @@
     "MiningHistory": {
     	"total_num": "u64",
     	"history": "Vec<(BlockNumber, Balance)>"
-    }
+    },
+
+      "PostTxTransferData": {
+        "verify_status": "u64",
+        "irreversible": "bool",
+        "is_post_transfer": "bool",
+        "contract_account": "Vec<u8>",
+        "from": "Vec<u8>",
+        "to": "Vec<u8>",
+        "quantity": "u64",
+        "memo": "Vec<u8>"
+      },
+      "AddressStatus": {
+        "_enum": [
+          "active",
+          "inActive"
+        ]
+      },
+      "FetchFailed":{
+        "block_num": "BlockNumber",
+        "tx": "Vec<u8>",
+        "err": "Vec<u8>"
+      }
 
 }
 ```

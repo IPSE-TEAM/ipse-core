@@ -3,12 +3,11 @@ use sp_std::convert::{TryInto,TryFrom, Into};
 use sp_core::{crypto::AccountId32 as AccountId};
 use sp_core::{crypto::KeyTypeId,offchain::Timestamp};
 
-use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug, traits::{Get, Currency, OnUnbalanced},IterableStorageMap,
+use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug,
+                    traits::{Get, Currency, OnUnbalanced},IterableStorageMap,
                     StorageDoubleMap,ensure,weights::Weight};
 use frame_system::{self as system,RawOrigin,Origin, ensure_signed,ensure_none, offchain};
 use hex;
-use crate::poc_staking as staking;
-use crate::poc;
 
 use pallet_timestamp as timestamp;
 use pallet_authority_discovery as authority_discovery;
@@ -32,11 +31,14 @@ use sp_runtime::{
 use app_crypto::{sr25519};
 
 use crate::ocw_common::*;
+use crate::constants::currency;
 
 // 请求的查询接口
 const EOS_NODE_URL: &[u8] = b"http://localhost:8421/v1/eosio/tx/";
 
-type BalanceOf<T> = <<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
+// type BalanceOf<T> = <<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type PositiveImbalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::PositiveImbalance;
 
 type Signature = AnySignature;
 pub mod eos_crypto {
@@ -104,7 +106,7 @@ enum VerifyStatus {
 }
 
 /// The module's configuration trait.
-pub trait Trait: system::Trait + SendTransactionTypes<Call<Self>> + poc::Trait {
+pub trait Trait: system::Trait + timestamp::Trait + SendTransactionTypes<Call<Self>>{
     /// The overarching event type.
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
@@ -123,6 +125,9 @@ pub trait Trait: system::Trait + SendTransactionTypes<Call<Self>> + poc::Trait {
 
     type UnsignedPriority: Get<TransactionPriority>;
 
+    type OnUnbalanced: OnUnbalanced<PositiveImbalanceOf<Self>>;
+
+    type Currency: Currency<Self::AccountId>;
 }
 
 decl_error! {
@@ -154,7 +159,7 @@ decl_event!(
   pub enum Event<T> where
     AccountId = <T as system::Trait>::AccountId,
     BlockNumber = <T as system::Trait>::BlockNumber,
-    Amount = <<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
+    Amount = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance,
     {
         FetchedSuc(AccountId,BlockNumber, Vec<u8>, u64), // 当前address 状态记录事件
 
@@ -566,7 +571,7 @@ impl<T: Trait> Module<T> {
                 // Self::insert_active_status(accept_account.clone(), tx, AddressStatus::InActive);
             }
             VerifyStatus::Pass => {  // 成功
-            debug::info!("--注册成功--");
+            debug::info!("--------成功兑换--------");
                 // todo: 调用铸币
                 Self::create_token(accept_account.clone(),quantity);
                 debug::info!("移除 tx={:?},队列剩余:{:?} 个",hex::encode(tx.clone()),num);
@@ -700,7 +705,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn create_token(who: T::AccountId, quantity: u64){
-        let decimal = match <BalanceOf<T> as TryFrom::<u64>>::try_from(quantity).ok(){
+        let decimal = match <BalanceOf<T> as TryFrom::<u128>>::try_from(quantity as u128*currency::DOLLARS/10).ok(){
             Some(x) => x,
             // 不会返回错误  这里不作处理
             None => {
@@ -709,7 +714,7 @@ impl<T: Trait> Module<T> {
             },
         };
         debug::info!("{:?}兑换的个数为:{:?}",&who,decimal);
-        T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&who, decimal));
+        T::OnUnbalanced::on_unbalanced(T::Currency::deposit_creating(&who, decimal));
         Self::deposit_event(RawEvent::CreateToken(who, decimal));
     }
 

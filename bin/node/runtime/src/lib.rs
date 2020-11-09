@@ -253,6 +253,8 @@ impl exchange::Trait for Runtime {
 	type TxsMaxCount = TxsMaxCount;
 	type Duration = Hours;
 	type UnsignedPriority = OffchainWorkUnsignedPriority;
+	type OnUnbalanced = ();
+	type Currency = Balances;
 }
 
 impl pallet_utility::Trait for Runtime {
