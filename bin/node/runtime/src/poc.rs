@@ -103,6 +103,7 @@ decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 
      	type Error = Error<T>;
+
         fn deposit_event() = default;
         /// 多少个区块poc挖一次矿
         const MiningDuration: u64 = T::MiningDuration::get();

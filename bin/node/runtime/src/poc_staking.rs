@@ -140,6 +140,8 @@ decl_module! {
      	/// 一名矿工最多有多少名抵押者
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
 
+     	type Error = Error<T>;
+
         fn deposit_event() = default;
 
 
