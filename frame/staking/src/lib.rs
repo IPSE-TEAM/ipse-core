@@ -969,6 +969,10 @@ decl_storage! {
 		/// set, it might be active or not.
 		pub CurrentEra get(fn current_era): Option<EraIndex>;
 
+
+		/// Era开始的区块时间
+		pub EraStartBlockNumber get(fn era_start_block_number): T::BlockNumber;
+
 		/// The active era information, it holds index and start.
 		///
 		/// The active era is the era currently rewarded.
@@ -2715,6 +2719,11 @@ impl<T: Trait> Module<T> {
 			*s = Some(s.map(|s| s + 1).unwrap_or(0));
 			s.unwrap()
 		});
+
+		let now = <system::Module<T>>::block_number();
+
+		<EraStartBlockNumber<T>>::put(now);
+
 		ErasStartSessionIndex::insert(&current_era, &start_session_index);
 
 		// Clean old era information.
