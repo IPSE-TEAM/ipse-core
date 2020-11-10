@@ -307,7 +307,7 @@ use sp_runtime::{
 	Percent, Perbill, PerU16, PerThing, RuntimeDebug, DispatchError,
 	curve::PiecewiseLinear,
 	traits::{
-		Convert, Zero, StaticLookup, CheckedSub, Saturating, SaturatedConversion,
+		Convert, Zero, StaticLookup, CheckedSub, CheckedAdd, Saturating, SaturatedConversion,
 		AtLeast32BitUnsigned, Dispatchable,
 	},
 	transaction_validity::{
@@ -1242,6 +1242,8 @@ decl_error! {
 		IncorrectHistoryDepth,
 		/// Incorrect number of slashing spans provided.
 		IncorrectSlashingSpans,
+		/// 数据溢出
+		Overflow,
 	}
 }
 
@@ -2624,7 +2626,9 @@ impl<T: Trait> Module<T> {
 			Self::eras_start_session_index(next_active_era)
 		{
 			if next_active_era_start_session_index == start_session {
+
 				Self::start_era(start_session);
+
 			} else if next_active_era_start_session_index < start_session {
 				// This arm should never happen, but better handle it than to stall the
 				// staking pallet.
@@ -2651,6 +2655,10 @@ impl<T: Trait> Module<T> {
 	/// * reset `active_era.start`,
 	/// * update `BondedEras` and apply slashes.
 	fn start_era(start_session: SessionIndex) {
+
+		let now = <system::Module<T>>::block_number();
+		<EraStartBlockNumber<T>>::put(now);
+
 		let active_era = ActiveEra::mutate(|active_era| {
 			let new_index = active_era.as_ref().map(|info| info.index + 1).unwrap_or(0);
 			*active_era = Some(ActiveEraInfo {
@@ -2719,10 +2727,6 @@ impl<T: Trait> Module<T> {
 			*s = Some(s.map(|s| s + 1).unwrap_or(0));
 			s.unwrap()
 		});
-
-		let now = <system::Module<T>>::block_number();
-
-		<EraStartBlockNumber<T>>::put(now);
 
 		ErasStartSessionIndex::insert(&current_era, &start_session_index);
 

@@ -553,6 +553,7 @@ impl<T: Trait> Module<T> {
 		if stakers.len() == 0 {
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, reward));
 		}
+
 		else {
 			// 奖励矿工
 			let miner_reward = staking_info.clone().miner_proportion * reward;
@@ -561,8 +562,8 @@ impl<T: Trait> Module<T> {
 			let stakers_reward = reward - miner_reward;
 			let total_staking = staking_info.clone().total_staking;
 			for staker_info in stakers.iter() {
-				let staker_reward = stakers_reward.saturating_mul(staker_info.clone().1).saturating_sub(total_staking);
-				T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&staker_info.clone().0, stakers_reward));
+				let staker_reward = stakers_reward.saturating_mul(staker_info.clone().1).checked_div(&total_staking).ok_or(Error::<T>::DivZero)?;
+				T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&staker_info.clone().0, staker_reward));
 			}
 		}
 
