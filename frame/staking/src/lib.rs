@@ -2646,6 +2646,7 @@ impl<T: Trait> Module<T> {
 			{
 				if next_active_era_start_session_index == session_index + 1 {
 					Self::end_era(active_era, session_index);
+
 				}
 			}
 		}
@@ -2655,9 +2656,6 @@ impl<T: Trait> Module<T> {
 	/// * reset `active_era.start`,
 	/// * update `BondedEras` and apply slashes.
 	fn start_era(start_session: SessionIndex) {
-
-		let now = <system::Module<T>>::block_number();
-		<EraStartBlockNumber<T>>::put(now);
 
 		let active_era = ActiveEra::mutate(|active_era| {
 			let new_index = active_era.as_ref().map(|info| info.index + 1).unwrap_or(0);
@@ -2699,6 +2697,10 @@ impl<T: Trait> Module<T> {
 	/// Compute payout for era.
 	fn end_era(active_era: ActiveEraInfo, _session_index: SessionIndex) {
 		// Note: active_era_start can be None if end era is called during genesis config.
+
+		let now = <system::Module<T>>::block_number();
+		<EraStartBlockNumber<T>>::put(now);
+
 		if let Some(active_era_start) = active_era.start {
 			let now_as_millis_u64 = T::UnixTime::now().as_millis().saturated_into::<u64>();
 
