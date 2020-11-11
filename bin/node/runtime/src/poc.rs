@@ -320,7 +320,7 @@ impl<T: Trait> Module<T> {
 				mining_time: 12000,
 				block: current_block, // 记录当前区块
 			}));
-		LastMiningTs::mutate( |ts| *ts = now);
+// 		LastMiningTs::mutate( |ts| *ts = now);
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
 
 	}
@@ -387,12 +387,16 @@ impl<T: Trait> Module<T> {
         let mut total = 0_u64;
         let mut count = 0_u64;
         while let Some(dl) = iter.next() {
-            if count == 24 {
+        	if dl.miner.is_some() {
+        		if count == 24 {
                 break;
-            }
-            total += dl.mining_time;
-            count += 1;
+				}
+				total += dl.mining_time;
+				count += 1;
+        	}
+
         }
+
         if count == 0 { 12000 } else { total/count }
     }
 
