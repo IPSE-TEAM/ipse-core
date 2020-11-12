@@ -253,7 +253,7 @@ decl_module! {
 
 			<DiskOf<T>>::mutate(miner.clone(), |h| {
 				if let Some(x) = h {
-					x.is_stop = true
+					x.is_stop = true;
 				}
 			});
 

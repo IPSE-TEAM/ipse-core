@@ -225,8 +225,11 @@ impl poc_staking::Trait for Runtime {
 }
 
 parameter_types! {
+
 	pub const MiningDuration: u64 = 1;
+
 	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
+
 	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
 }
 
