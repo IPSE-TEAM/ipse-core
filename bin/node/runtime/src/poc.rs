@@ -218,7 +218,7 @@ decl_module! {
             }
 
             else {
-            	let mut  = <Test<T>>::get();
+            	let mut test = <Test<T>>::get();
             	test.push((<staking::Module<T>>::now(), miner.clone(), deadline, verify_ok.1, verify_ok.2));
             	<Test<T>>::put(test);
             }
