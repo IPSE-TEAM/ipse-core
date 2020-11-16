@@ -96,6 +96,9 @@ pub enum Event<T>
     {
         Minning(AccountId, bool),
         Verify(AccountId, bool),
+        Test1,
+        Test2,
+        Test3,
     }
 }
 
@@ -103,6 +106,7 @@ decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 
      	type Error = Error<T>;
+
         fn deposit_event() = default;
         /// 多少个区块poc挖一次矿
         const MiningDuration: u64 = T::MiningDuration::get();
@@ -146,6 +150,7 @@ decl_module! {
             // 高度大于当前即非法
             if height > current_block {
                 debug::info!("illegal height = {} !", height);
+                Self::deposit_event(RawEvent::Test1);
                 Self::deposit_event(RawEvent::Minning(miner, false));
                 return Ok(())
             }
@@ -161,6 +166,7 @@ decl_module! {
             // the verifying expired
             if height/Self::get_mining_duration()? - block/Self::get_mining_duration()? > 1 {  // 挖矿时候提交的高度不能太偏离最后一个dl_info的 高度
                 debug::info!("verifying expired height = {} !", height);
+                Self::deposit_event(RawEvent::Test2);
                 Self::deposit_event(RawEvent::Minning(miner, false));
                 return Ok(())
             }
@@ -169,9 +175,12 @@ decl_module! {
             // 如果之前已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
+                Self::deposit_event(RawEvent::Test3);
                 Self::deposit_event(RawEvent::Minning(miner, false));
                 return Ok(())
             }
+
+
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
 
             if verify_ok {
@@ -182,9 +191,19 @@ decl_module! {
                 }
 
                 // append a better deadline
-                let now = Self::get_now_ts(current_block);
+                let now = Self::get_now_ts();
+                let mining_time: u64;
+                let block_num = <staking::Module<T>>::now().saturated_into::<u64>();
+
+                if Self::lts() == 0u64 {
+                	mining_time = MILLISECS_PER_BLOCK;
+                }
+
+                else {
+                	mining_time = now - Self::lts();
+                }
+
                 // 上次出块与本次出块的时间间隔
-                let mining_time = now - Self::lts();
                 DlInfo::<T>::mutate(|dl| dl.push(
                     MiningInfo{
                         miner: Some(miner.clone()),
@@ -202,14 +221,19 @@ decl_module! {
         }
 
         fn on_initialize(n: T::BlockNumber) -> Weight{
-            let n = n.saturated_into::<u64>();
-            if n == 1 {
-               LastMiningTs::put(0);
+
+            if n == T::BlockNumber::from(1u32) {
+				/// 这里获取的值一直是0
+               let now = Self::get_now_ts();
+
+               LastMiningTs::put(now);
+               debug::info!("现在的时间是：{:?}", now);
+
                TargetInfo::mutate(|target| target.push(
                     Difficulty{
                         base_target: T::GENESIS_BASE_TARGET::get(),
                         net_difficulty: 1,
-                        block: 0,
+                        block: 1,
                     }));
             }
             0
@@ -234,7 +258,7 @@ decl_module! {
 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
 			// 调整挖矿难度
-            if current_block%3 == 0 {
+            if current_block%10 == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
@@ -280,6 +304,7 @@ impl<T: Trait> Module<T> {
                     block,
                     base_target: new,
                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
+
                 }));
         }
 
@@ -310,7 +335,7 @@ impl<T: Trait> Module<T> {
 
 
 	fn treasury_minning(current_block: u64) {
-		let now = Self::get_now_ts(current_block);
+
 		<DlInfo<T>>::mutate(|dl| dl.push(
 			MiningInfo{
 				miner: None,
@@ -319,7 +344,6 @@ impl<T: Trait> Module<T> {
 				mining_time: 12000,
 				block: current_block, // 记录当前区块
 			}));
-		LastMiningTs::mutate( |ts| *ts = now);
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
 
 	}
@@ -353,8 +377,11 @@ impl<T: Trait> Module<T> {
     }
 
 
-    fn get_now_ts(block_num: u64) -> u64 {
-        let now = <timestamp::Module<T>>::get();
+    fn get_now_ts() -> u64 {
+        let now = <timestamp::Module<T>>::now();
+
+        debug::info!("现在的时间是：{:?}", now);
+
         <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
 
     }
@@ -386,12 +413,16 @@ impl<T: Trait> Module<T> {
         let mut total = 0_u64;
         let mut count = 0_u64;
         while let Some(dl) = iter.next() {
-            if count == 24 {
+        	if dl.miner.is_some() {
+        		if count == 24 {
                 break;
-            }
-            total += dl.mining_time;
-            count += 1;
+				}
+				total += dl.mining_time;
+				count += 1;
+        	}
+
         }
+
         if count == 0 { 12000 } else { total/count }
     }
 
@@ -510,6 +541,7 @@ impl<T: Trait> Module<T> {
 			reward = reward;
 			Self::reward_staker(miner.clone(), reward);
 		}
+
 		// 如果不达标 拿百分之10的奖励
 		else {
 			debug::info!("矿工抵押不达标！");
@@ -552,6 +584,7 @@ impl<T: Trait> Module<T> {
 		if stakers.len() == 0 {
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, reward));
 		}
+
 		else {
 			// 奖励矿工
 			let miner_reward = staking_info.clone().miner_proportion * reward;
@@ -560,8 +593,8 @@ impl<T: Trait> Module<T> {
 			let stakers_reward = reward - miner_reward;
 			let total_staking = staking_info.clone().total_staking;
 			for staker_info in stakers.iter() {
-				let staker_reward = stakers_reward.saturating_mul(staker_info.clone().1).saturating_sub(total_staking);
-				T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&staker_info.clone().0, stakers_reward));
+				let staker_reward = stakers_reward.saturating_mul(staker_info.clone().1).checked_div(&total_staking).ok_or(Error::<T>::DivZero)?;
+				T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&staker_info.clone().0, staker_reward));
 			}
 		}
 

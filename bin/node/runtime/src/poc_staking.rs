@@ -14,6 +14,8 @@ use frame_support::{
 	StorageMap, StorageValue,
 	decl_error, ensure,
 };
+use pallet_staking as staking;
+
 use sp_std::result;
 
 use system::{ensure_signed};
@@ -29,7 +31,7 @@ type BalanceOf<T> =
 type NegativeImbalanceOf<T> =
 	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
-pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trait {
+pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trait + staking::Trait {
 
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
@@ -140,6 +142,8 @@ decl_module! {
      	/// 一名矿工最多有多少名抵押者
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
 
+     	type Error = Error<T>;
+
         fn deposit_event() = default;
 
 
@@ -249,7 +253,7 @@ decl_module! {
 
 			<DiskOf<T>>::mutate(miner.clone(), |h| {
 				if let Some(x) = h {
-					x.is_stop = true
+					x.is_stop = true;
 				}
 			});
 
@@ -408,15 +412,15 @@ impl<T: Trait> Module<T> {
 	/// 判断是否进入冷却期
 	fn update_chill() -> DispatchResult {
 
-		let now = Self::now().saturated_into::<u64>();
+		let now = Self::now();
 
-		let chill_duration = T::ChillDuration::get().saturated_into::<u64>();
+		let era_start_time = <staking::Module<T>>::era_start_block_number();
 
-		let start_time = Self::current_epoch_start()?;
+		let chill_duration = T::ChillDuration::get();
 
-		let time = chill_duration.checked_add(start_time).ok_or(Error::<T>::Overflow)?;
+		let time = chill_duration.checked_add(&era_start_time).ok_or(Error::<T>::Overflow)?;
 
-		debug::info!("poc_staking era start_time: {:?}, chill end_time: {:?}", start_time, time);
+		debug::info!("poc_staking era start_time: {:?}, chill end_time: {:?}", era_start_time, time);
 
 		if now <= time {
 			<IsChillTime>::put(true)

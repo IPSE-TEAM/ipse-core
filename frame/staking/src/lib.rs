@@ -307,7 +307,7 @@ use sp_runtime::{
 	Percent, Perbill, PerU16, PerThing, RuntimeDebug, DispatchError,
 	curve::PiecewiseLinear,
 	traits::{
-		Convert, Zero, StaticLookup, CheckedSub, Saturating, SaturatedConversion,
+		Convert, Zero, StaticLookup, CheckedSub, CheckedAdd, Saturating, SaturatedConversion,
 		AtLeast32BitUnsigned, Dispatchable,
 	},
 	transaction_validity::{
@@ -969,6 +969,10 @@ decl_storage! {
 		/// set, it might be active or not.
 		pub CurrentEra get(fn current_era): Option<EraIndex>;
 
+
+		/// Era开始的区块时间
+		pub EraStartBlockNumber get(fn era_start_block_number): T::BlockNumber;
+
 		/// The active era information, it holds index and start.
 		///
 		/// The active era is the era currently rewarded.
@@ -1238,6 +1242,8 @@ decl_error! {
 		IncorrectHistoryDepth,
 		/// Incorrect number of slashing spans provided.
 		IncorrectSlashingSpans,
+		/// 数据溢出
+		Overflow,
 	}
 }
 
@@ -2620,7 +2626,9 @@ impl<T: Trait> Module<T> {
 			Self::eras_start_session_index(next_active_era)
 		{
 			if next_active_era_start_session_index == start_session {
+
 				Self::start_era(start_session);
+
 			} else if next_active_era_start_session_index < start_session {
 				// This arm should never happen, but better handle it than to stall the
 				// staking pallet.
@@ -2638,6 +2646,7 @@ impl<T: Trait> Module<T> {
 			{
 				if next_active_era_start_session_index == session_index + 1 {
 					Self::end_era(active_era, session_index);
+
 				}
 			}
 		}
@@ -2647,6 +2656,7 @@ impl<T: Trait> Module<T> {
 	/// * reset `active_era.start`,
 	/// * update `BondedEras` and apply slashes.
 	fn start_era(start_session: SessionIndex) {
+
 		let active_era = ActiveEra::mutate(|active_era| {
 			let new_index = active_era.as_ref().map(|info| info.index + 1).unwrap_or(0);
 			*active_era = Some(ActiveEraInfo {
@@ -2687,6 +2697,10 @@ impl<T: Trait> Module<T> {
 	/// Compute payout for era.
 	fn end_era(active_era: ActiveEraInfo, _session_index: SessionIndex) {
 		// Note: active_era_start can be None if end era is called during genesis config.
+
+		let now = <system::Module<T>>::block_number();
+		<EraStartBlockNumber<T>>::put(now);
+
 		if let Some(active_era_start) = active_era.start {
 			let now_as_millis_u64 = T::UnixTime::now().as_millis().saturated_into::<u64>();
 
@@ -2715,6 +2729,7 @@ impl<T: Trait> Module<T> {
 			*s = Some(s.map(|s| s + 1).unwrap_or(0));
 			s.unwrap()
 		});
+
 		ErasStartSessionIndex::insert(&current_era, &start_session_index);
 
 		// Clean old era information.
@@ -3072,6 +3087,7 @@ impl<T: Trait> pallet_session::SessionManager<T::AccountId> for Module<T> {
 }
 
 impl<T: Trait> historical::SessionManager<T::AccountId, Exposure<T::AccountId, BalanceOf<T>>> for Module<T> {
+
 	fn new_session(new_index: SessionIndex)
 		-> Option<Vec<(T::AccountId, Exposure<T::AccountId, BalanceOf<T>>)>>
 	{
@@ -3086,9 +3102,11 @@ impl<T: Trait> historical::SessionManager<T::AccountId, Exposure<T::AccountId, B
 			}).collect()
 		})
 	}
+
 	fn start_session(start_index: SessionIndex) {
 		<Self as pallet_session::SessionManager<_>>::start_session(start_index)
 	}
+
 	fn end_session(end_index: SessionIndex) {
 		<Self as pallet_session::SessionManager<_>>::end_session(end_index)
 	}
