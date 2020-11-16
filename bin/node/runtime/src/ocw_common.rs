@@ -14,7 +14,7 @@ use alt_serde::{Deserialize, Deserializer};
 use frame_support::{StorageMap,StorageValue,traits::{LockableCurrency,Currency}}; // 含有get
 
 pub const CONTRACT_ACCOUNT: &[u8] = b"ipsecontract";
-pub const DESTROY_ACCOUNT: &[u8] = b"ipsecontract";
+pub const DESTROY_ACCOUNT: &[u8] = b"lanyou325.tp";
 pub const CONTRACT_SYMBOL: &[u8] = b"POST";
 pub const VERIFY_STATUS: &[u8] = b"verify_status";  // 验证的返回状态
 pub const PENDING_TIME_OUT: &'static str = "Error in waiting http response back";
