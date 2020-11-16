@@ -86,6 +86,9 @@ decl_storage! {
         /// 矿工的挖矿记录
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
+        /// (block_num, account_id，deadline, target, base_target)
+        pub Test get(fn test): Vec<(T::BlockNumber, T::AccountId, u64, u64, u64)>;
+
     }
 }
 
@@ -123,7 +126,7 @@ decl_module! {
 
             ensure!(<AccountIdOfPid<T>>::contains_key(account_id as u128), Error::<T>::PidErr);
 
-            let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+            let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline).0;
             Self::deposit_event(RawEvent::Verify(miner, is_ok));
             Ok(())
         }
@@ -183,7 +186,7 @@ decl_module! {
 
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
 
-            if verify_ok {
+            if verify_ok.0 {
                 // delete the old deadline in this mining cycle
                 // 这里保证了dl_info的最后一个总是最优解
                 if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
@@ -212,10 +215,16 @@ decl_module! {
                         mining_time
                     }));
                 LastMiningTs::mutate( |ts| *ts = now);
-            };
+            }
 
-            debug::info!("verify result: {}", verify_ok);
-            Self::deposit_event(RawEvent::Minning(miner, verify_ok));
+            else {
+            	let mut  = <Test<T>>::get();
+            	test.push((<staking::Module<T>>::now(), miner.clone(), deadline, verify_ok.1, verify_ok.2));
+            	<Test<T>>::put(test);
+            }
+
+            debug::info!("verify result: {}", verify_ok.0);
+            Self::deposit_event(RawEvent::Minning(miner, verify_ok.0));
 
             Ok(())
         }
@@ -223,7 +232,7 @@ decl_module! {
         fn on_initialize(n: T::BlockNumber) -> Weight{
 
             if n == T::BlockNumber::from(1u32) {
-				/// 这里获取的值一直是0
+
                let now = Self::get_now_ts();
 
                LastMiningTs::put(now);
@@ -264,7 +273,7 @@ decl_module! {
 
             if current_block%Self::get_mining_duration().unwrap() == 0 {
 
-            	if current_block == last_mining_block {
+            	if current_block/Self::get_mining_duration().unwrap() == last_mining_block/Self::get_mining_duration().unwrap() {
 
              		if let Some(miner_info) = Self::dl_info().last() {
  						let miner: Option<T::AccountId> = miner_info.clone().miner;
@@ -296,7 +305,7 @@ impl<T: Trait> Module<T> {
         let mining_time_avg = Self::get_mining_time_avg();
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
         // base_target跟出块的平均时间成正比
-        if mining_time_avg >= 16000 {
+        if mining_time_avg >= MILLISECS_PER_BLOCK * 2 * 2 / 3 {
             let new = base_target_avg.saturating_mul(2);
             debug::info!("[DIFFICULTY] make easier = {}", new);
             TargetInfo::mutate(|target| target.push(
@@ -308,7 +317,7 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-        else if mining_time_avg <= 8000 {
+        else if mining_time_avg <= MILLISECS_PER_BLOCK * 2 / 3 {
             let new = base_target_avg / 2;
             debug::info!("[DIFFICULTY] make more difficult = {}", new);
             TargetInfo::mutate(|target| target.push(
@@ -341,7 +350,7 @@ impl<T: Trait> Module<T> {
 				miner: None,
 				best_dl: core::u64::MAX,
 
-				mining_time: 12000,
+				mining_time: MILLISECS_PER_BLOCK,
 				block: current_block, // 记录当前区块
 			}));
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
@@ -423,11 +432,11 @@ impl<T: Trait> Module<T> {
 
         }
 
-        if count == 0 { 12000 } else { total/count }
+        if count == 0 { MILLISECS_PER_BLOCK } else { total/count }
     }
 
 
-    fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> bool {
+    fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> (bool, u64, u64) {
         let scoop_data = calculate_scoop(height, &sig) as u64;
         debug::info!("scoop_data: {:?}",scoop_data);
         debug::info!("sig: {:?}",sig);
@@ -443,7 +452,7 @@ impl<T: Trait> Module<T> {
         let base_target = Self::get_current_base_target();
         let deadline_ = target/base_target;
         debug::info!("deadline: {:?}",deadline_);
-        deadline == target/base_target
+        (deadline == target/base_target, target, base_target)
     }
 
 

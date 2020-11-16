@@ -345,7 +345,7 @@ fn development_config_genesis() -> GenesisConfig {
 pub fn development_config() -> ChainSpec {
 
 	let mut properties = Map::new();
-	properties.insert("tokenSymbol".into(),"POST2".into());
+	properties.insert("tokenSymbol".into(),"IPSE".into());
 	properties.insert("tokenDecimals".into(),14.into());
 
 	ChainSpec::from_genesis(
