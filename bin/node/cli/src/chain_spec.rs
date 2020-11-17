@@ -366,6 +366,11 @@ fn local_testnet_genesis() -> GenesisConfig {
 		vec![
 			authority_keys_from_seed("Alice"),
 			authority_keys_from_seed("Bob"),
+			authority_keys_from_seed("Charlie"),
+			authority_keys_from_seed("Dave"),
+			authority_keys_from_seed("Eve"),
+			authority_keys_from_seed("Ferdie"),
+
 		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
@@ -375,6 +380,10 @@ fn local_testnet_genesis() -> GenesisConfig {
 
 /// Local testnet config (multivalidator Alice + Bob)
 pub fn local_testnet_config() -> ChainSpec {
+	let mut properties = Map::new();
+	properties.insert("tokenSymbol".into(),"IPSE".into());
+	properties.insert("tokenDecimals".into(),14.into());
+
 	ChainSpec::from_genesis(
 		"Local Testnet",
 		"local_testnet",
@@ -383,7 +392,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		vec![],
 		None,
 		None,
-		None,
+		Some(properties),
 		Default::default(),
 	)
 }

@@ -149,13 +149,14 @@ decl_module! {
 
             debug::info!("starting Verify Deadline !!!");
 
-            // illegal block height
-            // 高度大于当前即非法
-            if height > current_block {
-                debug::info!("illegal height = {} !", height);
-                Self::deposit_event(RawEvent::Test1);
-                Self::deposit_event(RawEvent::Minning(miner, false));
-                return Ok(())
+			// 必须在同一周期 并且提交的时间比处理的时间迟
+            if !(current_block/T::MiningDuration::get() == height/T::MiningDuration::get() && current_block >= height)
+            {
+                debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
+
+				Self::deposit_event(RawEvent::Test2);
+
+				return Err(Error::<T>::HeightNotInDuration)?;
             }
 
 			// 获取区块高度和最佳的deadline
@@ -166,21 +167,14 @@ decl_module! {
                 (0, core::u64::MAX)
             };
 
-            // the verifying expired
-            if height/Self::get_mining_duration()? - block/Self::get_mining_duration()? > 1 {  // 挖矿时候提交的高度不能太偏离最后一个dl_info的 高度
-                debug::info!("verifying expired height = {} !", height);
-                Self::deposit_event(RawEvent::Test2);
-                Self::deposit_event(RawEvent::Minning(miner, false));
-                return Ok(())
-            }
 
             // Someone(miner) has mined a better deadline at this mining cycle before.
             // 如果之前已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
                 Self::deposit_event(RawEvent::Test3);
-                Self::deposit_event(RawEvent::Minning(miner, false));
-                return Ok(())
+
+                return Err(Error::<T>::NotBestDeadline)?;
             }
 
 
@@ -190,7 +184,9 @@ decl_module! {
                 // delete the old deadline in this mining cycle
                 // 这里保证了dl_info的最后一个总是最优解
                 if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
+
                     DlInfo::<T>::mutate(|dl| dl.pop());
+
                 }
 
                 // append a better deadline
@@ -236,7 +232,6 @@ decl_module! {
                let now = Self::get_now_ts();
 
                LastMiningTs::put(now);
-               debug::info!("现在的时间是：{:?}", now);
 
                TargetInfo::mutate(|target| target.push(
                     Difficulty{
@@ -388,8 +383,6 @@ impl<T: Trait> Module<T> {
 
     fn get_now_ts() -> u64 {
         let now = <timestamp::Module<T>>::now();
-
-        debug::info!("现在的时间是：{:?}", now);
 
         <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
 
@@ -637,5 +630,10 @@ decl_error! {
 		PidErr,
 		/// 数据转换错误
 		ConvertErr,
+		/// 提交的高度不在当前周期
+		HeightNotInDuration,
+		/// 不是最优的deadline
+		NotBestDeadline,
+
     }
 }
