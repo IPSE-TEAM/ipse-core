@@ -73,12 +73,15 @@ pub fn de_string_decode_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
 {
     let s: &str = Deserialize::deserialize(de)?;
     // debug::info!("获取到的字符串:{:?}",s);
+    if s.len() < 2 {
+        return Err(D::Error::invalid_value(Unexpected::Str(s), &"0x..."))
+    }
     match hex::decode(&s[2..]){  // 传入的是 0x开头字符串,去掉 0x
         Ok(s_vec) =>{
             Ok(s_vec)
         },
         Err(e) => {
-            debug::info!("{:?}",e);
+            debug::error!("{:?}",e);
             Err(D::Error::invalid_value(Unexpected::Str(s), &""))}
     }
     // Ok(s.as_bytes().to_vec())
