@@ -100,8 +100,8 @@ pub enum Event<T>
         Minning(AccountId, bool),
         Verify(AccountId, bool),
         Test1,
-        Test2,
-        Test3,
+        HeightTooLow,
+        NotBestDeadline,
     }
 }
 
@@ -154,7 +154,7 @@ decl_module! {
             {
                 debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
 
-				Self::deposit_event(RawEvent::Test2);
+				Self::deposit_event(RawEvent::HeightTooLow);
 
 				return Err(Error::<T>::HeightNotInDuration)?;
             }
@@ -171,8 +171,10 @@ decl_module! {
             // Someone(miner) has mined a better deadline at this mining cycle before.
             // 如果之前已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
+
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
-                Self::deposit_event(RawEvent::Test3);
+
+                Self::deposit_event(RawEvent::NotBestDeadline);
 
                 return Err(Error::<T>::NotBestDeadline)?;
             }
@@ -182,17 +184,9 @@ decl_module! {
 
             if verify_ok.0 {
                 // delete the old deadline in this mining cycle
-                // 这里保证了dl_info的最后一个总是最优解
-                if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
-
-                    DlInfo::<T>::mutate(|dl| dl.pop());
-
-                }
-
                 // append a better deadline
                 let now = Self::get_now_ts();
-                let mining_time: u64;
-                let block_num = <staking::Module<T>>::now().saturated_into::<u64>();
+                let mut mining_time: u64;
 
                 if Self::lts() == 0u64 {
                 	mining_time = MILLISECS_PER_BLOCK;
@@ -200,6 +194,13 @@ decl_module! {
 
                 else {
                 	mining_time = now - Self::lts();
+                }
+
+                // 这里保证了dl_info的最后一个总是最优解
+                if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
+
+                    DlInfo::<T>::mutate(|dl| dl.pop());
+
                 }
 
                 // 上次出块与本次出块的时间间隔
