@@ -677,7 +677,7 @@ impl<T: Trait> Module<T> {
             if post_transfer_data.code == 0 {post_transfer_data.code = 2100;}  // 设置一个初始值
             // 对状态进行赋值
             if post_transfer_data.irreversible && post_transfer_data.is_post_transfer{ // 首先保证不可逆 和post转账
-                if post_transfer_data.contract_account == CONTRACT_ACCOUNT.to_vec(){
+                if post_transfer_data.contract_account == CONTRACT_ACCOUNT.to_vec() && post_transfer_data.to == DESTROY_ACCOUNT.to_vec(){
                     match Self::vec_convert_account(post_transfer_data.pk.clone()){
                         Some(new_acc) =>{
                             if acc == new_acc{
