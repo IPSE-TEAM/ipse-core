@@ -182,6 +182,7 @@ decl_module! {
 
             let now = Self::get_now_ts();
             Orders::<T>::mutate( |os| -> DispatchResult {
+
                 let mut order = os.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
                 ensure!(order.status != OrderStatus::Deleted, Error::<T>::OrderDeleted);
                 ensure!(order.status != OrderStatus::Expired, Error::<T>::OrderExpired);
