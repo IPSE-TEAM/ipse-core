@@ -134,6 +134,7 @@ pub enum Event<T>
 		ExitStaking(AccountId, AccountId),
 		UpdatePid(AccountId, u128),
 		RequestUpToList(AccountId, Balance),
+		RequestDownFromList(AccountId),
     }
 }
 
@@ -207,6 +208,28 @@ decl_module! {
 			Self::deposit_event(RawEvent::RequestUpToList(miner, amount));
 
 		}
+
+
+		/// 矿工退出推荐列表
+		#[weight = 10_000]
+		fn request_down_from_list(origin) {
+			let miner = ensure_signed(origin)?;
+			// 获取推荐列表
+			let mut list = <RecommendList<T>>::get();
+			if let Some(pos) = list.iter().position(|h| h.0 == miner) {
+				let amount = list.swap_remove(pos).1;
+				T::StakingCurrency::unreserve(&miner, amount);
+
+				<RecommendList<T>>::put(list);
+			}
+			else {
+				return Err(Error::<T>::NotInList)?;
+			}
+
+			Self::deposit_event(RawEvent::RequestDownFromList(miner));
+
+		}
+
 
 
 		/// 矿工修改p盘id
@@ -499,11 +522,12 @@ impl<T: Trait> Module<T> {
 
 		old_list.insert(index, (miner, amount));
 
-		let abandon = old_list.split_off(20);
-
-		// 对被淘汰的人进行释放
-		for i in abandon {
-			T::StakingCurrency::unreserve(&i.0, i.1);
+		if old_list.len() > 20 {
+			let abandon = old_list.split_off(20);
+			// 对被淘汰的人进行释放
+			for i in abandon {
+				T::StakingCurrency::unreserve(&i.0, i.1);
+			}
 		}
 
 		<RecommendList<T>>::put(old_list);
@@ -675,6 +699,8 @@ decl_error! {
 		StakerNumberToMax,
 		/// 账户金额不够
 		AmountNotEnough,
+		/// 不在推荐列表中
+		NotInList,
 
 
 
