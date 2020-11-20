@@ -14,6 +14,8 @@ use frame_support::{
     ensure,
     dispatch::{DispatchResult, DispatchError}, debug,
     weights::Weight, traits::{Get, Currency, Imbalance, OnUnbalanced, ReservableCurrency},
+    IterableStorageMap,
+    StorageMap, StorageValue,
 };
 use system::{ensure_signed};
 use sp_runtime::{traits::{SaturatedConversion, Saturating}, Percent};
@@ -185,16 +187,17 @@ decl_module! {
             if verify_ok.0 {
                 // delete the old deadline in this mining cycle
                 // append a better deadline
-                let now = Self::get_now_ts();
-                let mut mining_time: u64;
 
-                if Self::lts() == 0u64 {
-                	mining_time = MILLISECS_PER_BLOCK;
-                }
+                let last_block = Self::get_last_miner_mining_block();
+
+                let mining_time: u64;
+                if last_block == 0 {
+                	mining_time = T::MiningDuration::get() * MILLISECS_PER_BLOCK;
+                	}
 
                 else {
-                	mining_time = now - Self::lts();
-                }
+                	mining_time = (current_block - last_block) * MILLISECS_PER_BLOCK;
+                	}
 
                 // 这里保证了dl_info的最后一个总是最优解
                 if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
@@ -211,13 +214,14 @@ decl_module! {
                         block: current_block,
                         mining_time
                     }));
-                LastMiningTs::mutate( |ts| *ts = now);
+
+                LastMiningTs::mutate( |ts| *ts = current_block * MILLISECS_PER_BLOCK);
             }
 
             else {
-            	let mut test = <Test<T>>::get();
-            	test.push((<staking::Module<T>>::now(), miner.clone(), deadline, verify_ok.1, verify_ok.2));
-            	<Test<T>>::put(test);
+//             	let mut test = <Test<T>>::get();
+// //             	test.push((<staking::Module<T>>::now(), miner.clone(), deadline, verify_ok.1, verify_ok.2));
+//             	<Test<T>>::put(test);
             }
 
             debug::info!("verify result: {}", verify_ok.0);
@@ -229,8 +233,7 @@ decl_module! {
         fn on_initialize(n: T::BlockNumber) -> Weight{
 
             if n == T::BlockNumber::from(1u32) {
-
-               let now = Self::get_now_ts();
+            	let now = Self::get_now_ts();
 
                LastMiningTs::put(now);
 
@@ -371,6 +374,33 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    // 获取上次矿工挖矿的区块
+    fn get_last_miner_mining_block() -> u64 {
+
+		let dl = <DlInfo<T>>::get();
+
+		// 获取现在的区块
+		let now = <staking::Module<T>>::now().saturated_into::<u64>();
+
+        for i in dl.iter() {
+
+        	if i.miner.is_some() {
+
+        		// 不在本周期 并且
+        		if (i.block / T::MiningDuration::get() != now / T::MiningDuration::get()) && (now - i.block <= 3 * T::MiningDuration::get()) {
+        			return i.block;
+
+        		}
+        	}
+
+        }
+
+        0
+
+    }
+
+
+
 
     fn get_last_adjust_block() -> u64 {
         let tis = Self::target_info();
@@ -383,9 +413,10 @@ impl<T: Trait> Module<T> {
 
 
     fn get_now_ts() -> u64 {
-        let now = <timestamp::Module<T>>::now();
 
-        <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
+        let now = <staking::Module<T>>::now().saturated_into::<u64>();
+
+		now * MILLISECS_PER_BLOCK
 
     }
 

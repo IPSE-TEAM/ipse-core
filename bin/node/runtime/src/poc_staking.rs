@@ -218,6 +218,7 @@ decl_module! {
 			let mut list = <RecommendList<T>>::get();
 			if let Some(pos) = list.iter().position(|h| h.0 == miner) {
 				let amount = list.swap_remove(pos).1;
+
 				T::StakingCurrency::unreserve(&miner, amount);
 
 				<RecommendList<T>>::put(list);
