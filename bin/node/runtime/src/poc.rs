@@ -82,6 +82,7 @@ decl_storage! {
         pub LastMiningTs get(fn lts): u64;
         /// info of base_target and difficulty
         pub TargetInfo get(fn target_info): Vec<Difficulty>;
+
         /// deadline info of mining success
         pub DlInfo get(fn dl_info): Vec<MiningInfo<T::AccountId>>;
 
@@ -89,7 +90,7 @@ decl_storage! {
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
         /// (block_num, account_id，deadline, target, base_target)
-        pub Test get(fn test): Vec<(T::BlockNumber, T::AccountId, u64, u64, u64)>;
+        pub Test get(fn test): Vec<(T::BlockNumber)>;
 
     }
 }
@@ -353,7 +354,7 @@ impl<T: Trait> Module<T> {
 				block: current_block, // 记录当前区块
 			}));
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
-
+// 		<Test<T>>::mutate(|h| h.push(T::BlockNumber::from(current_block as u32)));
 	}
 
 
@@ -377,21 +378,37 @@ impl<T: Trait> Module<T> {
     // 获取上次矿工挖矿的区块
     fn get_last_miner_mining_block() -> u64 {
 
-		let dl = <DlInfo<T>>::get();
+
+		let mut dl = <DlInfo<T>>::get();
+
+		let dl_cp = dl.clone();
 
 		// 获取现在的区块
 		let now = <staking::Module<T>>::now().saturated_into::<u64>();
+		let len = dl_cp.len();
 
-        for i in dl.iter() {
+        for j in 0..len {
+
+			let i = dl.get(len - 1 - j).unwrap();
+
+			let mut index = 1;
+
+			// 不能超过10个周期
+			if index >= 10 {
+				break;
+			}
 
         	if i.miner.is_some() {
 
         		// 不在本周期 并且
-        		if (i.block / T::MiningDuration::get() != now / T::MiningDuration::get()) && (now - i.block <= 3 * T::MiningDuration::get()) {
+        		if (i.block / T::MiningDuration::get() != now / T::MiningDuration::get()) {
+        			debug::info!("矿工挖出来的最后的区块是:{:?}", i);
         			return i.block;
 
         		}
         	}
+
+        	index += 1;
 
         }
 
