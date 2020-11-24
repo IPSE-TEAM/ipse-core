@@ -1,7 +1,7 @@
 ```
 {
     "KIB": "u64",
-
+    "Amount": "u128",
     "Miner": {
           "nickname": "Vec<u8>",
           "region": "Vec<u8>",
@@ -89,11 +89,12 @@
           "inActive"
         ]
       },
-      "FetchFailed":{
+      "FetchFailedOf":{
         "block_num": "BlockNumber",
         "tx": "Vec<u8>",
         "err": "Vec<u8>"
       }
+    
 
 }
 ```

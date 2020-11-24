@@ -6,7 +6,7 @@ use sp_core::{crypto::KeyTypeId,offchain::Timestamp};
 use frame_support::{print,Parameter,decl_module,decl_error, decl_storage, decl_event, dispatch, debug,
                     traits::{Get, Currency, OnUnbalanced},IterableStorageMap,
                     StorageDoubleMap,ensure,weights::Weight};
-use frame_system::{self as system,RawOrigin,Origin, ensure_signed,ensure_none, offchain};
+use frame_system::{self as system,RawOrigin,Origin, ensure_signed,ensure_root,ensure_none, offchain};
 use hex;
 
 use pallet_timestamp as timestamp;
@@ -148,7 +148,10 @@ decl_error! {
 	  MemoInvalid,
 
 	  /// tx 已经被兑换过了
-	  TxExChanged,
+	  Exchanged,
+
+	  /// 截止兑换
+	  DeadExchange,
 
 	  /// 没有铸币权限
 	  NoPermission,
@@ -175,6 +178,9 @@ decl_event!(
 // This module's storage items.
 decl_storage! {
   trait Store for Module<T: Trait> as PostExchange {
+        /// 设置 兑换截止时间
+        DeadlineTime: T::BlockNumber;
+
         /// 等同于队列作用
         /// 设置状态位  u32表现形式1xxx.初始值为 1000,低3位分别表示 验证通过次数,验证失败次数,非正常情况返回次数, tx => 1xxx,AccountId,
 	    TokenStatus get(fn tx_status): map hasher(blake2_128_concat) Vec<u8> => (u64,T::AccountId); // 收款的账号
@@ -225,10 +231,22 @@ decl_module! {
         0
        }
 
+       #[weight = 0]
+     fn SetExchangeDealine(origin, deadline_time: T::BlockNumber) -> DispatchResult{
+            ensure_root(origin)?;
+            <DeadlineTime<T>>::put(deadline_time);
+            Ok(())
+     }
+
+
+
      #[weight = 0]
      fn exchange(origin, tx: Vec<u8>) -> DispatchResult{
         //用户填写 eos 的转账tx, memo 表示 ipse的接收地址
         // 根据 转账的 post 个数兑换相应的 post2
+        if <DeadlineTime<T>>::get() < <system::Module<T>>::block_number(){
+            return Err(Error::<T>::DeadExchange)?;
+        }
         let who = ensure_signed(origin)?;
         // let account = Self::vec_convert_account(memo.clone()).ok_or(Error::<T>::MemoInvalid)?;
         // debug::info!("memo is {:?}",account);
@@ -236,7 +254,7 @@ decl_module! {
         let tx_hex = hex::encode(&tx);
         debug::info!("verify tx = {:?}",tx_hex);
         match SucTxExchange::get(&tx){
-            Some(tx) => return Err(Error::<T>::TxExChanged)?,
+            Some(tx) => return Err(Error::<T>::Exchanged)?,
             _ => (),
         }
 
@@ -280,7 +298,7 @@ decl_module! {
        debug::info!("token_status={:?},accept_account={:?}",token_status,accept_account);
        ensure!(<TokenStatus<T>>::contains_key(tx.clone()), "不需要再操作,tx已经从TokenStatus移除");
        match SucTxExchange::get(&tx){  // 也可以不需要此判断
-        Some(_) => return Err(Error::<T>::TxExChanged)?,
+        Some(_) => return Err(Error::<T>::Exchanged)?,
         _ => (),
       }
       debug::info!("获取到了本地服务的返回信息,对状态位操作");
@@ -681,6 +699,9 @@ impl<T: Trait> Module<T> {
                     match Self::vec_convert_account(post_transfer_data.pk.clone()){
                         Some(new_acc) =>{
                             if acc == new_acc{
+                                debug::info!("expect acc = {:?}",acc);
+                                debug::info!("new_acc = {:?}",new_acc);
+                                debug::info!("to = {:?}",core::str::from_utf8(&post_transfer_data.to).unwrap());
                                 post_transfer_data.code = 0;   // 验证通过
 
                             }else{
