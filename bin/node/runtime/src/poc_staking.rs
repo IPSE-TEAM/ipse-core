@@ -106,7 +106,7 @@ decl_storage! {
 		pub StakingInfoOf get(fn staking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, BalanceOf<T>>>;
 
 		/// 用户现在抵押的矿工
-		pub MinersOf get(fn miners_of): map hasher(twox_64_concat) T::AccountId => Option<Vec<T::AccountId>>;
+		pub MinersOf get(fn miners_of): map hasher(twox_64_concat) T::AccountId => Vec<T::AccountId>;
 
 		/// P盘id对应的矿工
 		pub AccountIdOfPid get(fn accouont_id_of_pid): map hasher(twox_64_concat) u128 => Option<T::AccountId>;
@@ -308,6 +308,8 @@ decl_module! {
 
 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.1.clone());
 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.2.clone());
+
+				Self::staker_remove_miner(staker_info.0.clone(), miner.clone());
 			}
 
 			staking_info.total_staking = <BalanceOf<T>>::from(0u32);
@@ -315,6 +317,16 @@ decl_module! {
 			staking_info.others = vec![];
 
 			<StakingInfoOf<T>>::insert(&miner, staking_info);
+
+			// 从推荐列表中删除
+			<RecommendList<T>>::mutate(|h| h.retain(|i| if i.0 != miner.clone() {
+				T::StakingCurrency::unreserve(&i.0, i.1);
+				true
+			}
+			else {
+				false
+			}
+			));
 
 			Self::deposit_event(RawEvent::StopMining(miner));
         }
@@ -343,6 +355,7 @@ decl_module! {
 			// 不在冷冻期
 			ensure!(!<IsChillTime>::get(), Error::<T>::ChillTime);
 
+			// 还没有抵押
 			if Self::staker_pos(miner.clone(), who.clone()).is_some() {
 
 				return Err(Error::<T>::AlreadyStaking)?;
@@ -368,6 +381,7 @@ decl_module! {
 
 			<StakingInfoOf<T>>::insert(miner.clone(), staking_info);
 
+			<MinersOf<T>>::mutate(who.clone(), |h| h.push(miner.clone()));
 
 			Self::deposit_event(RawEvent::Staking(who, miner, amount));
 
@@ -508,7 +522,7 @@ impl<T: Trait> Module<T> {
 	/// staker删除自己抵押的矿工记录
 	fn staker_remove_miner(staker: T::AccountId, miner: T::AccountId) {
 
-		<MinersOf<T>>::mutate(staker.clone(), |miners_opt| if let Some(miners) = miners_opt {
+		<MinersOf<T>>::mutate(staker.clone(), |miners|  {
 			miners.retain(|h| h != &miner);
 
 		});

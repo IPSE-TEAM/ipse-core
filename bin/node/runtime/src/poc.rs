@@ -102,7 +102,6 @@ pub enum Event<T>
     {
         Minning(AccountId, bool),
         Verify(AccountId, bool),
-        Test1,
         HeightTooLow,
         NotBestDeadline,
     }
