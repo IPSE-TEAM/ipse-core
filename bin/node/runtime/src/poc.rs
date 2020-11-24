@@ -14,6 +14,8 @@ use frame_support::{
     ensure,
     dispatch::{DispatchResult, DispatchError}, debug,
     weights::Weight, traits::{Get, Currency, Imbalance, OnUnbalanced, ReservableCurrency},
+    IterableStorageMap,
+    StorageMap, StorageValue,
 };
 use system::{ensure_signed};
 use sp_runtime::{traits::{SaturatedConversion, Saturating}, Percent};
@@ -80,6 +82,7 @@ decl_storage! {
         pub LastMiningTs get(fn lts): u64;
         /// info of base_target and difficulty
         pub TargetInfo get(fn target_info): Vec<Difficulty>;
+
         /// deadline info of mining success
         pub DlInfo get(fn dl_info): Vec<MiningInfo<T::AccountId>>;
 
@@ -87,7 +90,7 @@ decl_storage! {
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
         /// (block_num, account_id，deadline, target, base_target)
-        pub Test get(fn test): Vec<(T::BlockNumber, T::AccountId, u64, u64, u64)>;
+        pub Test get(fn test): Vec<(T::BlockNumber)>;
 
     }
 }
@@ -100,8 +103,8 @@ pub enum Event<T>
         Minning(AccountId, bool),
         Verify(AccountId, bool),
         Test1,
-        Test2,
-        Test3,
+        HeightTooLow,
+        NotBestDeadline,
     }
 }
 
@@ -154,7 +157,7 @@ decl_module! {
             {
                 debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
 
-				Self::deposit_event(RawEvent::Test2);
+				Self::deposit_event(RawEvent::HeightTooLow);
 
 				return Err(Error::<T>::HeightNotInDuration)?;
             }
@@ -171,8 +174,10 @@ decl_module! {
             // Someone(miner) has mined a better deadline at this mining cycle before.
             // 如果之前已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
+
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
-                Self::deposit_event(RawEvent::Test3);
+
+                Self::deposit_event(RawEvent::NotBestDeadline);
 
                 return Err(Error::<T>::NotBestDeadline)?;
             }
@@ -182,24 +187,24 @@ decl_module! {
 
             if verify_ok.0 {
                 // delete the old deadline in this mining cycle
+                // append a better deadline
+
+                let last_block = Self::get_last_miner_mining_block();
+
+                let mining_time: u64;
+                if last_block == 0 {
+                	mining_time = T::MiningDuration::get() * MILLISECS_PER_BLOCK;
+                	}
+
+                else {
+                	mining_time = (current_block - last_block) * MILLISECS_PER_BLOCK;
+                	}
+
                 // 这里保证了dl_info的最后一个总是最优解
                 if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
 
                     DlInfo::<T>::mutate(|dl| dl.pop());
 
-                }
-
-                // append a better deadline
-                let now = Self::get_now_ts();
-                let mining_time: u64;
-                let block_num = <staking::Module<T>>::now().saturated_into::<u64>();
-
-                if Self::lts() == 0u64 {
-                	mining_time = MILLISECS_PER_BLOCK;
-                }
-
-                else {
-                	mining_time = now - Self::lts();
                 }
 
                 // 上次出块与本次出块的时间间隔
@@ -210,13 +215,14 @@ decl_module! {
                         block: current_block,
                         mining_time
                     }));
-                LastMiningTs::mutate( |ts| *ts = now);
+
+                LastMiningTs::mutate( |ts| *ts = current_block * MILLISECS_PER_BLOCK);
             }
 
             else {
-            	let mut test = <Test<T>>::get();
-            	test.push((<staking::Module<T>>::now(), miner.clone(), deadline, verify_ok.1, verify_ok.2));
-            	<Test<T>>::put(test);
+//             	let mut test = <Test<T>>::get();
+// //             	test.push((<staking::Module<T>>::now(), miner.clone(), deadline, verify_ok.1, verify_ok.2));
+//             	<Test<T>>::put(test);
             }
 
             debug::info!("verify result: {}", verify_ok.0);
@@ -228,8 +234,7 @@ decl_module! {
         fn on_initialize(n: T::BlockNumber) -> Weight{
 
             if n == T::BlockNumber::from(1u32) {
-
-               let now = Self::get_now_ts();
+            	let now = Self::get_now_ts();
 
                LastMiningTs::put(now);
 
@@ -349,7 +354,7 @@ impl<T: Trait> Module<T> {
 				block: current_block, // 记录当前区块
 			}));
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
-
+// 		<Test<T>>::mutate(|h| h.push(T::BlockNumber::from(current_block as u32)));
 	}
 
 
@@ -370,6 +375,49 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    // 获取上次矿工挖矿的区块
+    fn get_last_miner_mining_block() -> u64 {
+
+
+		let mut dl = <DlInfo<T>>::get();
+
+		let dl_cp = dl.clone();
+
+		// 获取现在的区块
+		let now = <staking::Module<T>>::now().saturated_into::<u64>();
+		let len = dl_cp.len();
+
+        for j in 0..len {
+
+			let i = dl.get(len - 1 - j).unwrap();
+
+			let mut index = 1;
+
+			// 不能超过10个周期
+			if index >= 10 {
+				break;
+			}
+
+        	if i.miner.is_some() {
+
+        		// 不在本周期 并且
+        		if (i.block / T::MiningDuration::get() != now / T::MiningDuration::get()) {
+        			debug::info!("矿工挖出来的最后的区块是:{:?}", i);
+        			return i.block;
+
+        		}
+        	}
+
+        	index += 1;
+
+        }
+
+        0
+
+    }
+
+
+
 
     fn get_last_adjust_block() -> u64 {
         let tis = Self::target_info();
@@ -382,9 +430,10 @@ impl<T: Trait> Module<T> {
 
 
     fn get_now_ts() -> u64 {
-        let now = <timestamp::Module<T>>::now();
 
-        <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
+        let now = <staking::Module<T>>::now().saturated_into::<u64>();
+
+		now * MILLISECS_PER_BLOCK
 
     }
 

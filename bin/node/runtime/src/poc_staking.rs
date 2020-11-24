@@ -111,6 +111,9 @@ decl_storage! {
 		/// P盘id对应的矿工
 		pub AccountIdOfPid get(fn accouont_id_of_pid): map hasher(twox_64_concat) u128 => Option<T::AccountId>;
 
+		/// 推荐的矿工列表
+		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
+
     }
 }
 
@@ -130,6 +133,8 @@ pub enum Event<T>
 		UpdateStaking(AccountId, Balance),
 		ExitStaking(AccountId, AccountId),
 		UpdatePid(AccountId, u128),
+		RequestUpToList(AccountId, Balance),
+		RequestDownFromList(AccountId),
     }
 }
 
@@ -186,6 +191,46 @@ decl_module! {
         	Self::deposit_event(RawEvent::Register(miner, disk));
 
 		}
+
+
+		/// 矿工申请进入推荐列表
+		#[weight = 10_000]
+		fn request_up_to_list(origin, amount: BalanceOf<T>) {
+
+			// 矿工才能操作
+			let miner = ensure_signed(origin)?;
+
+			// 自己是可以挖矿的矿工
+			ensure!(Self::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
+
+			Self::sort_account_by_amount(miner.clone(), amount)?;
+
+			Self::deposit_event(RawEvent::RequestUpToList(miner, amount));
+
+		}
+
+
+		/// 矿工退出推荐列表
+		#[weight = 10_000]
+		fn request_down_from_list(origin) {
+			let miner = ensure_signed(origin)?;
+			// 获取推荐列表
+			let mut list = <RecommendList<T>>::get();
+			if let Some(pos) = list.iter().position(|h| h.0 == miner) {
+				let amount = list.swap_remove(pos).1;
+
+				T::StakingCurrency::unreserve(&miner, amount);
+
+				<RecommendList<T>>::put(list);
+			}
+			else {
+				return Err(Error::<T>::NotInList)?;
+			}
+
+			Self::deposit_event(RawEvent::RequestDownFromList(miner));
+
+		}
+
 
 
 		/// 矿工修改p盘id
@@ -470,6 +515,78 @@ impl<T: Trait> Module<T> {
 
 	}
 
+	/// 排列矿工后需要做的
+	fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
+		// 先对矿工进行抵押
+
+		T::StakingCurrency::reserve(&miner, amount)?;
+
+		old_list.insert(index, (miner, amount));
+
+		if old_list.len() > 20 {
+			let abandon = old_list.split_off(20);
+			// 对被淘汰的人进行释放
+			for i in abandon {
+				T::StakingCurrency::unreserve(&i.0, i.1);
+			}
+		}
+
+		<RecommendList<T>>::put(old_list);
+
+		Ok(())
+
+	}
+
+	/// 根据抵押的金额来排列account_id
+	fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
+
+		// 获取之前的列表
+		let mut old_list = <RecommendList<T>>::get();
+
+		let mut miner_old_info: Option<(T::AccountId, BalanceOf<T>)> = None;
+
+		// 如果之前有 那就累加金额
+		if let Some(pos) = old_list.iter().position(|h| h.0 == miner.clone()) {
+
+			miner_old_info = Some(old_list.remove(pos));
+
+		}
+		if miner_old_info.is_some() {
+			// 判断能否继续琐仓amount 如果是 就暂时释放；如果不行 就退出
+			let old_amount = miner_old_info.clone().unwrap().1;
+
+			ensure!(T::StakingCurrency::can_reserve(&miner, amount), Error::<T>::AmountNotEnough);
+
+			T::StakingCurrency::unreserve(&miner, old_amount);
+
+			amount = amount + old_amount;
+
+		}
+
+		// 如果列表为空， 直接更新数据
+		if old_list.len() == 0 {
+
+			Self::sort_after(miner, amount, 0, old_list)?;
+		}
+
+		else {
+			let mut index = 0;
+			for i in old_list.iter() {
+				if i.1 >= amount {
+					index += 1;
+				}
+				else {
+					break;
+				}
+			}
+
+			Self::sort_after(miner, amount, index, old_list)?;
+
+		}
+
+		Ok(())
+
+	}
 
 	/// 更新已经抵押过的用户的抵押金额
 	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
@@ -581,6 +698,11 @@ decl_error! {
 		Overflow,
 		/// 抵押人数超过限制
 		StakerNumberToMax,
+		/// 账户金额不够
+		AmountNotEnough,
+		/// 不在推荐列表中
+		NotInList,
+
 
 
 	}

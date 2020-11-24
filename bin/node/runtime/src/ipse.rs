@@ -95,8 +95,13 @@ decl_storage! {
     trait Store for Module<T: Trait> as Ipse {
     	/// 矿工的信息
         pub Miners get(fn miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<BalanceOf<T>>>;
+
         // order id is the index of vec.
         pub Orders get(fn order): Vec<Order<T::AccountId, BalanceOf<T>>>;
+
+        // 推荐的矿工
+        pub RecommendList get(fn recommend_list): Vec<T::AccountId>;
+
     }
 }
 
