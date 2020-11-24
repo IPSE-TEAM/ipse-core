@@ -237,7 +237,8 @@ decl_module! {
 		#[weight = 10_000]
 		fn update_pid(origin, pid: u128) {
 			let miner = ensure_signed(origin)?;
-			Self::is_can_mining(miner.clone())?;
+
+			ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
 			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::PidInUsing);
 
@@ -247,6 +248,7 @@ decl_module! {
 
 			<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
 				i.pid = pid;
+				i.is_stop = false;
 			}
 			);
 
@@ -269,7 +271,7 @@ decl_module! {
 			ensure!(disk != 0 as KIB, Error::<T>::DiskEmpty);
 
 			/// 必须在非冷冻期
-			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
+// 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
 
 			T::PocHandler::remove_history(miner.clone());
 
@@ -353,7 +355,7 @@ decl_module! {
 			Self::is_can_mining(miner.clone())?;
 
 			// 不在冷冻期
-			ensure!(!<IsChillTime>::get(), Error::<T>::ChillTime);
+// 			ensure!(!<IsChillTime>::get(), Error::<T>::ChillTime);
 
 			// 还没有抵押
 			if Self::staker_pos(miner.clone(), who.clone()).is_some() {
@@ -416,8 +418,8 @@ decl_module! {
 
         	let miner = ensure_signed(origin)?;
 
-			// 在冻结期内才能执行
-        	ensure!(<IsChillTime>::get(), Error::<T>::NotChillTime);
+// 			// 在冻结期内才能执行
+//         	ensure!(<IsChillTime>::get(), Error::<T>::NotChillTime);
 
         	Self::is_can_mining(miner.clone())?;
 
