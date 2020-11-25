@@ -331,10 +331,12 @@ decl_module! {
 
 			// 从推荐列表中删除
 			<RecommendList<T>>::mutate(|h| h.retain(|i| if i.0 != miner.clone() {
-				T::StakingCurrency::unreserve(&i.0, i.1);
+
 				true
 			}
 			else {
+
+				T::StakingCurrency::unreserve(&i.0, i.1);
 				false
 			}
 			));
