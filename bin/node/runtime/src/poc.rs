@@ -68,6 +68,7 @@ pub struct MiningHistory<Balance, BlockNumber> {
 	history: Vec<(BlockNumber, Balance)>,
 }
 
+
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Difficulty {
     pub base_target: u64,
@@ -91,6 +92,11 @@ decl_storage! {
 
         /// (block_num, account_id，deadline, target, base_target)
         pub Test get(fn test): Vec<(T::BlockNumber)>;
+
+        /// 用户的详细奖励记录
+		pub UserRewardHistory get(fn user_reward_history): map hasher(twox_64_concat) T::AccountId => Vec<(T::BlockNumber, BalanceOf<T>)>;
+
+
 
     }
 }
@@ -606,22 +612,28 @@ impl<T: Trait> Module<T> {
 		let history_opt = <History<T>>::get(&miner);
 
 		if history_opt.is_some() {
+			debug::info!("不是第一次挖矿！");
+			let mut his = history_opt.unwrap();
+			his.total_num = miner_mining_num;
+			his.history.push((now, reward));
+			/// 只存储最新的100条记录
+			if his.history.len() >= 100 {
+				let mut old_history = his.history.clone();
+				let new_history = old_history.split_off(1);
+				his.history = new_history;
+			}
+			<History<T>>::insert(miner.clone(), his);
+
+		}
+
+		else {
+			debug::info!("第一次挖矿！");
 			let history = vec![(now, reward)];
-
 			<History<T>>::insert(miner.clone(), MiningHistory {
-
 				total_num: miner_mining_num,
 				history: history,
 			});
 
-		}
-
-		else{
-
-			<History<T>>::mutate(miner.clone(), |i| if let Some(h) = i  {
-				h.total_num = miner_mining_num;
-				h.history.push((now, reward));
-			});
 		}
 
 		Ok(())
@@ -629,22 +641,28 @@ impl<T: Trait> Module<T> {
 
    	// 奖励每一个成员（抵押者）
    	fn reward_staker(miner: T::AccountId, reward: BalanceOf<T>) -> DispatchResult {
+
+   		let now = <staking::Module<T>>::now();
+
 		let staking_info = <staking::Module<T>>::staking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let stakers = staking_info.clone().others;
 		if stakers.len() == 0 {
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, reward));
+			Self::update_reword_history(miner.clone(), reward, now);
+
 		}
 
 		else {
 			// 奖励矿工
 			let miner_reward = staking_info.clone().miner_proportion * reward;
 			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, miner_reward));
-
+			Self::update_reword_history(miner.clone(), miner_reward, now);
 			let stakers_reward = reward - miner_reward;
 			let total_staking = staking_info.clone().total_staking;
 			for staker_info in stakers.iter() {
 				let staker_reward = stakers_reward.saturating_mul(staker_info.clone().1).checked_div(&total_staking).ok_or(Error::<T>::DivZero)?;
 				T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&staker_info.clone().0, staker_reward));
+				Self::update_reword_history(staker_info.clone().0, staker_reward, now);
 			}
 		}
 
@@ -654,6 +672,28 @@ impl<T: Trait> Module<T> {
     /// 获取全网容量
     fn get_total_capacity() -> KIB {
 		0 as KIB
+    }
+
+    /// 更新用户的奖励记录
+    fn update_reword_history(account_id: T::AccountId, amount: BalanceOf<T>, block_num: T::BlockNumber) {
+
+    	let mut reward_history = <UserRewardHistory<T>>::get(account_id.clone());
+
+    	reward_history.push((block_num, amount));
+
+		/// 奖励记录限制在100条以内
+    	if reward_history.len() >= 100 {
+    		let mut old_history = reward_history.clone();
+    		let new_history = old_history.split_off(1);
+    		<UserRewardHistory<T>>::insert(account_id, new_history);
+    	}
+
+    	else {
+    		<UserRewardHistory<T>>::insert(account_id, reward_history);
+    	}
+
+
+
     }
 
 

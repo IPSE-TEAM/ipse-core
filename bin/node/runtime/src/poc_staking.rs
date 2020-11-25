@@ -114,6 +114,7 @@ decl_storage! {
 		/// 推荐的矿工列表
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
+
     }
 }
 
@@ -154,9 +155,13 @@ decl_module! {
 
 		/// 矿工注册
 		#[weight = 10_000]
-		fn register(origin, kib: KIB, pid: u128, miner_proportion: Percent) {
+		fn register(origin, plot_size: KIB, numeric_id: u128, miner_proportion: Percent) {
 
 			let miner = ensure_signed(origin)?;
+
+			let kib = plot_size;
+
+			let pid = numeric_id;
 
 			ensure!(kib != 0 as KIB, Error::<T>::DiskEmpty);
 
@@ -235,8 +240,10 @@ decl_module! {
 
 		/// 矿工修改p盘id
 		#[weight = 10_000]
-		fn update_pid(origin, pid: u128) {
+		fn update_pid(origin, numeric_id: u128) {
 			let miner = ensure_signed(origin)?;
+
+			let pid = numeric_id;
 
 			ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
@@ -261,9 +268,11 @@ decl_module! {
 
 		/// 更新磁盘信息
         #[weight = 10_000]
-        fn update_disk_info(origin, kib: KIB) {
+        fn update_disk_info(origin, plot_size: KIB) {
 
         	let miner = ensure_signed(origin)?;
+
+        	let kib = plot_size;
 
 			// 把kib转变成b
 			let disk = kib.checked_mul(1000 as KIB).ok_or(Error::<T>::Overflow)?;
