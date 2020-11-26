@@ -51,8 +51,8 @@
     },
 
     "MachineInfo": {
-        "disk": "u64",
-        "pid": "u128",
+        "plot_size": "u64",
+        "numeric_id": "u128",
         "update_time": "BlockNumber",
         "is_stop": "bool"
     },
@@ -94,7 +94,7 @@
         "tx": "Vec<u8>",
         "err": "Vec<u8>"
       }
-    
+
 
 }
 ```

@@ -149,7 +149,7 @@ decl_module! {
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
 
-			let real_pid = <staking::Module<T>>::disk_of(&miner).unwrap().pid;
+			let real_pid = <staking::Module<T>>::disk_of(&miner).unwrap().numeric_id;
 
 			ensure!(real_pid == account_id.into(), Error::<T>::PidErr);
 
@@ -187,9 +187,11 @@ decl_module! {
                 return Err(Error::<T>::NotBestDeadline)?;
             }
 
-
+			let start = <timestamp::Module<T>>::now();
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+			let end = <timestamp::Module<T>>::now();
 
+			debug::info!("挖矿验证需要的时间是:{:?}", end - start);
             if verify_ok.0 {
                 // delete the old deadline in this mining cycle
                 // append a better deadline
@@ -578,7 +580,7 @@ impl<T: Trait> Module<T> {
     fn reward_miner(miner: T::AccountId, mut reward: BalanceOf<T>) -> DispatchResult {
 		// 获取自己的本机容量
 		let machine_info = <staking::Module<T>>::disk_of(&miner).ok_or(Error::<T>::NotRegister)?;
-		let disk = machine_info.clone().disk;
+		let disk = machine_info.clone().plot_size;
 		let update_time = machine_info.clone().update_time;
 
 		let now = <staking::Module<T>>::now();

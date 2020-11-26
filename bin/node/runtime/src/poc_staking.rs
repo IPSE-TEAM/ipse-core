@@ -53,9 +53,9 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MachineInfo<BlockNumber> {
 	/// 磁盘空间
-	pub disk: KIB,
+	pub plot_size: KIB,
 	/// P盘id
-	pub pid: u128,
+	pub numeric_id: u128,
 	/// 更新时间
 	pub update_time: BlockNumber,
 	/// 机器是否在运行（这个是用户抵押的依据)
@@ -125,7 +125,7 @@ pub enum Event<T>
 	Balance = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
     {
 
-        UpdateDiskInfo(AccountId, KIB),
+        UpdatePlotSize(AccountId, KIB),
         Register(AccountId, u64),
         StopMining(AccountId),
         RemoveStaker(AccountId, AccountId),
@@ -133,7 +133,7 @@ pub enum Event<T>
         UpdateProportion(AccountId, Percent),
 		UpdateStaking(AccountId, Balance),
 		ExitStaking(AccountId, AccountId),
-		UpdatePid(AccountId, u128),
+		UpdateNumericId(AccountId, u128),
 		RequestUpToList(AccountId, Balance),
 		RequestDownFromList(AccountId),
     }
@@ -163,19 +163,19 @@ decl_module! {
 
 			let pid = numeric_id;
 
-			ensure!(kib != 0 as KIB, Error::<T>::DiskEmpty);
+			ensure!(kib != 0 as KIB, Error::<T>::PlotSizeIsZero);
 
 			// 把kib转变成b
 			let disk = kib.checked_mul(1000 as KIB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
-			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::PidInUsing);
+			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::NumericIdInUsing);
 
 			let now = Self::now();
 			<DiskOf<T>>::insert(miner.clone(), MachineInfo {
-        		disk: disk,
-        		pid: pid,
+        		plot_size: disk,
+        		numeric_id: pid,
         		update_time: now,
         		is_stop: false,
 
@@ -240,35 +240,35 @@ decl_module! {
 
 		/// 矿工修改p盘id
 		#[weight = 10_000]
-		fn update_pid(origin, numeric_id: u128) {
+		fn update_numeric_id(origin, numeric_id: u128) {
 			let miner = ensure_signed(origin)?;
 
 			let pid = numeric_id;
 
 			ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
-			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::PidInUsing);
+			ensure!(!(<AccountIdOfPid<T>>::contains_key(pid) && <AccountIdOfPid<T>>::get(pid).unwrap() != miner.clone()) , Error::<T>::NumericIdInUsing);
 
-			let old_pid = <DiskOf<T>>::get(miner.clone()).unwrap().pid;
+			let old_pid = <DiskOf<T>>::get(miner.clone()).unwrap().numeric_id;
 
 			<AccountIdOfPid<T>>::remove(old_pid);
 
 			<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
-				i.pid = pid;
+				i.numeric_id = pid;
 				i.is_stop = false;
 			}
 			);
 
 			<AccountIdOfPid<T>>::insert(pid, miner.clone());
 
-			Self::deposit_event(RawEvent::UpdatePid(miner, pid));
+			Self::deposit_event(RawEvent::UpdateNumericId(miner, pid));
 
 		}
 
 
 		/// 更新磁盘信息
         #[weight = 10_000]
-        fn update_disk_info(origin, plot_size: KIB) {
+        fn update_plot_size(origin, plot_size: KIB) {
 
         	let miner = ensure_signed(origin)?;
 
@@ -277,7 +277,7 @@ decl_module! {
 			// 把kib转变成b
 			let disk = kib.checked_mul(1000 as KIB).ok_or(Error::<T>::Overflow)?;
 
-			ensure!(disk != 0 as KIB, Error::<T>::DiskEmpty);
+			ensure!(disk != 0 as KIB, Error::<T>::PlotSizeIsZero);
 
 			/// 必须在非冷冻期
 // 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
@@ -289,12 +289,13 @@ decl_module! {
         	ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
         	<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
-        		i.disk = disk;
+        		i.plot_size = disk;
         		i.update_time = now;
+        		i.is_stop = false;
         	}
         	);
 
-        	Self::deposit_event(RawEvent::UpdateDiskInfo(miner, disk));
+        	Self::deposit_event(RawEvent::UpdatePlotSize(miner, disk));
 
         }
 
@@ -704,13 +705,13 @@ decl_error! {
     /// Error for the ipse module.
     pub enum Error for Module<T: Trait> {
     	/// p盘id已经被使用
-    	PidInUsing,
+    	NumericIdInUsing,
     	/// 已经注册过
 		AlreadyRegister,
 		/// 没有注册过
 		NotRegister,
 		/// p盘空间为0(不允许)
-		DiskEmpty,
+		PlotSizeIsZero,
 		/// 在冷冻期（只能矿工修改信息，用户不能进行抵押或是解抵押操作)
 		ChillTime,
 		/// 不在冷冻期
