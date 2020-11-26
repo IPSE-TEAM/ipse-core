@@ -187,11 +187,20 @@ decl_module! {
                 return Err(Error::<T>::NotBestDeadline)?;
             }
 
-			let start = <timestamp::Module<T>>::now();
-            let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
-			let end = <timestamp::Module<T>>::now();
+            #[cfg(feature = "std")]
+            use std::time::{Duration, SystemTime};
 
-			debug::info!("挖矿验证需要的时间是:{:?}", end - start);
+			#[cfg(feature = "std")]
+            let start = SystemTime::now();
+
+            let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+
+			#[cfg(feature = "std")]
+            let end = SystemTime::now();
+
+            #[cfg(feature = "std")]
+            debug::info!("挖矿验证开始的时间是: {:?}, 结束的时间是： {:?}", start, end);
+
             if verify_ok.0 {
                 // delete the old deadline in this mining cycle
                 // append a better deadline
