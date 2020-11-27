@@ -155,7 +155,9 @@ decl_module! {
 
 		/// 矿工注册
 		#[weight = 10_000]
-		fn register(origin, plot_size: KIB, numeric_id: u128, miner_proportion: Percent) {
+		fn register(origin, plot_size: KIB, numeric_id: u128, miner_proportion: u32) {
+
+			let miner_proportion = Percent::from_percent(miner_proportion as u8);
 
 			let miner = ensure_signed(origin)?;
 
@@ -446,6 +448,7 @@ decl_module! {
 
 
 		fn on_initialize(n: T::BlockNumber) -> Weight {
+			debug::info!("staking_poc----当前打印的高度是:{:?}", Self::now());
 			let _ = Self::update_chill();
 			0
 
