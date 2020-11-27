@@ -421,7 +421,7 @@ decl_storage! {
 		ExtrinsicData get(fn extrinsic_data): map hasher(twox_64_concat) u32 => Vec<u8>;
 
 		/// The current block number being processed. Set by `execute_block`.
-		Number get(fn block_number): T::BlockNumber;
+		pub BlockNumber get(fn block_number): T::BlockNumber;
 
 		/// Hash of the previous block.
 		ParentHash get(fn parent_hash) build(|_| hash69()): T::Hash;
@@ -1016,7 +1016,7 @@ impl<T: Trait> Module<T> {
 		// populate environment
 		ExecutionPhase::put(Phase::Initialization);
 		storage::unhashed::put(well_known_keys::EXTRINSIC_INDEX, &0u32);
-		<Number<T>>::put(number);
+		<BlockNumber<T>>::put(number);
 		<Digest<T>>::put(digest);
 		<ParentHash<T>>::put(parent_hash);
 		<BlockHash<T>>::insert(*number - One::one(), parent_hash);
@@ -1039,7 +1039,7 @@ impl<T: Trait> Module<T> {
 		ExtrinsicCount::kill();
 		AllExtrinsicsLen::kill();
 
-		let number = <Number<T>>::take();
+		let number = <BlockNumber<T>>::take();
 		let parent_hash = <ParentHash<T>>::take();
 		let mut digest = <Digest<T>>::take();
 		let extrinsics_root = <ExtrinsicsRoot<T>>::take();
@@ -1096,7 +1096,7 @@ impl<T: Trait> Module<T> {
 		TestExternalities::new(sp_core::storage::Storage {
 			top: map![
 				<BlockHash<T>>::hashed_key_for(T::BlockNumber::zero()) => [69u8; 32].encode(),
-				<Number<T>>::hashed_key().to_vec() => T::BlockNumber::one().encode(),
+				<BlockNumber<T>>::hashed_key().to_vec() => T::BlockNumber::one().encode(),
 				<ParentHash<T>>::hashed_key().to_vec() => [69u8; 32].encode()
 			],
 			children_default: map![],
@@ -1107,7 +1107,7 @@ impl<T: Trait> Module<T> {
 	/// `initialize` for tests that don't need to bother with the other environment entries.
 	#[cfg(any(feature = "std", feature = "runtime-benchmarks", test))]
 	pub fn set_block_number(n: T::BlockNumber) {
-		<Number<T>>::put(n);
+		<BlockNumber<T>>::put(n);
 	}
 
 	/// Sets the index of extrinsic that is currently executing.
