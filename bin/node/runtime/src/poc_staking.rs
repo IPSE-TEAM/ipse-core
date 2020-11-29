@@ -356,6 +356,8 @@ decl_module! {
 
 			Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, true)?;
 
+			Self::staker_remove_miner(staker.clone(), miner.clone());
+
 			Self::deposit_event(RawEvent::RemoveStaker(miner, staker));
         }
 
@@ -422,6 +424,7 @@ decl_module! {
         fn exit_Staking(origin, miner: T::AccountId) {
         	let staker = ensure_signed(origin)?;
         	Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, false)?;
+        	Self::staker_remove_miner(staker.clone(), miner.clone());
         	Self::deposit_event(RawEvent::ExitStaking(staker, miner));
         }
 
@@ -680,7 +683,9 @@ impl<T: Trait> Module<T> {
 
 				else {
 					T::StakingCurrency::unreserve(&staker, staker_info.2.clone());
+
 				}
+				Self::staker_remove_miner(staker.clone(), miner.clone());
 
 			}
 
