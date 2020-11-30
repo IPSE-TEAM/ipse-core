@@ -1,5 +1,6 @@
 ```
-{
+{   "Address": "IndicesLookupSource",
+    "LookupSource": "IndicesLookupSource",
     "KIB": "u64",
     "Amount": "u128",
     "Miner": {
