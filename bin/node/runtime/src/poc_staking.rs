@@ -718,8 +718,5 @@ decl_error! {
 		AmountNotEnough,
 		/// 不在推荐列表中
 		NotInList,
-
-
-
 	}
 }

@@ -4,34 +4,54 @@ extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 
 use codec::{Decode, Encode};
-use frame_support::traits::{Currency, BalanceStatus, ReservableCurrency};
+use frame_support::traits::{Currency, Get, BalanceStatus, ReservableCurrency};
 use frame_support::{
     debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
     StorageMap, StorageValue,
 };
-use sp_runtime::traits::SaturatedConversion;
+
+use sp_runtime::{traits::{
+    SaturatedConversion,
+}, ModuleId, DispatchError};
+
 use sp_std::convert::TryInto;
 use sp_std::vec::Vec;
+use sp_std::result;
 use system::ensure_signed;
 use core::{u64, u128};
+use sp_runtime::traits::AccountIdConversion;
+// use pallet_staking as staking;
+// use pallet_balances as balances;
 
 pub const KB: u64 = 1024;
 // When whose times of violation is more than 3,
 // slash all funds of this miner.
 pub const MAX_VIOLATION_TIMES: u64 = 3;
-// millisec * sec * min * hour
+// millisecond * sec * min * hour
 pub const DAY: u64 = 1000 * 60 * 60 * 24;
 
-pub type BalanceOf<T> =
-    <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+
+pub type BalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+
+pub type NegativeImbalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait Trait: system::Trait + timestamp::Trait {
+    /// default event
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
+    /// currency
     type Currency: ReservableCurrency<Self::AccountId>;
+
+    type StakingCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+
+    /// The treasury module account id to recycle assets.for default miner register
+    type TreasuryModuleId: Get<ModuleId>;
 }
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
-pub struct Miner<Balance> {
+pub struct Miner<AccountId, Balance> {
+    // account id
+    pub account_id: AccountId,
+    // miner nickname
     pub nickname: Vec<u8>,
     // where miner server locates
     pub region: Vec<u8>,
@@ -45,16 +65,24 @@ pub struct Miner<Balance> {
     pub violation_times: u64,
     // total staking = unit_price * capacity
     pub total_staking: Balance,
+    // register time
+    pub create_ts: u64,
+    // update timestamp
+    pub update_ts: u64,
+
 }
+
 
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
 pub struct Order<AccountId, Balance> {
-    // the key of this data
-    pub key: Vec<u8>,
-    // the merkle root of data
-    pub merkle_root: [u8; 32],
-    // the length of storing data
-    pub data_length: u64,
+    // miner account id
+    pub miner: AccountId,
+    // the label of this data
+    pub label: Vec<u8>,
+    // the hash of data
+    pub hash: [u8; 32],
+    // the size of storing data
+    pub size: u64,
     pub user: AccountId,
     pub orders: Vec<MinerOrder<AccountId, Balance>>,
     pub status: OrderStatus,
@@ -94,12 +122,12 @@ pub enum OrderStatus {
 decl_storage! {
     trait Store for Module<T: Trait> as Ipse {
     	/// 矿工的信息
-        pub Miners get(fn miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<BalanceOf<T>>>;
+        pub Miners get(fn miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<T::AccountId,BalanceOf<T>>>;
 
-        // order id is the index of vec.
+        /// order id is the index of vec.
         pub Orders get(fn order): Vec<Order<T::AccountId, BalanceOf<T>>>;
 
-        // 推荐的矿工
+        /// recommend miner list
         pub RecommendList get(fn recommend_list): Vec<T::AccountId>;
 
     }
@@ -115,16 +143,18 @@ decl_module! {
 
         /// 矿工进行注册登记
         #[weight = 10_000]
-        fn register_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        fn register_miner(origin, account_id: T::AccountId,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
-            let miner = ensure_signed(origin)?;
+            let who = ensure_signed(origin)?;
             // staking per kb is  1000;
             let total_staking_u64 = capacity * 1000 / KB;
             let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>();
-            ensure!(T::Currency::can_reserve(&miner, total_staking), Error::<T>::CannotStake);
+            ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
             // reserve for staking
-            T::Currency::reserve(&miner,total_staking)?;
-            Miners::<T>::insert(&miner, Miner {
+            T::StakingCurrency::reserve(&who,total_staking)?;
+
+            Miners::<T>::insert(&who, Miner {
+                account_id,
                 nickname,
                 region,
                 url,
@@ -132,38 +162,67 @@ decl_module! {
                 unit_price,
                 violation_times: 0,
                 total_staking,
+                create_ts:Self::get_now_ts(),
+                update_ts:Self::get_now_ts(),
             });
-            Self::deposit_event(RawEvent::Registered(miner));
+            Self::deposit_event(RawEvent::Registered(who));
+        }
+
+        /// 矿工注册信息更新(容量)
+        #[weight = 10_000]
+        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+            let who = ensure_signed(origin)?;
+
+            if let Some(miner) = Miners::<T>::get(&who).as_mut() {
+
+                miner.nickname = nickname;
+                miner.region = region;
+                miner.url = url;
+                miner.capacity = capacity;
+                miner.unit_price = unit_price;
+                miner.update_ts = Self::get_now_ts();
+
+                Miners::<T>::insert(&who, miner);
+            }
+
+            Self::deposit_event(RawEvent::UpdatedMiner(who));
         }
 
 
-        /// 用户创建订单
+
+
+
+        /// 用户创建订单(后面加上，unit_price)
         #[weight = 10_000]
-        fn create_order(origin, key: Vec<u8>, merkle_root: [u8; 32], data_length: u64, miners: Vec<T::AccountId>, days: u64) {
+        fn create_order(origin,miner_account: T::AccountId, label: Vec<u8>, hash: [u8; 32], size: u64, url: Option<Vec<u8>>, miner: Option<T::AccountId>, days: u64, unit_price: BalanceOf<T>) {
             let user = ensure_signed(origin)?;
-            let mut miner_orders = Vec::new();
-            for m in miners {
-                let miner = Self::miner(&m).ok_or(Error::<T>::MinerNotFound)?;
-                let day_price = miner.unit_price * data_length.saturated_into::<BalanceOf<T>>() / KB.saturated_into::<BalanceOf<T>>();
-                let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
-                let miner_order = MinerOrder {
-                    miner: m,
-                    day_price,
-                    total_price,
-                    verify_result: false,
-                    verify_ts: 0,
-                    confirm_ts: 0,
-                    url: None,
-                };
-                miner_orders.push(miner_order);
-            }
+
+
+
+            let mut order_list= Vec::new();
+
+            let miner = Self::miner(&miner.unwrap_or_else(Self::miner_account_id)).ok_or(Error::<T>::MinerNotFound)?;
+            let day_price = miner.unit_price * size.saturated_into::<BalanceOf<T>>() / KB.saturated_into::<BalanceOf<T>>();
+            let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
+            let miner_order = MinerOrder {
+                miner: miner.account_id,
+                day_price,
+                total_price,
+                verify_result: false,
+                verify_ts: Self::get_now_ts(),
+                confirm_ts: Self::get_now_ts(),
+                url: url,
+            };
+            order_list.push(miner_order);
+
             Orders::<T>::mutate( |o| o.push(
                 Order {
-                    key,
-                    merkle_root,
-                    data_length,
+                    miner: miner_account,
+                    label,
+                    hash,
+                    size,
                     user: user.clone(),
-                    orders: miner_orders,
+                    orders: order_list,
                     status: OrderStatus::Created,
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
@@ -174,8 +233,9 @@ decl_module! {
 
         }
 
+        /// TODO: 查看最新100条
 
-        /// 矿工确认订单
+        /// 矿工确认订单-自动搞定
         #[weight = 10_000]
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
@@ -202,7 +262,7 @@ decl_module! {
                 }
 
                 // reserve some user's funds for the order
-                T::Currency::reserve(&order.user, miner_order.total_price)?;
+                T::StakingCurrency::reserve(&order.user, miner_order.total_price)?;
                 Ok(())
             })?;
             Self::deposit_event(RawEvent::ConfirmedOrder(miner_cp, order_id));
@@ -211,7 +271,7 @@ decl_module! {
 
         /// 用户删除订单
         #[weight = 10_000]
-        fn delete(origin, order_id: u64) {
+        fn delete_order(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
             let user_cp = user.clone();
             Orders::<T>::mutate( |os| -> DispatchResult {
@@ -230,10 +290,10 @@ decl_module! {
                     refund += mo.day_price;
                 }
                 refund = refund * days_to_deadline.saturated_into::<BalanceOf<T>>();
-                T::Currency::unreserve(&order.user, refund);
+                T::StakingCurrency::unreserve(&order.user, refund);
                 Ok(())
             })?;
-            Self::deposit_event(RawEvent::Deleted(user_cp, order_id));
+            Self::deposit_event(RawEvent::DeletedOrder(user_cp, order_id));
         }
 
 
@@ -260,6 +320,45 @@ decl_module! {
             Self::deposit_event(RawEvent::VerifyStorage(miner, true));
         }
 
+
+        /// 矿工申请进入推荐列表
+		// #[weight = 10_000]
+		// fn apply_to_recommended_list(origin, amount: BalanceOf<T>) {
+        //
+		// 	// 矿工才能操作
+		// 	let miner = ensure_signed(origin)?;
+        //
+		// 	ensure!(<Miners<T>>::contains_key(&miner), Error::<T>::MinerNotFound);
+        //
+        //     // TODO: add user to recommended list
+		// 	Self::sort_account_by_amount(miner.clone(), amount)?;
+        //
+		// 	Self::deposit_event(RawEvent::RequestUpToList(miner, amount));
+        //
+		// }
+        //
+        //
+		// /// 矿工退出推荐列表
+		// #[weight = 10_000]
+		// fn drop_out_recommended_list(origin) {
+		// 	let miner = ensure_signed(origin)?;
+		// 	// 获取推荐列表
+		// 	let mut list = <RecommendList<T>>::get();
+		// 	if let Some(pos) = list.iter().position(|h| h.0 == miner) {
+		// 		let amount = list.swap_remove(pos).1;
+        //
+		// 		T::StakingCurrency::unreserve(&miner, amount);
+        //
+		// 		<RecommendList<T>>::put(list);
+		// 	}
+		// 	else {
+		// 		return Err(Error::<T>::NotInList)?;
+		// 	}
+        //
+		// 	Self::deposit_event(RawEvent::RequestDownFromList(miner));
+        //
+		// }
+
         fn on_finalize(n: T::BlockNumber) {
             let n = n.saturated_into::<u64>();
             // Check verifying result per 20 blocks,
@@ -271,16 +370,17 @@ decl_module! {
                 if &order.status == &OrderStatus::Confirmed {
                     let confirm_ts = order.update_ts;
                     for mo in order.orders {
+                        //
                         if now > order.duration + confirm_ts {
                             order.status = OrderStatus::Expired
                         } else {
                             if now - mo.verify_ts < DAY && mo.verify_result {
                                 // verify result is ok, transfer one day's funds to miner
-                                T::Currency::repatriate_reserved(&order.user, &mo.miner, mo.day_price, BalanceStatus::Free);
+                                T::StakingCurrency::repatriate_reserved(&order.user, &mo.miner, mo.day_price, BalanceStatus::Free);
                                 Self::deposit_event(RawEvent::VerifyStorage(mo.miner, true));
                             } else {
                                 // verify result expired or no verifying, punish miner
-                                Self::punish(&mo.miner, order.data_length);
+                                Self::punish(&mo.miner, order.size);
                                 Self::deposit_event(RawEvent::VerifyStorage(mo.miner, false));
                             }
                         }
@@ -293,6 +393,22 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
+    /// Get treasury account id.
+    pub fn miner_account_id() -> T::AccountId {
+        T::TreasuryModuleId::get().into_account()
+    }
+
+    //  saturated_into
+    // fn into_balance(val: u128) -> Result<BalanceOf<T>, &'static str> {
+    //     val.try_into().map_err(|_| "Convert to Balance type overflow")
+    // }
+
+    // use saturated_into
+    // u64 to moment
+    // fn into_moment(val: u64) -> Result<T::Moment, &'static str> {
+    //     val.try_into().map_err(|_| "Convert to Moment type overflow")
+    // }
+
     fn get_now_ts() -> u64 {
         let now = <timestamp::Module<T>>::get();
         <T::Moment as TryInto<u64>>::try_into(now).ok().unwrap()
@@ -300,7 +416,7 @@ impl<T: Trait> Module<T> {
 
     fn find_miner_order(
         miner: T::AccountId,
-        os: &mut Vec<MinerOrder<T::AccountId, BalanceOf<T>>>
+        os: &mut Vec<MinerOrder<T::AccountId, BalanceOf<T>>>,
     ) -> Option<&mut MinerOrder<T::AccountId, BalanceOf<T>>> {
         for o in os {
             if o.miner == miner {
@@ -310,15 +426,70 @@ impl<T: Trait> Module<T> {
         return None;
     }
 
-    fn punish(miner: &T::AccountId, data_length: u64) {
+    // fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
+    //     let mut old_list = <RecommendList<T>>::get();
+    //     let mut miner_old_info: Option<(T::AccountId, BalanceOf<T>)> = None;
+    //
+    //     if let Some(pos) = old_list.iter().position(|h| h.0 == miner.clone()) {
+    //         miner_old_info = Some(old_list.remove(pos));
+    //     }
+    //     if miner_old_info.is_some() {
+    //         let old_amount = miner_old_info.clone().unwrap().1;
+    //
+    //         ensure!(T::StakingCurrency::can_reserve(&miner, amount), Error::<T>::AmountNotEnough);
+    //
+    //         T::StakingCurrency::unreserve(&miner, old_amount);
+    //
+    //         amount = amount + old_amount;
+    //     }
+    //
+    //     if old_list.len() == 0 {
+    //         Self::sort_after(miner, amount, 0, old_list)?;
+    //     } else {
+    //         let mut index = 0;
+    //         for i in old_list.iter() {
+    //             if i.1 >= amount {
+    //                 index += 1;
+    //             } else {
+    //                 break;
+    //             }
+    //         }
+    //
+    //         Self::sort_after(miner, amount, index, old_list)?;
+    //     }
+    //
+    //     Ok(())
+    // }
+    //
+    // fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
+    //     // 先对矿工进行抵押
+    //
+    //     T::StakingCurrency::reserve(&miner, amount)?;
+    //
+    //     old_list.insert(index, (miner, amount));
+    //
+    //     if old_list.len() > 20 {
+    //         let abandon = old_list.split_off(20);
+    //         // 对被淘汰的人进行释放
+    //         for i in abandon {
+    //             T::StakingCurrency::unreserve(&i.0, i.1);
+    //         }
+    //     }
+    //
+    //     <RecommendList<T>>::put(old_list);
+    //
+    //     Ok(())
+    // }
+
+    fn punish(miner: &T::AccountId, size: u64) {
         Miners::<T>::mutate(miner, |mi| {
             let mut m = mi.as_mut().unwrap();
             let fine = if m.violation_times < MAX_VIOLATION_TIMES {
-                m.unit_price * data_length.saturated_into::<BalanceOf<T>>()
+                m.unit_price * size.saturated_into::<BalanceOf<T>>()
             } else {
                 u128::MAX.saturated_into::<BalanceOf<T>>()
             };
-            T::Currency::slash_reserved(miner, fine);
+            T::StakingCurrency::slash_reserved(miner, fine);
             m.violation_times += 1;
             if m.total_staking >= fine {
                 m.total_staking -= fine;
@@ -326,20 +497,23 @@ impl<T: Trait> Module<T> {
                 m.total_staking = 0.saturated_into::<BalanceOf<T>>();
             }
         });
-
     }
 }
 
 decl_event! {
     pub enum Event<T>
         where
-        AccountId = <T as system::Trait>::AccountId
+        AccountId = <T as system::Trait>::AccountId,
+        Balance = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
         {
         	Registered(AccountId),
+        	UpdatedMiner(AccountId),
             VerifyStorage(AccountId, bool),
 			CreatedOrder(AccountId),
 			ConfirmedOrder(AccountId, u64),
-			Deleted(AccountId, u64),
+			DeletedOrder(AccountId, u64),
+            RequestUpToList(AccountId, Balance),
+            RequestDownFromList(AccountId),
         }
 }
 
@@ -364,5 +538,7 @@ decl_error! {
         NoneStaking,
         /// User has no op permission to order.
         PermissionDenyed,
+        AmountNotEnough,
+        NotInList,
     }
 }
