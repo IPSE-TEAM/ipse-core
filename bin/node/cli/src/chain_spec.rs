@@ -31,6 +31,7 @@ use node_runtime::Block;
 use node_runtime::constants::currency::*;
 use sc_service::ChainType;
 use hex_literal::hex;
+use std::convert::TryInto;
 use sc_telemetry::TelemetryEndpoints;
 use grandpa_primitives::{AuthorityId as GrandpaId};
 use sp_consensus_babe::{AuthorityId as BabeId};
@@ -366,11 +367,14 @@ fn local_testnet_genesis() -> GenesisConfig {
 		vec![
 			authority_keys_from_seed("Alice"),
 			authority_keys_from_seed("Bob"),
-			authority_keys_from_seed("Charlie"),
-			authority_keys_from_seed("Dave"),
-			authority_keys_from_seed("Eve"),
-			authority_keys_from_seed("Ferdie"),
 
+			// chy 716000
+			(hex!["44f68ed065555550c5f6e46a8883d12b479ab9a969143b9833e4e4d8aae21d3e"].into(),
+			hex!["4cb14cb42837abb6fbe170b4bb7ba312a999df20ed622d796c761fa9cc97e218"].into(),
+			hex!["c4a861a234f8339835245c15f28ea9c20b372bb9a816c4672d04bcbd73e939cc"].unchecked_into(),
+			hex!["f82b4d6b7b35fed3832f1ca7c962914d8951e5fb4ffffdd43d51e81c16dff06c"].unchecked_into(),
+			hex!["2884429144a7db339a6663c3ea3ab96b4f36debbe1d0f722fc10764b4cbae564"].unchecked_into(),
+			hex!["4a027258265d673e28b080980ad5793832b4d87a7b2f346ba04debd33dab9d6d"].unchecked_into(),)
 		],
 
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -385,12 +389,19 @@ pub fn local_testnet_config() -> ChainSpec {
 	properties.insert("tokenSymbol".into(),"IPSE".into());
 	properties.insert("tokenDecimals".into(),14.into());
 
+	let boot_nodes = vec![
+		// 133服务器
+		String::from("/ip4/47.108.199.133/tcp/30331/p2p/12D3KooWAomhPhhiYn714fKRRjedQEqEsQpoK3LxepL8XMsNZnjk").try_into().unwrap(),
+
+	];
+
+
 	ChainSpec::from_genesis(
-		"Local Testnet",
-		"local_testnet",
+		"Ipse Testnet",
+		"ipse_testnet",
 		ChainType::Local,
 		local_testnet_genesis,
-		vec![],
+		boot_nodes,
 		None,
 		None,
 		Some(properties),

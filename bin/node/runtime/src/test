@@ -1,0 +1,1 @@
+python3 start_boot_node.py --babe-key  0x975278e85da8930613d171773cb2028b8afcc12a09dd5b8f346e99ad32af37df --gran-key   0x19649d9c3cdc9d086645142c4a24e384b431f15cb3402a323b1a116e6188352f --rpc-port 9931 --log-file boot_node.log --name BootNode --node-key-file key --base-path ./db/boot_node  --ws-port 9948 --port 30331
