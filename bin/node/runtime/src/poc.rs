@@ -33,9 +33,9 @@ use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}};
 pub const YEAR: u32 = 365*DAYS;
 
 type BalanceOf<T> =
-	<<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
 type PositiveImbalanceOf<T> =
-	<<T as staking::Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::PositiveImbalance;
+	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::PositiveImbalance;
 
 pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;

@@ -127,8 +127,8 @@ decl_storage! {
         /// order id is the index of vec.
         pub Orders get(fn order): Vec<Order<T::AccountId, BalanceOf<T>>>;
 
-        /// recommend miner list
-        pub RecommendList get(fn recommend_list): Vec<T::AccountId>;
+		/// 推荐的矿工列表
+		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
     }
 }
@@ -168,7 +168,7 @@ decl_module! {
             Self::deposit_event(RawEvent::Registered(who));
         }
 
-        /// 矿工注册信息更新(容量)
+        /// 矿工注册信息更新(容量)-miner  Schedule job
         #[weight = 10_000]
         fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
             let who = ensure_signed(origin)?;
@@ -322,42 +322,42 @@ decl_module! {
 
 
         /// 矿工申请进入推荐列表
-		// #[weight = 10_000]
-		// fn apply_to_recommended_list(origin, amount: BalanceOf<T>) {
-        //
-		// 	// 矿工才能操作
-		// 	let miner = ensure_signed(origin)?;
-        //
-		// 	ensure!(<Miners<T>>::contains_key(&miner), Error::<T>::MinerNotFound);
-        //
-        //     // TODO: add user to recommended list
-		// 	Self::sort_account_by_amount(miner.clone(), amount)?;
-        //
-		// 	Self::deposit_event(RawEvent::RequestUpToList(miner, amount));
-        //
-		// }
-        //
-        //
-		// /// 矿工退出推荐列表
-		// #[weight = 10_000]
-		// fn drop_out_recommended_list(origin) {
-		// 	let miner = ensure_signed(origin)?;
-		// 	// 获取推荐列表
-		// 	let mut list = <RecommendList<T>>::get();
-		// 	if let Some(pos) = list.iter().position(|h| h.0 == miner) {
-		// 		let amount = list.swap_remove(pos).1;
-        //
-		// 		T::StakingCurrency::unreserve(&miner, amount);
-        //
-		// 		<RecommendList<T>>::put(list);
-		// 	}
-		// 	else {
-		// 		return Err(Error::<T>::NotInList)?;
-		// 	}
-        //
-		// 	Self::deposit_event(RawEvent::RequestDownFromList(miner));
-        //
-		// }
+		#[weight = 10_000]
+		fn apply_to_recommended_list(origin, amount: BalanceOf<T>) {
+
+			// 矿工才能操作
+			let miner = ensure_signed(origin)?;
+
+			ensure!(<Miners<T>>::contains_key(&miner), Error::<T>::MinerNotFound);
+
+            // TODO: add user to recommended list
+			Self::sort_account_by_amount(miner.clone(), amount)?;
+
+			Self::deposit_event(RawEvent::RequestUpToList(miner, amount));
+
+		}
+
+
+		/// 矿工退出推荐列表
+		#[weight = 10_000]
+		fn drop_out_recommended_list(origin) {
+			let miner = ensure_signed(origin)?;
+			// 获取推荐列表
+			let mut list = <RecommendList<T>>::get();
+			if let Some(pos) = list.iter().position(|h| h.0 == miner) {
+				let amount = list.swap_remove(pos).1;
+
+				T::StakingCurrency::unreserve(&miner, amount);
+
+				<RecommendList<T>>::put(list);
+			}
+			else {
+				return Err(Error::<T>::NotInList)?;
+			}
+
+			Self::deposit_event(RawEvent::RequestDownFromList(miner));
+
+		}
 
         fn on_finalize(n: T::BlockNumber) {
             let n = n.saturated_into::<u64>();
@@ -426,60 +426,60 @@ impl<T: Trait> Module<T> {
         return None;
     }
 
-    // fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
-    //     let mut old_list = <RecommendList<T>>::get();
-    //     let mut miner_old_info: Option<(T::AccountId, BalanceOf<T>)> = None;
-    //
-    //     if let Some(pos) = old_list.iter().position(|h| h.0 == miner.clone()) {
-    //         miner_old_info = Some(old_list.remove(pos));
-    //     }
-    //     if miner_old_info.is_some() {
-    //         let old_amount = miner_old_info.clone().unwrap().1;
-    //
-    //         ensure!(T::StakingCurrency::can_reserve(&miner, amount), Error::<T>::AmountNotEnough);
-    //
-    //         T::StakingCurrency::unreserve(&miner, old_amount);
-    //
-    //         amount = amount + old_amount;
-    //     }
-    //
-    //     if old_list.len() == 0 {
-    //         Self::sort_after(miner, amount, 0, old_list)?;
-    //     } else {
-    //         let mut index = 0;
-    //         for i in old_list.iter() {
-    //             if i.1 >= amount {
-    //                 index += 1;
-    //             } else {
-    //                 break;
-    //             }
-    //         }
-    //
-    //         Self::sort_after(miner, amount, index, old_list)?;
-    //     }
-    //
-    //     Ok(())
-    // }
-    //
-    // fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
-    //     // 先对矿工进行抵押
-    //
-    //     T::StakingCurrency::reserve(&miner, amount)?;
-    //
-    //     old_list.insert(index, (miner, amount));
-    //
-    //     if old_list.len() > 20 {
-    //         let abandon = old_list.split_off(20);
-    //         // 对被淘汰的人进行释放
-    //         for i in abandon {
-    //             T::StakingCurrency::unreserve(&i.0, i.1);
-    //         }
-    //     }
-    //
-    //     <RecommendList<T>>::put(old_list);
-    //
-    //     Ok(())
-    // }
+    fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
+        let mut old_list = <RecommendList<T>>::get();
+        let mut miner_old_info: Option<(T::AccountId, BalanceOf<T>)> = None;
+
+        if let Some(pos) = old_list.iter().position(|h| h.0 == miner.clone()) {
+            miner_old_info = Some(old_list.remove(pos));
+        }
+        if miner_old_info.is_some() {
+            let old_amount = miner_old_info.clone().unwrap().1;
+
+            ensure!(T::StakingCurrency::can_reserve(&miner, amount), Error::<T>::AmountNotEnough);
+
+            T::StakingCurrency::unreserve(&miner, old_amount);
+
+            amount = amount + old_amount;
+        }
+
+        if old_list.len() == 0 {
+            Self::sort_after(miner, amount, 0, old_list)?;
+        } else {
+            let mut index = 0;
+            for i in old_list.iter() {
+                if i.1 >= amount {
+                    index += 1;
+                } else {
+                    break;
+                }
+            }
+
+            Self::sort_after(miner, amount, index, old_list)?;
+        }
+
+        Ok(())
+    }
+
+    fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
+        // 先对矿工进行抵押
+
+        T::StakingCurrency::reserve(&miner, amount)?;
+
+        old_list.insert(index, (miner, amount));
+
+        if old_list.len() > 20 {
+            let abandon = old_list.split_off(20);
+            // 对被淘汰的人进行释放
+            for i in abandon {
+                T::StakingCurrency::unreserve(&i.0, i.1);
+            }
+        }
+
+        <RecommendList<T>>::put(old_list);
+
+        Ok(())
+    }
 
     fn punish(miner: &T::AccountId, size: u64) {
         Miners::<T>::mutate(miner, |mi| {
