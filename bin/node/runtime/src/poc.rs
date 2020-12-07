@@ -236,9 +236,7 @@ decl_module! {
             }
 
             else {
-//             	let mut test = <Test<T>>::get();
-// //             	test.push((<staking::Module<T>>::now(), miner.clone(), deadline, verify_ok.1, verify_ok.2));
-//             	<Test<T>>::put(test);
+				debug::info!("验证没有通过! deadline = {:?}, target = {:?}, base_target = {:?}", verify_ok.1 / verify_ok.2, verify_ok.1, verify_ok.2);
             }
 
             debug::info!("verify result: {}", verify_ok.0);
