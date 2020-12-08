@@ -316,7 +316,8 @@ impl<T: Trait> Module<T> {
     fn adjust_difficulty(block: u64) {
         debug::info!("[ADJUST] difficulty on block {}", block);
         let base_target_avg = Self::get_base_target_avg();
-        let mining_time_avg = Self::get_mining_time_avg();
+//         let mining_time_avg = Self::get_mining_time_avg();
+        let mining_time_avg = MILLISECS_PER_BLOCK;
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
         // base_target跟出块的平均时间成正比
         if mining_time_avg >= MILLISECS_PER_BLOCK * 2 * 2 / 3 {
