@@ -502,11 +502,11 @@ impl<T: Trait> Module<T> {
 		debug::info!("poc_staking era start_time: {:?}, chill end_time: {:?}", era_start_time, time);
 
 		if now <= time {
-			<IsChillTime>::put(true)
+			<IsChillTime>::put(true);
 		}
 
 		else {
-			<IsChillTime>::put(false)
+			<IsChillTime>::put(false);
 		}
 
 		Ok(())
