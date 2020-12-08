@@ -143,7 +143,7 @@ decl_module! {
 
         /// 矿工进行注册登记
         #[weight = 10_000]
-        fn register_miner(origin, account_id: T::AccountId,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
             // staking per kb is  1000;
@@ -154,7 +154,7 @@ decl_module! {
             T::StakingCurrency::reserve(&who,total_staking)?;
 
             Miners::<T>::insert(&who, Miner {
-                account_id,
+                account_id:who.clone(),
                 nickname,
                 region,
                 url,
