@@ -92,6 +92,8 @@ pub mod poc;
 pub mod ipse_traits;
 pub mod poc_staking;
 pub mod ipse;
+pub mod exchange;
+pub mod ocw_common;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -265,6 +267,22 @@ impl InstanceFilter<Call> for ProxyType {
 			_ => false,
 		}
 	}
+}
+
+parameter_types! {
+	pub const TxsMaxCount: u32 = 1000;
+	pub const Hours:BlockNumber = HOURS;
+	pub const OffchainWorkUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+}
+
+impl exchange::Trait for Runtime {
+	type Event = Event;
+	type AuthorityId = exchange::eos_crypto::AuthorityId;
+	type TxsMaxCount = TxsMaxCount;
+	type Duration = Hours;
+	type UnsignedPriority = OffchainWorkUnsignedPriority;
+	type OnUnbalanced = ();
+	type Currency = Balances;
 }
 
 impl pallet_proxy::Trait for Runtime {
@@ -997,6 +1015,7 @@ construct_runtime!(
 		PocStaking: poc_staking::{Module, Call, Storage, Event<T>},
 		PoC: poc::{Module, Call, Storage, Event<T>},
 		Ipse: ipse::{Module, Call, Storage, Event<T>},
+		Exchange: exchange::{Module, Call, Storage, Event<T>,ValidateUnsigned, Config<T>},
 	}
 );
 
