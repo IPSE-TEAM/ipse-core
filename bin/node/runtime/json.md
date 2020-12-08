@@ -4,19 +4,23 @@
     "KIB": "u64",
     "Amount": "u128",
     "Miner": {
+          "account_id": "AccountId",
           "nickname": "Vec<u8>",
           "region": "Vec<u8>",
           "url": "Vec<u8>",
           "capacity": "u64",
           "unit_price": "Balance",
           "violation_times": "u64",
-          "total_staking": "Balance"
+          "total_staking": "Balance",
+          "create_ts": "u64",
+          "update_ts": "u64",
     },
 
     "Order": {
-        "key": "Vec<u8>",
-        "merkle_root": "[u8; 32]",
-        "data_length":"u64",
+        "miner": "AccountId",
+        "label": "Vec<u8>",
+        "hash": "[u8; 32]",
+        "size":"u64",
         "user": "AccountId",
         "orders": "Vec<MinerOrder<AccountId, Balance>>",
         "status": "OrderStatus",
