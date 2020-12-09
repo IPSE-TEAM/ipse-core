@@ -1039,8 +1039,8 @@ impl<T: Trait> Module<T> {
 		ExtrinsicCount::kill();
 		AllExtrinsicsLen::kill();
 
-// 		let number = <BlockNumber<T>>::take();
-		let number = <BlockNumber<T>>::get();
+		let number = <BlockNumber<T>>::take();
+// 		let number = <BlockNumber<T>>::get();
 		let parent_hash = <ParentHash<T>>::take();
 		let mut digest = <Digest<T>>::take();
 		let extrinsics_root = <ExtrinsicsRoot<T>>::take();
