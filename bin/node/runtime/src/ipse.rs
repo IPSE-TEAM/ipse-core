@@ -109,6 +109,14 @@ pub struct MinerOrder<AccountId, Balance> {
     pub url: Option<Vec<u8>>,
 }
 
+/// History
+#[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
+pub struct MiningHistory<Balance, BlockNumber> {
+    total_num: u64,
+    history: Vec<(BlockNumber, Balance)>,
+}
+
+
 #[derive(Encode, Decode, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OrderStatus {
     Created,
@@ -118,6 +126,8 @@ pub enum OrderStatus {
     Expired,
     Deleted,
 }
+
+
 
 decl_storage! {
     trait Store for Module<T: Trait> as Ipse {
@@ -129,6 +139,9 @@ decl_storage! {
 
 		/// 推荐的矿工列表
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
+
+		/// 矿工的挖矿记录
+        pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
     }
 }
@@ -173,6 +186,11 @@ decl_module! {
         fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
             let who = ensure_signed(origin)?;
 
+
+            // must check total staking, if is zero, cannot confirm order.
+            let miner_info = Self::miner(&miner).ok_or(Error::<T>::MinerNotFound)?;
+            ensure!(miner_info.total_staking > 0.saturated_into::<BalanceOf<T>>(), Error::<T>::NoneStaking);
+
             if let Some(miner) = Miners::<T>::get(&who).as_mut() {
 
                 miner.nickname = nickname;
@@ -197,11 +215,9 @@ decl_module! {
         fn create_order(origin,miner_account: T::AccountId, label: Vec<u8>, hash: [u8; 32], size: u64, url: Option<Vec<u8>>, miner: Option<T::AccountId>, days: u64, unit_price: BalanceOf<T>) {
             let user = ensure_signed(origin)?;
 
-
-
             let mut order_list= Vec::new();
 
-            let miner = Self::miner(&miner.unwrap_or_else(Self::miner_account_id)).ok_or(Error::<T>::MinerNotFound)?;
+            let miner = Self::miner(&user.unwrap_or_else(Self::miner_account_id)).ok_or(Error::<T>::MinerNotFound)?;
             let day_price = miner.unit_price * size.saturated_into::<BalanceOf<T>>() / KB.saturated_into::<BalanceOf<T>>();
             let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
             let miner_order = MinerOrder {

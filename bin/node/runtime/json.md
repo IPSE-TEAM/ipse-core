@@ -13,7 +13,7 @@
           "violation_times": "u64",
           "total_staking": "Balance",
           "create_ts": "u64",
-          "update_ts": "u64",
+          "update_ts": "u64"
     },
 
     "Order": {
