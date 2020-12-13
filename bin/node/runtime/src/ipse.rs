@@ -217,7 +217,7 @@ decl_module! {
 
             let mut order_list= Vec::new();
 
-            let miner = Self::miner(&user.unwrap_or_else(Self::miner_account_id)).ok_or(Error::<T>::MinerNotFound)?;
+            let miner = Self::miner(&user).ok_or(Error::<T>::MinerNotFound)?;
             let day_price = miner.unit_price * size.saturated_into::<BalanceOf<T>>() / KB.saturated_into::<BalanceOf<T>>();
             let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
             let miner_order = MinerOrder {
