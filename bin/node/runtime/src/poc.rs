@@ -108,8 +108,8 @@ pub enum Event<T>
     {
         Minning(AccountId, bool),
         Verify(AccountId, bool),
-        HeightTooLow,
-        NotBestDeadline,
+        HeightTooLow(AccountId, u64, u64, u64),
+        NotBestDeadline(AccountId, u64, u64, u64),
     }
 }
 
@@ -158,11 +158,11 @@ decl_module! {
             debug::info!("starting Verify Deadline !!!");
 
 			// 必须在同一周期 并且提交的时间比处理的时间迟
-            if !(current_block/T::MiningDuration::get() == height/T::MiningDuration::get() && current_block >= height)
+            if !(current_block - height <= T::MiningDuration::get() && current_block >= height)
             {
                 debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
 
-				Self::deposit_event(RawEvent::HeightTooLow);
+				Self::deposit_event(RawEvent::HeightTooLow(miner.clone(), current_block, height, deadline));
 
 				return Err(Error::<T>::HeightNotInDuration)?;
             }
@@ -177,12 +177,12 @@ decl_module! {
 
 
             // Someone(miner) has mined a better deadline at this mining cycle before.
-            // 如果之前已经有比较好的deadline 那么就终止执行
-            if best_dl <= deadline && current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
+            // 如果这个块已经有比较好的deadline 那么就终止执行
+            if best_dl <= deadline && current_block == block {
 
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
 
-                Self::deposit_event(RawEvent::NotBestDeadline);
+                Self::deposit_event(RawEvent::NotBestDeadline(miner.clone(), current_block, height, deadline));
 
                 return Err(Error::<T>::NotBestDeadline)?;
             }
@@ -209,28 +209,34 @@ decl_module! {
 
                 let mining_time: u64;
                 if last_block == 0 {
-                	mining_time = T::MiningDuration::get() * MILLISECS_PER_BLOCK;
+                	mining_time =  MILLISECS_PER_BLOCK;
                 	}
 
                 else {
                 	mining_time = (current_block - last_block) * MILLISECS_PER_BLOCK;
                 	}
 
-                // 这里保证了dl_info的最后一个总是最优解
-                if current_block/Self::get_mining_duration()? == block/Self::get_mining_duration()? {
+                // 这里保证了这个块的dl_info的最后一个总是最优解
+                if current_block == block {
 
                     DlInfo::<T>::mutate(|dl| dl.pop());
 
                 }
 
                 // 上次出块与本次出块的时间间隔
-                DlInfo::<T>::mutate(|dl| dl.push(
-                    MiningInfo{
+                Self::append_dl_info(MiningInfo{
                         miner: Some(miner.clone()),
                         best_dl: deadline,
                         block: current_block,
                         mining_time
-                    }));
+                    });
+//                 DlInfo::<T>::mutate(|dl| dl.push(
+//                     MiningInfo{
+//                         miner: Some(miner.clone()),
+//                         best_dl: deadline,
+//                         block: current_block,
+//                         mining_time
+//                     }));
 
 //                 LastMiningTs::mutate( |ts| *ts = current_block * MILLISECS_PER_BLOCK);
             }
@@ -280,14 +286,17 @@ decl_module! {
 
 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
-			// 调整挖矿难度
+			// 10个块调整挖矿难度
             if current_block%10 == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
-            if current_block%Self::get_mining_duration().unwrap() == 0 {
 
-            	if current_block/Self::get_mining_duration().unwrap() == last_mining_block/Self::get_mining_duration().unwrap() {
+				// 每个块都有出块机会
+//             if current_block%Self::get_mining_duration().unwrap() == 0 {
+
+				// 如果这个块有poc出块 那么就说明有用户挖矿
+            	if current_block == last_mining_block {
 
              		if let Some(miner_info) = Self::dl_info().last() {
  						let miner: Option<T::AccountId> = miner_info.clone().miner;
@@ -305,7 +314,7 @@ decl_module! {
             		Self::reward_treasury(reward);
             	}
 
-            }
+//             }
         }
 
      }
@@ -360,14 +369,21 @@ impl<T: Trait> Module<T> {
 
 	fn treasury_minning(current_block: u64) {
 
-		<DlInfo<T>>::mutate(|dl| dl.push(
-			MiningInfo{
+		Self::append_dl_info(MiningInfo{
 				miner: None,
 				best_dl: core::u64::MAX,
 
 				mining_time: MILLISECS_PER_BLOCK,
 				block: current_block, // 记录当前区块
-			}));
+			});
+// 		<DlInfo<T>>::mutate(|dl| dl.push(
+// 			MiningInfo{
+// 				miner: None,
+// 				best_dl: core::u64::MAX,
+//
+// 				mining_time: MILLISECS_PER_BLOCK,
+// 				block: current_block, // 记录当前区块
+// 			}));
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
 // 		<Test<T>>::mutate(|h| h.push(T::BlockNumber::from(current_block as u32)));
 	}
@@ -415,8 +431,8 @@ impl<T: Trait> Module<T> {
 
         	if i.miner.is_some() {
 
-        		// 不在本周期 并且
-        		if (i.block / T::MiningDuration::get() != now / T::MiningDuration::get()) {
+        		// 不在本区块
+        		if (i.block != now) {
         			debug::info!("矿工挖出来的最后的区块是:{:?}", i);
         			return i.block;
 
@@ -707,6 +723,25 @@ impl<T: Trait> Module<T> {
     		<UserRewardHistory<T>>::insert(account_id, reward_history);
     	}
 
+
+
+    }
+
+    // 添加dl_info(最高数据量有所限制 目前设置500条)
+    fn append_dl_info(dl_info: MiningInfo<T::AccountId>) {
+    	// 获取dl_info
+    	let mut old_dl_info_vec = <DlInfo<T>>::get();
+    	let len = old_dl_info_vec.len();
+
+    	old_dl_info_vec.push(dl_info);
+
+    	if len >= 500 {
+
+    		let new_dl_info = old_dl_info_vec.split_off(len - 500);
+    		old_dl_info_vec = new_dl_info;
+    	}
+
+    	<DlInfo<T>>::put(old_dl_info_vec);
 
 
     }

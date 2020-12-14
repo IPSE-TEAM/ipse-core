@@ -116,8 +116,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 259,
-	impl_version: 1,
+	spec_version: 265,
+	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
 };
@@ -333,7 +333,7 @@ impl poc_staking::Trait for Runtime {
 
 parameter_types! {
 
-	pub const MiningDuration: u64 = 1;
+	pub const MiningDuration: u64 = 3;
 
 	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
 
