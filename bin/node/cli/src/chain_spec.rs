@@ -368,6 +368,11 @@ fn local_testnet_genesis() -> GenesisConfig {
 			authority_keys_from_seed("Alice"),
 			authority_keys_from_seed("Bob"),
 
+			authority_keys_from_seed("Charlie"),
+			authority_keys_from_seed("Dave"),
+			authority_keys_from_seed("Eve"),
+			authority_keys_from_seed("Ferdie"),
+
 			// chy 716000
 			(hex!["44f68ed065555550c5f6e46a8883d12b479ab9a969143b9833e4e4d8aae21d3e"].into(),
 			hex!["4cb14cb42837abb6fbe170b4bb7ba312a999df20ed622d796c761fa9cc97e218"].into(),
