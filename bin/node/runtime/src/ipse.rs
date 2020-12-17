@@ -2,7 +2,7 @@
 
 extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
-
+use sp_std::vec;
 use codec::{Decode, Encode};
 use frame_support::traits::{Currency, Get, BalanceStatus, ReservableCurrency};
 use frame_support::{
@@ -375,6 +375,7 @@ decl_module! {
 		}
 
         fn on_finalize(n: T::BlockNumber) {
+        	let current_block = n;
             let n = n.saturated_into::<u64>();
             // Check verifying result per 20 blocks,
             // 20 blocks just 1 minute.
@@ -392,6 +393,9 @@ decl_module! {
                             if now - mo.verify_ts < DAY && mo.verify_result {
                                 // verify result is ok, transfer one day's funds to miner
                                 T::StakingCurrency::repatriate_reserved(&order.user, &mo.miner, mo.day_price, BalanceStatus::Free);
+
+								Self::update_history(current_block, mo.miner.clone(), mo.day_price);
+
                                 Self::deposit_event(RawEvent::VerifyStorage(mo.miner, true));
                             } else {
                                 // verify result expired or no verifying, punish miner
@@ -412,17 +416,6 @@ impl<T: Trait> Module<T> {
     pub fn miner_account_id() -> T::AccountId {
         T::TreasuryModuleId::get().into_account()
     }
-
-    //  saturated_into
-    // fn into_balance(val: u128) -> Result<BalanceOf<T>, &'static str> {
-    //     val.try_into().map_err(|_| "Convert to Balance type overflow")
-    // }
-
-    // use saturated_into
-    // u64 to moment
-    // fn into_moment(val: u64) -> Result<T::Moment, &'static str> {
-    //     val.try_into().map_err(|_| "Convert to Moment type overflow")
-    // }
 
     fn get_now_ts() -> u64 {
         let now = <timestamp::Module<T>>::get();
@@ -474,6 +467,38 @@ impl<T: Trait> Module<T> {
         }
 
         Ok(())
+    }
+
+    fn update_history(n: T::BlockNumber, miner: T::AccountId, amount: BalanceOf<T>) {
+    	let mut history = <History<T>>::get(miner.clone());
+		if history.is_some() {
+			let mut vec = history.clone().unwrap().history;
+			let num = history.clone().unwrap().total_num;
+			vec.push((n, amount));
+
+			let len = vec.len();
+			if len >= 100 {
+				let pre = len - 100;
+				let new_vec = vec.split_off(pre);
+				vec = new_vec;
+			}
+
+			history = Some(MiningHistory {
+				total_num: num + 1u64,
+				history: vec,
+			});
+		}
+
+		else {
+			let mut vec = vec![];
+			vec.push((n, amount));
+			history = Some(MiningHistory {
+				total_num: 1u64,
+				history: vec,
+			});
+		}
+
+		<History<T>>::insert(miner, history.unwrap());
     }
 
     fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
