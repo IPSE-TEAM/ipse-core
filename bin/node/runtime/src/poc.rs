@@ -618,8 +618,8 @@ impl<T: Trait> Module<T> {
 					  .saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
 					  {
 
-					debug::info!("矿工挖矿概率偏高， 应该减小p盘空间或是增大抵押金额！, 矿工: {:?}, 至少需要抵押{:?}个IPSE", miner.clone(), Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(miner_mining_num.saturated_into::<BalanceOf<T>>())
-					.saturating_mul(T::CapacityPrice::get()) / net_mining_num.saturated_into::<BalanceOf<T>>() / G.saturated_into::<BalanceOf<T>>() / DOLLARS.saturated_into::<BalanceOf<T>>());
+					debug::info!("矿工挖矿概率偏高， 应该减小p盘空间或是增大抵押金额！, 矿工: {:?}, 至少还需要抵押{:?}个IPSE", miner.clone(), (Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(miner_mining_num.saturated_into::<BalanceOf<T>>())
+					.saturating_mul(T::CapacityPrice::get()) / net_mining_num.saturated_into::<BalanceOf<T>>() / G.saturated_into::<BalanceOf<T>>() - total_staking) / DOLLARS.saturated_into::<BalanceOf<T>>());
 
 					reward = Percent::from_percent(10) * reward;
 
