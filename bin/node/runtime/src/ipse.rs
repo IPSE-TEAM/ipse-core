@@ -211,12 +211,14 @@ decl_module! {
 
         /// 用户创建订单(后面加上，unit_price)
         #[weight = 10_000]
-        fn create_order(origin,miner_account: T::AccountId, label: Vec<u8>, hash: [u8; 32], size: u64, url: Option<Vec<u8>>, miner: Option<T::AccountId>, days: u64, unit_price: BalanceOf<T>) {
+        fn create_order(origin,miner: T::AccountId, label: Vec<u8>, hash: [u8; 32], size: u64, url: Option<Vec<u8>>, days: u64, unit_price: BalanceOf<T>) {
             let user = ensure_signed(origin)?;
 
             let mut order_list= Vec::new();
 
-            let miner = Self::miner(&user).ok_or(Error::<T>::MinerNotFound)?;
+            let miner_cp = miner.clone();
+
+            let miner = Self::miner(&miner).ok_or(Error::<T>::MinerNotFound)?;
             let day_price = miner.unit_price * size.saturated_into::<BalanceOf<T>>() / KB.saturated_into::<BalanceOf<T>>();
             let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
             let miner_order = MinerOrder {
@@ -232,7 +234,7 @@ decl_module! {
 
             Orders::<T>::mutate( |o| o.push(
                 Order {
-                    miner: miner_account,
+                    miner: miner_cp,
                     label,
                     hash,
                     size,
@@ -247,8 +249,6 @@ decl_module! {
             Self::deposit_event(RawEvent::CreatedOrder(user));
 
         }
-
-        /// TODO: 查看最新100条
 
         /// 矿工确认订单-自动搞定
         #[weight = 10_000]
