@@ -28,9 +28,10 @@ use crate::ipse_traits::PocHandler;
 
 use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, nonce::noncegen_rust};
 
-use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}};
+use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
 pub const YEAR: u32 = 365*DAYS;
+pub const G: u64 = 1000_000;
 
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
@@ -584,8 +585,9 @@ impl<T: Trait> Module<T> {
 
 		let mut miner_mining_num = match <History<T>>::get(&miner) {
 				Some(h) => {h.total_num + 1u64},
-				None => 0u64,
+				None => 1u64,
 			};
+
 		let now = <staking::Module<T>>::now();
 
 		// 获取该矿工的抵押信息
@@ -598,20 +600,29 @@ impl<T: Trait> Module<T> {
 			let total_staking = staking_info_opt.unwrap().total_staking;
 
 			// 矿工应该抵押的金额
-			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get()) / 1000_000.saturated_into::<BalanceOf<T>>();
+			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>();
 
 			// 矿工抵押达标
 			if should_staking_amount <= total_staking {
-				debug::info!("矿工抵押达标！");
+				debug::info!("矿工抵押达标(基本满足自己设定的容量和应该抵押的金额({:?})！", total_staking);
 				// 一个块挖一次
-				let net_mining_num = (now - update_time).saturated_into::<u64>();
+				let net_mining_num = (now - update_time).saturated_into::<u64>() + 1;
 
-				// 挖矿概率判断
-				if disk.saturating_mul(net_mining_num) > Self::get_total_capacity().saturating_mul(miner_mining_num) {
+				debug::info!("矿工: {:?}, 挖矿的概率是: {:?} / {:?}", miner.clone(), miner_mining_num, net_mining_num);
 
-					debug::info!("矿工概率偏高， 应该减小p盘空间或是增大抵押金额！");
+				// 矿工挖矿的概率如果偏高 那么就说明抵押偏低 要加大抵押
+				if total_staking.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
+
+					< Self::get_total_capacity().saturated_into::<BalanceOf<T>>()
+					  .saturating_mul(miner_mining_num.saturated_into::<BalanceOf<T>>())
+					  .saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
+					  {
+
+					debug::info!("矿工挖矿概率偏高， 应该减小p盘空间或是增大抵押金额！, 矿工: {:?}, 至少需要抵押{:?}个IPSE", miner.clone(), Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(miner_mining_num.saturated_into::<BalanceOf<T>>())
+					.saturating_mul(T::CapacityPrice::get()) / net_mining_num.saturated_into::<BalanceOf<T>>() / G.saturated_into::<BalanceOf<T>>() / DOLLARS.saturated_into::<BalanceOf<T>>());
 
 					reward = Percent::from_percent(10) * reward;
+
 					Self::reward_staker(miner.clone(), reward);
 
 				}
@@ -643,8 +654,6 @@ impl<T: Trait> Module<T> {
 		}
 
 		debug::info!("本次挖矿实际奖励是：{:?}", reward);
-
-		miner_mining_num += 1;
 
 		let history_opt = <History<T>>::get(&miner);
 
@@ -712,8 +721,6 @@ impl<T: Trait> Module<T> {
     fn get_total_capacity() -> u64 {
 
 		// 设置1000G
-		let G = (1000 * 1000) as u64;
-
 		1000u64 * G
 
     }
