@@ -330,7 +330,12 @@ impl<T: Trait> Module<T> {
         debug::info!("LAST_BASE_TARGET = {},  NO_MINING_NUM = {}", last_base_target, no_mining_num);
 
 		if no_mining_num <= 1 {
-			let new = last_base_target / 2;
+
+			let mut new = last_base_target / 2;
+			if new == 0 {
+				new = 1;
+			}
+
 			debug::info!("[DIFFICULTY] make more difficult, base_target = {:?}", new);
 			TargetInfo::mutate(|target| target.push(
                 Difficulty{
