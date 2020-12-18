@@ -333,17 +333,21 @@ impl poc_staking::Trait for Runtime {
 
 parameter_types! {
 
-	pub const MiningDuration: u64 = 3;
+	pub const Expire: u64 = 3;
 
 	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
 
 	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
+
+	pub const CapacityPrice: Balance = 1 * DOLLARS;
 }
 
 impl poc::Trait for Runtime {
     type Event = Event;
-    type MiningDuration = MiningDuration;
+    type Expire = Expire;
     type GENESIS_BASE_TARGET = GENESIS_BASE_TARGET;
+
+    type CapacityPrice = CapacityPrice;
 
     type PocAddOrigin = ();
     type TotalMiningReward = TotalMiningReward;

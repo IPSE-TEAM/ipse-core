@@ -4,7 +4,7 @@ extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 use crate::poc_staking as staking;
 use crate::poc_staking::AccountIdOfPid;
-use node_primitives::KIB;
+use node_primitives::KB;
 // use num_traits::CheckedDiv;
 use sp_std::convert::{TryInto,TryFrom, Into};
 
@@ -39,13 +39,17 @@ type PositiveImbalanceOf<T> =
 
 pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
-    /// 多少个区块高度挖一次矿
-    type MiningDuration: Get<u64>;
+
+    /// 挖矿的过期区块长度
+    type Expire: Get<u64>;
 
     type PocAddOrigin: OnUnbalanced<PositiveImbalanceOf<Self>>;
 
     /// GENESIS_BASE_TARGET tib为单位
     type GENESIS_BASE_TARGET: Get<u64>;
+
+    /// 容量单位价格
+    type CapacityPrice: Get<BalanceOf<Self>>;
 
     type TotalMiningReward: Get<BalanceOf<Self>>;
 
@@ -119,11 +123,17 @@ decl_module! {
      	type Error = Error<T>;
 
         fn deposit_event() = default;
-        /// 多少个区块poc挖一次矿
-        const MiningDuration: u64 = T::MiningDuration::get();
+
+        /// 挖矿过期时间（允许推迟提交的区块数)
+        const Expire: u64 = T::Expire::get();
+
         const GENESIS_BASE_TARGET: u64 = T::GENESIS_BASE_TARGET::get();
+
         /// poc总共挖矿奖励
         const TotalMiningReward: BalanceOf<T> = T::TotalMiningReward::get();
+
+        /// 容量单位（GB）价格
+    	const CapacityPrice: BalanceOf<T> = T::CapacityPrice::get();
 
 
 		/// 验证
@@ -158,7 +168,7 @@ decl_module! {
             debug::info!("starting Verify Deadline !!!");
 
 			// 必须在同一周期 并且提交的时间比处理的时间迟
-            if !(current_block - height <= T::MiningDuration::get() && current_block >= height)
+            if !(current_block - height <= T::Expire::get() && current_block >= height)
             {
                 debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
 
@@ -230,15 +240,7 @@ decl_module! {
                         block: current_block,
                         mining_time
                     });
-//                 DlInfo::<T>::mutate(|dl| dl.push(
-//                     MiningInfo{
-//                         miner: Some(miner.clone()),
-//                         best_dl: deadline,
-//                         block: current_block,
-//                         mining_time
-//                     }));
 
-//                 LastMiningTs::mutate( |ts| *ts = current_block * MILLISECS_PER_BLOCK);
             }
 
             else {
@@ -255,8 +257,6 @@ decl_module! {
 
             if n == T::BlockNumber::from(1u32) {
             	let now = Self::get_now_ts();
-
-//                LastMiningTs::put(now);
 
                TargetInfo::mutate(|target| target.push(
                     Difficulty{
@@ -291,30 +291,25 @@ decl_module! {
                 Self::adjust_difficulty(current_block);
             }
 
+			// 如果这个块有poc出块 那么就说明有用户挖矿
+			if current_block == last_mining_block {
 
-				// 每个块都有出块机会
-//             if current_block%Self::get_mining_duration().unwrap() == 0 {
+				if let Some(miner_info) = Self::dl_info().last() {
+					let miner: Option<T::AccountId> = miner_info.clone().miner;
+					if miner.is_some() {
+						Self::reward_miner(miner.unwrap(), reward);
+						debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+					}
 
-				// 如果这个块有poc出块 那么就说明有用户挖矿
-            	if current_block == last_mining_block {
+				}
 
-             		if let Some(miner_info) = Self::dl_info().last() {
- 						let miner: Option<T::AccountId> = miner_info.clone().miner;
- 						if miner.is_some() {
- 							Self::reward_miner(miner.unwrap(), reward);
- 							debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
- 						}
+			}
 
-             		}
+			else {
+				Self::treasury_minning(current_block);
+				Self::reward_treasury(reward);
+			}
 
-            	}
-
-            	else {
-            		Self::treasury_minning(current_block);
-            		Self::reward_treasury(reward);
-            	}
-
-//             }
         }
 
      }
@@ -325,13 +320,28 @@ impl<T: Trait> Module<T> {
     fn adjust_difficulty(block: u64) {
         debug::info!("[ADJUST] difficulty on block {}", block);
         let base_target_avg = Self::get_base_target_avg();
-//         let mining_time_avg = Self::get_mining_time_avg();
+        let mining_time_avg = Self::get_mining_time_avg();
         let mining_time_avg = MILLISECS_PER_BLOCK;
         debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
-        // base_target跟出块的平均时间成正比
-        if mining_time_avg >= MILLISECS_PER_BLOCK * 2 * 2 / 3 {
-            let new = base_target_avg.saturating_mul(2);
-            debug::info!("[DIFFICULTY] make easier = {}", new);
+
+		// 如果缺块在2个以内 那么增大难度1.5倍 base_target = old_base_target * 10 / 15
+		if mining_time_avg <= MILLISECS_PER_BLOCK * 24 / 22 {
+			let new = base_target_avg.saturating_mul(10) / 15;
+			debug::info!("[DIFFICULTY] make more difficult, base_target = {:?}", new);
+			TargetInfo::mutate(|target| target.push(
+                Difficulty{
+                    block,
+                    base_target: new,
+                    net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
+
+                }));
+		}
+
+
+		// 如果缺块在2到5（包含5）之间， 难度不调整
+        else if mining_time_avg > MILLISECS_PER_BLOCK * 24 / 22 &&  mining_time_avg <= MILLISECS_PER_BLOCK * 24 / 19 {
+            let new = base_target_avg;
+            debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
                     block,
@@ -341,9 +351,10 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-        else if mining_time_avg <= MILLISECS_PER_BLOCK * 2 / 3 {
-            let new = base_target_avg / 2;
-            debug::info!("[DIFFICULTY] make more difficult = {}", new);
+		// 如果却块在5个以上 10个以下， 那么难度减小1.5倍
+        else if mining_time_avg > MILLISECS_PER_BLOCK * 24 / 19 && mining_time_avg <= MILLISECS_PER_BLOCK * 24 / 14{
+            let new = base_target_avg.saturating_mul(15) / 10;
+            debug::info!("[DIFFICULTY] make easier,  base_target = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
                     block,
@@ -352,9 +363,10 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
+		// 如果缺块在10个以上（很大概率说明没有人挖矿） 用初始base_target
         else {
-        	let new = base_target_avg;
-            debug::info!("[DIFFICULTY]  = {}", new);
+        	let new = T::GENESIS_BASE_TARGET::get();
+            debug::info!("[DIFFICULTY]  use GENESIS, base_target = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
                     block,
@@ -376,16 +388,8 @@ impl<T: Trait> Module<T> {
 				mining_time: MILLISECS_PER_BLOCK,
 				block: current_block, // 记录当前区块
 			});
-// 		<DlInfo<T>>::mutate(|dl| dl.push(
-// 			MiningInfo{
-// 				miner: None,
-// 				best_dl: core::u64::MAX,
-//
-// 				mining_time: MILLISECS_PER_BLOCK,
-// 				block: current_block, // 记录当前区块
-// 			}));
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
-// 		<Test<T>>::mutate(|h| h.push(T::BlockNumber::from(current_block as u32)));
+
 	}
 
 
@@ -408,7 +412,6 @@ impl<T: Trait> Module<T> {
 
     // 获取上次矿工挖矿的区块
     fn get_last_miner_mining_block() -> u64 {
-
 
 		let mut dl = <DlInfo<T>>::get();
 
@@ -545,17 +548,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-    fn get_mining_duration() -> result::Result<u64, DispatchError> {
-		if T::MiningDuration::get() == 0u64{
-			return Err(Error::<T>::DivZero)?;
-
-		}
-		else{
-			Ok(T::MiningDuration::get())
-		}
-    }
-
-
     /// 获取国库id
     fn get_treasury_id() -> T::AccountId {
     	<treasury::Module<T>>::account_id()
@@ -614,7 +606,7 @@ impl<T: Trait> Module<T> {
 
 		let now = <staking::Module<T>>::now();
 
-		// todo 假设一个块挖一次（也有可能几个块挖一次）
+		// 一个块挖一次
 		let net_mining_num = (now - update_time).saturated_into::<u64>();
 
 		let mut miner_mining_num = match <History<T>>::get(&miner) {
@@ -622,7 +614,7 @@ impl<T: Trait> Module<T> {
 			None => 0u64,
 		};
 
-		// 判断自己的挖矿概率是否达标
+		// todo 判断自己的挖矿概率是否达标
 		if disk.saturating_mul(net_mining_num) >= Self::get_total_capacity().saturating_mul(miner_mining_num) {
 			debug::info!("矿工抵押达标！");
 			reward = reward;
@@ -701,8 +693,8 @@ impl<T: Trait> Module<T> {
    	}
 
     /// 获取全网容量
-    fn get_total_capacity() -> KIB {
-		0 as KIB
+    fn get_total_capacity() -> KB {
+		0 as KB
     }
 
     /// 更新用户的奖励记录

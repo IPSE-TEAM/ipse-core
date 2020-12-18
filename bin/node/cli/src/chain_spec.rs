@@ -402,13 +402,14 @@ pub fn local_testnet_config() -> ChainSpec {
 
 
 	ChainSpec::from_genesis(
-		"Ipse Testnet",
-		"ipse_testnet",
+		"IpseLocalTestnet",
+		"ipse_local_testnet",
 		ChainType::Local,
 		local_testnet_genesis,
 		boot_nodes,
-		None,
-		None,
+		Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+			.expect("Staging telemetry url is valid; qed")),
+		Some("ipse"),
 		Some(properties),
 		Default::default(),
 	)
