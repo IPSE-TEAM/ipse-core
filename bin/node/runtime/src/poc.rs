@@ -45,7 +45,7 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
 
     type PocAddOrigin: OnUnbalanced<PositiveImbalanceOf<Self>>;
 
-    /// GENESIS_BASE_TARGET tib为单位
+    /// GENESIS_BASE_TARGET
     type GENESIS_BASE_TARGET: Get<u64>;
 
     /// 容量单位价格
@@ -83,9 +83,7 @@ pub struct Difficulty {
 
 decl_storage! {
     trait Store for Module<T: Trait> as PoC {
-        ///timestamp of last mining
-//         pub LastMiningTs get(fn lts): u64;
-        /// info of base_target and difficulty
+
         pub TargetInfo get(fn target_info): Vec<Difficulty>;
 
         /// deadline info of mining success
@@ -99,8 +97,6 @@ decl_storage! {
 
         /// 用户的详细奖励记录
 		pub UserRewardHistory get(fn user_reward_history): map hasher(twox_64_concat) T::AccountId => Vec<(T::BlockNumber, BalanceOf<T>)>;
-
-
 
     }
 }
@@ -117,7 +113,9 @@ pub enum Event<T>
     }
 }
 
+
 decl_module! {
+
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
 
      	type Error = Error<T>;
@@ -253,10 +251,10 @@ decl_module! {
             Ok(())
         }
 
+
         fn on_initialize(n: T::BlockNumber) -> Weight{
 
             if n == T::BlockNumber::from(1u32) {
-            	let now = Self::get_now_ts();
 
                TargetInfo::mutate(|target| target.push(
                     Difficulty{
@@ -267,6 +265,7 @@ decl_module! {
             }
             0
         }
+
 
         fn on_finalize(n: T::BlockNumber) {
             let current_block = n.saturated_into::<u64>();
@@ -315,6 +314,7 @@ decl_module! {
      }
 }
 
+
 impl<T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
@@ -336,7 +336,6 @@ impl<T: Trait> Module<T> {
 
                 }));
 		}
-
 
 		// 如果缺块在2到5（包含5）之间， 难度不调整
         else if mining_time_avg > MILLISECS_PER_BLOCK * 24 / 22 &&  mining_time_avg <= MILLISECS_PER_BLOCK * 24 / 19 {
@@ -375,7 +374,6 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-
     }
 
 
@@ -409,6 +407,7 @@ impl<T: Trait> Module<T> {
             0
         }
     }
+
 
     // 获取上次矿工挖矿的区块
     fn get_last_miner_mining_block() -> u64 {
@@ -447,27 +446,6 @@ impl<T: Trait> Module<T> {
         }
 
         0
-
-    }
-
-
-
-
-    fn get_last_adjust_block() -> u64 {
-        let tis = Self::target_info();
-        if let Some(ti) = tis.iter().last() {
-            ti.block
-        } else {
-            0
-        }
-    }
-
-
-    fn get_now_ts() -> u64 {
-
-        let now = <staking::Module<T>>::now().saturated_into::<u64>();
-
-		now * MILLISECS_PER_BLOCK
 
     }
 
@@ -604,26 +582,62 @@ impl<T: Trait> Module<T> {
 		let disk = machine_info.clone().plot_size;
 		let update_time = machine_info.clone().update_time;
 
+		let mut miner_mining_num = match <History<T>>::get(&miner) {
+				Some(h) => {h.total_num + 1u64},
+				None => 0u64,
+			};
 		let now = <staking::Module<T>>::now();
 
-		// 一个块挖一次
-		let net_mining_num = (now - update_time).saturated_into::<u64>();
+		// 获取该矿工的抵押信息
+		let staking_info_opt = <staking::Module<T>>::staking_info_of(&miner);
 
-		let mut miner_mining_num = match <History<T>>::get(&miner) {
-			Some(h) => {h.total_num + 1u64},
-			None => 0u64,
-		};
+		// 如果已经有抵押信息
+		if staking_info_opt.is_some() {
 
-		// todo 判断自己的挖矿概率是否达标
-		if disk.saturating_mul(net_mining_num) >= Self::get_total_capacity().saturating_mul(miner_mining_num) {
-			debug::info!("矿工抵押达标！");
-			reward = reward;
-			Self::reward_staker(miner.clone(), reward);
-		}
+			// 获取总抵押金额
+			let total_staking = staking_info_opt.unwrap().total_staking;
 
-		// 如果不达标 拿百分之10的奖励
+			// 矿工应该抵押的金额
+			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get()) / 1000_000.saturated_into::<BalanceOf<T>>();
+
+			// 矿工抵押达标
+			if should_staking_amount <= total_staking {
+				debug::info!("矿工抵押达标！");
+				// 一个块挖一次
+				let net_mining_num = (now - update_time).saturated_into::<u64>();
+
+				// 挖矿概率判断
+				if disk.saturating_mul(net_mining_num) > Self::get_total_capacity().saturating_mul(miner_mining_num) {
+
+					debug::info!("矿工概率偏高， 应该减小p盘空间或是增大抵押金额！");
+
+					reward = Percent::from_percent(10) * reward;
+					Self::reward_staker(miner.clone(), reward);
+
+				}
+
+				// 如果挖矿概率不达标 那么就挖到多少给多少
+				else {
+					debug::info!("挖矿概率在全奖励范围！");
+					reward = reward;
+					Self::reward_staker(miner.clone(), reward);
+				}
+
+			}
+
+			// 矿工抵押不达标 直接10%奖励
+			else {
+				debug::info!("矿工抵押没有达标！");
+				reward = Percent::from_percent(10) * reward;
+				Self::reward_staker(miner.clone(), reward);
+
+				}
+
+			}
+
+		// 如果没有抵押信息
 		else {
-			debug::info!("矿工抵押不达标！");
+			debug::info!("矿工还没有抵押！");
 			reward = Percent::from_percent(10) * reward;
 			Self::reward_staker(miner.clone(), reward);
 		}
@@ -662,6 +676,7 @@ impl<T: Trait> Module<T> {
 		Ok(())
     }
 
+
    	// 奖励每一个成员（抵押者）
    	fn reward_staker(miner: T::AccountId, reward: BalanceOf<T>) -> DispatchResult {
 
@@ -692,10 +707,17 @@ impl<T: Trait> Module<T> {
 		Ok(())
    	}
 
+
     /// 获取全网容量
-    fn get_total_capacity() -> KB {
-		0 as KB
+    fn get_total_capacity() -> u64 {
+
+		// 设置1000G
+		let G = (1000 * 1000) as u64;
+
+		1000u64 * G
+
     }
+
 
     /// 更新用户的奖励记录
     fn update_reword_history(account_id: T::AccountId, amount: BalanceOf<T>, block_num: T::BlockNumber) {
@@ -715,9 +737,8 @@ impl<T: Trait> Module<T> {
     		<UserRewardHistory<T>>::insert(account_id, reward_history);
     	}
 
-
-
     }
+
 
     // 添加dl_info(最高数据量有所限制 目前设置500条)
     fn append_dl_info(dl_info: MiningInfo<T::AccountId>) {
@@ -735,13 +756,14 @@ impl<T: Trait> Module<T> {
 
     	<DlInfo<T>>::put(old_dl_info_vec);
 
-
     }
 
 
 }
 
+
 impl<T: Trait> PocHandler<T::AccountId> for Module<T> {
+
 	fn remove_history(miner: T::AccountId) {
 		<History<T>>::remove(miner);
 
