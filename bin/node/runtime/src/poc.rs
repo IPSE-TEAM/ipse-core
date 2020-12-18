@@ -286,7 +286,7 @@ decl_module! {
 
 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
-			// 10个块调整挖矿难度
+			// 20个块调整挖矿难度
             if current_block%10 == 0 {
                 Self::adjust_difficulty(current_block);
             }
@@ -320,14 +320,17 @@ impl<T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
         debug::info!("[ADJUST] difficulty on block {}", block);
-        let base_target_avg = Self::get_base_target_avg();
-        let mining_time_avg = Self::get_mining_time_avg();
-        let mining_time_avg = MILLISECS_PER_BLOCK;
-        debug::info!("BASE_TARGET_AVG = {},  MINING_TIME_AVG = {}", base_target_avg, mining_time_avg);
+		
+        let last_base_target = Self::get_last_base_target();
 
-		// 如果缺块在2个以内 那么增大难度1.5倍 base_target = old_base_target * 10 / 15
-		if mining_time_avg <= MILLISECS_PER_BLOCK * 24 / 22 {
-			let new = base_target_avg.saturating_mul(10) / 15;
+		let mining_num = Self::get_mining_num();
+		
+        let no_mining_num = 10_u64 - mining_num;
+		
+        debug::info!("LAST_BASE_TARGET = {},  NO_MINING_NUM = {}", last_base_target, no_mining_num);
+
+		if no_mining_num <= 1 {
+			let new = last_base_target / 2;
 			debug::info!("[DIFFICULTY] make more difficult, base_target = {:?}", new);
 			TargetInfo::mutate(|target| target.push(
                 Difficulty{
@@ -338,9 +341,9 @@ impl<T: Trait> Module<T> {
                 }));
 		}
 
-		// 如果缺块在2到5（包含5）之间， 难度不调整
-        else if mining_time_avg > MILLISECS_PER_BLOCK * 24 / 22 &&  mining_time_avg <= MILLISECS_PER_BLOCK * 24 / 19 {
-            let new = base_target_avg;
+		// 如果缺块在1到4（包含4）之间， 难度不调整
+        else if no_mining_num > 1 &&  no_mining_num < 4 {
+            let new = last_base_target;
             debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
@@ -351,9 +354,9 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-		// 如果却块在5个以上 10个以下， 那么难度减小1.5倍
-        else if mining_time_avg > MILLISECS_PER_BLOCK * 24 / 19 && mining_time_avg <= MILLISECS_PER_BLOCK * 24 / 14{
-            let new = base_target_avg.saturating_mul(15) / 10;
+		// 如果却块在4个以上 那么难度减小2倍
+        else if no_mining_num >= 4  && mining_num != 0 {
+            let new = last_base_target.saturating_mul(2);
             debug::info!("[DIFFICULTY] make easier,  base_target = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
@@ -363,9 +366,9 @@ impl<T: Trait> Module<T> {
                 }));
         }
 
-		// 如果缺块在10个以上（很大概率说明没有人挖矿） 用初始base_target
-        else {
-        	let new = T::GENESIS_BASE_TARGET::get();
+			// 如果mining_num = 0 说明没有人挖矿 用初始值
+		else {
+			let new = last_base_target;
             debug::info!("[DIFFICULTY]  use GENESIS, base_target = {}", new);
             TargetInfo::mutate(|target| target.push(
                 Difficulty{
@@ -373,7 +376,8 @@ impl<T: Trait> Module<T> {
                     base_target: new,
                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
                 }));
-        }
+
+		}
 
     }
 
@@ -451,27 +455,22 @@ impl<T: Trait> Module<T> {
     }
 
 
-    fn get_base_target_avg() -> u64 {
+	// 取最后一次base_target
+    fn get_last_base_target() -> u64 {
         let ti = Self::target_info();
-        let mut iter = ti.iter().rev();
-        let mut total = 0_u64;
-        let mut count = 0_u64;
-        while let Some(target) = iter.next() {
-            if count == 24 {
-                break;
-            }
 
-            total = total.saturating_add(target.base_target);
+		if let Some(info) = ti.iter().last() {
+			info.base_target
+		}
+		else {
+			T::GENESIS_BASE_TARGET::get()
+		}
 
-            count += 1;
-        }
-
-        if count == 0 { T::GENESIS_BASE_TARGET::get() } else { total/count }
     }
 
 
 	/// 平均的出块时间
-    fn get_mining_time_avg() -> u64 {
+    fn get_mining_num() -> u64 {
         let dl = Self::dl_info();
         let mut iter = dl.iter().rev();
         let mut total = 0_u64;
@@ -479,20 +478,21 @@ impl<T: Trait> Module<T> {
         let mut real_count = 0_u64;
 
         while let Some(dl) = iter.next() {
-        	if count == 24 {
+        	if count == 10 {
                 break;
 				}
         	if dl.miner.is_some() {
 
-				total += dl.mining_time;
 				real_count += 1;
+				
         	}
 
         	count += 1;
 
         }
 
-        if real_count <=  5 { MILLISECS_PER_BLOCK } else { total/real_count }
+        real_count
+
     }
 
 
