@@ -340,6 +340,8 @@ parameter_types! {
 	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
 
 	pub const CapacityPrice: Balance = 1 * DOLLARS;
+
+	pub const AdjustDifficultyDuration: u64 = 10;
 }
 
 impl poc::Trait for Runtime {
@@ -351,6 +353,7 @@ impl poc::Trait for Runtime {
 
     type PocAddOrigin = ();
     type TotalMiningReward = TotalMiningReward;
+	type AdjustDifficultyDuration = AdjustDifficultyDuration;
 }
 
 parameter_types! {

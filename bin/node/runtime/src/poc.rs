@@ -54,6 +54,8 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
 
     type TotalMiningReward: Get<BalanceOf<Self>>;
 
+	type AdjustDifficultyDuration: Get<u64>;
+
 }
 
 
@@ -93,11 +95,9 @@ decl_storage! {
         /// 矿工的挖矿记录
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
-        /// (block_num, account_id，deadline, target, base_target)
-        pub Test get(fn test): Vec<(T::BlockNumber)>;
-
         /// 用户的详细奖励记录
 		pub UserRewardHistory get(fn user_reward_history): map hasher(twox_64_concat) T::AccountId => Vec<(T::BlockNumber, BalanceOf<T>)>;
+
 
     }
 }
@@ -133,6 +133,9 @@ decl_module! {
 
         /// 容量单位（GB）价格
     	const CapacityPrice: BalanceOf<T> = T::CapacityPrice::get();
+
+    	/// 多久调整一次难度
+    	const AdjustDifficultyDuration: u64 = T::AdjustDifficultyDuration::get();
 
 
 		/// 验证
@@ -256,13 +259,11 @@ decl_module! {
         fn on_initialize(n: T::BlockNumber) -> Weight{
 
             if n == T::BlockNumber::from(1u32) {
-
-               TargetInfo::mutate(|target| target.push(
-                    Difficulty{
+			Self::append_target_info(Difficulty{
                         base_target: T::GENESIS_BASE_TARGET::get(),
                         net_difficulty: 1,
                         block: 1,
-                    }));
+                    });
             }
             0
         }
@@ -287,7 +288,7 @@ decl_module! {
 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
 			// 20个块调整挖矿难度
-            if current_block%10 == 0 {
+            if current_block % T::AdjustDifficultyDuration::get() == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
@@ -325,7 +326,7 @@ impl<T: Trait> Module<T> {
 
 		let mining_num = Self::get_mining_num();
 		
-        let no_mining_num = 10_u64 - mining_num;
+        let no_mining_num = T::AdjustDifficultyDuration::get() - mining_num;
 		
         debug::info!("LAST_BASE_TARGET = {},  NO_MINING_NUM = {}", last_base_target, no_mining_num);
 
@@ -337,50 +338,48 @@ impl<T: Trait> Module<T> {
 			}
 
 			debug::info!("[DIFFICULTY] make more difficult, base_target = {:?}", new);
-			TargetInfo::mutate(|target| target.push(
-                Difficulty{
+			Self::append_target_info(Difficulty{
                     block,
                     base_target: new,
                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
 
-                }));
+                });
 		}
 
 		// 如果缺块在1到4（包含4）之间， 难度不调整
         else if no_mining_num > 1 &&  no_mining_num < 4 {
             let new = last_base_target;
             debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
-            TargetInfo::mutate(|target| target.push(
-                Difficulty{
+			Self::append_target_info(Difficulty{
                     block,
                     base_target: new,
                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
 
-                }));
+                });
+
         }
 
 		// 如果却块在4个以上 那么难度减小2倍
         else if no_mining_num >= 4  && mining_num != 0 {
             let new = last_base_target.saturating_mul(2);
-            debug::info!("[DIFFICULTY] make easier,  base_target = {}", new);
-            TargetInfo::mutate(|target| target.push(
-                Difficulty{
+			Self::append_target_info(Difficulty{
                     block,
                     base_target: new,
                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
-                }));
+                });
+            debug::info!("[DIFFICULTY] make easier,  base_target = {}", new);
+
         }
 
 			// 如果mining_num = 0 说明没有人挖矿 用初始值
 		else {
 			let new = last_base_target;
-            debug::info!("[DIFFICULTY]  use GENESIS, base_target = {}", new);
-            TargetInfo::mutate(|target| target.push(
-                Difficulty{
+			debug::info!("[DIFFICULTY]  use GENESIS, base_target = {}", new);
+			Self::append_target_info(Difficulty{
                     block,
                     base_target: new,
                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
-                }));
+                });
 
 		}
 
@@ -483,7 +482,7 @@ impl<T: Trait> Module<T> {
         let mut real_count = 0_u64;
 
         while let Some(dl) = iter.next() {
-        	if count == 10 {
+        	if count == T::AdjustDifficultyDuration::get() {
                 break;
 				}
         	if dl.miner.is_some() {
@@ -722,7 +721,7 @@ impl<T: Trait> Module<T> {
    	}
 
 
-    /// 获取全网容量
+    /// todo 获取全网容量(根据挖矿难度来调整)
     fn get_total_capacity() -> u64 {
 
 		// 设置1000G
@@ -769,6 +768,20 @@ impl<T: Trait> Module<T> {
     	<DlInfo<T>>::put(old_dl_info_vec);
 
     }
+
+	fn append_target_info(difficulty: Difficulty) {
+
+		let mut old_target_info_vec = <TargetInfo>::get();
+		let len = old_target_info_vec.len();
+		old_target_info_vec.push(difficulty);
+		if len >= 50 {
+			let new_target_info = old_target_info_vec.split_off(len - 50);
+			old_target_info_vec = new_target_info;
+		}
+
+		<TargetInfo>::put(old_target_info_vec);
+	}
+
 
 
 }
