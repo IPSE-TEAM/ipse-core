@@ -102,6 +102,9 @@ decl_storage! {
         /// 用户的详细奖励记录
 		pub UserRewardHistory get(fn user_reward_history): map hasher(twox_64_concat) T::AccountId => Vec<(T::BlockNumber, BalanceOf<T>)>;
 
+		/// 全网算力
+		pub NetPower get(fn net_power): u64;
+
     }
 }
 
@@ -306,7 +309,7 @@ decl_module! {
 				if let Some(miner_info) = Self::dl_info().last() {
 					let miner: Option<T::AccountId> = miner_info.clone().miner;
 					if miner.is_some() {
-						Self::reward_miner(miner.unwrap(), reward);
+						Self::reward(miner.unwrap(), reward);
 						debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
 					}
 
@@ -590,7 +593,9 @@ impl<T: Trait> Module<T> {
 
 
     /// 奖励矿工
-    fn reward_miner(miner: T::AccountId, mut reward: BalanceOf<T>) -> DispatchResult {
+    fn reward(miner: T::AccountId, mut reward: BalanceOf<T>) -> DispatchResult {
+
+		let all_reward = reward.clone();
 		// 获取自己的本机容量
 		let machine_info = <staking::Module<T>>::disk_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let disk = machine_info.clone().plot_size;
@@ -625,7 +630,7 @@ impl<T: Trait> Module<T> {
 
 				// 矿工挖矿的概率如果偏高(超出20%) 那么就说明抵押偏低 要加大抵押
 				// 本机挖矿次数 / 全网挖矿次数 - 本机算力 / 全网算力 > 20%
-				// 以上公式换算得： 本机挖矿次数 * 全网算力 - 全网挖矿次数 * 本机算力 > 全网挖矿次数 * 全网算力 / 5
+				// 以上公式换算得： 本机挖矿次数 * 全网算力 - 全网挖矿次数 * 本机算力 > 矿工挖矿概率允许的最大偏离值 * 全网挖矿次数 * 全网算力
 
 				if total_staking.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
 
@@ -653,7 +658,7 @@ impl<T: Trait> Module<T> {
 
 					Self::reward_staker(miner.clone(), reward);
 
-					Self::reward_treasury(Percent::from_percent(90) * reward);
+					Self::reward_treasury(Percent::from_percent(90) * all_reward);
 
 				}
 
@@ -671,7 +676,7 @@ impl<T: Trait> Module<T> {
 				debug::info!("矿工抵押没有达标！");
 				reward = Percent::from_percent(10) * reward;
 				Self::reward_staker(miner.clone(), reward);
-				Self::reward_treasury(Percent::from_percent(90) * reward);
+				Self::reward_treasury(Percent::from_percent(90) * all_reward);
 
 				}
 
@@ -682,7 +687,7 @@ impl<T: Trait> Module<T> {
 			debug::info!("矿工还没有抵押！");
 			reward = Percent::from_percent(10) * reward;
 			Self::reward_staker(miner.clone(), reward);
-			Self::reward_treasury(Percent::from_percent(90) * reward);
+			Self::reward_treasury(Percent::from_percent(90) * all_reward);
 		}
 
 		debug::info!("本次挖矿实际奖励是：{:?}", reward);
@@ -753,7 +758,11 @@ impl<T: Trait> Module<T> {
     fn get_total_capacity() -> u64 {
 
 		// 设置1000G
-		1000u64 * G
+		let net_power = 1000u64 * G;
+
+		<NetPower>::put(net_power);
+
+		return net_power;
 
     }
 
