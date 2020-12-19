@@ -614,13 +614,27 @@ impl<T: Trait> Module<T> {
 
 				debug::info!("矿工: {:?}, 挖矿的概率是: {:?} / {:?}", miner.clone(), miner_mining_num, net_mining_num);
 
-				// 矿工挖矿的概率如果偏高 那么就说明抵押偏低 要加大抵押
+				// 矿工挖矿的概率如果偏高(超出20%) 那么就说明抵押偏低 要加大抵押
+				// 本机挖矿次数 / 全网挖矿次数 - 本机算力 / 全网算力 > 20%
+				// 以上公式换算得： 本机挖矿次数 * 全网算力 - 全网挖矿次数 * 本机算力 > 全网挖矿次数 * 全网算力 / 5
+
 				if total_staking.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
 
-					< Self::get_total_capacity().saturated_into::<BalanceOf<T>>()
-					  .saturating_mul(miner_mining_num.saturated_into::<BalanceOf<T>>())
+					<  miner_mining_num.saturated_into::<BalanceOf<T>>()
+					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
 					  .saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
-					  {
+
+					&& miner_mining_num.saturated_into::<BalanceOf<T>>()
+					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
+					  .saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
+
+					- total_staking.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
+
+					> net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get())
+						.saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
+						/ 5.saturated_into::<BalanceOf<T>>()
+
+				{
 
 					debug::info!("矿工挖矿概率偏高， 应该减小p盘空间或是增大抵押金额！, 矿工: {:?}, 至少还需要抵押{:?}个IPSE", miner.clone(), (Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(miner_mining_num.saturated_into::<BalanceOf<T>>())
 					.saturating_mul(T::CapacityPrice::get()) / net_mining_num.saturated_into::<BalanceOf<T>>() / G.saturated_into::<BalanceOf<T>>() - total_staking) / DOLLARS.saturated_into::<BalanceOf<T>>());
