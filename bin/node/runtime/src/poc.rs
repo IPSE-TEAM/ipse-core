@@ -105,12 +105,14 @@ decl_storage! {
 decl_event! {
 pub enum Event<T>
     where
-    AccountId = <T as system::Trait>::AccountId
+    AccountId = <T as system::Trait>::AccountId,
+    Balance = <<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance,
     {
         Minning(AccountId, bool),
         Verify(AccountId, bool),
         HeightTooLow(AccountId, u64, u64, u64),
         NotBestDeadline(AccountId, u64, u64, u64),
+        RewardTreasury(AccountId, Balance),
     }
 }
 
@@ -577,6 +579,7 @@ impl<T: Trait> Module<T> {
     fn reward_treasury(reward: BalanceOf<T>) {
     	let account_id = Self::get_treasury_id();
     	T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&account_id, reward));
+		Self::deposit_event(RawEvent::RewardTreasury(account_id, reward));
     }
 
 
@@ -643,6 +646,8 @@ impl<T: Trait> Module<T> {
 
 					Self::reward_staker(miner.clone(), reward);
 
+					Self::reward_treasury(Percent::from_percent(90) * reward);
+
 				}
 
 				// 如果挖矿概率不达标 那么就挖到多少给多少
@@ -659,6 +664,7 @@ impl<T: Trait> Module<T> {
 				debug::info!("矿工抵押没有达标！");
 				reward = Percent::from_percent(10) * reward;
 				Self::reward_staker(miner.clone(), reward);
+				Self::reward_treasury(Percent::from_percent(90) * reward);
 
 				}
 
@@ -669,6 +675,7 @@ impl<T: Trait> Module<T> {
 			debug::info!("矿工还没有抵押！");
 			reward = Percent::from_percent(10) * reward;
 			Self::reward_staker(miner.clone(), reward);
+			Self::reward_treasury(Percent::from_percent(90) * reward);
 		}
 
 		debug::info!("本次挖矿实际奖励是：{:?}", reward);
@@ -795,7 +802,6 @@ impl<T: Trait> Module<T> {
 
 		<TargetInfo>::put(old_target_info_vec);
 	}
-
 
 
 }
