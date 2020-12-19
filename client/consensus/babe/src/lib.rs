@@ -1215,11 +1215,11 @@ impl<Block, Client, Inner> BlockImport<Block> for BabeBlockImport<Block, Client,
 				)
 			},
 			(false, true, _) => {
-				return Err(
-					ConsensusError::ClientImport(
-						babe_err(Error::<Block>::UnexpectedEpochChange).into(),
-					)
-				)
+//				return Err(
+//					ConsensusError::ClientImport(
+//						babe_err(Error::<Block>::UnexpectedEpochChange).into(),
+//					)
+//				)
 			},
 		}
 

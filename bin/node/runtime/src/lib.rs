@@ -342,6 +342,8 @@ parameter_types! {
 	pub const CapacityPrice: Balance = 1 * DOLLARS;
 
 	pub const AdjustDifficultyDuration: u64 = 10;
+
+	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(20);
 }
 
 impl poc::Trait for Runtime {
@@ -354,6 +356,7 @@ impl poc::Trait for Runtime {
     type PocAddOrigin = ();
     type TotalMiningReward = TotalMiningReward;
 	type AdjustDifficultyDuration = AdjustDifficultyDuration;
+	type ProbabilityDeviationValue = ProbabilityDeviationValue;
 }
 
 parameter_types! {

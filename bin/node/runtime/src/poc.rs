@@ -56,6 +56,9 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
 
 	type AdjustDifficultyDuration: Get<u64>;
 
+
+	type ProbabilityDeviationValue: Get<Percent>;
+
 }
 
 
@@ -87,9 +90,10 @@ pub struct Difficulty {
 decl_storage! {
     trait Store for Module<T: Trait> as PoC {
 
+		/// 每个周期的难度记录
         pub TargetInfo get(fn target_info): Vec<Difficulty>;
 
-        /// deadline info of mining success
+        /// poc出块信息
         pub DlInfo get(fn dl_info): Vec<MiningInfo<T::AccountId>>;
 
         /// 矿工的挖矿记录
@@ -97,7 +101,6 @@ decl_storage! {
 
         /// 用户的详细奖励记录
 		pub UserRewardHistory get(fn user_reward_history): map hasher(twox_64_concat) T::AccountId => Vec<(T::BlockNumber, BalanceOf<T>)>;
-
 
     }
 }
@@ -138,6 +141,9 @@ decl_module! {
 
     	/// 多久调整一次难度
     	const AdjustDifficultyDuration: u64 = T::AdjustDifficultyDuration::get();
+
+    	/// 挖矿的概率偏离值（最大允许超过多少)
+		const ProbabilityDeviationValue: Percent = T::ProbabilityDeviationValue::get();
 
 
 		/// 验证
@@ -633,9 +639,10 @@ impl<T: Trait> Module<T> {
 
 					- total_staking.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
 
-					> net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get())
-						.saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
-						/ 5.saturated_into::<BalanceOf<T>>()
+					> T::ProbabilityDeviationValue::get() *
+						(net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get())
+						.saturating_mul(T::CapacityPrice::get()))
+						 / G.saturated_into::<BalanceOf<T>>()
 
 				{
 
