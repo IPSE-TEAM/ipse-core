@@ -25,6 +25,7 @@ use sp_std::vec;
 use node_primitives::KB;
 // use num_traits::{CheckedAdd, CheckedSub};
 use crate::ipse_traits::PocHandler;
+use sp_std::{collections::btree_set::BTreeSet};
 
 type BalanceOf<T> =
 	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -117,6 +118,9 @@ decl_storage! {
 		/// 矿工上报的容量
 		pub DeclaredCapacity get(fn declared_capacity): u64;
 
+		/// 注册过的矿工
+		pub Miners get(fn miners): BTreeSet<T::AccountId>;
+
 
     }
 }
@@ -199,6 +203,8 @@ decl_module! {
         	);
 
         	<AccountIdOfPid<T>>::insert(pid, miner.clone());
+
+        	<Miners<T>>::mutate(|h| h.insert(miner.clone()));
 
         	Self::deposit_event(RawEvent::Register(miner, disk));
 
