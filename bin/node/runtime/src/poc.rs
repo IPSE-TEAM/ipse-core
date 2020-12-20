@@ -56,7 +56,6 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
 
 	type AdjustDifficultyDuration: Get<u64>;
 
-
 	type ProbabilityDeviationValue: Get<Percent>;
 
 }
@@ -628,11 +627,11 @@ impl<T: Trait> Module<T> {
 
 				debug::info!("矿工: {:?}, 挖矿的概率是: {:?} / {:?}", miner.clone(), miner_mining_num, net_mining_num);
 
-				// 矿工挖矿的概率如果偏高(超出20%) 那么就说明抵押偏低 要加大抵押
+				// 矿工挖矿的概率如果偏高(超出20%) 那么就说明磁盘空间虚报， 偏低， 应该增加p盘空间
 				// 本机挖矿次数 / 全网挖矿次数 - 本机算力 / 全网算力 > 20%
 				// 以上公式换算得： 本机挖矿次数 * 全网算力 - 全网挖矿次数 * 本机算力 > 矿工挖矿概率允许的最大偏离值 * 全网挖矿次数 * 全网算力
 
-				if total_staking.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
+				if should_staking_amount.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
 
 					<  miner_mining_num.saturated_into::<BalanceOf<T>>()
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
@@ -642,17 +641,17 @@ impl<T: Trait> Module<T> {
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
 					  .saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
 
-					- total_staking.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
+					- should_staking_amount.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
 
 					> T::ProbabilityDeviationValue::get() *
-						(net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get())
-						.saturating_mul(T::CapacityPrice::get()))
+						(net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
+						.saturating_mul(T::CapacityPrice::get().saturated_into::<BalanceOf<T>>()))
 						 / G.saturated_into::<BalanceOf<T>>()
 
 				{
 
-					debug::info!("矿工挖矿概率偏高， 应该减小p盘空间或是增大抵押金额！, 矿工: {:?}, 至少还需要抵押{:?}个IPSE", miner.clone(), (Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(miner_mining_num.saturated_into::<BalanceOf<T>>())
-					.saturating_mul(T::CapacityPrice::get()) / net_mining_num.saturated_into::<BalanceOf<T>>() / G.saturated_into::<BalanceOf<T>>() - total_staking) / DOLLARS.saturated_into::<BalanceOf<T>>());
+					debug::info!("矿工挖矿概率偏高， 应该增加p盘空间！, 矿工: {:?}, 按照目前挖矿概率({:?}/{:?})， 至少需要： {:?} G", miner.clone(), miner_mining_num, net_mining_num, Self::get_total_capacity()
+					 * miner_mining_num / net_mining_num / G );
 
 					reward = Percent::from_percent(10) * reward;
 
