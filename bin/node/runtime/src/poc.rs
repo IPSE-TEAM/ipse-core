@@ -116,8 +116,8 @@ pub enum Event<T>
     {
         Minning(AccountId, bool),
         Verify(AccountId, bool),
-        HeightTooLow(AccountId, u64, u64, u64),
-        NotBestDeadline(AccountId, u64, u64, u64),
+//        HeightTooLow(AccountId, u64, u64, u64),
+//        NotBestDeadline(AccountId, u64, u64, u64),
         RewardTreasury(AccountId, Balance),
     }
 }
@@ -185,7 +185,7 @@ decl_module! {
             {
                 debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
 
-				Self::deposit_event(RawEvent::HeightTooLow(miner.clone(), current_block, height, deadline));
+//				Self::deposit_event(RawEvent::HeightTooLow(miner.clone(), current_block, height, deadline));
 
 				return Err(Error::<T>::HeightNotInDuration)?;
             }
@@ -205,7 +205,7 @@ decl_module! {
 
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
 
-                Self::deposit_event(RawEvent::NotBestDeadline(miner.clone(), current_block, height, deadline));
+//                Self::deposit_event(RawEvent::NotBestDeadline(miner.clone(), current_block, height, deadline));
 
                 return Err(Error::<T>::NotBestDeadline)?;
             }
