@@ -114,6 +114,9 @@ decl_storage! {
 		/// 推荐的矿工列表
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
+		/// 矿工上报的容量
+		pub DeclaredCapacity get(fn declared_capacity): u64;
+
 
     }
 }
@@ -173,6 +176,8 @@ decl_module! {
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
 			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::NumericIdInUsing);
+
+			<DeclaredCapacity>::mutate(|h| *h += disk);
 
 			let now = Self::now();
 			<DiskOf<T>>::insert(miner.clone(), MachineInfo {
@@ -258,6 +263,7 @@ decl_module! {
 			<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
 				i.numeric_id = pid;
 				i.is_stop = false;
+				<DeclaredCapacity>::mutate(|h| *h += i.plot_size);
 			}
 			);
 
@@ -291,11 +297,15 @@ decl_module! {
         	ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
         	<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
+        		<DeclaredCapacity>::mutate(|h| *h -= i.plot_size);
         		i.plot_size = disk;
+        		<DeclaredCapacity>::mutate(|h| *h += i.plot_size);
         		i.update_time = now;
         		i.is_stop = false;
         	}
         	);
+
+
 
         	Self::deposit_event(RawEvent::UpdatePlotSize(miner, disk));
 
@@ -313,6 +323,7 @@ decl_module! {
 			<DiskOf<T>>::mutate(miner.clone(), |h| {
 				if let Some(x) = h {
 					x.is_stop = true;
+					<DeclaredCapacity>::mutate(|h| *h -= x.plot_size);
 				}
 			});
 

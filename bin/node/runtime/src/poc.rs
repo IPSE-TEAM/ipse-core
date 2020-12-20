@@ -5,6 +5,7 @@ extern crate pallet_timestamp as timestamp;
 use crate::poc_staking as staking;
 use crate::poc_staking::AccountIdOfPid;
 use node_primitives::KB;
+use crate::poc_staking::DeclaredCapacity;
 // use num_traits::CheckedDiv;
 use sp_std::convert::{TryInto,TryFrom, Into};
 
@@ -754,14 +755,16 @@ impl<T: Trait> Module<T> {
 
 
     /// todo 获取全网容量(根据挖矿难度来调整)
+    /// 暂时用声明的容量
     fn get_total_capacity() -> u64 {
 
-		// 设置1000G
-		let net_power = 1000u64 * G;
+//		// 设置1000G
+//		let net_power = 1000u64 * G;
+		let declared_capacity = <DeclaredCapacity>::get();
 
-		<NetPower>::put(net_power);
+		<NetPower>::put(declared_capacity);
 
-		return net_power;
+		return declared_capacity;
 
     }
 
