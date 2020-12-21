@@ -1,7 +1,7 @@
 ```
 {   "Address": "IndicesLookupSource",
     "LookupSource": "IndicesLookupSource",
-    "KB": "u64",
+    "GIB": "u64",
     "Amount": "u128",
     "Miner": {
           "account_id": "AccountId",

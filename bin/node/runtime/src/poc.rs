@@ -4,7 +4,6 @@ extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
 use crate::poc_staking as staking;
 use crate::poc_staking::AccountIdOfPid;
-use node_primitives::KB;
 use crate::poc_staking::DeclaredCapacity;
 // use num_traits::CheckedDiv;
 use sp_std::convert::{TryInto,TryFrom, Into};
@@ -32,7 +31,7 @@ use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, non
 use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
 pub const YEAR: u32 = 365*DAYS;
-pub const G: u64 = 1000_000;
+pub const GIB: u64 = 1024 * 1024;
 
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
@@ -618,7 +617,7 @@ impl<T: Trait> Module<T> {
 			let total_staking = staking_info_opt.unwrap().total_staking;
 
 			// 矿工应该抵押的金额
-			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>();
+			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>();
 
 			// 矿工抵押达标
 			if should_staking_amount <= total_staking {
@@ -636,23 +635,23 @@ impl<T: Trait> Module<T> {
 
 					<  miner_mining_num.saturated_into::<BalanceOf<T>>()
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-					  .saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
+					  .saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>()
 
 					&& miner_mining_num.saturated_into::<BalanceOf<T>>()
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-					  .saturating_mul(T::CapacityPrice::get()) / G.saturated_into::<BalanceOf<T>>()
+					  .saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>()
 
 					- should_staking_amount.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
 
 					> T::ProbabilityDeviationValue::get() *
 						(net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
 						.saturating_mul(T::CapacityPrice::get().saturated_into::<BalanceOf<T>>()))
-						 / G.saturated_into::<BalanceOf<T>>()
+						 / GIB.saturated_into::<BalanceOf<T>>()
 
 				{
 
-					debug::info!("矿工挖矿概率偏高， 应该增加p盘空间！, 矿工: {:?}, 按照目前挖矿概率({:?}/{:?})， 至少需要： {:?} G", miner.clone(), miner_mining_num, net_mining_num, Self::get_total_capacity()
-					 * miner_mining_num / net_mining_num / G );
+					debug::info!("矿工挖矿概率偏高， 应该增加p盘空间！, 矿工: {:?}, 按照目前挖矿概率({:?}/{:?})， 至少需要： {:?} GiB", miner.clone(), miner_mining_num, net_mining_num, Self::get_total_capacity()
+					 * miner_mining_num / net_mining_num / GIB );
 
 					reward = Percent::from_percent(10) * reward;
 

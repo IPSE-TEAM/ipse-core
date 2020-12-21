@@ -22,7 +22,7 @@ use system::{ensure_signed};
 use sp_runtime::{traits::{SaturatedConversion, Saturating, CheckedDiv, CheckedAdd, CheckedSub}, Percent};
 use sp_std::vec::Vec;
 use sp_std::vec;
-use node_primitives::KB;
+use node_primitives::GIB;
 // use num_traits::{CheckedAdd, CheckedSub};
 use crate::ipse_traits::PocHandler;
 use sp_std::{collections::btree_set::BTreeSet};
@@ -54,7 +54,7 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MachineInfo<BlockNumber> {
 	/// 磁盘空间
-	pub plot_size: KB,
+	pub plot_size: GIB,
 	/// P盘id
 	pub numeric_id: u128,
 	/// 更新时间
@@ -132,7 +132,7 @@ pub enum Event<T>
 	Balance = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
     {
 
-        UpdatePlotSize(AccountId, KB),
+        UpdatePlotSize(AccountId, GIB),
         Register(AccountId, u64),
         StopMining(AccountId),
         RemoveStaker(AccountId, AccountId),
@@ -162,7 +162,7 @@ decl_module! {
 
 		/// 矿工注册
 		#[weight = 10_000]
-		fn register(origin, plot_size: KB, numeric_id: u128, miner_proportion: u32) {
+		fn register(origin, plot_size: GIB, numeric_id: u128, miner_proportion: u32) {
 
 			let miner_proportion = Percent::from_percent(miner_proportion as u8);
 
@@ -172,10 +172,10 @@ decl_module! {
 
 			let pid = numeric_id;
 
-			ensure!(kib != 0 as KB, Error::<T>::PlotSizeIsZero);
+			ensure!(kib != 0 as GIB, Error::<T>::PlotSizeIsZero);
 
-			// 把kib转变成b
-			let disk = kib.checked_mul(1000 as KB).ok_or(Error::<T>::Overflow)?;
+			// 把gib转变成b
+			let disk = kib.checked_mul((1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
@@ -282,16 +282,16 @@ decl_module! {
 
 		/// 更新磁盘信息
         #[weight = 10_000]
-        fn update_plot_size(origin, plot_size: KB) {
+        fn update_plot_size(origin, plot_size: GIB) {
 
         	let miner = ensure_signed(origin)?;
 
         	let kib = plot_size;
 
-			// 把kib转变成b
-			let disk = kib.checked_mul(1000 as KB).ok_or(Error::<T>::Overflow)?;
+			// 把gib转变成b
+			let disk = kib.checked_mul((1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
-			ensure!(disk != 0 as KB, Error::<T>::PlotSizeIsZero);
+			ensure!(disk != 0 as GIB, Error::<T>::PlotSizeIsZero);
 
 			/// 必须在非冷冻期
 // 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
