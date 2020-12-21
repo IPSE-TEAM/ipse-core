@@ -31,7 +31,7 @@ use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, non
 use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
 pub const YEAR: u32 = 365*DAYS;
-pub const GIB: u64 = 1024 * 1024;
+pub const GIB: u64 = 1024 * 1024 * 1024;
 
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;

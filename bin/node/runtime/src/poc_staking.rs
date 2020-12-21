@@ -175,7 +175,7 @@ decl_module! {
 			ensure!(kib != 0 as GIB, Error::<T>::PlotSizeIsZero);
 
 			// 把gib转变成b
-			let disk = kib.checked_mul((1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
+			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
@@ -289,7 +289,7 @@ decl_module! {
         	let kib = plot_size;
 
 			// 把gib转变成b
-			let disk = kib.checked_mul((1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
+			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(disk != 0 as GIB, Error::<T>::PlotSizeIsZero);
 

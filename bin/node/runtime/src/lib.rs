@@ -11,7 +11,7 @@
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
+// GNU General Public License for more details.Expire
 
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
@@ -333,7 +333,7 @@ impl poc_staking::Trait for Runtime {
 
 parameter_types! {
 
-	pub const Expire: u64 = 3;
+	pub const Expire: u64 = 1;
 
 	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
 
