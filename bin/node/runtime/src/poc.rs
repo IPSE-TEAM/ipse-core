@@ -114,7 +114,7 @@ pub enum Event<T>
     AccountId = <T as system::Trait>::AccountId,
     Balance = <<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance,
     {
-        Minning(AccountId, bool),
+        Minning(AccountId, u64),
         Verify(AccountId, bool),
 //        HeightTooLow(AccountId, u64, u64, u64),
 //        NotBestDeadline(AccountId, u64, u64, u64),
@@ -254,14 +254,14 @@ decl_module! {
                         mining_time
                     });
 
+                Self::deposit_event(RawEvent::Minning(miner, deadline));
+
             }
 
             else {
 				debug::info!("验证没有通过! deadline = {:?}, target = {:?}, base_target = {:?}", verify_ok.1 / verify_ok.2, verify_ok.1, verify_ok.2);
+				return Err(Error::<T>::VerifyFaile)?;
             }
-
-            debug::info!("verify result: {}", verify_ok.0);
-            Self::deposit_event(RawEvent::Minning(miner, verify_ok.0));
 
             Ok(())
         }
@@ -849,6 +849,8 @@ decl_error! {
 		HeightNotInDuration,
 		/// 不是最优的deadline
 		NotBestDeadline,
+		/// 验证失败
+		VerifyFaile,
 
     }
 }
