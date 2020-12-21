@@ -80,7 +80,7 @@ pub struct Order<AccountId, Balance> {
     // the label of this data
     pub label: Vec<u8>,
     // the hash of data
-    pub hash: [u8; 32],
+    pub hash: [u8; 46],
     // the size of storing data
     pub size: u64,
     pub user: AccountId,
@@ -211,7 +211,7 @@ decl_module! {
 
         /// 用户创建订单(后面加上，unit_price)
         #[weight = 10_000]
-        fn create_order(origin,miner: T::AccountId, label: Vec<u8>, hash: [u8; 32], size: u64, url: Option<Vec<u8>>, days: u64, unit_price: BalanceOf<T>) {
+        fn create_order(origin,miner: T::AccountId, label: Vec<u8>, hash: [u8; 46], size: u64, url: Option<Vec<u8>>, days: u64, unit_price: BalanceOf<T>) {
             let user = ensure_signed(origin)?;
 
             let mut order_list= Vec::new();
@@ -264,6 +264,7 @@ decl_module! {
             Orders::<T>::mutate( |os| -> DispatchResult {
 
                 let mut order = os.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
+
                 ensure!(order.status != OrderStatus::Deleted, Error::<T>::OrderDeleted);
                 ensure!(order.status != OrderStatus::Expired, Error::<T>::OrderExpired);
 
@@ -550,6 +551,7 @@ decl_event! {
         	UpdatedMiner(AccountId),
             VerifyStorage(AccountId, bool),
 			CreatedOrder(AccountId),
+			ListOrder(AccountId),
 			ConfirmedOrder(AccountId, u64),
 			DeletedOrder(AccountId, u64),
             RequestUpToList(AccountId, Balance),
