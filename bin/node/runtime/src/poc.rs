@@ -407,8 +407,7 @@ impl<T: Trait> Module<T> {
 
 		Self::append_dl_info(MiningInfo{
 				miner: None,
-				best_dl: core::u64::MAX,
-
+				best_dl: T::MaxDeadlineValue::get(),
 				mining_time: MILLISECS_PER_BLOCK,
 				block: current_block, // 记录当前区块
 			});
