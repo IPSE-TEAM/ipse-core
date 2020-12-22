@@ -305,11 +305,6 @@ decl_module! {
 
 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
-			// 20个块调整挖矿难度
-            if current_block % T::AdjustDifficultyDuration::get() == 0 {
-                Self::adjust_difficulty(current_block);
-            }
-
 			// 如果这个块有poc出块 那么就说明有用户挖矿
 			if current_block == last_mining_block {
 
@@ -328,6 +323,11 @@ decl_module! {
 				Self::treasury_minning(current_block);
 				Self::reward_treasury(reward);
 			}
+
+			// 20个块调整挖矿难度
+            if current_block % T::AdjustDifficultyDuration::get() == 0 {
+                Self::adjust_difficulty(current_block);
+            }
 
         }
 
