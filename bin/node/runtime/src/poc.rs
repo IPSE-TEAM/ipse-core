@@ -32,7 +32,7 @@ use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
 pub const YEAR: u32 = 365*DAYS;
 pub const GIB: u64 = 1024 * 1024 * 1024;
-
+pub const SPEED: u64 = 11; //
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
 type PositiveImbalanceOf<T> =
@@ -293,6 +293,7 @@ decl_module! {
             debug::info!("current-block = {}, last-mining-block = {}", current_block, last_mining_block);
 
 			let reward_result = Self::get_reward_amount();
+
 			let mut reward: BalanceOf<T>;
 
 			if reward_result.is_ok() {
@@ -349,7 +350,7 @@ impl<T: Trait> Module<T> {
 
 		if no_mining_num <= 1 {
 
-			let mut new = last_base_target / 2;
+			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
 				new = 1;
 			}
@@ -378,7 +379,7 @@ impl<T: Trait> Module<T> {
 
 		// 如果却块在4个以上 那么难度减小2倍
         else if no_mining_num >= 4  && mining_num != 0 {
-            let new = last_base_target.saturating_mul(2);
+            let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
                     base_target: new,
