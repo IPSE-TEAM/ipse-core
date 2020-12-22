@@ -1,4 +1,5 @@
-{   "Address": "IndicesLookupSource",
+{   "test": "u64",
+    "Address": "IndicesLookupSource",
     "LookupSource": "IndicesLookupSource",
     "GIB": "u64",
     "Amount": "u128",
