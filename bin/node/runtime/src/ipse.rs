@@ -19,7 +19,6 @@ use sp_std::{
     vec::Vec,
     result,
     convert::TryInto,
-    collections::vec_deque::VecDeque,
 };
 use system::ensure_signed;
 use core::{u64, u128};
@@ -35,6 +34,8 @@ pub const MAX_VIOLATION_TIMES: u64 = 3;
 pub const DAY: u64 = 1000 * 60 * 60 * 24;
 // max list order len
 pub const NUM_LIST_ORDER_LEN: usize = 500;
+// history len
+pub const NUM_LIST_HISTORY_LEN: usize = 500;
 
 
 pub type BalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -148,13 +149,13 @@ decl_storage! {
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
 		/// Miner 存储记录(最大100条)
-        pub MinerHistory get(fn miner_history): map hasher(twox_64_concat) T::AccountId => Option<Order<T::AccountId, BalanceOf<T>>>;
+        pub MinerHistory get(fn miner_history): map hasher(twox_64_concat) T::AccountId => Vec<Order<T::AccountId, BalanceOf<T>>>;
 
 		/// 矿工的挖矿记录
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
         /// 全部矿工list order 最大显示 500
-        pub ListOrder get(fn list_order): VecDeque<Order<T::AccountId, BalanceOf<T>>>;
+        pub ListOrder get(fn list_order): Vec<Order<T::AccountId, BalanceOf<T>>>;
 
     }
 }
@@ -246,6 +247,18 @@ decl_module! {
             order_list.push(miner_order);
 
             Self::append_or_replace_orders(Order {
+                    miner: miner_cp.clone(),
+                    label: label.clone(),
+                    hash: hash.clone(),
+                    size: size.clone(),
+                    user: user.clone(),
+                    orders: order_list.clone(),
+                    status: OrderStatus::Created,
+                    update_ts: Self::get_now_ts(),
+                    duration: days * DAY,
+                });
+
+            Self::update_miner_history(miner_cp.clone(),Order {
                     miner: miner_cp.clone(),
                     label: label.clone(),
                     hash: hash.clone(),
@@ -497,17 +510,29 @@ impl<T: Trait> Module<T> {
 
     fn append_or_replace_orders(order: Order<T::AccountId, BalanceOf<T>>) {
         ListOrder::<T>::mutate(|orders| {
-            if orders.len() == NUM_LIST_ORDER_LEN {
-                let _ = orders.pop_front();
+            let len = orders.len();
+            if len == NUM_LIST_ORDER_LEN {
+                let pre = len - NUM_LIST_HISTORY_LEN;
+                let new_vec = orders.split_off(pre);
+                let orders = new_vec;
             }
-            orders.push_back(order);
+            orders.push(order);
             debug::info!("orders vector: {:?}", orders);
         });
     }
 
-    // fn update_miner_history(miner: T::AccountId) {
-    //     // let mut miner_history = <MinerHistory<T>>::get(miner.clone());
-    // }
+    fn update_miner_history(miner: T::AccountId, order: Order<T::AccountId, BalanceOf<T>>) {
+        if let mut miner_history = MinerHistory::<T>::get(&miner) {
+            let len = miner_history.len();
+            if len == NUM_LIST_HISTORY_LEN {
+                let pre = len - NUM_LIST_HISTORY_LEN;
+                let new_vec = miner_history.split_off(pre);
+                let miner_history = new_vec;
+            }
+            miner_history.push(order);
+            debug::info!("update miner: {:?} history records", miner);
+        }
+    }
 
     fn update_history(n: T::BlockNumber, miner: T::AccountId, amount: BalanceOf<T>) {
         let mut history = <History<T>>::get(miner.clone());
