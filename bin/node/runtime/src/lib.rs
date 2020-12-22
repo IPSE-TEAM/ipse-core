@@ -344,6 +344,8 @@ parameter_types! {
 	pub const AdjustDifficultyDuration: u64 = 10;
 
 	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(20);
+
+	pub const MaxDeadlineValue: u64 = 12000;
 }
 
 impl poc::Trait for Runtime {
@@ -357,6 +359,7 @@ impl poc::Trait for Runtime {
     type TotalMiningReward = TotalMiningReward;
 	type AdjustDifficultyDuration = AdjustDifficultyDuration;
 	type ProbabilityDeviationValue = ProbabilityDeviationValue;
+	type MaxDeadlineValue = MaxDeadlineValue;
 }
 
 parameter_types! {

@@ -58,6 +58,8 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
 
 	type ProbabilityDeviationValue: Get<Percent>;
 
+	type MaxDeadlineValue: Get<u64>;
+
 }
 
 
@@ -147,6 +149,9 @@ decl_module! {
     	/// 挖矿的概率偏离值（最大允许超过多少)
 		const ProbabilityDeviationValue: Percent = T::ProbabilityDeviationValue::get();
 
+		/// max deadine
+		const MaxDeadlineValue: u64 = T::MaxDeadlineValue::get();
+
 
 		/// 验证
         #[weight = 1000]
@@ -167,6 +172,8 @@ decl_module! {
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 
             let miner = ensure_signed(origin)?;
+
+            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
@@ -383,7 +390,7 @@ impl<T: Trait> Module<T> {
 
 			// 如果mining_num = 0 说明没有人挖矿 用初始值
 		else {
-			let new = last_base_target;
+			let new = T::GENESIS_BASE_TARGET::get();
 			debug::info!("[DIFFICULTY]  use GENESIS, base_target = {}", new);
 			Self::append_target_info(Difficulty{
                     block,
@@ -850,6 +857,8 @@ decl_error! {
 		NotBestDeadline,
 		/// 验证失败
 		VerifyFaile,
+		///
+		DeadlineTooLarge,
 
     }
 }
