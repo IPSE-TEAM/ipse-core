@@ -18,7 +18,7 @@
     "Order": {
         "miner": "AccountId",
         "label": "Vec<u8>",
-        "hash": "[u8; 32]",
+        "hash": "[u8; 46]",
         "size":"u64",
         "user": "AccountId",
         "orders": "Vec<MinerOrder<AccountId, Balance>>",
