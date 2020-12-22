@@ -333,7 +333,7 @@ impl poc_staking::Trait for Runtime {
 
 parameter_types! {
 
-	pub const Expire: u64 = 1;
+	pub const Expire: u64 = 2;
 
 	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
 

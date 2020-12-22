@@ -348,7 +348,7 @@ impl<T: Trait> Module<T> {
 		
         debug::info!("LAST_BASE_TARGET = {},  NO_MINING_NUM = {}", last_base_target, no_mining_num);
 
-		if no_mining_num <= 1 {
+		if no_mining_num < 1 {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -365,7 +365,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// 如果缺块在1到4（包含4）之间， 难度不调整
-        else if no_mining_num > 1 &&  no_mining_num < 4 {
+        else if no_mining_num == 1 {
             let new = last_base_target;
             debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
 			Self::append_target_info(Difficulty{
@@ -378,7 +378,7 @@ impl<T: Trait> Module<T> {
         }
 
 		// 如果却块在4个以上 那么难度减小2倍
-        else if no_mining_num >= 4  && mining_num != 0 {
+        else if no_mining_num > 1  && mining_num != 0 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
