@@ -2,6 +2,7 @@
 
 extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
+
 use sp_std::vec;
 use codec::{Decode, Encode};
 use frame_support::traits::{Currency, Get, BalanceStatus, ReservableCurrency};
@@ -14,9 +15,12 @@ use sp_runtime::{traits::{
     SaturatedConversion,
 }, ModuleId, DispatchError};
 
-use sp_std::convert::TryInto;
-use sp_std::vec::Vec;
-use sp_std::result;
+use sp_std::{
+    vec::Vec,
+    result,
+    convert::TryInto,
+    collections::vec_deque::VecDeque,
+};
 use system::ensure_signed;
 use core::{u64, u128};
 use sp_runtime::traits::AccountIdConversion;
@@ -29,6 +33,8 @@ pub const KB: u64 = 1024;
 pub const MAX_VIOLATION_TIMES: u64 = 3;
 // millisecond * sec * min * hour
 pub const DAY: u64 = 1000 * 60 * 60 * 24;
+// max list order len
+pub const NUM_LIST_ORDER_LEN: usize = 500;
 
 
 pub type BalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -109,6 +115,7 @@ pub struct MinerOrder<AccountId, Balance> {
     pub url: Option<Vec<u8>>,
 }
 
+
 /// History
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MiningHistory<Balance, BlockNumber> {
@@ -140,8 +147,14 @@ decl_storage! {
 		/// 推荐的矿工列表
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
+		/// Miner 存储记录(最大100条)
+        pub MinerHistory get(fn miner_history): map hasher(twox_64_concat) T::AccountId => Option<Order<T::AccountId, BalanceOf<T>>>;
+
 		/// 矿工的挖矿记录
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
+
+        /// 全部矿工list order 最大显示 500
+        pub ListOrder get(fn list_order): VecDeque<Order<T::AccountId, BalanceOf<T>>>;
 
     }
 }
@@ -232,12 +245,24 @@ decl_module! {
             };
             order_list.push(miner_order);
 
+            Self::append_or_replace_orders(Order {
+                    miner: miner_cp.clone(),
+                    label: label.clone(),
+                    hash: hash.clone(),
+                    size: size.clone(),
+                    user: user.clone(),
+                    orders: order_list.clone(),
+                    status: OrderStatus::Created,
+                    update_ts: Self::get_now_ts(),
+                    duration: days * DAY,
+                });
+
             Orders::<T>::mutate( |o| o.push(
                 Order {
-                    miner: miner_cp,
-                    label,
-                    hash,
-                    size,
+                    miner: miner_cp.clone(),
+                    label: label.clone(),
+                    hash: hash.clone(),
+                    size: size.clone(),
                     user: user.clone(),
                     orders: order_list,
                     status: OrderStatus::Created,
@@ -470,36 +495,48 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+    fn append_or_replace_orders(order: Order<T::AccountId, BalanceOf<T>>) {
+        ListOrder::<T>::mutate(|orders| {
+            if orders.len() == NUM_LIST_ORDER_LEN {
+                let _ = orders.pop_front();
+            }
+            orders.push_back(order);
+            debug::info!("orders vector: {:?}", orders);
+        });
+    }
+
+    // fn update_miner_history(miner: T::AccountId) {
+    //     // let mut miner_history = <MinerHistory<T>>::get(miner.clone());
+    // }
+
     fn update_history(n: T::BlockNumber, miner: T::AccountId, amount: BalanceOf<T>) {
-    	let mut history = <History<T>>::get(miner.clone());
-		if history.is_some() {
-			let mut vec = history.clone().unwrap().history;
-			let num = history.clone().unwrap().total_num;
-			vec.push((n, amount));
+        let mut history = <History<T>>::get(miner.clone());
+        if history.is_some() {
+            let mut vec = history.clone().unwrap().history;
+            let num = history.clone().unwrap().total_num;
+            vec.push((n, amount));
 
-			let len = vec.len();
-			if len >= 100 {
-				let pre = len - 100;
-				let new_vec = vec.split_off(pre);
-				vec = new_vec;
-			}
+            let len = vec.len();
+            if len >= 100 {
+                let pre = len - 100;
+                let new_vec = vec.split_off(pre);
+                vec = new_vec;
+            }
 
-			history = Some(MiningHistory {
-				total_num: num + 1u64,
-				history: vec,
-			});
-		}
+            history = Some(MiningHistory {
+                total_num: num + 1u64,
+                history: vec,
+            });
+        } else {
+            let mut vec = vec![];
+            vec.push((n, amount));
+            history = Some(MiningHistory {
+                total_num: 1u64,
+                history: vec,
+            });
+        }
 
-		else {
-			let mut vec = vec![];
-			vec.push((n, amount));
-			history = Some(MiningHistory {
-				total_num: 1u64,
-				history: vec,
-			});
-		}
-
-		<History<T>>::insert(miner, history.unwrap());
+        <History<T>>::insert(miner, history.unwrap());
     }
 
     fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
