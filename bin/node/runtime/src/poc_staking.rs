@@ -9,7 +9,7 @@ use codec::{Decode, Encode};
 use frame_support::{
     decl_event, decl_module, decl_storage,
     dispatch::{DispatchResult, DispatchError,}, debug,
-	traits::{Get, Currency, ReservableCurrency, OnUnbalanced},
+	traits::{Get, Currency, ReservableCurrency, OnUnbalanced, LockableCurrency, LockIdentifier, WithdrawReason},
     weights::Weight,
 	StorageMap, StorageValue,
 	decl_error, ensure,
@@ -27,6 +27,8 @@ use node_primitives::GIB;
 use crate::ipse_traits::PocHandler;
 use sp_std::{collections::btree_set::BTreeSet};
 
+const Staking_ID: LockIdentifier = *b"pocstake";
+
 type BalanceOf<T> =
 	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 type NegativeImbalanceOf<T> =
@@ -38,14 +40,17 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 
     type ChillDuration: Get<Self::BlockNumber>;
 
-	type StakingCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
+	type StakingCurrency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId> + LockableCurrency<Self::AccountId>;
 
 	type StakingDeposit: Get<BalanceOf<Self>>;
 
 	type StakingSlash: OnUnbalanced<NegativeImbalanceOf<Self>>;
 
 	type StakerMaxNumber: Get<usize>;
+
 	type PocHandler: PocHandler<Self::AccountId>;
+
+	type StakingDuration: Get<Self::BlockNumber>;
 
 }
 
@@ -121,6 +126,8 @@ decl_storage! {
 		/// 注册过的矿工
 		pub Miners get(fn miners): BTreeSet<T::AccountId>;
 
+		///
+		pub Locks get(fn locks): map hasher(twox_64_concat) T::AccountId => Option<Vec<(T::BlockNumber, BalanceOf<T>)>>;
 
     }
 }
@@ -143,6 +150,7 @@ pub enum Event<T>
 		UpdateNumericId(AccountId, u128),
 		RequestUpToList(AccountId, Balance),
 		RequestDownFromList(AccountId),
+		Unlock(AccountId),
     }
 }
 
@@ -250,7 +258,6 @@ decl_module! {
 		}
 
 
-
 		/// 矿工修改p盘id
 		#[weight = 10_000]
 		fn update_numeric_id(origin, numeric_id: u128) {
@@ -338,6 +345,7 @@ decl_module! {
 			for staker_info in others.iter() {
 
 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.1.clone());
+				Self::lock_add_amount(staker_info.0.clone(), staker_info.1.clone());
 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.2.clone());
 
 				Self::staker_remove_miner(staker_info.0.clone(), miner.clone());
@@ -436,6 +444,16 @@ decl_module! {
         }
 
 
+        /// 用户手动领取琐仓金额
+        #[weight = 10_000]
+        fn unlock(origin) {
+        	let staker = ensure_signed(origin)?;
+        	Self::lock_sub_amount(staker.clone());
+        	Self::deposit_event(RawEvent::Unlock(staker));
+
+        }
+
+
         /// 用户退出抵押
         #[weight = 10_000]
         fn exit_Staking(origin, miner: T::AccountId) {
@@ -443,6 +461,7 @@ decl_module! {
         	Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, false)?;
         	Self::staker_remove_miner(staker.clone(), miner.clone());
         	Self::deposit_event(RawEvent::ExitStaking(staker, miner));
+
         }
 
 
@@ -588,6 +607,77 @@ impl<T: Trait> Module<T> {
 
 	}
 
+
+	/// 琐仓添加金额
+	fn lock_add_amount(who: T::AccountId, amount: BalanceOf<T>) {
+		let now = Self::now();
+		let expire = now.saturating_add(T::StakingDuration::get());
+		Self::lock(who.clone(), Oprate::Add, amount);
+		let locks_opt = <Locks<T>>::get(who.clone());
+		if locks_opt.is_some() {
+			let mut locks = locks_opt.unwrap();
+			locks.push((expire, amount));
+			<Locks<T>>::insert(who, locks);
+		}
+
+		else {
+			let mut locks = vec![(expire, amount)];
+			<Locks<T>>::insert(who, locks);
+		}
+	}
+
+
+	/// 琐仓减少金额
+	fn lock_sub_amount(who: T::AccountId) {
+		let now = Self::now();
+		<Locks<T>>::mutate(who.clone(), |h_opt| if let Some(h) = h_opt {
+			h.retain(|i|
+				if i.0 <= now {
+					Self::lock(who.clone(), Oprate::Sub, i.1);
+					false
+					}
+				else {
+					true
+				}
+			);
+		});
+
+	}
+
+
+	/// 琐仓操作
+	fn lock(who: T::AccountId, oprate: Oprate, amount: BalanceOf<T>) {
+
+		let locks_opt = <Locks<T>>::get(who.clone());
+		let reasons = WithdrawReason::Transfer | WithdrawReason::Reserve;
+		match oprate {
+			Oprate::Sub => {
+				// 如果本来就没有， 那么就直接过
+				if locks_opt.is_none() {
+
+				}
+				//
+				else{
+					T::StakingCurrency::lock_sub_amount(Staking_ID, &who, amount, reasons);
+				}
+
+			},
+
+			Oprate::Add => {
+				// 如果本来就没有, 那么就创建
+				if locks_opt.is_none() {
+					T::StakingCurrency::set_lock(Staking_ID, &who, amount, reasons);
+				}
+				//
+				else{
+					T::StakingCurrency::lock_add_amount(Staking_ID, &who, amount, reasons);
+				}
+			},
+		};
+
+	}
+
+
 	/// 根据抵押的金额来排列account_id
 	fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
 
@@ -639,6 +729,7 @@ impl<T: Trait> Module<T> {
 
 	}
 
+
 	/// 更新已经抵押过的用户的抵押金额
 	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
 		// 如果操作是减仓 那么amount_opt是none意味着抵押者退出
@@ -683,6 +774,8 @@ impl<T: Trait> Module<T> {
 					let now_staking = total_staking.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
 
 					T::StakingCurrency::unreserve(&staker, amount);
+					// 把减少的这部分金额加入琐仓
+					Self::lock_add_amount(staker.clone(), amount);
 
 					staker_info.1 = now_bond;
 
@@ -725,6 +818,7 @@ impl<T: Trait> Module<T> {
 
 
 }
+
 
 decl_error! {
     /// Error for the ipse module.

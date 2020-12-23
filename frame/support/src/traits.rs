@@ -1141,6 +1141,20 @@ pub trait LockableCurrency<AccountId>: Currency<AccountId> {
 		reasons: WithdrawReasons,
 	);
 
+	fn lock_sub_amount(
+		id: LockIdentifier,
+		who: &AccountId,
+		amount: Self::Balance,
+		reasons: WithdrawReasons,
+	);
+
+	fn lock_add_amount(
+		id: LockIdentifier,
+		who: &AccountId,
+		amount: Self::Balance,
+		reasons: WithdrawReasons,
+	);
+
 	/// Remove an existing lock.
 	fn remove_lock(
 		id: LockIdentifier,

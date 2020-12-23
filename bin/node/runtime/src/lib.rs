@@ -313,6 +313,7 @@ parameter_types! {
 	pub const ChillDuration: BlockNumber = EPOCH_DURATION_IN_BLOCKS;
 	pub const StakingDeposit: Balance = 1 * DOLLARS;
 	pub const StakerMaxNumber: usize = 64;
+	pub const StakingDuration: BlockNumber = 7 * DAYS;
 }
 
 impl poc_staking::Trait for Runtime {
@@ -329,6 +330,8 @@ impl poc_staking::Trait for Runtime {
     type StakerMaxNumber = StakerMaxNumber;
 
     type PocHandler = PoC;
+
+	type StakingDuration = StakingDuration;
 }
 
 parameter_types! {

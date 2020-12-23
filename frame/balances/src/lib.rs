@@ -1350,6 +1350,59 @@ where
 		Self::update_locks(who, &locks[..]);
 	}
 
+	fn lock_add_amount (
+		id: LockIdentifier,
+		who: &T::AccountId,
+		amount: T::Balance,
+		reasons: WithdrawReasons,
+	) {
+		if amount.is_zero() || reasons.is_none() { return }
+		let mut new_lock = Some(BalanceLock { id, amount, reasons: reasons.into() });
+		let mut locks = Self::locks(who).into_iter().filter_map(|l|
+			if l.id == id {
+				new_lock.take().map(|nl| {
+					BalanceLock {
+						id: l.id,
+						amount: l.amount.saturating_add(nl.amount),
+						reasons: l.reasons | nl.reasons,
+					}
+				})
+			} else {
+				Some(l)
+			}).collect::<Vec<_>>();
+		if let Some(lock) = new_lock {
+			locks.push(lock)
+		}
+		Self::update_locks(who, &locks[..]);
+	}
+
+	fn lock_sub_amount (
+		id: LockIdentifier,
+		who: &T::AccountId,
+		amount: T::Balance,
+		reasons: WithdrawReasons,
+	) {
+		if amount.is_zero() || reasons.is_none() { return }
+		let mut new_lock = Some(BalanceLock { id, amount, reasons: reasons.into() });
+		let mut locks = Self::locks(who).into_iter().filter_map(|l|
+			if l.id == id {
+				new_lock.take().map(|nl| {
+					BalanceLock {
+						id: l.id,
+						amount: l.amount.saturating_sub(nl.amount),
+						reasons: l.reasons | nl.reasons,
+					}
+				})
+			} else {
+				Some(l)
+			}).collect::<Vec<_>>();
+		if let Some(lock) = new_lock {
+			locks.push(lock)
+		}
+		Self::update_locks(who, &locks[..]);
+	}
+
+
 	fn remove_lock(
 		id: LockIdentifier,
 		who: &T::AccountId,
@@ -1358,6 +1411,8 @@ where
 		locks.retain(|l| l.id != id);
 		Self::update_locks(who, &locks[..]);
 	}
+
+
 }
 
 impl<T: Trait<I>, I: Instance> IsDeadAccount<T::AccountId> for Module<T, I> where
