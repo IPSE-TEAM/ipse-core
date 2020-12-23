@@ -318,8 +318,6 @@ decl_module! {
         	}
         	);
 
-
-
         	Self::deposit_event(RawEvent::UpdatePlotSize(miner, disk));
 
         }
@@ -340,22 +338,22 @@ decl_module! {
 				}
 			});
 
-			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
-			let others = staking_info.others;
-			for staker_info in others.iter() {
-
-				T::StakingCurrency::unreserve(&staker_info.0, staker_info.1.clone());
-				Self::lock_add_amount(staker_info.0.clone(), staker_info.1.clone());
-				T::StakingCurrency::unreserve(&staker_info.0, staker_info.2.clone());
-
-				Self::staker_remove_miner(staker_info.0.clone(), miner.clone());
-			}
-
-			staking_info.total_staking = <BalanceOf<T>>::from(0u32);
-
-			staking_info.others = vec![];
-
-			<StakingInfoOf<T>>::insert(&miner, staking_info);
+// 			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
+// 			let others = staking_info.others;
+// 			for staker_info in others.iter() {
+//
+// 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.1.clone());
+// 				Self::lock_add_amount(staker_info.0.clone(), staker_info.1.clone());
+// 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.2.clone());
+//
+// 				Self::staker_remove_miner(staker_info.0.clone(), miner.clone());
+// 			}
+//
+// 			staking_info.total_staking = <BalanceOf<T>>::from(0u32);
+//
+// 			staking_info.others = vec![];
+//
+// 			<StakingInfoOf<T>>::insert(&miner, staking_info);
 
 			// 从推荐列表中删除
 			<RecommendList<T>>::mutate(|h| h.retain(|i| if i.0 != miner.clone() {
