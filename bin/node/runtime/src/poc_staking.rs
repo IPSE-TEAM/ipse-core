@@ -732,7 +732,8 @@ impl<T: Trait> Module<T> {
 	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
 		// 如果操作是减仓 那么amount_opt是none意味着抵押者退出
 		// 如果操作是加仓 那么amount_opt 不能是none值
-		Self::is_can_mining(miner.clone())?;
+// 		Self::is_can_mining(miner.clone())?;
+		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
 		let mut amount: BalanceOf<T>;
 
