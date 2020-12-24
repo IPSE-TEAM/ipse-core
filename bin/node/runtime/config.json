@@ -24,6 +24,7 @@
         "user": "AccountId",
         "orders": "Vec<MinerOrder<AccountId, Balance>>",
         "status": "OrderStatus",
+        "create_ts": "u64",
         "update_ts": "u64",
         "duration": "u64"
     },
