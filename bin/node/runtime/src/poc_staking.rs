@@ -50,7 +50,9 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 
 	type PocHandler: PocHandler<Self::AccountId>;
 
-	type StakingDuration: Get<Self::BlockNumber>;
+	type StakingLockExpire: Get<Self::BlockNumber>;
+
+	type RecommendLockExpire: Get<Self::BlockNumber>;
 
 }
 
@@ -151,6 +153,7 @@ pub enum Event<T>
 		RequestUpToList(AccountId, Balance),
 		RequestDownFromList(AccountId),
 		Unlock(AccountId),
+		RestartMining(AccountId),
     }
 }
 
@@ -162,6 +165,10 @@ decl_module! {
      	const StakingDeposit: BalanceOf<T> = T::StakingDeposit::get();
      	/// 一名矿工最多有多少名抵押者
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
+     	/// 抵押退出后需要锁仓的时长
+     	const StakingLockExpire: T::BlockNumber = T::StakingLockExpire::get();
+     	/// 推荐退出后需要锁仓的时间
+     	const RecommendLockExpire: T::BlockNumber = T::RecommendLockExpire::get();
 
      	type Error = Error<T>;
 
@@ -246,6 +253,10 @@ decl_module! {
 				let amount = list.swap_remove(pos).1;
 
 				T::StakingCurrency::unreserve(&miner, amount);
+
+				let now = Self::now();
+				let expire = now.saturating_add(T::RecommendLockExpire::get());
+				Self::lock_add_amount(miner.clone(), amount, expire);
 
 				<RecommendList<T>>::put(list);
 			}
@@ -337,38 +348,28 @@ decl_module! {
 					<DeclaredCapacity>::mutate(|h| *h -= x.plot_size);
 				}
 			});
-
-// 			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
-// 			let others = staking_info.others;
-// 			for staker_info in others.iter() {
-//
-// 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.1.clone());
-// 				Self::lock_add_amount(staker_info.0.clone(), staker_info.1.clone());
-// 				T::StakingCurrency::unreserve(&staker_info.0, staker_info.2.clone());
-//
-// 				Self::staker_remove_miner(staker_info.0.clone(), miner.clone());
-// 			}
-//
-// 			staking_info.total_staking = <BalanceOf<T>>::from(0u32);
-//
-// 			staking_info.others = vec![];
-//
-// 			<StakingInfoOf<T>>::insert(&miner, staking_info);
-
-			// 从推荐列表中删除
-			<RecommendList<T>>::mutate(|h| h.retain(|i| if i.0 != miner.clone() {
-
-				true
-			}
-			else {
-
-				T::StakingCurrency::unreserve(&i.0, i.1);
-				false
-			}
-			));
-
 			Self::deposit_event(RawEvent::StopMining(miner));
-        }
+		}
+
+
+		/// 矿工重新开始挖矿
+		#[weight = 10_000]
+		fn restart_mining(origin) {
+			let miner = ensure_signed(origin)?;
+			// 自己是矿工
+			ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
+			// 挖矿已经停止过
+			ensure!(<DiskOf<T>>::get(miner.clone()).unwrap().is_stop == true, Error::<T>::MiningNotStop);
+			<DiskOf<T>>::mutate(miner.clone(), |h| {
+				if let Some(x) = h {
+					let now = Self::now();
+					x.update_time = now;
+					x.is_stop = false;
+					<DeclaredCapacity>::mutate(|h| *h += x.plot_size);
+				}
+			});
+			Self::deposit_event(RawEvent::RestartMining(miner));
+		}
 
 
         /// 矿工删除抵押者
@@ -607,9 +608,8 @@ impl<T: Trait> Module<T> {
 
 
 	/// 琐仓添加金额
-	fn lock_add_amount(who: T::AccountId, amount: BalanceOf<T>) {
-		let now = Self::now();
-		let expire = now.saturating_add(T::StakingDuration::get());
+	fn lock_add_amount(who: T::AccountId, amount: BalanceOf<T>, expire: T::BlockNumber) {
+
 		Self::lock(who.clone(), Oprate::Add, amount);
 		let locks_opt = <Locks<T>>::get(who.clone());
 		if locks_opt.is_some() {
@@ -774,7 +774,9 @@ impl<T: Trait> Module<T> {
 
 					T::StakingCurrency::unreserve(&staker, amount);
 					// 把减少的这部分金额加入琐仓
-					Self::lock_add_amount(staker.clone(), amount);
+					let now = Self::now();
+					let expire = now.saturating_add(T::StakingLockExpire::get());
+					Self::lock_add_amount(staker.clone(), amount, expire);
 
 					staker_info.1 = now_bond;
 
@@ -848,5 +850,7 @@ decl_error! {
 		AmountNotEnough,
 		/// 不在推荐列表中
 		NotInList,
+		/// 挖矿没有停止
+		MiningNotStop,
 	}
 }
