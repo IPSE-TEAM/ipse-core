@@ -93,6 +93,8 @@ pub struct Order<AccountId, Balance> {
     pub user: AccountId,
     pub orders: Vec<MinerOrder<AccountId, Balance>>,
     pub status: OrderStatus,
+    // register time
+    pub create_ts: u64,
     // last update-status timestamp
     pub update_ts: u64,
     // how long this data keep
@@ -254,6 +256,7 @@ decl_module! {
                     user: user.clone(),
                     orders: order_list.clone(),
                     status: OrderStatus::Created,
+                    create_ts: Self::get_now_ts(),
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
                 });
@@ -266,6 +269,7 @@ decl_module! {
                     user: user.clone(),
                     orders: order_list.clone(),
                     status: OrderStatus::Created,
+                    create_ts: Self::get_now_ts(),
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
                 });
@@ -279,6 +283,7 @@ decl_module! {
                     user: user.clone(),
                     orders: order_list,
                     status: OrderStatus::Created,
+                    create_ts: Self::get_now_ts(),
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
                 }
