@@ -286,8 +286,10 @@ decl_module! {
 
 			<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
 				i.numeric_id = pid;
-				i.is_stop = false;
-				<DeclaredCapacity>::mutate(|h| *h += i.plot_size);
+// 				if i.is_stop == false {
+// 					<DeclaredCapacity>::mutate(|h| *h += i.plot_size);
+// 				}
+
 			}
 			);
 
@@ -321,11 +323,19 @@ decl_module! {
         	ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
         	<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
-        		<DeclaredCapacity>::mutate(|h| *h -= i.plot_size);
-        		i.plot_size = disk;
-        		<DeclaredCapacity>::mutate(|h| *h += i.plot_size);
-        		i.update_time = now;
-        		i.is_stop = false;
+        		if i.is_stop == false {
+        			<DeclaredCapacity>::mutate(|h| *h -= i.plot_size);
+					i.plot_size = disk;
+					<DeclaredCapacity>::mutate(|h| *h += i.plot_size);
+					i.update_time = now;
+
+        		}
+        		else {
+        			i.plot_size = disk;
+        			i.update_time = now;
+        		}
+
+//         		i.is_stop = false;
         	}
         	);
 
