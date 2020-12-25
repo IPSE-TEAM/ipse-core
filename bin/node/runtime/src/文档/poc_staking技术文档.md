@@ -78,31 +78,35 @@ enum oprate {
 ### 主要方法
 
 1. 矿工注册
-    * 代码: `fn register(origin, kib: KIB, pid: u128, miner_proportion: Percent)`
+    * 代码: `fn register(origin, plot_size: GIB, numeric_id: u128, miner_proportion: u32, reward_dest: Option<T::AccountId>)`
     * 参数:
-        * kib: P盘空间（以kib为单位)
+        * plot_size: P盘空间（以gib为单位)
+        * numeric_id: P盘id
         * miner_proportion: 矿工分润比
+        * reward_dest: 矿工收益地址
     * 逻辑：
         * 签名
-        * kib不能为0
+        * plot_size不能为0
+        * 如果reward_dest是None，那么默认收益地址是自己
         * 没有注册过
 ***
 2. 矿工修改P盘id
-    * 代码：`n update_pid(origin, pid: u64) `
+    * 代码：`fn update_numeric_id(origin, numeric_id: u128)`
     * 参数：
-        *pid: 用来p盘的id
+        *numeric_id: 用来p盘的id
     * 逻辑:
         * 签名
         * 自己是能挖矿的矿工
         * pid还没有被使用过
+        * 不需要删除之前的挖矿记录，也不需要修改更新时间
 ***
-3. 更新磁盘信息
-    * 代码：`fn update_disk_info(origin, kib: KIB)`
+3. 更新p盘空间大小
+    * 代码：`fn update_plot_size(origin, plot_size: GIB)`
     * 参数:
-        * kib: P盘空间（以kib为单位)
+        * plot_size: P盘空间（以gib为单位)
     * 逻辑：
         * 签名:
-        * kib不能为0
+        * plot_size不能为0
         * 在非冷却期
         * 删除掉之前的挖矿历史记录
 ***
@@ -111,8 +115,7 @@ enum oprate {
     * 参数: 无
     * 逻辑：
         * 自己是能挖矿的矿工
-        * 归还每个人的抵押金额以及保留金额
-        * 抵押消息初始化
+
 ***
 5. 矿工删除抵押者
     * 代码: `fn remove_staker(origin, staker: T::AccountId)`
@@ -122,7 +125,7 @@ enum oprate {
         * 签名
         * 自己是矿工
         * 抵押者在自己名下有抵押
-        * 惩罚抵押者保留金额， 归还抵押者抵押金额
+        * 惩罚抵押者保留金额， 琐仓抵押者抵押金额
         * 更新抵押信息
 ***
 6. 用户第一次抵押
@@ -148,6 +151,7 @@ enum oprate {
         * 签名
         * 矿工可以挖矿
         * 自己抵押过这个矿工
+        * 如果是减少抵押金额，减少的部分要进行锁仓
 ***
 8. 用户退出抵押
     * 代码：`fn exit_Staking(origin, miner: T::AccountId)`
@@ -156,7 +160,7 @@ enum oprate {
     * 逻辑：
         * 签名
         * 抵押过这个矿工
-        * 归还抵押金额与保留余额
+        * 归还保留金额， 琐仓抵押金额
         * 更新矿工名下抵押信息
 ***
 9. 矿工更改分润比
@@ -168,5 +172,39 @@ enum oprate {
         * 自己是矿工， 并且可以挖矿
         * 在冷却期内
 ***
+10. 矿工申请进入推荐列表
+    * 代码: `fn request_up_to_list(origin, amount: BalanceOf<T>)`
+    * 参数:
+        * amount: 自己愿意抵押的金额
+    * 逻辑：
+        * 矿工才能操作
+        * 自己正在挖矿
+        * 自己如果之前在列表里，那么算是增加金额（累加)
+***
+11. 矿工退出推荐列表
+    * 代码： `fn request_down_from_list(origin)`
+    * 逻辑：
+        * 自己在列表中
+        * 从列表中删除
+        * 对抵押的金额进行琐仓
+***
+12. 修改矿工收益地址
+    * 代码: `fn update_reward_dest(origin, dest: T::AccountId)`
+    * 逻辑：
+        * 自己是矿工
+***
+13. 矿工重新开始挖矿
+    * 代码: `fn restart_mining(origin)`
+    * 逻辑：
+        * 自己是矿工
+        * 挖矿已经停止过
+        * 把矿工的机器状态改成可挖矿
+***
+14. 用户手动领取琐仓金额
+    * 代码: `fn unlock(origin)`
+    * 逻辑：
+        * 一键领取自己所有到期的琐仓
+***
+
 
 

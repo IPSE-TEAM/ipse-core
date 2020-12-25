@@ -364,21 +364,21 @@ impl<T: Trait> Module<T> {
                 });
 		}
 
-		// 如果缺块在1到4（包含4）之间， 难度不调整
-        else if no_mining_num == 1 {
-            let new = last_base_target;
-            debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
-			Self::append_target_info(Difficulty{
-                    block,
-                    base_target: new,
-                    net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
-
-                });
-
-        }
+// 		// 如果缺块在1到4（包含4）之间， 难度不调整
+//         else if no_mining_num == 1 {
+//             let new = last_base_target;
+//             debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
+// 			Self::append_target_info(Difficulty{
+//                     block,
+//                     base_target: new,
+//                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
+//
+//                 });
+//
+//         }
 
 		// 如果却块在4个以上 那么难度减小2倍
-        else if no_mining_num > 1  && mining_num != 0 {
+        else if no_mining_num >= 1  && mining_num != 0 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
