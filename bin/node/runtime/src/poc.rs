@@ -339,13 +339,13 @@ impl<T: Trait> Module<T> {
 
     fn adjust_difficulty(block: u64) {
         debug::info!("[ADJUST] difficulty on block {}", block);
-		
+
         let last_base_target = Self::get_last_base_target();
 
 		let mining_num = Self::get_mining_num();
-		
+
         let no_mining_num = T::AdjustDifficultyDuration::get() - mining_num;
-		
+
         debug::info!("LAST_BASE_TARGET = {},  NO_MINING_NUM = {}", last_base_target, no_mining_num);
 
 		if no_mining_num < 1 {
@@ -505,7 +505,7 @@ impl<T: Trait> Module<T> {
         	if dl.miner.is_some() {
 
 				real_count += 1;
-				
+
         	}
 
         	count += 1;
@@ -737,16 +737,14 @@ impl<T: Trait> Module<T> {
 		let staking_info = <staking::Module<T>>::staking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let stakers = staking_info.clone().others;
 		if stakers.len() == 0 {
-			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, reward));
-			Self::update_reword_history(miner.clone(), reward, now);
+			Self::reward_miner(miner.clone(), reward, now);
 
 		}
 
 		else {
 			// 奖励矿工
 			let miner_reward = staking_info.clone().miner_proportion * reward;
-			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, miner_reward));
-			Self::update_reword_history(miner.clone(), miner_reward, now);
+			Self::reward_miner(miner.clone(), miner_reward, now);
 			let stakers_reward = reward - miner_reward;
 			let total_staking = staking_info.clone().total_staking;
 			for staker_info in stakers.iter() {
@@ -771,6 +769,26 @@ impl<T: Trait> Module<T> {
 		<NetPower>::put(declared_capacity);
 
 		return declared_capacity;
+
+    }
+
+
+    /// 奖励矿工
+    fn reward_miner(miner: T::AccountId, amount: BalanceOf<T>, now: T::BlockNumber) {
+    	let disk = <staking::Module<T>>::disk_of(&miner).unwrap();
+    	if disk.reward_dest == miner.clone() {
+    		T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, amount));
+			Self::update_reword_history(miner.clone(), amount, now);
+    	}
+    	else {
+    		/// 为了矿工有充足的手续费 预留10%
+    		let miner_reward = Percent::from_percent(10) * amount;
+    		T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, miner_reward));
+    		Self::update_reword_history(miner, miner_reward, now);
+    		let dest_reward = amount.saturating_sub(miner_reward);
+    		T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&disk.reward_dest, dest_reward));
+			Self::update_reword_history(disk.reward_dest, dest_reward, now);
+    	}
 
     }
 

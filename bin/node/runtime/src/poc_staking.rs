@@ -59,7 +59,7 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 
 /// 矿工的机器信息
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
-pub struct MachineInfo<BlockNumber> {
+pub struct MachineInfo<BlockNumber, AccountId> {
 	/// 磁盘空间
 	pub plot_size: GIB,
 	/// P盘id
@@ -67,7 +67,10 @@ pub struct MachineInfo<BlockNumber> {
 	/// 更新时间
 	pub update_time: BlockNumber,
 	/// 机器是否在运行（这个是用户抵押的依据)
-	is_stop: bool,
+	pub is_stop: bool,
+	/// 收益地址
+	pub reward_dest: AccountId,
+
 }
 
 
@@ -105,7 +108,7 @@ decl_storage! {
     trait Store for Module<T: Trait> as IpseStakingModule {
 
 		/// 矿工磁盘空间信息
-		pub DiskOf get(fn disk_of): map hasher(twox_64_concat) T::AccountId => Option<MachineInfo<T::BlockNumber>>;
+		pub DiskOf get(fn disk_of): map hasher(twox_64_concat) T::AccountId => Option<MachineInfo<T::BlockNumber, T::AccountId>>;
 
 		/// 是否在非抵押操作期间（冷却期，只有矿工能改变信息)
 		pub IsChillTime get(fn is_chill_time): bool = true;
@@ -177,7 +180,7 @@ decl_module! {
 
 		/// 矿工注册
 		#[weight = 10_000]
-		fn register(origin, plot_size: GIB, numeric_id: u128, miner_proportion: u32) {
+		fn register(origin, plot_size: GIB, numeric_id: u128, miner_proportion: u32, reward_dest: Option<T::AccountId>) {
 
 			let miner_proportion = Percent::from_percent(miner_proportion as u8);
 
@@ -198,12 +201,21 @@ decl_module! {
 
 			<DeclaredCapacity>::mutate(|h| *h += disk);
 
+			let dest: T::AccountId;
+			if reward_dest.is_some() {
+				dest = reward_dest.unwrap();
+			}
+			else {
+				dest = miner.clone();
+			}
+
 			let now = Self::now();
 			<DiskOf<T>>::insert(miner.clone(), MachineInfo {
         		plot_size: disk,
         		numeric_id: pid,
         		update_time: now,
         		is_stop: false,
+        		reward_dest: dest,
 
         	});
 
