@@ -131,7 +131,7 @@ decl_storage! {
 		/// 注册过的矿工
 		pub Miners get(fn miners): BTreeSet<T::AccountId>;
 
-		///
+		/// 锁仓
 		pub Locks get(fn locks): map hasher(twox_64_concat) T::AccountId => Option<Vec<(T::BlockNumber, BalanceOf<T>)>>;
 
     }
@@ -157,6 +157,7 @@ pub enum Event<T>
 		RequestDownFromList(AccountId),
 		Unlock(AccountId),
 		RestartMining(AccountId),
+		UpdateRewardDest(AccountId, AccountId),
     }
 }
 
@@ -277,6 +278,21 @@ decl_module! {
 			}
 
 			Self::deposit_event(RawEvent::RequestDownFromList(miner));
+
+		}
+
+		/// 修改矿工收益地址
+		#[weight = 10_000]
+		fn update_reward_dest(origin, dest: T::AccountId) {
+			let miner = ensure_signed(origin)?;
+			ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
+			<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
+				i.reward_dest = dest.clone();
+
+			}
+			);
+
+			Self::deposit_event(RawEvent::UpdateRewardDest(miner, dest));
 
 		}
 
