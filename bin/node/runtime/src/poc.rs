@@ -17,7 +17,7 @@ use frame_support::{
     IterableStorageMap,
     StorageMap, StorageValue,
 };
-use system::{ensure_signed};
+use system::{ensure_signed, ensure_root};
 use sp_runtime::{traits::{SaturatedConversion, Saturating, CheckedDiv, CheckedAdd, CheckedSub}, Percent};
 use sp_std::vec::Vec;
 use sp_std::vec;
@@ -120,6 +120,7 @@ pub enum Event<T>
 //        HeightTooLow(AccountId, u64, u64, u64),
 //        NotBestDeadline(AccountId, u64, u64, u64),
         RewardTreasury(AccountId, Balance),
+        SetDifficulty(u64),
     }
 }
 
@@ -166,6 +167,21 @@ decl_module! {
             Ok(())
         }
 
+        /// 设置难度
+        #[weight = 10_000]
+        fn set_difficulty(origin, base_target: u64) {
+        	ensure_root(origin)?;
+        	let now = <staking::Module<T>>::now().saturated_into::<u64>();
+        	Self::append_target_info(Difficulty{
+                    block: now,
+                    base_target: base_target,
+                    net_difficulty: T::GENESIS_BASE_TARGET::get() / base_target,
+                });
+
+            Self::deposit_event(RawEvent::SetDifficulty(base_target));
+
+        }
+
 
 		/// 挖矿
 		#[weight = 10_000]
@@ -173,7 +189,7 @@ decl_module! {
 
             let miner = ensure_signed(origin)?;
 
-//             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
+            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);

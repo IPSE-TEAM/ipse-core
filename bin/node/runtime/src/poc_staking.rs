@@ -630,7 +630,7 @@ impl<T: Trait> Module<T> {
 
 		old_list.insert(index, (miner, amount));
 
-		if old_list.len() > 20 {
+		if old_list.len() > 5 {
 			let abandon = old_list.split_off(20);
 			// 对被淘汰的人进行释放
 			for i in abandon {
