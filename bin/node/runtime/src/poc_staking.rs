@@ -54,6 +54,8 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 
 	type RecommendLockExpire: Get<Self::BlockNumber>;
 
+	type RecommendMaxNumber: Get<usize>;
+
 }
 
 
@@ -173,6 +175,8 @@ decl_module! {
      	const StakingLockExpire: T::BlockNumber = T::StakingLockExpire::get();
      	/// 推荐退出后需要锁仓的时间
      	const RecommendLockExpire: T::BlockNumber = T::RecommendLockExpire::get();
+     	/// 抵押排名人数上限
+     	const RecommendMaxNumber: u32 = T::RecommendMaxNumber::get() as u32;
 
      	type Error = Error<T>;
 
@@ -447,7 +451,7 @@ decl_module! {
 
 			let mut staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
 
-			ensure!(staking_info.others.len() <= T::StakerMaxNumber::get(), Error::<T>::StakerNumberToMax);
+			ensure!(staking_info.others.len() < T::StakerMaxNumber::get(), Error::<T>::StakerNumberToMax);
 
 			let total_amount = staking_info.clone().total_staking;
 
@@ -630,8 +634,8 @@ impl<T: Trait> Module<T> {
 
 		old_list.insert(index, (miner, amount));
 
-		if old_list.len() > 5 {
-			let abandon = old_list.split_off(20);
+		if old_list.len() >= T::RecommendMaxNumber::get() {
+			let abandon = old_list.split_off(T::RecommendMaxNumber::get());
 			// 对被淘汰的人进行释放
 			for i in abandon {
 				T::StakingCurrency::unreserve(&i.0, i.1);

@@ -313,6 +313,7 @@ parameter_types! {
 	pub const ChillDuration: BlockNumber = EPOCH_DURATION_IN_BLOCKS;
 	pub const StakingDeposit: Balance = 1 * DOLLARS;
 	pub const StakerMaxNumber: usize = 5;//64;
+	pub const RecommendMaxNumber: usize = 5;
 	pub const StakingLockExpire: BlockNumber = 10 * MINUTES;
 	pub const RecommendLockExpire: BlockNumber = 15 * MINUTES;
 }
@@ -335,13 +336,15 @@ impl poc_staking::Trait for Runtime {
 	type StakingLockExpire = StakingLockExpire;
 
 	type RecommendLockExpire = RecommendLockExpire;
+
+	type RecommendMaxNumber = RecommendMaxNumber;
 }
 
 parameter_types! {
 
 	pub const Expire: u64 = 2;
 
-	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
+	pub const GENESIS_BASE_TARGET: u64 = 366503875925 * 1000000;
 
 	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
 

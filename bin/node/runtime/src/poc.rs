@@ -32,7 +32,7 @@ use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
 pub const YEAR: u32 = 365*DAYS;
 pub const GIB: u64 = 1024 * 1024 * 1024;
-pub const SPEED: u64 = 11; //
+pub const SPEED: u64 = 20; //
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
 type PositiveImbalanceOf<T> =
@@ -59,6 +59,7 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
 	type ProbabilityDeviationValue: Get<Percent>;
 
 	type MaxDeadlineValue: Get<u64>;
+
 
 }
 
@@ -189,7 +190,7 @@ decl_module! {
 
             let miner = ensure_signed(origin)?;
 
-            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
+//             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
@@ -356,7 +357,8 @@ impl<T: Trait> Module<T> {
     fn adjust_difficulty(block: u64) {
         debug::info!("[ADJUST] difficulty on block {}", block);
 
-        let last_base_target = Self::get_last_base_target();
+        let last_base_target = Self::get_last_base_target().0;
+        let last_net_difficulty = Self::get_last_base_target().1;
 
 		let mining_num = Self::get_mining_num();
 
@@ -493,14 +495,14 @@ impl<T: Trait> Module<T> {
 
 
 	// 取最后一次base_target
-    fn get_last_base_target() -> u64 {
+    fn get_last_base_target() -> (u64, u64) {
         let ti = Self::target_info();
 
 		if let Some(info) = ti.iter().last() {
-			info.base_target
+			(info.base_target, info.net_difficulty)
 		}
 		else {
-			T::GENESIS_BASE_TARGET::get()
+			(T::GENESIS_BASE_TARGET::get(), 1u64)
 		}
 
     }
