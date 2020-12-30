@@ -363,7 +363,7 @@ impl<T: Trait> Module<T> {
 		let ave_deadline = Self::get_ave_deadline();
 
 		// deadline太小 难度低 要增加难度 减小base_target
-		if ave_deadline < MILLISECS_PER_BLOCK * 10u64 / SPEED && ave_deadline != 0u64 {
+		if ave_deadline < 2000 * 10u64 / SPEED && ave_deadline != 0u64 {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -380,7 +380,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
-        else if ave_deadline > MILLISECS_PER_BLOCK * SPEED / 10u64 {
+        else if ave_deadline > 3000 * SPEED / 10u64 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,

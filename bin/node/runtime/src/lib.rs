@@ -252,7 +252,7 @@ impl InstanceFilter<Call> for ProxyType {
 				Call::Council(..) |
 				Call::Society(..) |
 				Call::TechnicalCommittee(..) |
-				Call::Elections(..) |
+				Call::ElectionsPhragmen(..) |
 				Call::Treasury(..)
 			),
 			ProxyType::Staking => matches!(c, Call::Staking(..)),
@@ -745,7 +745,7 @@ impl pallet_treasury::Trait for Runtime {
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
 	>;
-	type Tippers = Elections;
+	type Tippers = ElectionsPhragmen;
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
@@ -1015,7 +1015,7 @@ construct_runtime!(
 		Democracy: pallet_democracy::{Module, Call, Storage, Config, Event<T>},
 		Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
 		TechnicalCommittee: pallet_collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>},
-		Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
+		ElectionsPhragmen: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>},
 		TechnicalMembership: pallet_membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>},
 		FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned},
