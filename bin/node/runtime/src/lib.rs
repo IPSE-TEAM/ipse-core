@@ -342,9 +342,9 @@ impl poc_staking::Trait for Runtime {
 
 parameter_types! {
 
-	pub const Expire: u64 = 2;
+	pub const Expire: u64 = 0;
 
-	pub const GENESIS_BASE_TARGET: u64 = 366503875925 * 1000000;
+	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
 
 	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
 

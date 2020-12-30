@@ -32,7 +32,7 @@ use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
 pub const YEAR: u32 = 365*DAYS;
 pub const GIB: u64 = 1024 * 1024 * 1024;
-pub const SPEED: u64 = 20; //
+pub const SPEED: u64 = 15; //
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
 type PositiveImbalanceOf<T> =
@@ -190,7 +190,7 @@ decl_module! {
 
             let miner = ensure_signed(origin)?;
 
-//             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
+            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
@@ -360,13 +360,10 @@ impl<T: Trait> Module<T> {
         let last_base_target = Self::get_last_base_target().0;
         let last_net_difficulty = Self::get_last_base_target().1;
 
-		let mining_num = Self::get_mining_num();
+		let ave_deadline = Self::get_ave_deadline();
 
-        let no_mining_num = T::AdjustDifficultyDuration::get() - mining_num;
-
-        debug::info!("LAST_BASE_TARGET = {},  NO_MINING_NUM = {}", last_base_target, no_mining_num);
-
-		if no_mining_num < 1 {
+		// deadline太小 难度低 要增加难度 减小base_target
+		if ave_deadline < 8000u64 && ave_deadline != 0u64 {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -382,21 +379,21 @@ impl<T: Trait> Module<T> {
                 });
 		}
 
-// 		// 如果缺块在1到4（包含4）之间， 难度不调整
-//         else if no_mining_num == 1 {
-//             let new = last_base_target;
-//             debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
-// 			Self::append_target_info(Difficulty{
-//                     block,
-//                     base_target: new,
-//                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
-//
-//                 });
-//
-//         }
+		// 如果deadline平均值在8000与18000之间 则不作调整
+        else if ave_deadline >= 8000u64 && ave_deadline <= 18000u64 {
+            let new = last_base_target;
+            debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
+			Self::append_target_info(Difficulty{
+                    block,
+                    base_target: new,
+                    net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
 
-		// 如果却块在4个以上 那么难度减小2倍
-        else if no_mining_num >= 1  && mining_num != 0 {
+                });
+
+        }
+
+		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
+        else if ave_deadline > 18000u64 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
@@ -407,7 +404,7 @@ impl<T: Trait> Module<T> {
 
         }
 
-			// 如果mining_num = 0 说明没有人挖矿 用初始值
+			// 如果ave_deadline = 0 说明没有人挖矿 用初始值
 		else {
 			let new = T::GENESIS_BASE_TARGET::get();
 			debug::info!("[DIFFICULTY]  use GENESIS, base_target = {}", new);
@@ -509,12 +506,12 @@ impl<T: Trait> Module<T> {
 
 
 	/// 平均的出块时间
-    fn get_mining_num() -> u64 {
+    fn get_ave_deadline() -> u64 {
         let dl = Self::dl_info();
         let mut iter = dl.iter().rev();
-        let mut total = 0_u64;
         let mut count = 0_u64;
         let mut real_count = 0_u64;
+        let mut deadline = 0_u64;
 
         while let Some(dl) = iter.next() {
         	if count == T::AdjustDifficultyDuration::get() {
@@ -523,6 +520,7 @@ impl<T: Trait> Module<T> {
         	if dl.miner.is_some() {
 
 				real_count += 1;
+				deadline += dl.best_dl;
 
         	}
 
@@ -530,7 +528,12 @@ impl<T: Trait> Module<T> {
 
         }
 
-        real_count
+        if real_count == 0 {
+        	0u64
+        }
+        else {
+        	deadline / real_count
+        }
 
     }
 
