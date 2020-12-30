@@ -335,11 +335,11 @@ decl_module! {
 
         /// 用户删除订单
         #[weight = 10_000]
-        fn delete_order(origin, hash: [u8; 46]) {
+        fn delete_order(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
             let user_cp = user.clone();
             Orders::<T>::mutate( |os| -> DispatchResult {
-                let mut order = os.get_mut(hash as usize).ok_or(Error::<T>::OrderNotFound)?;
+                let mut order = os.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
                 ensure!(user == order.user , Error::<T>::PermissionDenyed);
                 ensure!(order.status != OrderStatus::Deleted, Error::<T>::OrderDeleted);
                 ensure!(order.status != OrderStatus::Expired, Error::<T>::OrderExpired);
@@ -357,8 +357,9 @@ decl_module! {
                 T::StakingCurrency::unreserve(&order.user, refund);
                 Ok(())
             })?;
-            Self::deposit_event(RawEvent::DeletedOrder(user_cp, hash));
+            Self::deposit_event(RawEvent::DeletedOrder(user_cp, order_id));
         }
+
 
 
         /// 数据验证
@@ -383,6 +384,7 @@ decl_module! {
             }
             Self::deposit_event(RawEvent::VerifyStorage(miner, true));
         }
+
 
 
         /// 矿工申请进入推荐列表
