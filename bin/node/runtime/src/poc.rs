@@ -190,7 +190,7 @@ decl_module! {
 
             let miner = ensure_signed(origin)?;
 
-            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
+//             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
@@ -379,19 +379,6 @@ impl<T: Trait> Module<T> {
                 });
 		}
 
-		// 如果deadline平均值在8000与18000之间 则不作调整
-        else if ave_deadline >= 8000u64 && ave_deadline <= 18000u64 {
-            let new = last_base_target;
-            debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
-			Self::append_target_info(Difficulty{
-                    block,
-                    base_target: new,
-                    net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
-
-                });
-
-        }
-
 		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
         else if ave_deadline > 18000u64 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
@@ -404,17 +391,18 @@ impl<T: Trait> Module<T> {
 
         }
 
-			// 如果ave_deadline = 0 说明没有人挖矿 用初始值
-		else {
-			let new = T::GENESIS_BASE_TARGET::get();
-			debug::info!("[DIFFICULTY]  use GENESIS, base_target = {}", new);
+		// 如果deadline平均值在8000与18000之间 或是0 则不作调整
+        else {
+            let new = last_base_target;
+            debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
 			Self::append_target_info(Difficulty{
                     block,
                     base_target: new,
                     net_difficulty: T::GENESIS_BASE_TARGET::get() / new,
+
                 });
 
-		}
+        }
 
     }
 
