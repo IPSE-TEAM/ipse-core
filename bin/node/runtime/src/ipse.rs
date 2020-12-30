@@ -64,6 +64,10 @@ pub struct Miner<AccountId, Balance> {
     pub region: Vec<u8>,
     // the miner's url
     pub url: Vec<u8>,
+    // public_key
+    pub public_key: Vec<u8>,
+    // income_address
+    pub income_address: Vec<u8>,
     // capacity of data miner can store
     pub capacity: u64,
     // price per KB every day
@@ -172,7 +176,7 @@ decl_module! {
 
         /// 矿工进行注册登记
         #[weight = 10_000]
-        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,income_address: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
             // staking per kb is  1000;
@@ -187,6 +191,8 @@ decl_module! {
                 nickname,
                 region,
                 url,
+                public_key,
+                income_address,
                 capacity,
                 unit_price,
                 violation_times: 0,
@@ -199,7 +205,7 @@ decl_module! {
 
         /// 矿工注册信息更新(容量)-miner  Schedule job
         #[weight = 10_000]
-        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
             let who = ensure_signed(origin)?;
 
             // must check total staking, if is zero, cannot confirm order.
@@ -211,6 +217,8 @@ decl_module! {
                 miner.nickname = nickname;
                 miner.region = region;
                 miner.url = url;
+                miner.public_key = public_key;
+                miner.income_address = income_address;
                 miner.capacity = capacity;
                 miner.unit_price = unit_price;
                 miner.update_ts = Self::get_now_ts();
@@ -220,9 +228,6 @@ decl_module! {
 
             Self::deposit_event(RawEvent::UpdatedMiner(who));
         }
-
-
-
 
 
         /// 用户创建订单(后面加上，unit_price)
@@ -255,7 +260,7 @@ decl_module! {
                     size: size.clone(),
                     user: user.clone(),
                     orders: order_list.clone(),
-                    status: OrderStatus::Created,
+                    status: OrderStatus::Confirmed,
                     create_ts: Self::get_now_ts(),
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
@@ -268,7 +273,7 @@ decl_module! {
                     size: size.clone(),
                     user: user.clone(),
                     orders: order_list.clone(),
-                    status: OrderStatus::Created,
+                    status: OrderStatus::Confirmed,
                     create_ts: Self::get_now_ts(),
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
@@ -282,7 +287,7 @@ decl_module! {
                     size: size.clone(),
                     user: user.clone(),
                     orders: order_list,
-                    status: OrderStatus::Created,
+                    status: OrderStatus::Confirmed,
                     create_ts: Self::get_now_ts(),
                     update_ts: Self::get_now_ts(),
                     duration: days * DAY,
@@ -330,11 +335,11 @@ decl_module! {
 
         /// 用户删除订单
         #[weight = 10_000]
-        fn delete_order(origin, order_id: u64) {
+        fn delete_order(origin, hash: [u8; 46]) {
             let user = ensure_signed(origin)?;
             let user_cp = user.clone();
             Orders::<T>::mutate( |os| -> DispatchResult {
-                let mut order = os.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
+                let mut order = os.get_mut(hash as usize).ok_or(Error::<T>::OrderNotFound)?;
                 ensure!(user == order.user , Error::<T>::PermissionDenyed);
                 ensure!(order.status != OrderStatus::Deleted, Error::<T>::OrderDeleted);
                 ensure!(order.status != OrderStatus::Expired, Error::<T>::OrderExpired);
@@ -352,7 +357,7 @@ decl_module! {
                 T::StakingCurrency::unreserve(&order.user, refund);
                 Ok(())
             })?;
-            Self::deposit_event(RawEvent::DeletedOrder(user_cp, order_id));
+            Self::deposit_event(RawEvent::DeletedOrder(user_cp, hash));
         }
 
 
