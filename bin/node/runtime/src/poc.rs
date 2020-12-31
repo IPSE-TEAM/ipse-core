@@ -831,9 +831,10 @@ impl<T: Trait> Module<T> {
 
     	old_dl_info_vec.push(dl_info);
 
-    	if len >= 500 {
+		/// 显示2000条数据
+    	if len >= 2000 {
 
-    		let new_dl_info = old_dl_info_vec.split_off(len - 500);
+    		let new_dl_info = old_dl_info_vec.split_off(len - 2000);
     		old_dl_info_vec = new_dl_info;
     	}
 
