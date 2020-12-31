@@ -37,6 +37,9 @@ pub const NUM_LIST_ORDER_LEN: usize = 500;
 // history len
 pub const NUM_LIST_HISTORY_LEN: usize = 500;
 
+pub const BASE_UNIT_BALANCE: u64 = 100000000000000;
+
+
 
 pub type BalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
@@ -194,7 +197,7 @@ decl_module! {
                 public_key,
                 income_address,
                 capacity,
-                unit_price,
+                unit_price * BASE_UNIT_BALANCE,
                 violation_times: 0,
                 total_staking,
                 create_ts:Self::get_now_ts(),
@@ -220,7 +223,7 @@ decl_module! {
                 miner.public_key = public_key;
                 miner.income_address = income_address;
                 miner.capacity = capacity;
-                miner.unit_price = unit_price;
+                miner.unit_price = unit_price * BASE_UNIT_BALANCE,;
                 miner.update_ts = Self::get_now_ts();
 
                 Miners::<T>::insert(&who, miner);
