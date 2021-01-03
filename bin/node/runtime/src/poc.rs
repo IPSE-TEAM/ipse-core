@@ -445,45 +445,45 @@ impl<T: Trait> Module<T> {
     }
 
 
-    // 获取上次矿工挖矿的区块
-    fn get_last_miner_mining_block() -> u64 {
-
-		let mut dl = <DlInfo<T>>::get();
-
-		let dl_cp = dl.clone();
-
-		// 获取现在的区块
-		let now = <staking::Module<T>>::now().saturated_into::<u64>();
-		let len = dl_cp.len();
-
-        for j in 0..len {
-
-			let i = dl.get(len - 1 - j).unwrap();
-
-			let mut index = 1;
-
-			// 不能超过10个周期
-			if index >= 10 {
-				break;
-			}
-
-        	if i.miner.is_some() {
-
-        		// 不在本区块
-        		if (i.block != now) {
-        			debug::info!("矿工挖出来的最后的区块是:{:?}", i);
-        			return i.block;
-
-        		}
-        	}
-
-        	index += 1;
-
-        }
-
-        0
-
-    }
+//    // 获取上次矿工挖矿的区块
+//    fn get_last_miner_mining_block() -> u64 {
+//
+//		let mut dl = <DlInfo<T>>::get();
+//
+//		let dl_cp = dl.clone();
+//
+//		// 获取现在的区块
+//		let now = <staking::Module<T>>::now().saturated_into::<u64>();
+//		let len = dl_cp.len();
+//
+//        for j in 0..len {
+//
+//			let i = dl.get(len - 1 - j).unwrap();
+//
+//			let mut index = 1;
+//
+//			// 不能超过10个周期
+//			if index >= 10 {
+//				break;
+//			}
+//
+//        	if i.miner.is_some() {
+//
+//        		// 不在本区块
+//        		if (i.block != now) {
+//        			debug::info!("矿工挖出来的最后的区块是:{:?}", i);
+//        			return i.block;
+//
+//        		}
+//        	}
+//
+//        	index += 1;
+//
+//        }
+//
+//        0
+//
+//    }
 
 
 	// 取最后一次base_target
