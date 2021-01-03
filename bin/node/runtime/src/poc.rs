@@ -30,9 +30,13 @@ use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, non
 
 use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
+/// 一年多少个块
 pub const YEAR: u32 = 365*DAYS;
+
 pub const GIB: u64 = 1024 * 1024 * 1024;
 pub const SPEED: u64 = 11; //
+pub const MiningExpire: u64 = 2;
+
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
 type PositiveImbalanceOf<T> =
@@ -42,7 +46,7 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
     /// 挖矿的过期区块长度
-    type Expire: Get<u64>;
+//    type Expire: Get<u64>;
 
     type PocAddOrigin: OnUnbalanced<PositiveImbalanceOf<Self>>;
 
@@ -69,7 +73,7 @@ pub struct MiningInfo<AccountId> {
     // when miner is None, it means Treasury
     pub miner: Option<AccountId>,
     pub best_dl: u64,
-    pub mining_time: u64,
+//    pub mining_time: u64,
     // the block height of mining success
     pub block: u64,
 }
@@ -134,8 +138,8 @@ decl_module! {
 
         fn deposit_event() = default;
 
-        /// 挖矿过期时间（允许推迟提交的区块数)
-        const Expire: u64 = T::Expire::get();
+//        /// 挖矿过期时间（允许推迟提交的区块数)
+//        const Expire: u64 = T::Expire::get();
 
         const GENESIS_BASE_TARGET: u64 = T::GENESIS_BASE_TARGET::get();
 
@@ -204,7 +208,7 @@ decl_module! {
             debug::info!("starting Verify Deadline !!!");
 
 			// 必须在同一周期 并且提交的时间比处理的时间迟
-            if !(current_block - height <= T::Expire::get() && current_block >= height)
+            if !(current_block / MiningExpire == height / MiningExpire && current_block >= height)
             {
                 debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
 
@@ -224,7 +228,7 @@ decl_module! {
 
             // Someone(miner) has mined a better deadline at this mining cycle before.
             // 如果这个块已经有比较好的deadline 那么就终止执行
-            if best_dl <= deadline && current_block == block {
+            if best_dl <= deadline && current_block / MiningExpire == block / MiningExpire {
 
                 debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
 
@@ -251,30 +255,29 @@ decl_module! {
                 // delete the old deadline in this mining cycle
                 // append a better deadline
 
-                let last_block = Self::get_last_miner_mining_block();
-
-                let mining_time: u64;
-                if last_block == 0 {
-                	mining_time =  MILLISECS_PER_BLOCK;
-                	}
-
-                else {
-                	mining_time = (current_block - last_block) * MILLISECS_PER_BLOCK;
-                	}
+//                let last_block = Self::get_last_miner_mining_block();
+//
+//                let mining_time: u64;
+//                if last_block == 0 {
+//                	mining_time =  MILLISECS_PER_BLOCK;
+//                	}
+//
+//                else {
+//                	mining_time = (current_block - last_block) * MILLISECS_PER_BLOCK;
+//                	}
 
                 // 这里保证了这个块的dl_info的最后一个总是最优解
-                if current_block == block {
+                if current_block / MiningExpire == block / MiningExpire {
 
                     DlInfo::<T>::mutate(|dl| dl.pop());
 
                 }
 
-                // 上次出块与本次出块的时间间隔
                 Self::append_dl_info(MiningInfo{
                         miner: Some(miner.clone()),
                         best_dl: deadline,
                         block: current_block,
-                        mining_time
+//                        mining_time
                     });
 
                 Self::deposit_event(RawEvent::Minning(miner, deadline));
@@ -322,24 +325,28 @@ decl_module! {
 
 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
-			// 如果这个块有poc出块 那么就说明有用户挖矿
-			if current_block == last_mining_block {
+			if (current_block + 1) % MiningExpire == 0 {
+				// 如果这个块有poc出块 那么就说明有用户挖矿
+				if current_block / MiningExpire == last_mining_block / MiningExpire {
 
-				if let Some(miner_info) = Self::dl_info().last() {
-					let miner: Option<T::AccountId> = miner_info.clone().miner;
-					if miner.is_some() {
-						Self::reward(miner.unwrap(), reward);
-						debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+					if let Some(miner_info) = Self::dl_info().last() {
+						let miner: Option<T::AccountId> = miner_info.clone().miner;
+						if miner.is_some() {
+							Self::reward(miner.unwrap(), reward);
+							debug::info!("<<REWARD>> miner on block {}, last_mining_block {}", current_block, last_mining_block);
+						}
+
 					}
 
 				}
 
+				else {
+					Self::treasury_minning(current_block);
+					Self::reward_treasury(reward);
+				}
+
 			}
 
-			else {
-				Self::treasury_minning(current_block);
-				Self::reward_treasury(reward);
-			}
 
 			// 20个块调整挖矿难度
             if current_block % T::AdjustDifficultyDuration::get() == 0 {
@@ -412,7 +419,7 @@ impl<T: Trait> Module<T> {
 		Self::append_dl_info(MiningInfo{
 				miner: None,
 				best_dl: T::MaxDeadlineValue::get(),
-				mining_time: MILLISECS_PER_BLOCK,
+//				mining_time: MILLISECS_PER_BLOCK,
 				block: current_block, // 记录当前区块
 			});
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
@@ -568,6 +575,7 @@ impl<T: Trait> Module<T> {
     	let now = <staking::Module<T>>::now();
 
     	let year = now.checked_div(&T::BlockNumber::from(YEAR)).ok_or(Error::<T>::DivZero)?;
+
     	let duration = year / T::BlockNumber::from(2u32);
 
     	let duration = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(duration).map_err(|_| Error::<T>::ConvertErr)?;
@@ -582,7 +590,7 @@ impl<T: Trait> Module<T> {
 
 			reward = T::TotalMiningReward::get() / n / Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
 
-			Ok(reward)
+			Ok(reward * MiningExpire.saturated_into::<BalanceOf<T>>())
 		}
 
 		else{
