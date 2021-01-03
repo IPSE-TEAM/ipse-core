@@ -48,7 +48,6 @@
     "MiningInfo": {
         "miner": "Option<AccountId>",
         "best_dl": "u64",
-        "mining_time": "u64",
         "block": "u64"
     },
 
