@@ -209,7 +209,7 @@ decl_module! {
 
         /// 矿工注册信息更新(容量)-miner  Schedule job
         #[weight = 10_000]
-        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: T::AccountId, capacity: u64, unit_price: BalanceOf<T>) {
             let who = ensure_signed(origin)?;
 
             // must check total staking, if is zero, cannot confirm order.
