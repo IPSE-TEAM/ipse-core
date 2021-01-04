@@ -415,6 +415,7 @@ decl_module! {
 					x.update_time = now;
 					x.is_stop = false;
 					<DeclaredCapacity>::mutate(|h| *h += x.plot_size);
+					<MiningMiners<T>>::mutate(|h| h.insert(miner.clone()));
 				}
 			});
 			Self::deposit_event(RawEvent::RestartMining(miner));
