@@ -638,9 +638,9 @@ impl<T: Trait> Module<T> {
 	fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
 		// 先对矿工进行抵押
 
-		let old_len = old_list.len();
+// 		let old_len = old_list.len();
 
-		if index < old_len {
+		if index < T::RecommendMaxNumber::get() {
 
 			T::StakingCurrency::reserve(&miner, amount)?;
 
