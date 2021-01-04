@@ -637,29 +637,30 @@ impl<T: Trait> Module<T> {
 	/// 排列矿工后需要做的
 	fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
 		// 先对矿工进行抵押
-
-// 		let old_len = old_list.len();
-
 		if index < T::RecommendMaxNumber::get() {
 
 			T::StakingCurrency::reserve(&miner, amount)?;
 
 			old_list.insert(index, (miner, amount));
 
-			if old_list.len() >= T::RecommendMaxNumber::get() {
-				let abandon = old_list.split_off(T::RecommendMaxNumber::get());
-				// 对被淘汰的人进行释放
-				for i in abandon {
-					T::StakingCurrency::unreserve(&i.0, i.1);
-					let now = Self::now();
-					let expire = now.saturating_add(T::RecommendLockExpire::get());
-					/// 对被淘汰的名单进行锁仓
-					Self::lock_add_amount(i.0, i.1, expire);
-				}
+		}
+
+		if old_list.len() >= T::RecommendMaxNumber::get() {
+			let abandon = old_list.split_off(T::RecommendMaxNumber::get());
+			// 对被淘汰的人进行释放
+			for i in abandon {
+				T::StakingCurrency::unreserve(&i.0, i.1);
+				let now = Self::now();
+				let expire = now.saturating_add(T::RecommendLockExpire::get());
+				/// 对被淘汰的名单进行锁仓
+				Self::lock_add_amount(i.0, i.1, expire);
 			}
+		}
 
-			<RecommendList<T>>::put(old_list);
+		<RecommendList<T>>::put(old_list);
 
+		if index >= T::RecommendMaxNumber::get() {
+			return Err(Error::<T>::AmountTooLow)?;
 		}
 
 		Ok(())
@@ -913,5 +914,8 @@ decl_error! {
 		NotInList,
 		/// 挖矿没有停止
 		MiningNotStop,
+		/// 金额太少
+		AmountTooLow,
+
 	}
 }
