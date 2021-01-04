@@ -27,6 +27,10 @@ use sp_runtime::traits::AccountIdConversion;
 // use pallet_balances as balances;
 
 pub const KB: u64 = 1024;
+
+pub const MB: u64 = 1024 * 1024;
+
+pub const GB: u64 = 1024 * 1024 * 1024;
 // When whose times of violation is more than 3,
 // slash all funds of this miner.
 pub const MAX_VIOLATION_TIMES: u64 = 3;
@@ -180,7 +184,7 @@ decl_module! {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
             // staking per kb is  1000;
-            let total_staking_u64 = capacity * 1000 / KB;
+            let total_staking_u64 = capacity * 1000 / GB;
             let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>();
             ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
             // reserve for staking
