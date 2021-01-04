@@ -632,21 +632,26 @@ impl<T: Trait> Module<T> {
 
 		T::StakingCurrency::reserve(&miner, amount)?;
 
-		old_list.insert(index, (miner, amount));
+		let old_len = old_list.len();
 
-		if old_list.len() >= T::RecommendMaxNumber::get() {
-			let abandon = old_list.split_off(T::RecommendMaxNumber::get());
-			// 对被淘汰的人进行释放
-			for i in abandon {
-				T::StakingCurrency::unreserve(&i.0, i.1);
-				let now = Self::now();
-				let expire = now.saturating_add(T::RecommendLockExpire::get());
-				/// 对被淘汰的名单进行锁仓
-				Self::lock_add_amount(i.0, i.1, expire);
+		if index < old_len {
+			old_list.insert(index, (miner, amount));
+
+			if old_list.len() >= T::RecommendMaxNumber::get() {
+				let abandon = old_list.split_off(T::RecommendMaxNumber::get());
+				// 对被淘汰的人进行释放
+				for i in abandon {
+					T::StakingCurrency::unreserve(&i.0, i.1);
+					let now = Self::now();
+					let expire = now.saturating_add(T::RecommendLockExpire::get());
+					/// 对被淘汰的名单进行锁仓
+					Self::lock_add_amount(i.0, i.1, expire);
+				}
 			}
-		}
 
-		<RecommendList<T>>::put(old_list);
+			<RecommendList<T>>::put(old_list);
+
+		}
 
 		Ok(())
 
