@@ -133,8 +133,12 @@ decl_storage! {
 		/// 注册过的矿工
 		pub Miners get(fn miners): BTreeSet<T::AccountId>;
 
+		/// 正在挖矿的矿工
+		pub MiningMiners get(fn mining_miners): BTreeSet<T::AccountId>;
+
 		/// 锁仓
 		pub Locks get(fn locks): map hasher(twox_64_concat) T::AccountId => Option<Vec<(T::BlockNumber, BalanceOf<T>)>>;
+
 
     }
 }
@@ -237,6 +241,8 @@ decl_module! {
         	<AccountIdOfPid<T>>::insert(pid, miner.clone());
 
         	<Miners<T>>::mutate(|h| h.insert(miner.clone()));
+
+        	<MiningMiners<T>>::mutate(|h| h.insert(miner.clone()));
 
         	Self::deposit_event(RawEvent::Register(miner, disk));
 
@@ -388,6 +394,7 @@ decl_module! {
 				if let Some(x) = h {
 					x.is_stop = true;
 					<DeclaredCapacity>::mutate(|h| *h -= x.plot_size);
+					<MiningMiners<T>>::mutate(|h| h.remove(&miner));
 				}
 			});
 			Self::deposit_event(RawEvent::StopMining(miner));
@@ -630,11 +637,12 @@ impl<T: Trait> Module<T> {
 	fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
 		// 先对矿工进行抵押
 
-		T::StakingCurrency::reserve(&miner, amount)?;
-
 		let old_len = old_list.len();
 
 		if index < old_len {
+
+			T::StakingCurrency::reserve(&miner, amount)?;
+
 			old_list.insert(index, (miner, amount));
 
 			if old_list.len() >= T::RecommendMaxNumber::get() {
@@ -741,6 +749,7 @@ impl<T: Trait> Module<T> {
 			miner_old_info = Some(old_list.remove(pos));
 
 		}
+
 		if miner_old_info.is_some() {
 			// 判断能否继续琐仓amount 如果是 就暂时释放；如果不行 就退出
 			let old_amount = miner_old_info.clone().unwrap().1;
