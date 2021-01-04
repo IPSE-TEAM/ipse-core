@@ -71,7 +71,7 @@ pub struct Miner<AccountId, Balance> {
     // public_key
     pub public_key: Vec<u8>,
     // income_address
-    pub income_address: Vec<u8>,
+    pub income_address: AccountId,
     // capacity of data miner can store
     pub capacity: u64,
     // price per KB every day
@@ -180,11 +180,11 @@ decl_module! {
 
         /// 矿工进行注册登记
         #[weight = 10_000]
-        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,income_address: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,income_address: T::AccountId, capacity: u64, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
-            // staking per kb is  1000;
-            let total_staking_u64 = capacity * 1000 / GB;
+            // staking per GB is  1;
+            let total_staking_u64 = capacity / GB;
             let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>();
             ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
             // reserve for staking
@@ -209,7 +209,7 @@ decl_module! {
 
         /// 矿工注册信息更新(容量)-miner  Schedule job
         #[weight = 10_000]
-        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: Vec<u8>, capacity: u64, unit_price: BalanceOf<T>) {
+        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: T::AccountId, capacity: u64, unit_price: BalanceOf<T>) {
             let who = ensure_signed(origin)?;
 
             // must check total staking, if is zero, cannot confirm order.
