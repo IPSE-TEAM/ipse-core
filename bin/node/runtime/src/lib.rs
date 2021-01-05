@@ -350,11 +350,11 @@ parameter_types! {
 
 	pub const CapacityPrice: Balance = 1 * DOLLARS;
 
-	pub const AdjustDifficultyDuration: u64 = 10;
+	pub const AdjustDifficultyDuration: u64 = 20;
 
 	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(20);
 
-	pub const MaxDeadlineValue: u64 = 6000;
+	pub const MaxDeadlineValue: u64 = 4000;
 }
 
 impl poc::Trait for Runtime {

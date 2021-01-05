@@ -193,8 +193,8 @@ decl_module! {
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 
             let miner = ensure_signed(origin)?;
-
-            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
+			debug::info!("矿工: {:?},  提交挖矿!, height = {}, deadline = {}", miner.clone(), height, deadline);
+//             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
@@ -210,7 +210,7 @@ decl_module! {
 			// 必须在同一周期 并且提交的时间比处理的时间迟
             if !(current_block / MiningExpire == height / MiningExpire && current_block >= height)
             {
-                debug::info!("请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
+                debug::info!("提交挖矿过期! 请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
 
 //				Self::deposit_event(RawEvent::HeightTooLow(miner.clone(), current_block, height, deadline));
 
@@ -230,28 +230,29 @@ decl_module! {
             // 如果这个块已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block / MiningExpire == block / MiningExpire {
 
-                debug::info!("Some miner has mined a better deadline at this mining cycle.  height = {} !", height);
+                debug::info!("不是最优答案! 本周期 height = {} 已经有较优best_dl = {}, 提交的deadline = {}!", height, best_dl, deadline);
 
 //                Self::deposit_event(RawEvent::NotBestDeadline(miner.clone(), current_block, height, deadline));
 
                 return Err(Error::<T>::NotBestDeadline)?;
             }
 
-            #[cfg(feature = "std")]
-            use std::time::{Duration, SystemTime};
-
-			#[cfg(feature = "std")]
-            let start = SystemTime::now();
+//             #[cfg(feature = "std")]
+//             use std::time::{Duration, SystemTime};
+//
+// 			#[cfg(feature = "std")]
+//             let start = SystemTime::now();
 
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
 
-			#[cfg(feature = "std")]
-            let end = SystemTime::now();
-
-            #[cfg(feature = "std")]
-            debug::info!("挖矿验证开始的时间是: {:?}, 结束的时间是： {:?}", start, end);
+// 			#[cfg(feature = "std")]
+//             let end = SystemTime::now();
+//
+//             #[cfg(feature = "std")]
+//             debug::info!("挖矿验证开始的时间是: {:?}, 结束的时间是： {:?}", start, end);
 
             if verify_ok.0 {
+            	debug::info!("挖矿成功!, 提交的deadline = {}", deadline);
                 // delete the old deadline in this mining cycle
                 // append a better deadline
 
@@ -323,7 +324,7 @@ decl_module! {
 				return
 			}
 
-			debug::info!("本次挖矿总奖励是： {:?}", reward);
+// 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
 			if (current_block + 1) % MiningExpire == 0 {
 				// 如果这个块有poc出块 那么就说明有用户挖矿
@@ -370,7 +371,7 @@ impl<T: Trait> Module<T> {
 		let ave_deadline = Self::get_ave_deadline();
 
 		// deadline太小 难度低 要增加难度 减小base_target
-		if ave_deadline < 2000 && ave_deadline != 0u64 {
+		if ave_deadline < 1000 && ave_deadline != 0u64 {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -387,7 +388,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
-        else if ave_deadline > 3000 {
+        else if ave_deadline > 2000 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
@@ -713,12 +714,12 @@ impl<T: Trait> Module<T> {
 			Self::reward_treasury(Percent::from_percent(90) * all_reward);
 		}
 
-		debug::info!("本次挖矿实际奖励是：{:?}", reward);
+// 		debug::info!("本次挖矿实际奖励是：{:?}", reward);
 
 		let history_opt = <History<T>>::get(&miner);
 
 		if history_opt.is_some() {
-			debug::info!("不是第一次挖矿！");
+// 			debug::info!("不是第一次挖矿！");
 			let mut his = history_opt.unwrap();
 			his.total_num = miner_mining_num;
 			his.history.push((now, reward));
@@ -733,7 +734,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		else {
-			debug::info!("第一次挖矿！");
+// 			debug::info!("第一次挖矿！");
 			let history = vec![(now, reward)];
 			<History<T>>::insert(miner.clone(), MiningHistory {
 				total_num: miner_mining_num,
