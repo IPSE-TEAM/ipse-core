@@ -354,7 +354,7 @@ parameter_types! {
 
 	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(20);
 
-	pub const MaxDeadlineValue: u64 = 12000;
+	pub const MaxDeadlineValue: u64 = 6000;
 }
 
 impl poc::Trait for Runtime {

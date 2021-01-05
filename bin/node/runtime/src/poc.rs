@@ -194,7 +194,7 @@ decl_module! {
 
             let miner = ensure_signed(origin)?;
 
-//             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
+            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
@@ -370,7 +370,7 @@ impl<T: Trait> Module<T> {
 		let ave_deadline = Self::get_ave_deadline();
 
 		// deadline太小 难度低 要增加难度 减小base_target
-		if ave_deadline < 2000 * 10u64 / SPEED && ave_deadline != 0u64 {
+		if ave_deadline < 2000 && ave_deadline != 0u64 {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -387,7 +387,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
-        else if ave_deadline > 3000 * SPEED / 10u64 {
+        else if ave_deadline > 3000 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
@@ -509,7 +509,7 @@ impl<T: Trait> Module<T> {
         let mut deadline = 0_u64;
 
         while let Some(dl) = iter.next() {
-        	if count == T::AdjustDifficultyDuration::get() {
+        	if count == T::AdjustDifficultyDuration::get() / 2 {
                 break;
 				}
         	if dl.miner.is_some() {
