@@ -97,7 +97,7 @@ pub struct Order<AccountId, Balance> {
     pub label: Vec<u8>,
     // the hash of data
     pub hash: [u8; 46],
-    // the size of storing data
+    // the size of storing data(byte)
     pub size: u64,
     pub user: AccountId,
     pub orders: Vec<MinerOrder<AccountId, Balance>>,
@@ -184,9 +184,9 @@ decl_module! {
         fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,income_address: T::AccountId, capacity: u64, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
-            // staking per GB is  1;
-            let total_staking_u64 = capacity * BASIC_BALANCE;
-            let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>();
+            // staking
+            let total_staking_u64 = capacity * BASIC_BALANCE ;
+            let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>() * unit_price;
 
             ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
             // reserve for staking
@@ -246,13 +246,13 @@ decl_module! {
             let miner_cp = miner.clone();
 
             let miner = Self::miner(&miner).ok_or(Error::<T>::MinerNotFound)?;
-            let day_price = miner.unit_price * size.saturated_into::<BalanceOf<T>>() / KB.saturated_into::<BalanceOf<T>>();
+            let day_price = miner.unit_price * size.saturated_into::<BalanceOf<T>>();
             let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
             let miner_order = MinerOrder {
                 miner: miner.account_id,
                 day_price,
                 total_price,
-                verify_result: false,
+                verify_result: true,
                 verify_ts: Self::get_now_ts(),
                 confirm_ts: Self::get_now_ts(),
                 url: url,
@@ -546,16 +546,16 @@ impl<T: Trait> Module<T> {
     }
 
     fn update_miner_history(miner: T::AccountId, order: Order<T::AccountId, BalanceOf<T>>) {
-        if let mut miner_history = MinerHistory::<T>::get(&miner) {
-            let len = miner_history.len();
-            if len == NUM_LIST_HISTORY_LEN {
-                let pre = len - NUM_LIST_HISTORY_LEN;
-                let new_vec = miner_history.split_off(pre);
-                let miner_history = new_vec;
-            }
-            miner_history.push(order);
-            debug::info!("update miner: {:?} history records", miner);
+        let mut miner_history = MinerHistory::<T>::get(&miner);
+        let len = miner_history.len();
+
+        if len == NUM_LIST_HISTORY_LEN {
+            let pre = len - NUM_LIST_HISTORY_LEN;
+            let new_vec = miner_history.split_off(pre);
+            let miner_history = new_vec;
         }
+        miner_history.push(order);
+        debug::info!("update miner: {:?} history records", miner);
     }
 
     fn update_history(n: T::BlockNumber, miner: T::AccountId, amount: BalanceOf<T>) {
