@@ -34,7 +34,7 @@ use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 pub const YEAR: u32 = 365*DAYS;
 
 pub const GIB: u64 = 1024 * 1024 * 1024;
-pub const SPEED: u64 = 11; //
+pub const SPEED: u64 = 12; //
 pub const MiningExpire: u64 = 2;
 
 type BalanceOf<T> =
@@ -371,7 +371,7 @@ impl<T: Trait> Module<T> {
 		let ave_deadline = Self::get_ave_deadline();
 
 		// deadline太小 难度低 要增加难度 减小base_target
-		if ave_deadline < 1000 && ave_deadline != 0u64 {
+		if ave_deadline < 9000 && ave_deadline != 0u64 {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -388,7 +388,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
-        else if ave_deadline > 2000 {
+        else if ave_deadline > 11000 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
