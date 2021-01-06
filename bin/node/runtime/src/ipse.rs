@@ -31,6 +31,7 @@ pub const KB: u64 = 1024;
 pub const MB: u64 = 1024 * 1024;
 
 pub const GB: u64 = 1024 * 1024 * 1024;
+pub const BASIC_BALANCE: u64 = 100000000000000;
 // When whose times of violation is more than 3,
 // slash all funds of this miner.
 pub const MAX_VIOLATION_TIMES: u64 = 3;
@@ -184,8 +185,9 @@ decl_module! {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
             // staking per GB is  1;
-            let total_staking_u64 = capacity / GB;
+            let total_staking_u64 = capacity * BASIC_BALANCE;
             let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>();
+
             ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
             // reserve for staking
             T::StakingCurrency::reserve(&who,total_staking)?;
@@ -447,11 +449,17 @@ decl_module! {
                         } else {
                             if now - mo.verify_ts < DAY && mo.verify_result {
                                 // verify result is ok, transfer one day's funds to miner
-                                T::StakingCurrency::repatriate_reserved(&order.user, &mo.miner, mo.day_price, BalanceStatus::Free);
+                                //  transfer to income address
+                               if let Some(miner) = Miners::<T>::get(&mo.miner){
 
-								Self::update_history(current_block, mo.miner.clone(), mo.day_price);
+                                    T::StakingCurrency::repatriate_reserved(&order.user, &miner.income_address, mo.day_price, BalanceStatus::Free);
+                                    // T::StakingCurrency::repatriate_reserved(&order.user, &miner.account_id, mo.day_price, BalanceStatus::Free);
 
-                                Self::deposit_event(RawEvent::VerifyStorage(mo.miner, true));
+                                    Self::update_history(current_block, mo.miner.clone(), mo.day_price);
+
+                                    Self::deposit_event(RawEvent::VerifyStorage(mo.miner, true));
+                                }
+
                             } else {
                                 // verify result expired or no verifying, punish miner
                                 Self::punish(&mo.miner, order.size);
@@ -654,6 +662,8 @@ decl_error! {
         OrderUnconfirmed,
         /// Balance is not enough to stake.
         CannotStake,
+        /// not have enough money
+        NotEnoughMoney,
         /// Total staking is zero.
         NoneStaking,
         /// User has no op permission to order.
