@@ -74,7 +74,7 @@ pub struct Miner<AccountId, Balance> {
     // income_address
     pub income_address: AccountId,
     // capacity of data miner can store
-    pub capacity: u64,
+    pub capacity: u128,
     // price per KB every day
     pub unit_price: Balance,
     // times of violations
@@ -98,7 +98,7 @@ pub struct Order<AccountId, Balance> {
     // the hash of data
     pub hash: [u8; 46],
     // the size of storing data(byte)
-    pub size: u64,
+    pub size: u128,
     pub user: AccountId,
     pub orders: Vec<MinerOrder<AccountId, Balance>>,
     pub status: OrderStatus,
@@ -181,12 +181,13 @@ decl_module! {
 
         /// 矿工进行注册登记
         #[weight = 10_000]
-        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,income_address: T::AccountId, capacity: u64, unit_price: BalanceOf<T>) {
+        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,income_address: T::AccountId, capacity: u128, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
             // staking
-            let total_staking_u64 = capacity * BASIC_BALANCE ;
-            let total_staking = total_staking_u64.saturated_into::<BalanceOf<T>>() * unit_price;
+            let total_staking = capacity.saturated_into::<BalanceOf<T>>() * unit_price;
+            debug::info!("======unit_price========{:?}",unit_price);
+            debug::info!("=======total_staking======={:?}",total_staking);
 
             ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
             // reserve for staking
@@ -210,95 +211,109 @@ decl_module! {
         }
 
         /// 矿工注册信息更新(容量)-miner  Schedule job
+        // #[weight = 10_000]
+        // fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: T::AccountId, capacity: u128, unit_price: BalanceOf<T>) {
+        //     let who = ensure_signed(origin)?;
+        //
+        //     // must check total staking, if is zero, cannot confirm order.
+        //     let miner_info = Self::miner(&who).ok_or(Error::<T>::MinerNotFound)?;
+        //     ensure!(miner_info.total_staking > 0.saturated_into::<BalanceOf<T>>(), Error::<T>::NoneStaking);
+        //
+        //     if let Some(miner) = Miners::<T>::get(&who).as_mut() {
+        //
+        //         miner.nickname = nickname;
+        //         miner.region = region;
+        //         miner.url = url;
+        //         miner.public_key = public_key;
+        //         miner.income_address = income_address;
+        //         miner.capacity = capacity;
+        //         miner.unit_price = unit_price;
+        //         miner.update_ts = Self::get_now_ts();
+        //
+        //         Miners::<T>::insert(&who, miner);
+        //     }
+        //
+        //     Self::deposit_event(RawEvent::UpdatedMiner(who));
+        // }
+
+
+        /// 用户创建订单
         #[weight = 10_000]
-        fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: T::AccountId, capacity: u64, unit_price: BalanceOf<T>) {
-            let who = ensure_signed(origin)?;
-
-            // must check total staking, if is zero, cannot confirm order.
-            let miner_info = Self::miner(&who).ok_or(Error::<T>::MinerNotFound)?;
-            ensure!(miner_info.total_staking > 0.saturated_into::<BalanceOf<T>>(), Error::<T>::NoneStaking);
-
-            if let Some(miner) = Miners::<T>::get(&who).as_mut() {
-
-                miner.nickname = nickname;
-                miner.region = region;
-                miner.url = url;
-                miner.public_key = public_key;
-                miner.income_address = income_address;
-                miner.capacity = capacity;
-                miner.unit_price = unit_price;
-                miner.update_ts = Self::get_now_ts();
-
-                Miners::<T>::insert(&who, miner);
-            }
-
-            Self::deposit_event(RawEvent::UpdatedMiner(who));
-        }
-
-
-        /// 用户创建订单(后面加上，unit_price)
-        #[weight = 10_000]
-        fn create_order(origin,miner: T::AccountId, label: Vec<u8>, hash: [u8; 46], size: u64, url: Option<Vec<u8>>, days: u64, unit_price: BalanceOf<T>) {
+        fn create_order(origin,miner: T::AccountId, label: Vec<u8>, hash: [u8; 46], size: u128, url: Option<Vec<u8>>, days: u64, unit_price: BalanceOf<T>) {
             let user = ensure_signed(origin)?;
 
             let mut order_list= Vec::new();
 
             let miner_cp = miner.clone();
 
-            let miner = Self::miner(&miner).ok_or(Error::<T>::MinerNotFound)?;
-            let day_price = miner.unit_price * size.saturated_into::<BalanceOf<T>>();
-            let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
-            let miner_order = MinerOrder {
-                miner: miner.account_id,
-                day_price,
-                total_price,
-                verify_result: true,
-                verify_ts: Self::get_now_ts(),
-                confirm_ts: Self::get_now_ts(),
-                url: url,
-            };
-            order_list.push(miner_order);
+            ensure!(<Miners<T>>::contains_key(&miner), Error::<T>::MinerNotFound);
 
-            Self::append_or_replace_orders(Order {
-                    miner: miner_cp.clone(),
-                    label: label.clone(),
-                    hash: hash.clone(),
-                    size: size.clone(),
-                    user: user.clone(),
-                    orders: order_list.clone(),
-                    status: OrderStatus::Confirmed,
-                    create_ts: Self::get_now_ts(),
-                    update_ts: Self::get_now_ts(),
-                    duration: days * DAY,
-                });
 
-            Self::update_miner_history(miner_cp.clone(),Order {
-                    miner: miner_cp.clone(),
-                    label: label.clone(),
-                    hash: hash.clone(),
-                    size: size.clone(),
-                    user: user.clone(),
-                    orders: order_list.clone(),
-                    status: OrderStatus::Confirmed,
-                    create_ts: Self::get_now_ts(),
-                    update_ts: Self::get_now_ts(),
-                    duration: days * DAY,
-                });
 
-            Orders::<T>::mutate( |o| o.push(
-                Order {
+
+            if let Some(miner_info) = Miners::<T>::get(&miner).as_mut() {
+                miner_info.capacity = miner_info.capacity - size;
+
+                let day_price = miner_info.unit_price * size.saturated_into::<BalanceOf<T>>();
+                let total_price = day_price * days.saturated_into::<BalanceOf<T>>();
+
+                let miner_order = MinerOrder {
                     miner: miner_cp.clone(),
-                    label: label.clone(),
-                    hash: hash.clone(),
-                    size: size.clone(),
-                    user: user.clone(),
-                    orders: order_list,
-                    status: OrderStatus::Confirmed,
-                    create_ts: Self::get_now_ts(),
-                    update_ts: Self::get_now_ts(),
-                    duration: days * DAY,
-                }
-            ));
+                    day_price,
+                    total_price,
+                    verify_result: true,
+                    verify_ts: Self::get_now_ts(),
+                    confirm_ts: Self::get_now_ts(),
+                    url: url,
+                };
+                T::StakingCurrency::reserve(&user, miner_order.total_price)?;
+                order_list.push(miner_order);
+
+                Self::append_or_replace_orders(Order {
+                        miner: miner_cp.clone(),
+                        label: label.clone(),
+                        hash: hash.clone(),
+                        size: size.clone(),
+                        user: user.clone(),
+                        orders: order_list.clone(),
+                        status: OrderStatus::Confirmed,
+                        create_ts: Self::get_now_ts(),
+                        update_ts: Self::get_now_ts(),
+                        duration: days * DAY,
+                    });
+
+                Self::update_miner_history(miner_cp.clone(),Order {
+                        miner: miner_cp.clone(),
+                        label: label.clone(),
+                        hash: hash.clone(),
+                        size: size.clone(),
+                        user: user.clone(),
+                        orders: order_list.clone(),
+                        status: OrderStatus::Confirmed,
+                        create_ts: Self::get_now_ts(),
+                        update_ts: Self::get_now_ts(),
+                        duration: days * DAY,
+                    });
+
+                Orders::<T>::mutate( |o| o.push(
+                    Order {
+                        miner: miner_cp.clone(),
+                        label: label.clone(),
+                        hash: hash.clone(),
+                        size: size.clone(),
+                        user: user.clone(),
+                        orders: order_list,
+                        status: OrderStatus::Confirmed,
+                        create_ts: Self::get_now_ts(),
+                        update_ts: Self::get_now_ts(),
+                        duration: days * DAY,
+                    }
+                ));
+
+                Miners::<T>::insert(&miner_cp.clone(), miner_info);
+
+            }
+
 
             Self::deposit_event(RawEvent::CreatedOrder(user));
 
@@ -443,11 +458,11 @@ decl_module! {
                 if &order.status == &OrderStatus::Confirmed {
                     let confirm_ts = order.update_ts;
                     for mo in order.orders {
-                        //
+
                         if now > order.duration + confirm_ts {
-                            order.status = OrderStatus::Expired
+                            order.status = OrderStatus::Expired;
                         } else {
-                            if now - mo.verify_ts < DAY && mo.verify_result {
+                            if now - mo.verify_ts > DAY && mo.verify_result {
                                 // verify result is ok, transfer one day's funds to miner
                                 //  transfer to income address
                                if let Some(miner) = Miners::<T>::get(&mo.miner){
@@ -455,8 +470,10 @@ decl_module! {
                                     T::StakingCurrency::repatriate_reserved(&order.user, &miner.income_address, mo.day_price, BalanceStatus::Free);
                                     // T::StakingCurrency::repatriate_reserved(&order.user, &miner.account_id, mo.day_price, BalanceStatus::Free);
 
-                                    Self::update_history(current_block, mo.miner.clone(), mo.day_price);
+                                    T::StakingCurrency::unreserve(&order.user,  mo.day_price);
 
+                                    Self::update_history(current_block, mo.miner.clone(), mo.day_price);
+                                    order.update_ts = now;
                                     Self::deposit_event(RawEvent::VerifyStorage(mo.miner, true));
                                 }
 
@@ -549,13 +566,13 @@ impl<T: Trait> Module<T> {
         let mut miner_history = MinerHistory::<T>::get(&miner);
         let len = miner_history.len();
 
-        if len == NUM_LIST_HISTORY_LEN {
+        if len >= NUM_LIST_HISTORY_LEN {
             let pre = len - NUM_LIST_HISTORY_LEN;
             let new_vec = miner_history.split_off(pre);
             let miner_history = new_vec;
         }
         miner_history.push(order);
-        debug::info!("update miner: {:?} history records", miner);
+        <MinerHistory<T>>::insert(miner, miner_history);
     }
 
     fn update_history(n: T::BlockNumber, miner: T::AccountId, amount: BalanceOf<T>) {
@@ -608,7 +625,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    fn punish(miner: &T::AccountId, size: u64) {
+    fn punish(miner: &T::AccountId, size: u128) {
         Miners::<T>::mutate(miner, |mi| {
             let mut m = mi.as_mut().unwrap();
             let fine = if m.violation_times < MAX_VIOLATION_TIMES {
