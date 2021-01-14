@@ -350,7 +350,7 @@ parameter_types! {
 
 	pub const CapacityPrice: Balance = 1 * DOLLARS;
 
-	pub const AdjustDifficultyDuration: u64 = 20;
+	pub const AdjustDifficultyDuration: u64 = 40;
 
 	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(20);
 

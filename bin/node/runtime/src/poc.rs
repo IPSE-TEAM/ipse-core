@@ -111,6 +111,9 @@ decl_storage! {
 		/// 全网算力
 		pub NetPower get(fn net_power): u64;
 
+		/// 单个挖矿难度对应的容量(Gib为单位)
+		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64;
+
     }
 }
 
@@ -126,6 +129,7 @@ pub enum Event<T>
 //        NotBestDeadline(AccountId, u64, u64, u64),
         RewardTreasury(AccountId, Balance),
         SetDifficulty(u64),
+        SetCapacityOfPerDifficulty(u64),
     }
 }
 
@@ -185,6 +189,17 @@ decl_module! {
 
             Self::deposit_event(RawEvent::SetDifficulty(base_target));
 
+        }
+
+
+        /// 设置每个挖矿难度对应的全网容量(单位是Gib)
+        #[weight = 10_000]
+        fn set_capacity_of_per_difficulty(origin, capacity: u64) {
+        	ensure_root(origin)?;
+        	ensure!(capacity != 0u64, Error::<T>::CapacityIsZero);
+        	<CapacityOfPerDifficulty>::put(capacity);
+
+        	Self::deposit_event(RawEvent::SetCapacityOfPerDifficulty(capacity));
         }
 
 
@@ -371,7 +386,7 @@ impl<T: Trait> Module<T> {
 		let ave_deadline = Self::get_ave_deadline();
 
 		// deadline太小 难度低 要增加难度 减小base_target
-		if ave_deadline < 9000 && ave_deadline != 0u64 {
+		if ave_deadline < 2000 && ave_deadline != 0u64 {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -388,7 +403,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
-        else if ave_deadline > 11000 {
+        else if ave_deadline > 3000 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
                     block,
@@ -510,7 +525,7 @@ impl<T: Trait> Module<T> {
         let mut deadline = 0_u64;
 
         while let Some(dl) = iter.next() {
-        	if count == T::AdjustDifficultyDuration::get() / 2 {
+        	if count == T::AdjustDifficultyDuration::get() / MiningExpire {
                 break;
 				}
         	if dl.miner.is_some() {
@@ -662,11 +677,10 @@ impl<T: Trait> Module<T> {
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
 					  .saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>()
 
-					&& miner_mining_num.saturated_into::<BalanceOf<T>>()
+					&& (miner_mining_num.saturated_into::<BalanceOf<T>>()
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-					  .saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>()
-
-					- should_staking_amount.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
+					  .saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>()).saturating_sub(should_staking_amount.saturating_mul(
+						net_mining_num.saturated_into::<BalanceOf<T>>()))
 
 					> T::ProbabilityDeviationValue::get() *
 						(net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
@@ -779,14 +793,16 @@ impl<T: Trait> Module<T> {
     /// todo 获取全网容量(根据挖矿难度来调整)
     /// 暂时用声明的容量
     fn get_total_capacity() -> u64 {
-
+		let base_target = Self::get_last_base_target().0;
+		let difficult = T::GENESIS_BASE_TARGET::get() / base_target;
+		let capacity = difficult.saturating_mul(GIB * <CapacityOfPerDifficulty>::get());
 //		// 设置1000G
 //		let net_power = 1000u64 * G;
-		let declared_capacity = <DeclaredCapacity>::get();
 
-		<NetPower>::put(declared_capacity);
+		<NetPower>::put(capacity);
+		// let declared_capacity = <DeclaredCapacity>::get();
 
-		return declared_capacity;
+		return capacity;
 
     }
 
@@ -894,7 +910,8 @@ decl_error! {
 		NotBestDeadline,
 		/// 验证失败
 		VerifyFaile,
-		///
+		/// 容量是0
+		CapacityIsZero,
 
 		DeadlineTooLarge,
 
