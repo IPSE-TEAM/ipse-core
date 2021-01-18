@@ -23,7 +23,6 @@ use sp_runtime::{traits::{SaturatedConversion, Saturating, CheckedDiv, CheckedAd
 use sp_std::vec::Vec;
 use sp_std::vec;
 use node_primitives::GIB;
-// use num_traits::{CheckedAdd, CheckedSub};
 use crate::ipse_traits::PocHandler;
 use sp_std::{collections::btree_set::BTreeSet};
 
@@ -324,9 +323,6 @@ decl_module! {
 
 			<DiskOf<T>>::mutate(miner.clone(), |h| if let Some(i) = h {
 				i.numeric_id = pid;
-// 				if i.is_stop == false {
-// 					<DeclaredCapacity>::mutate(|h| *h += i.plot_size);
-// 				}
 
 			}
 			);
@@ -373,7 +369,6 @@ decl_module! {
         			i.update_time = now;
         		}
 
-//         		i.is_stop = false;
         	}
         	);
 
@@ -794,7 +789,6 @@ impl<T: Trait> Module<T> {
 	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
 		// 如果操作是减仓 那么amount_opt是none意味着抵押者退出
 		// 如果操作是加仓 那么amount_opt 不能是none值
-// 		Self::is_can_mining(miner.clone())?;
 		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
 		let mut amount: BalanceOf<T>;

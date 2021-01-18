@@ -5,7 +5,6 @@ extern crate pallet_timestamp as timestamp;
 use crate::poc_staking as staking;
 use crate::poc_staking::AccountIdOfPid;
 use crate::poc_staking::DeclaredCapacity;
-// use num_traits::CheckedDiv;
 use sp_std::convert::{TryInto,TryFrom, Into};
 
 use codec::{Decode, Encode};
@@ -45,9 +44,6 @@ type PositiveImbalanceOf<T> =
 pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
-    /// 挖矿的过期区块长度
-//    type Expire: Get<u64>;
-
     type PocAddOrigin: OnUnbalanced<PositiveImbalanceOf<Self>>;
 
     /// GENESIS_BASE_TARGET
@@ -73,8 +69,6 @@ pub struct MiningInfo<AccountId> {
     // when miner is None, it means Treasury
     pub miner: Option<AccountId>,
     pub best_dl: u64,
-//    pub mining_time: u64,
-    // the block height of mining success
     pub block: u64,
 }
 
@@ -125,8 +119,6 @@ pub enum Event<T>
     {
         Minning(AccountId, u64),
         Verify(AccountId, bool),
-//        HeightTooLow(AccountId, u64, u64, u64),
-//        NotBestDeadline(AccountId, u64, u64, u64),
         RewardTreasury(AccountId, Balance),
         SetDifficulty(u64),
         SetCapacityOfPerDifficulty(u64),
@@ -141,9 +133,6 @@ decl_module! {
      	type Error = Error<T>;
 
         fn deposit_event() = default;
-
-//        /// 挖矿过期时间（允许推迟提交的区块数)
-//        const Expire: u64 = T::Expire::get();
 
         const GENESIS_BASE_TARGET: u64 = T::GENESIS_BASE_TARGET::get();
 
@@ -209,10 +198,9 @@ decl_module! {
 
             let miner = ensure_signed(origin)?;
 
-            // let miner = <AccountIdOfPid<T>>::get(account_id as u128).ok_or(Error::<T>::PidErr)?;
-
 			debug::info!("矿工: {:?},  提交挖矿!, height = {}, deadline = {}", miner.clone(), height, deadline);
-//             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
+
+            ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
             //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
@@ -229,8 +217,6 @@ decl_module! {
             if !(current_block / MiningExpire == height / MiningExpire && current_block >= height)
             {
                 debug::info!("提交挖矿过期! 请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
-
-//				Self::deposit_event(RawEvent::HeightTooLow(miner.clone(), current_block, height, deadline));
 
 				return Err(Error::<T>::HeightNotInDuration)?;
             }
@@ -250,40 +236,13 @@ decl_module! {
 
                 debug::info!("不是最优答案! 本周期 height = {} 已经有较优best_dl = {}, 提交的deadline = {}!", height, best_dl, deadline);
 
-//                Self::deposit_event(RawEvent::NotBestDeadline(miner.clone(), current_block, height, deadline));
-
                 return Err(Error::<T>::NotBestDeadline)?;
             }
 
-//             #[cfg(feature = "std")]
-//             use std::time::{Duration, SystemTime};
-//
-// 			#[cfg(feature = "std")]
-//             let start = SystemTime::now();
-
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
-
-// 			#[cfg(feature = "std")]
-//             let end = SystemTime::now();
-//
-//             #[cfg(feature = "std")]
-//             debug::info!("挖矿验证开始的时间是: {:?}, 结束的时间是： {:?}", start, end);
 
             if verify_ok.0 {
             	debug::info!("挖矿成功!, 提交的deadline = {}", deadline);
-                // delete the old deadline in this mining cycle
-                // append a better deadline
-
-//                let last_block = Self::get_last_miner_mining_block();
-//
-//                let mining_time: u64;
-//                if last_block == 0 {
-//                	mining_time =  MILLISECS_PER_BLOCK;
-//                	}
-//
-//                else {
-//                	mining_time = (current_block - last_block) * MILLISECS_PER_BLOCK;
-//                	}
 
                 // 这里保证了这个块的dl_info的最后一个总是最优解
                 if current_block / MiningExpire == block / MiningExpire {
@@ -296,7 +255,6 @@ decl_module! {
                         miner: Some(miner.clone()),
                         best_dl: deadline,
                         block: current_block,
-//                        mining_time
                     });
 
                 Self::deposit_event(RawEvent::Minning(miner, deadline));
@@ -341,8 +299,6 @@ decl_module! {
 			else {
 				return
 			}
-
-// 			debug::info!("本次挖矿总奖励是： {:?}", reward);
 
 			if (current_block + 1) % MiningExpire == 0 {
 				// 如果这个块有poc出块 那么就说明有用户挖矿
@@ -438,7 +394,6 @@ impl<T: Trait> Module<T> {
 		Self::append_dl_info(MiningInfo{
 				miner: None,
 				best_dl: T::MaxDeadlineValue::get(),
-//				mining_time: MILLISECS_PER_BLOCK,
 				block: current_block, // 记录当前区块
 			});
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
@@ -462,47 +417,6 @@ impl<T: Trait> Module<T> {
             0
         }
     }
-
-
-//    // 获取上次矿工挖矿的区块
-//    fn get_last_miner_mining_block() -> u64 {
-//
-//		let mut dl = <DlInfo<T>>::get();
-//
-//		let dl_cp = dl.clone();
-//
-//		// 获取现在的区块
-//		let now = <staking::Module<T>>::now().saturated_into::<u64>();
-//		let len = dl_cp.len();
-//
-//        for j in 0..len {
-//
-//			let i = dl.get(len - 1 - j).unwrap();
-//
-//			let mut index = 1;
-//
-//			// 不能超过10个周期
-//			if index >= 10 {
-//				break;
-//			}
-//
-//        	if i.miner.is_some() {
-//
-//        		// 不在本区块
-//        		if (i.block != now) {
-//        			debug::info!("矿工挖出来的最后的区块是:{:?}", i);
-//        			return i.block;
-//
-//        		}
-//        	}
-//
-//        	index += 1;
-//
-//        }
-//
-//        0
-//
-//    }
 
 
 	// 取最后一次base_target
@@ -731,12 +645,10 @@ impl<T: Trait> Module<T> {
 			Self::reward_treasury(Percent::from_percent(90) * all_reward);
 		}
 
-// 		debug::info!("本次挖矿实际奖励是：{:?}", reward);
-
 		let history_opt = <History<T>>::get(&miner);
 
 		if history_opt.is_some() {
-// 			debug::info!("不是第一次挖矿！");
+
 			let mut his = history_opt.unwrap();
 			his.total_num = miner_mining_num;
 			his.history.push((now, reward));
@@ -751,7 +663,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		else {
-// 			debug::info!("第一次挖矿！");
+
 			let history = vec![(now, reward)];
 			<History<T>>::insert(miner.clone(), MiningHistory {
 				total_num: miner_mining_num,
@@ -766,8 +678,6 @@ impl<T: Trait> Module<T> {
 
    	// 奖励每一个成员（抵押者）
    	fn reward_staker(miner: T::AccountId, reward: BalanceOf<T>) -> DispatchResult {
-
-		// let reward_dest = <staking::Module<T>>::disk_of(&miner).ok_or(Error::<T>::NotRegister)?.reward_dest;
 
    		let now = <staking::Module<T>>::now();
 
@@ -795,14 +705,11 @@ impl<T: Trait> Module<T> {
    	}
 
 
-    /// todo 获取全网容量(根据挖矿难度来调整)
-    /// 暂时用声明的容量
+    /// 获取全网容量(根据挖矿难度来调整)
     fn get_total_capacity() -> u64 {
 		let base_target = Self::get_last_base_target().0;
 		let difficult = T::GENESIS_BASE_TARGET::get() / base_target;
 		let capacity = difficult.saturating_mul(GIB * <CapacityOfPerDifficulty>::get());
-//		// 设置1000G
-//		let net_power = 1000u64 * G;
 
 		<NetPower>::put(capacity);
 		// let declared_capacity = <DeclaredCapacity>::get();
