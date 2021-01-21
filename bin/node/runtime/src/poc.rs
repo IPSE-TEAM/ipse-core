@@ -342,10 +342,11 @@ impl<T: Trait> Module<T> {
         let last_base_target = Self::get_last_base_target().0;
         let last_net_difficulty = Self::get_last_base_target().1;
 
-		let ave_deadline = Self::get_ave_deadline();
+		let ave_deadline = Self::get_ave_deadline().1;
+		let mining_count = Self::get_ave_deadline().0;
 
-		// deadline太小 难度低 要增加难度 减小base_target
-		if ave_deadline < 2000 && ave_deadline != 0u64 {
+		// deadline太小 并且挖矿次数不是0 难度低 要增加难度 减小base_target
+		if (ave_deadline < 2000 && mining_count > 0) {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
 			if new == 0 {
@@ -434,7 +435,7 @@ impl<T: Trait> Module<T> {
 
 
 	/// 平均的出块时间
-    fn get_ave_deadline() -> u64 {
+    fn get_ave_deadline() -> (u64, u64) {
         let dl = Self::dl_info();
         let mut iter = dl.iter().rev();
         let mut count = 0_u64;
@@ -457,10 +458,10 @@ impl<T: Trait> Module<T> {
         }
 
         if real_count == 0 {
-        	0u64
+        	(0, 0u64)
         }
         else {
-        	deadline / real_count
+        	(real_count, deadline / real_count)
         }
 
     }
