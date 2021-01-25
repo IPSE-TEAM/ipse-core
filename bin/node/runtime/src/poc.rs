@@ -193,7 +193,7 @@ decl_module! {
 
 
 		/// 挖矿
-		#[weight = 10_000]
+		#[weight = 0]
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 
             let miner = ensure_signed(origin)?;

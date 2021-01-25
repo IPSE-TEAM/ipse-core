@@ -14,6 +14,7 @@ use frame_support::{
 	StorageMap, StorageValue,
 	decl_error, ensure,
 };
+
 use pallet_staking as staking;
 
 use sp_std::result;
@@ -134,6 +135,9 @@ decl_storage! {
 
 		/// 正在挖矿的矿工
 		pub MiningMiners get(fn mining_miners): BTreeSet<T::AccountId>;
+
+		/// 正在挖矿的矿工人数
+		pub MiningNum get(fn mining_num): u64;
 
 		/// 锁仓
 		pub Locks get(fn locks): map hasher(twox_64_concat) T::AccountId => Option<Vec<(T::BlockNumber, BalanceOf<T>)>>;
@@ -535,6 +539,11 @@ decl_module! {
 			let _ = Self::update_chill();
 			0
 
+       }
+
+       fn on_finalize(n: T::BlockNumber) {
+       		let num = <MiningMiners<T>>::get().len() as u64;
+       		<MiningNum>::put(num);
        }
 
      }
