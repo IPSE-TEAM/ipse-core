@@ -36,6 +36,7 @@ pub const BASIC_BALANCE: u64 = 100000000000000;
 // slash all funds of this miner.
 pub const MAX_VIOLATION_TIMES: u64 = 3;
 // millisecond * sec * min * hour
+// pub const DAY: u64 = 1000 * 60 * 60 * 24;
 pub const DAY: u64 = 1000 * 60 * 60 * 24;
 // max list order len
 pub const NUM_LIST_ORDER_LEN: usize = 500;
@@ -130,9 +131,10 @@ pub struct MinerOrder<AccountId, Balance> {
 
 /// History
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
-pub struct MiningHistory<Balance, BlockNumber> {
-    total_num: u64,
-    history: Vec<(BlockNumber, Balance)>,
+pub struct MiningHistory<AccountId, Balance, BlockNumber> {
+    pub miner: AccountId,
+    pub total_num: u64,
+    pub history: Vec<(BlockNumber, Balance)>,
 }
 
 
@@ -163,7 +165,10 @@ decl_storage! {
         pub MinerHistory get(fn miner_history): map hasher(twox_64_concat) T::AccountId => Vec<Order<T::AccountId, BalanceOf<T>>>;
 
 		/// 矿工的挖矿记录
-        pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
+        pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<T::AccountId,BalanceOf<T>, T::BlockNumber>>;
+
+		/// 矿工的挖矿记录
+        pub Url get(fn url): map hasher(twox_64_concat) Vec<u8> => T::AccountId;
 
         /// 全部矿工list order 最大显示 500
         pub ListOrder get(fn list_order): Vec<Order<T::AccountId, BalanceOf<T>>>;
@@ -186,12 +191,15 @@ decl_module! {
             let who = ensure_signed(origin)?;
             // staking
             let total_staking = capacity.saturated_into::<BalanceOf<T>>() * unit_price;
-            debug::info!("======unit_price========{:?}",unit_price);
-            debug::info!("=======total_staking======={:?}",total_staking);
+            // debug::info!("======unit_price========{:?}",unit_price);
+            // debug::info!("=======total_staking======={:?}",total_staking);
+            //
+            // ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
+            // // reserve for staking
+            // T::StakingCurrency::reserve(&who,total_staking)?;
+            ensure!(!<Url<T>>::contains_key(url.clone()), Error::<T>::UrlExists);
 
-            ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
-            // reserve for staking
-            T::StakingCurrency::reserve(&who,total_staking)?;
+            Url::<T>::insert(url.clone(),&who);
 
             Miners::<T>::insert(&who, Miner {
                 account_id:who.clone(),
@@ -453,39 +461,44 @@ decl_module! {
             // 20 blocks just 1 minute.
             if n%20 != 0 { return }
             let now = Self::get_now_ts();
-            let orders = Self::order();
-            for mut order in orders {
-                if &order.status == &OrderStatus::Confirmed {
-                    let confirm_ts = order.update_ts;
-                    for mo in order.orders {
-
-                        if now > order.duration + confirm_ts {
-                            order.status = OrderStatus::Expired;
-                        } else {
-                            if now - mo.verify_ts > DAY && mo.verify_result {
-                                // verify result is ok, transfer one day's funds to miner
-                                //  transfer to income address
-                               if let Some(miner) = Miners::<T>::get(&mo.miner){
-
-                                    T::StakingCurrency::repatriate_reserved(&order.user, &miner.income_address, mo.day_price, BalanceStatus::Free);
-                                    // T::StakingCurrency::repatriate_reserved(&order.user, &miner.account_id, mo.day_price, BalanceStatus::Free);
-
-                                    T::StakingCurrency::unreserve(&order.user,  mo.day_price);
-
-                                    Self::update_history(current_block, mo.miner.clone(), mo.day_price);
-                                    order.update_ts = now;
-                                    Self::deposit_event(RawEvent::VerifyStorage(mo.miner, true));
-                                }
-
+            Orders::<T>::mutate( |orders| {
+                for mut order in orders {
+                    if order.status == OrderStatus::Confirmed {
+                        let create_ts = order.create_ts;
+                        let confirm_ts = order.update_ts;
+                        for mo in &order.orders {
+                            if now > order.duration + create_ts + DAY{
+                                order.status = OrderStatus::Expired;
                             } else {
-                                // verify result expired or no verifying, punish miner
-                                Self::punish(&mo.miner, order.size);
-                                Self::deposit_event(RawEvent::VerifyStorage(mo.miner, false));
+                                if now - order.update_ts >= DAY && mo.verify_result {
+                                    // verify result is ok, transfer one day's funds to miner
+                                    //  transfer to income address
+                                   if let Some(miner) = Miners::<T>::get(&mo.miner){
+                                        // T::StakingCurrency::unreserve(&order.user,  mo.day_price);
+                                        // 直接从保留金额中扣除
+                                        T::StakingCurrency::repatriate_reserved(&order.user, &miner.income_address, mo.day_price, BalanceStatus::Free);
+
+                                        debug::info!("miner: {:?}",&miner);
+
+                                        order.update_ts = now;
+                                        // mo.verify_ts = now;
+
+                                        Self::update_history(current_block, mo.miner.clone(), mo.day_price);
+
+                                        Self::deposit_event(RawEvent::VerifyStorage(mo.miner.clone(), true));
+                                    }
+
+                                } else {
+                                    // verify result expired or no verifying, punish miner
+                                    // Self::punish(&mo.miner, order.size);
+                                    Self::deposit_event(RawEvent::VerifyStorage(mo.miner.clone(), false));
+                                }
                             }
                         }
+
                     }
                 }
-            }
+            });
         }
 
     }
@@ -577,6 +590,7 @@ impl<T: Trait> Module<T> {
 
     fn update_history(n: T::BlockNumber, miner: T::AccountId, amount: BalanceOf<T>) {
         let mut history = <History<T>>::get(miner.clone());
+        let miner_cp = miner.clone();
         if history.is_some() {
             let mut vec = history.clone().unwrap().history;
             let num = history.clone().unwrap().total_num;
@@ -590,6 +604,7 @@ impl<T: Trait> Module<T> {
             }
 
             history = Some(MiningHistory {
+                miner: miner_cp,
                 total_num: num + 1u64,
                 history: vec,
             });
@@ -597,6 +612,7 @@ impl<T: Trait> Module<T> {
             let mut vec = vec![];
             vec.push((n, amount));
             history = Some(MiningHistory {
+                miner: miner_cp,
                 total_num: 1u64,
                 history: vec,
             });
@@ -653,6 +669,7 @@ decl_event! {
         	Registered(AccountId),
         	UpdatedMiner(AccountId),
             VerifyStorage(AccountId, bool),
+            VerifyBlock(u64),
 			CreatedOrder(AccountId),
 			ListOrder(AccountId),
 			ConfirmedOrder(AccountId, u64),
@@ -665,6 +682,8 @@ decl_event! {
 decl_error! {
     /// Error for the ipse module.
     pub enum Error for Module<T: Trait> {
+        /// url already exists
+        UrlExists,
         /// Miner not found.
         MinerNotFound,
         /// Order not found.
