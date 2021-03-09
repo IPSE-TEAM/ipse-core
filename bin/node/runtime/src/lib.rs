@@ -116,7 +116,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to 0. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 266,
+	spec_version: 267,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -346,9 +346,9 @@ parameter_types! {
 
 	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
 
-	pub const CapacityPrice: Balance = 1 * DOLLARS;
+	// pub const CapacityPrice: Balance = 1 * DOLLARS;
 
-	pub const AdjustDifficultyDuration: u64 = 40;
+	// pub const AdjustDifficultyDuration: u64 = 100;
 
 	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(20);
 
@@ -361,11 +361,11 @@ impl poc::Trait for Runtime {
 
     type GENESIS_BASE_TARGET = GENESIS_BASE_TARGET;
 
-    type CapacityPrice = CapacityPrice;
+    // type CapacityPrice = CapacityPrice;
 
     type PocAddOrigin = ();
     type TotalMiningReward = TotalMiningReward;
-	type AdjustDifficultyDuration = AdjustDifficultyDuration;
+	// type AdjustDifficultyDuration = AdjustDifficultyDuration;
 	type ProbabilityDeviationValue = ProbabilityDeviationValue;
 	type MaxDeadlineValue = MaxDeadlineValue;
 }

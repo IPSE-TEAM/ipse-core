@@ -33,7 +33,7 @@ use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 pub const YEAR: u32 = 365*DAYS;
 
 pub const GIB: u64 = 1024 * 1024 * 1024;
-pub const SPEED: u64 = 12; //
+pub const SPEED: u64 = 11; //
 pub const MiningExpire: u64 = 2;
 
 type BalanceOf<T> =
@@ -50,11 +50,11 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
     type GENESIS_BASE_TARGET: Get<u64>;
 
     /// 容量单位价格
-    type CapacityPrice: Get<BalanceOf<Self>>;
+    // type CapacityPrice: Get<BalanceOf<Self>>;
 
     type TotalMiningReward: Get<BalanceOf<Self>>;
 
-	type AdjustDifficultyDuration: Get<u64>;
+	// type AdjustDifficultyDuration: Get<u64>;
 
 	type ProbabilityDeviationValue: Get<Percent>;
 
@@ -108,6 +108,12 @@ decl_storage! {
 		/// 单个挖矿难度对应的容量(Gib为单位)
 		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64;
 
+		/// 多少个块调整一次难度
+		pub AdjustDifficultyDuration get(fn adjust_difficulty_duration): u64 = 40;
+
+		/// 单位容量的价格
+		pub CapacityPrice get(fn capacity_price): BalanceOf<T> = DOLLARS.saturated_into::<BalanceOf<T>>();
+
     }
 }
 
@@ -122,6 +128,8 @@ pub enum Event<T>
         RewardTreasury(AccountId, Balance),
         SetDifficulty(u64),
         SetCapacityOfPerDifficulty(u64),
+        SetAdjustDifficultyDuration(u64),
+        SetCapacityPrice(Balance),
     }
 }
 
@@ -139,11 +147,11 @@ decl_module! {
         /// poc总共挖矿奖励
         const TotalMiningReward: BalanceOf<T> = T::TotalMiningReward::get();
 
-        /// 容量单位（GB）价格
-    	const CapacityPrice: BalanceOf<T> = T::CapacityPrice::get();
+        // /// 容量单位（GB）价格
+    	// const CapacityPrice: BalanceOf<T> = <CapacityPrice<T>>::get();
 
-    	/// 多久调整一次难度
-    	const AdjustDifficultyDuration: u64 = T::AdjustDifficultyDuration::get();
+    	// /// 多久调整一次难度
+    	// const AdjustDifficultyDuration: u64 = <AdjustDifficultyDuration>::get();
 
     	/// 挖矿的概率偏离值（最大允许超过多少)
 		const ProbabilityDeviationValue: Percent = T::ProbabilityDeviationValue::get();
@@ -152,18 +160,18 @@ decl_module! {
 		const MaxDeadlineValue: u64 = T::MaxDeadlineValue::get();
 
 
-		/// 验证
-        #[weight = 1000]
-        fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
-
-            let miner = ensure_signed(origin)?;
-
-            ensure!(<AccountIdOfPid<T>>::contains_key(account_id as u128), Error::<T>::PidErr);
-
-            let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline).0;
-            Self::deposit_event(RawEvent::Verify(miner, is_ok));
-            Ok(())
-        }
+		// /// 验证
+        // #[weight = 1000]
+        // fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
+		//
+        //     let miner = ensure_signed(origin)?;
+		//
+        //     ensure!(<AccountIdOfPid<T>>::contains_key(account_id as u128), Error::<T>::PidErr);
+		//
+        //     let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline).0;
+        //     Self::deposit_event(RawEvent::Verify(miner, is_ok));
+        //     Ok(())
+        // }
 
         /// 设置难度
         #[weight = 10_000]
@@ -177,6 +185,23 @@ decl_module! {
                 });
 
             Self::deposit_event(RawEvent::SetDifficulty(base_target));
+
+        }
+
+
+        #[weight = 10_000]
+        fn set_adjust_difficulty_duration(origin, block_num: u64) {
+        	ensure_root(origin)?;
+        	ensure!(block_num > 0u64, Error::<T>::DurationIsZero);
+        	<AdjustDifficultyDuration>::put(block_num);
+        	Self::deposit_event(RawEvent::SetAdjustDifficultyDuration(block_num));
+        }
+
+		#[weight = 10_000]
+        fn set_capacity_price(origin, price: BalanceOf<T>) {
+        	ensure_root(origin)?;
+        	<CapacityPrice<T>>::put(price);
+        	Self::deposit_event(RawEvent::SetCapacityPrice(price));
 
         }
 
@@ -324,7 +349,7 @@ decl_module! {
 
 
 			// 20个块调整挖矿难度
-            if current_block % T::AdjustDifficultyDuration::get() == 0 {
+            if current_block % <AdjustDifficultyDuration>::get() == 0 {
                 Self::adjust_difficulty(current_block);
             }
 
@@ -443,7 +468,7 @@ impl<T: Trait> Module<T> {
         let mut deadline = 0_u64;
 
         while let Some(dl) = iter.next() {
-        	if count == T::AdjustDifficultyDuration::get() / MiningExpire {
+        	if count == <AdjustDifficultyDuration>::get() / MiningExpire {
                 break;
 				}
         	if dl.miner.is_some() {
@@ -575,7 +600,7 @@ impl<T: Trait> Module<T> {
 			let total_staking = staking_info_opt.unwrap().total_staking;
 
 			// 矿工应该抵押的金额
-			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>();
+			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>();
 
 			// 矿工抵押达标
 			if should_staking_amount <= total_staking {
@@ -593,16 +618,16 @@ impl<T: Trait> Module<T> {
 
 					<  miner_mining_num.saturated_into::<BalanceOf<T>>()
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-					  .saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>()
+					  .saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>()
 
 					&& (miner_mining_num.saturated_into::<BalanceOf<T>>()
 					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-					  .saturating_mul(T::CapacityPrice::get()) / GIB.saturated_into::<BalanceOf<T>>()).saturating_sub(should_staking_amount.saturating_mul(
+					  .saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>()).saturating_sub(should_staking_amount.saturating_mul(
 						net_mining_num.saturated_into::<BalanceOf<T>>()))
 
 					> T::ProbabilityDeviationValue::get() *
 						(net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-						.saturating_mul(T::CapacityPrice::get().saturated_into::<BalanceOf<T>>()))
+						.saturating_mul(<CapacityPrice<T>>::get().saturated_into::<BalanceOf<T>>()))
 						 / GIB.saturated_into::<BalanceOf<T>>()
 
 				{
@@ -826,8 +851,9 @@ decl_error! {
 		VerifyFaile,
 		/// 容量是0
 		CapacityIsZero,
-
+		/// 提交的deadline过大
 		DeadlineTooLarge,
-
+		/// 周期是0
+		DurationIsZero,
     }
 }

@@ -6,3 +6,8 @@ python3 start_boot_node.py --babe-key  0x975278e85da8930613d171773cb2028b8afcc12
 
 ./IPSE build-spec --chain=local > localspec.json
 ./IPSE build-spec --chain localspec.json --raw > customspec.json
+
+
+
+
+

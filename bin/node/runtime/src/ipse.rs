@@ -72,8 +72,8 @@ pub struct Miner<AccountId, Balance> {
     pub url: Vec<u8>,
     // public_key
     pub public_key: Vec<u8>,
-    // income_address
-    pub income_address: AccountId,
+    // stash_address
+    pub stash_address: AccountId,
     // capacity of data miner can store
     pub capacity: u128,
     // price per KB every day
@@ -186,7 +186,7 @@ decl_module! {
 
         /// 矿工进行注册登记
         #[weight = 10_000]
-        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,income_address: T::AccountId, capacity: u128, unit_price: BalanceOf<T>) {
+        fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,stash_address: T::AccountId, capacity: u128, unit_price: BalanceOf<T>) {
         	// 容量单位是kb
             let who = ensure_signed(origin)?;
             // staking
@@ -207,7 +207,7 @@ decl_module! {
                 region,
                 url,
                 public_key,
-                income_address,
+                stash_address,
                 capacity,
                 unit_price: unit_price,
                 violation_times: 0,
@@ -217,32 +217,6 @@ decl_module! {
             });
             Self::deposit_event(RawEvent::Registered(who));
         }
-
-        /// 矿工注册信息更新(容量)-miner  Schedule job
-        // #[weight = 10_000]
-        // fn update_miner(origin, nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>,public_key: Vec<u8>, income_address: T::AccountId, capacity: u128, unit_price: BalanceOf<T>) {
-        //     let who = ensure_signed(origin)?;
-        //
-        //     // must check total staking, if is zero, cannot confirm order.
-        //     let miner_info = Self::miner(&who).ok_or(Error::<T>::MinerNotFound)?;
-        //     ensure!(miner_info.total_staking > 0.saturated_into::<BalanceOf<T>>(), Error::<T>::NoneStaking);
-        //
-        //     if let Some(miner) = Miners::<T>::get(&who).as_mut() {
-        //
-        //         miner.nickname = nickname;
-        //         miner.region = region;
-        //         miner.url = url;
-        //         miner.public_key = public_key;
-        //         miner.income_address = income_address;
-        //         miner.capacity = capacity;
-        //         miner.unit_price = unit_price;
-        //         miner.update_ts = Self::get_now_ts();
-        //
-        //         Miners::<T>::insert(&who, miner);
-        //     }
-        //
-        //     Self::deposit_event(RawEvent::UpdatedMiner(who));
-        // }
 
 
         /// 用户创建订单
@@ -257,9 +231,10 @@ decl_module! {
             ensure!(<Miners<T>>::contains_key(&miner), Error::<T>::MinerNotFound);
 
 
-
-
             if let Some(miner_info) = Miners::<T>::get(&miner).as_mut() {
+
+                ensure!(miner_info.capacity > size, Error::<T>::InsufficientCapacityists);
+
                 miner_info.capacity = miner_info.capacity - size;
 
                 let day_price = miner_info.unit_price * size.saturated_into::<BalanceOf<T>>();
@@ -398,16 +373,13 @@ decl_module! {
             let mut orders = Self::order();
             let order = orders.get_mut(order_id as usize).ok_or(Error::<T>::OrderNotFound)?;
 
-			/// 已经提交
             ensure!(order.status == OrderStatus::Confirmed, Error::<T>::OrderUnconfirmed);
-            // todo: zk verify
 
             let now = Self::get_now_ts();
 
             for mut mo in &mut order.orders {
                 if mo.miner ==  miner {
                     mo.verify_ts = now;
-                    // temporarily assume verify_result is true
                     mo.verify_result = true;
                 }
             }
@@ -474,14 +446,11 @@ decl_module! {
                                     // verify result is ok, transfer one day's funds to miner
                                     //  transfer to income address
                                    if let Some(miner) = Miners::<T>::get(&mo.miner){
-                                        // T::StakingCurrency::unreserve(&order.user,  mo.day_price);
-                                        // 直接从保留金额中扣除
-                                        T::StakingCurrency::repatriate_reserved(&order.user, &miner.income_address, mo.day_price, BalanceStatus::Free);
+                                        T::StakingCurrency::repatriate_reserved(&order.user, &miner.stash_address, mo.day_price, BalanceStatus::Free);
 
                                         debug::info!("miner: {:?}",&miner);
 
                                         order.update_ts = now;
-                                        // mo.verify_ts = now;
 
                                         Self::update_history(current_block, mo.miner.clone(), mo.day_price);
 
@@ -706,6 +675,8 @@ decl_error! {
         PermissionDenyed,
         AmountNotEnough,
         NotInList,
+        /// Miners provide insufficient storage capacity
+        InsufficientCapacityists,
     }
 }
 

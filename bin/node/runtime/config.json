@@ -9,7 +9,7 @@
           "region": "Vec<u8>",
           "url": "Vec<u8>",
           "public_key": "Vec<u8>",
-          "income_address": "AccountId",
+          "stash_address": "AccountId",
           "capacity": "u128",
           "unit_price": "Balance",
           "violation_times": "u64",
