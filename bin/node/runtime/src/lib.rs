@@ -314,10 +314,10 @@ parameter_types! {
 
 	pub const ChillDuration: BlockNumber = EPOCH_DURATION_IN_BLOCKS;
 	pub const StakingDeposit: Balance = 1 * DOLLARS;
-	pub const StakerMaxNumber: usize = 5;//64;
-	pub const RecommendMaxNumber: usize = 5;
-	pub const StakingLockExpire: BlockNumber = 10 * MINUTES;
-	pub const RecommendLockExpire: BlockNumber = 15 * MINUTES;
+	pub const StakerMaxNumber: usize = 64;
+	pub const RecommendMaxNumber: usize = 50;
+	pub const StakingLockExpire: BlockNumber = 7*DAYS;
+	pub const RecommendLockExpire: BlockNumber = 7*DAYS;
 }
 
 impl poc_staking::Trait for Runtime {
@@ -348,11 +348,7 @@ parameter_types! {
 
 	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
 
-	// pub const CapacityPrice: Balance = 1 * DOLLARS;
-
-	// pub const AdjustDifficultyDuration: u64 = 100;
-
-	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(20);
+	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(50);
 
 	pub const MaxDeadlineValue: u64 = 12000;
 }
@@ -363,12 +359,12 @@ impl poc::Trait for Runtime {
 
     type GENESIS_BASE_TARGET = GENESIS_BASE_TARGET;
 
-    // type CapacityPrice = CapacityPrice;
-
     type PocAddOrigin = ();
+
     type TotalMiningReward = TotalMiningReward;
-	// type AdjustDifficultyDuration = AdjustDifficultyDuration;
+
 	type ProbabilityDeviationValue = ProbabilityDeviationValue;
+
 	type MaxDeadlineValue = MaxDeadlineValue;
 }
 
@@ -526,9 +522,9 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
-	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
-	pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+	pub const SessionsPerEra: sp_staking::SessionIndex = 6;  // 6个小时一个时代
+	pub const BondingDuration: pallet_staking::EraIndex = 4 * 7; // 7天
+	pub const SlashDeferDuration: pallet_staking::EraIndex = 27; //
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
@@ -573,13 +569,13 @@ impl pallet_staking::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
-	pub const VotingPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * 24 * 60 * MINUTES;
+	pub const LaunchPeriod: BlockNumber = 7 * 24 * 60 * MINUTES;
+	pub const VotingPeriod: BlockNumber = 7 * 24 * 60 * MINUTES;
+	pub const FastTrackVotingPeriod: BlockNumber = 3 * 60 * MINUTES;
 	pub const InstantAllowed: bool = true;
-	pub const MinimumDeposit: Balance = 100 * DOLLARS;
-	pub const EnactmentPeriod: BlockNumber = 30 * 24 * 60 * MINUTES;
-	pub const CooloffPeriod: BlockNumber = 28 * 24 * 60 * MINUTES;
+	pub const MinimumDeposit: Balance = 1 * DOLLARS;
+	pub const EnactmentPeriod: BlockNumber = 8 * 24 * 60 * MINUTES;
+	pub const CooloffPeriod: BlockNumber = 7 * 24 * 60 * MINUTES;
 	// One cent: $10,000 / MB
 	pub const PreimageByteDeposit: Balance = 1 * CENTS;
 	pub const MaxVotes: u32 = 100;
@@ -632,7 +628,7 @@ impl pallet_democracy::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 5 * DAYS;
+	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
 	pub const CouncilMaxMembers: u32 = 100;
 }
@@ -682,7 +678,7 @@ impl pallet_elections_phragmen::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const TechnicalMotionDuration: BlockNumber = 5 * DAYS;
+	pub const TechnicalMotionDuration: BlockNumber = 3 * DAYS;
 	pub const TechnicalMaxProposals: u32 = 100;
 	pub const TechnicalMaxMembers: u32 = 100;
 }

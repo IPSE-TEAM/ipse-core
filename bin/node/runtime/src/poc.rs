@@ -34,7 +34,7 @@ pub const YEAR: u32 = 365*DAYS;
 
 pub const GIB: u64 = 1024 * 1024 * 1024;
 pub const SPEED: u64 = 11; //
-pub const MiningExpire: u64 = 2;
+pub const MiningExpire: u64 = 2;   /// 不要对这个进行修改
 
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
@@ -49,12 +49,7 @@ pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::T
     /// GENESIS_BASE_TARGET
     type GENESIS_BASE_TARGET: Get<u64>;
 
-    /// 容量单位价格
-    // type CapacityPrice: Get<BalanceOf<Self>>;
-
     type TotalMiningReward: Get<BalanceOf<Self>>;
-
-	// type AdjustDifficultyDuration: Get<u64>;
 
 	type ProbabilityDeviationValue: Get<Percent>;
 
@@ -106,13 +101,13 @@ decl_storage! {
 		pub NetPower get(fn net_power): u64;
 
 		/// 单个挖矿难度对应的容量(Gib为单位)
-		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64;
+		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64 = 5;  /// 1024Gib = 200难度
 
 		/// 多少个块调整一次难度
-		pub AdjustDifficultyDuration get(fn adjust_difficulty_duration): u64 = 40;
+		pub AdjustDifficultyDuration get(fn adjust_difficulty_duration): u64 = 50;
 
 		/// 单位容量的价格
-		pub CapacityPrice get(fn capacity_price): BalanceOf<T> = DOLLARS.saturated_into::<BalanceOf<T>>();
+		pub CapacityPrice get(fn capacity_price): BalanceOf<T> = 10.saturated_into::<BalanceOf<T>>() * DOLLARS.saturated_into::<BalanceOf<T>>();
 
     }
 }
@@ -146,12 +141,6 @@ decl_module! {
 
         /// poc总共挖矿奖励
         const TotalMiningReward: BalanceOf<T> = T::TotalMiningReward::get();
-
-        // /// 容量单位（GB）价格
-    	// const CapacityPrice: BalanceOf<T> = <CapacityPrice<T>>::get();
-
-    	// /// 多久调整一次难度
-    	// const AdjustDifficultyDuration: u64 = <AdjustDifficultyDuration>::get();
 
     	/// 挖矿的概率偏离值（最大允许超过多少)
 		const ProbabilityDeviationValue: Percent = T::ProbabilityDeviationValue::get();
@@ -738,7 +727,6 @@ impl<T: Trait> Module<T> {
 		let capacity = difficult.saturating_mul(GIB * <CapacityOfPerDifficulty>::get());
 
 		<NetPower>::put(capacity);
-		// let declared_capacity = <DeclaredCapacity>::get();
 
 		return capacity;
 
