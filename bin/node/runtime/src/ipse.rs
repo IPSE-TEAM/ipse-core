@@ -187,16 +187,12 @@ decl_module! {
         /// 矿工进行注册登记
         #[weight = 10_000]
         fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,stash_address: T::AccountId, capacity: u128, unit_price: BalanceOf<T>) {
-        	// 容量单位是kb
             let who = ensure_signed(origin)?;
-            // staking
+
             let total_staking = capacity.saturated_into::<BalanceOf<T>>() * unit_price;
-            // debug::info!("======unit_price========{:?}",unit_price);
-            // debug::info!("=======total_staking======={:?}",total_staking);
-            //
-            // ensure!(T::StakingCurrency::can_reserve(&who, total_staking), Error::<T>::CannotStake);
-            // // reserve for staking
-            // T::StakingCurrency::reserve(&who,total_staking)?;
+
+            ensure!(capacity > 0, Error::<T>::NoneCapacity);
+
             ensure!(!<Url<T>>::contains_key(url.clone()), Error::<T>::UrlExists);
 
             Url::<T>::insert(url.clone(),&who);
@@ -229,6 +225,7 @@ decl_module! {
             let miner_cp = miner.clone();
 
             ensure!(<Miners<T>>::contains_key(&miner), Error::<T>::MinerNotFound);
+            ensure!(days > 0, Error::<T>::NoneDays);
 
 
             if let Some(miner_info) = Miners::<T>::get(&miner).as_mut() {
@@ -677,6 +674,8 @@ decl_error! {
         NotInList,
         /// Miners provide insufficient storage capacity
         InsufficientCapacityists,
+        NoneCapacity,
+        NoneDays,
     }
 }
 
