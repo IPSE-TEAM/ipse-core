@@ -352,7 +352,7 @@ decl_module! {
 			ensure!(disk != 0 as GIB, Error::<T>::PlotSizeIsZero);
 
 			/// 必须在非冷冻期
-// 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
+			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
 
 			T::PocHandler::remove_history(miner.clone());
 
@@ -444,7 +444,7 @@ decl_module! {
 			Self::is_can_mining(miner.clone())?;
 
 			// 不在冷冻期
-// 			ensure!(!<IsChillTime>::get(), Error::<T>::ChillTime);
+			ensure!(!<IsChillTime>::get(), Error::<T>::ChillTime);
 
 			// 还没有抵押
 			if Self::staker_pos(miner.clone(), who.clone()).is_some() {
@@ -520,7 +520,7 @@ decl_module! {
         	let miner = ensure_signed(origin)?;
 
 // 			// 在冻结期内才能执行
-//         	ensure!(<IsChillTime>::get(), Error::<T>::NotChillTime);
+        	ensure!(<IsChillTime>::get(), Error::<T>::NotChillTime);
 
         	Self::is_can_mining(miner.clone())?;
 
