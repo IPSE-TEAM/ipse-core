@@ -32,7 +32,7 @@ use frame_support::{
 	},
 	traits::{Currency, Imbalance, KeyOwnerProofSystem, OnUnbalanced, Randomness, LockIdentifier},
 };
-use frame_system::{EnsureRoot, EnsureOneOf};
+use frame_system::{EnsureRoot, EnsureOneOf, Trait};
 use frame_support::traits::InstanceFilter;
 use codec::{Encode, Decode};
 use sp_core::{
@@ -271,6 +271,7 @@ impl InstanceFilter<Call> for ProxyType {
 
 parameter_types! {
 	pub const TxsMaxCount: u32 = 1000;
+	pub const Months: BlockNumber = MONTHS;
 	pub const Hours:BlockNumber = HOURS;
 	pub const OffchainWorkUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
 }
@@ -279,6 +280,7 @@ impl exchange::Trait for Runtime {
 	type Event = Event;
 	type AuthorityId = exchange::eos_crypto::AuthorityId;
 	type TxsMaxCount = TxsMaxCount;
+	type Deadline = Months;
 	type Duration = Hours;
 	type UnsignedPriority = OffchainWorkUnsignedPriority;
 	type OnUnbalanced = ();

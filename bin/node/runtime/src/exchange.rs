@@ -120,6 +120,8 @@ pub trait Trait: system::Trait + timestamp::Trait + SendTransactionTypes<Call<Se
 
     // tx 队列的最大长度
     type TxsMaxCount: Get<u32>;
+    // 截止兑换周期
+    type Deadline: Get<Self::BlockNumber>;
 
     type Duration: Get<Self::BlockNumber>;  // 对记录的清除周期
 
@@ -179,7 +181,7 @@ decl_event!(
 decl_storage! {
   trait Store for Module<T: Trait> as PostExchange {
         /// 设置 兑换截止时间
-        DeadlineTime: T::BlockNumber;
+        RootDeadlineTime: T::BlockNumber;
 
         /// 等同于队列作用
         /// 设置状态位  u32表现形式1xxx.初始值为 1000,低3位分别表示 验证通过次数,验证失败次数,非正常情况返回次数, tx => 1xxx,AccountId,
@@ -231,10 +233,10 @@ decl_module! {
         0
        }
 
-       #[weight = 0]
+     #[weight = 0]
      fn SetExchangeDealine(origin, deadline_time: T::BlockNumber) -> DispatchResult{
             ensure_root(origin)?;
-            <DeadlineTime<T>>::put(deadline_time);
+            <RootDeadlineTime<T>>::put(deadline_time);
             Ok(())
      }
 
@@ -244,7 +246,8 @@ decl_module! {
      fn exchange(origin, tx: Vec<u8>) -> DispatchResult{
         //用户填写 eos 的转账tx, memo 表示 ipse的接收地址
         // 根据 转账的 post 个数兑换相应的 post2
-        if <DeadlineTime<T>>::get() < <system::Module<T>>::block_number(){
+        let deadline_blocknum = sp_std::cmp::max(<RootDeadlineTime<T>>::get(),T::Deadline::get());
+        if deadline_blocknum < <system::Module<T>>::block_number(){
             return Err(Error::<T>::DeadExchange)?;
         }
         let who = ensure_signed(origin)?;
