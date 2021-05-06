@@ -1,0 +1,66 @@
+购买服务器，云主机，早期2核心4G内存就足够了，系统盘10G，数据盘80G。
+
+记得开放端口 9933 9944 30333
+
+
+
+登陆云云主机
+
+切换root用户
+
+sudo su
+
+手动格式化磁盘并挂载
+
+查看磁盘位置，比如是 /dev/sdb
+fdisk -l 
+
+fdisk /dev/sdb
+
+输入n，一直回车，然后输入 wq 回车
+
+mkfs.ext4 /dev/sdb1 
+
+mkdir /data
+mount /dev/sdb1 /data
+cd /data
+
+
+
+
+
+
+wget https://github.com/paritytech/polkadot/releases/download/v0.8.22/polkadot
+
+chmod +x polkadot
+
+nohup ./polkadot --pruning=archive --name="Doter" --base-path=/data --rpc-cors all &
+
+--name后面填入你的节点名字，上面命令同步需要个1天，查看自己节点的网址：https://telemetry.polkadot.io/#list/Polkadot
+
+同步好后，查看polkadot进程，并杀死
+
+ps -aux | grep polkadot
+
+比如 出现 root     21887 19.0  8.2 2945544 633628 ?      Sl   Aug09 2797:54 ./polkadot --validator --name Joie --base-path=/data --rpc-cors all
+
+那么杀死 21887 进程
+
+kill 21887
+
+ps -aux | grep polkadot
+
+再次查看进程有没有被杀死，没上面长串出现，表示杀死成功
+
+nohup ./polkadot --validator  --name "Doter" --base-path=/data --rpc-cors all &
+
+--name后面填入你的节点名字，上面命令即可跑起节点来。
+
+
+
+
+
+
+### 查看session key，这个sessin key就给前端使用
+
+curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9933
