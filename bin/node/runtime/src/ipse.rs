@@ -152,25 +152,25 @@ pub enum OrderStatus {
 
 decl_storage! {
     trait Store for Module<T: Trait> as Ipse {
-    	/// 矿工的信息
+    	/// the info of miners.
         pub Miners get(fn miner): map hasher(twox_64_concat) T::AccountId => Option<Miner<T::AccountId,BalanceOf<T>>>;
 
         /// order id is the index of vec.
         pub Orders get(fn order): Vec<Order<T::AccountId, BalanceOf<T>>>;
 
-		/// 推荐的矿工列表
+		/// exposed miners
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
-		/// Miner 存储记录(最大100条)
+		/// the rewad history of miners.
         pub MinerHistory get(fn miner_history): map hasher(twox_64_concat) T::AccountId => Vec<Order<T::AccountId, BalanceOf<T>>>;
 
-		/// 矿工的挖矿记录
+		/// the rewad history of users.
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<T::AccountId,BalanceOf<T>, T::BlockNumber>>;
 
-		/// 矿工的挖矿记录
+		/// whose url?.
         pub Url get(fn url): map hasher(twox_64_concat) Vec<u8> => T::AccountId;
 
-        /// 全部矿工list order 最大显示 500
+        /// orders.
         pub ListOrder get(fn list_order): Vec<Order<T::AccountId, BalanceOf<T>>>;
 
     }
@@ -184,7 +184,7 @@ decl_module! {
         fn deposit_event() = default;
 
 
-        /// 矿工进行注册登记
+        /// register
         #[weight = 10_000]
         fn register_miner(origin,nickname: Vec<u8>, region: Vec<u8>, url: Vec<u8>, public_key: Vec<u8>,stash_address: T::AccountId, capacity: u128, unit_price: BalanceOf<T>) {
             let who = ensure_signed(origin)?;
@@ -215,7 +215,7 @@ decl_module! {
         }
 
 
-        /// 用户创建订单
+        /// the user create the order.
         #[weight = 10_000]
         fn create_order(origin,miner: T::AccountId, label: Vec<u8>, hash: [u8; 46], size: u128, url: Option<Vec<u8>>, days: u64, unit_price: BalanceOf<T>) {
             let user = ensure_signed(origin)?;
@@ -299,7 +299,7 @@ decl_module! {
 
         }
 
-        /// 矿工确认订单-自动搞定
+        /// the miner confirm the order.
         #[weight = 10_000]
         fn confirm_order(origin, order_id: u64, url: Vec<u8>) {
             let miner = ensure_signed(origin)?;
@@ -334,7 +334,7 @@ decl_module! {
         }
 
 
-        /// 用户删除订单
+        /// users delete their order.
         #[weight = 10_000]
         fn delete_order(origin, order_id: u64) {
             let user = ensure_signed(origin)?;
@@ -363,7 +363,7 @@ decl_module! {
 
 
 
-        /// 数据验证
+        /// verify
         #[weight = 10_000]
         fn verify_storage(origin, order_id: u64) {
             let miner = ensure_signed(origin)?;
@@ -385,7 +385,7 @@ decl_module! {
 
 
 
-        /// 矿工申请进入推荐列表
+        /// the miner apply to recommended list.
 		#[weight = 10_000]
 		fn apply_to_recommended_list(origin, amount: BalanceOf<T>) {
 
@@ -402,7 +402,7 @@ decl_module! {
 		}
 
 
-		/// 矿工退出推荐列表
+		/// the miner drop out recommended list.
 		#[weight = 10_000]
 		fn drop_out_recommended_list(origin) {
 			let miner = ensure_signed(origin)?;

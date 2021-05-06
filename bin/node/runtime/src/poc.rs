@@ -29,12 +29,14 @@ use conjugate_poc::{poc_hashing::{calculate_scoop, find_best_deadline_rust}, non
 
 use crate::constants::{time::{MILLISECS_PER_BLOCK, DAYS}, currency::DOLLARS};
 
-/// 一年多少个块
+/// block numbers of a year
 pub const YEAR: u32 = 365*DAYS;
 
 pub const GIB: u64 = 1024 * 1024 * 1024;
-pub const SPEED: u64 = 11; //
-pub const MiningExpire: u64 = 2;   /// 不要对这个进行修改
+
+/// you should not modify the SPEED and the MiningExpire
+pub const SPEED: u64 = 11;
+pub const MiningExpire: u64 = 2;
 
 type BalanceOf<T> =
 	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
@@ -85,28 +87,28 @@ pub struct Difficulty {
 decl_storage! {
     trait Store for Module<T: Trait> as PoC {
 
-		/// 每个周期的难度记录
+		/// difficulties of some duration(50 blocks).
         pub TargetInfo get(fn target_info): Vec<Difficulty>;
 
-        /// poc出块信息
+        /// deadlines of the mining.
         pub DlInfo get(fn dl_info): Vec<MiningInfo<T::AccountId>>;
 
-        /// 矿工的挖矿记录
+        /// the mining history of per miner.
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
-        /// 用户的详细奖励记录
+        /// the reward history of per user.
 		pub UserRewardHistory get(fn user_reward_history): map hasher(twox_64_concat) T::AccountId => Vec<(T::BlockNumber, BalanceOf<T>)>;
 
-		/// 全网算力
+		/// the net power(how much capacity)
 		pub NetPower get(fn net_power): u64;
 
-		/// 单个挖矿难度对应的容量(Gib为单位)
+		/// how much capacity of a difficulty.
 		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64 = 5;  /// 1024Gib = 200难度
 
-		/// 多少个块调整一次难度
+		/// how many block number that adjust difficulty.
 		pub AdjustDifficultyDuration get(fn adjust_difficulty_duration): u64 = 50;
 
-		/// 单位容量的价格
+		/// how much per Gib.
 		pub CapacityPrice get(fn capacity_price): BalanceOf<T> = 10.saturated_into::<BalanceOf<T>>() * DOLLARS.saturated_into::<BalanceOf<T>>();
 
     }
@@ -139,38 +141,24 @@ decl_module! {
 
         const GENESIS_BASE_TARGET: u64 = T::GENESIS_BASE_TARGET::get();
 
-        /// poc总共挖矿奖励
+        /// poc mining total reward.
         const TotalMiningReward: BalanceOf<T> = T::TotalMiningReward::get();
 
-    	/// 挖矿的概率偏离值（最大允许超过多少)
+    	/// the max deviation value of the mining probability。
 		const ProbabilityDeviationValue: Percent = T::ProbabilityDeviationValue::get();
 
-		/// max deadine
+		/// max deadine(you should not submit the value up this value).
 		const MaxDeadlineValue: u64 = T::MaxDeadlineValue::get();
 
 
-		// /// 验证
-        // #[weight = 1000]
-        // fn verify_deadline(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
-		//
-        //     let miner = ensure_signed(origin)?;
-		//
-        //     ensure!(<AccountIdOfPid<T>>::contains_key(account_id as u128), Error::<T>::PidErr);
-		//
-        //     let is_ok = Self::verify_dl(account_id, height, sig, nonce, deadline).0;
-        //     Self::deposit_event(RawEvent::Verify(miner, is_ok));
-        //     Ok(())
-        // }
-
-        /// 设置难度
+        /// set the difficulty
         #[weight = 10_000]
         fn set_difficulty(origin, difficulty: u64) {
 
         	ensure_root(origin)?;
 
-        	/// 难度不能是0
         	ensure!(difficulty != 0u64, Error::<T>::DifficultyIsZero);
-        	/// 难度不能大于GENESIS_BASE_TARGET
+
         	ensure!(difficulty <= T::GENESIS_BASE_TARGET::get(), Error::<T>::DifficultyIsTooLarge);
 
         	let base_target = T::GENESIS_BASE_TARGET::get() / difficulty;
@@ -187,6 +175,7 @@ decl_module! {
         }
 
 
+		/// how many blocks that automatic adjust the difficulty.
         #[weight = 10_000]
         fn set_adjust_difficulty_duration(origin, block_num: u64) {
         	ensure_root(origin)?;
@@ -195,6 +184,7 @@ decl_module! {
         	Self::deposit_event(RawEvent::SetAdjustDifficultyDuration(block_num));
         }
 
+		/// how much per Gib.
 		#[weight = 10_000]
         fn set_capacity_price(origin, price: BalanceOf<T>) {
         	ensure_root(origin)?;
@@ -204,7 +194,7 @@ decl_module! {
         }
 
 
-        /// 设置每个挖矿难度对应的全网容量(单位是Gib)
+        /// how much capacity that one difficulty.
         #[weight = 10_000]
         fn set_capacity_of_per_difficulty(origin, capacity: u64) {
         	ensure_root(origin)?;
@@ -215,7 +205,7 @@ decl_module! {
         }
 
 
-		/// 挖矿
+		/// sunmit deadline.
 		#[weight = 0]
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 
@@ -855,29 +845,29 @@ impl<T: Trait> PocHandler<T::AccountId> for Module<T> {
 decl_error! {
     /// Error for the ipse module.
     pub enum Error for Module<T: Trait> {
-		/// 除以0错误
+		/// 0 can't be a divisor.
 		DivZero,
-		/// 没有注册过
+		/// not register.
 		NotRegister,
-		/// 提交的p盘id错误
+		/// not your plot id.
 		PidErr,
-		/// 数据转换错误
+		/// data type conversion error
 		ConvertErr,
-		/// 提交的高度不在当前周期
+		/// submit deadline too delay.
 		HeightNotInDuration,
-		/// 不是最优的deadline
+		/// not best deadline
 		NotBestDeadline,
-		/// 验证失败
+		/// deadline verify failed.
 		VerifyFaile,
-		/// 容量是0
+		/// the capacity should not empty.
 		CapacityIsZero,
-		/// 提交的deadline过大
+		/// submit deadline up max value.
 		DeadlineTooLarge,
-		/// 周期是0
+		/// the block number should not zero.
 		DurationIsZero,
-		/// 难度不能为0
+		/// the difficulty should not zero.
 		DifficultyIsZero,
-		/// 难度太大
+		/// the difficulty up max value.
 		DifficultyIsTooLarge,
     }
 }

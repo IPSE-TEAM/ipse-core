@@ -109,37 +109,37 @@ impl Default for Oprate {
 decl_storage! {
     trait Store for Module<T: Trait> as IpseStakingModule {
 
-		/// 矿工磁盘空间信息
+		/// the machine info of miners.
 		pub DiskOf get(fn disk_of): map hasher(twox_64_concat) T::AccountId => Option<MachineInfo<T::BlockNumber, T::AccountId>>;
 
-		/// 是否在非抵押操作期间（冷却期，只有矿工能改变信息)
+		/// is in the chill time(only miners can update their info).
 		pub IsChillTime get(fn is_chill_time): bool = true;
 
-		/// 每个矿工对应的抵押信息
+		/// the staking info of miners.
 		pub StakingInfoOf get(fn staking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, BalanceOf<T>>>;
 
-		/// 用户现在抵押的矿工
+		/// miners of the user that help stake.
 		pub MinersOf get(fn miners_of): map hasher(twox_64_concat) T::AccountId => Vec<T::AccountId>;
 
-		/// P盘id对应的矿工
+		/// whose plot id?.
 		pub AccountIdOfPid get(fn accouont_id_of_pid): map hasher(twox_64_concat) u128 => Option<T::AccountId>;
 
-		/// 推荐的矿工列表
+		/// exposed miners.
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
-		/// 矿工上报的容量
+		/// total declared capacity of miners.
 		pub DeclaredCapacity get(fn declared_capacity): u64;
 
-		/// 注册过的矿工
+		/// minsers that already registered
 		pub Miners get(fn miners): BTreeSet<T::AccountId>;
 
-		/// 正在挖矿的矿工
+		/// miners that mining.
 		pub MiningMiners get(fn mining_miners): BTreeSet<T::AccountId>;
 
-		/// 正在挖矿的矿工人数
+		/// the number of mining miners.
 		pub MiningNum get(fn mining_num): u64;
 
-		/// 锁仓
+		/// locks.
 		pub Locks get(fn locks): map hasher(twox_64_concat) T::AccountId => Option<Vec<(T::BlockNumber, BalanceOf<T>)>>;
 
 
@@ -172,17 +172,17 @@ pub enum Event<T>
 
 decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-     	/// 冷却期时长（从每个era开始计算，前面的区块是冷却期)
+     	/// how many block of the chill time.
      	const ChillDuration: T::BlockNumber = T::ChillDuration::get();
-     	/// staking时候需要保留的余额
+     	/// how much you should deposit when staking.
      	const StakingDeposit: BalanceOf<T> = T::StakingDeposit::get();
-     	/// 一名矿工最多有多少名抵押者
+     	/// max miners number that user can stake.
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
-     	/// 抵押退出后需要锁仓的时长
+     	/// how many blocks can unlock when you not stake.
      	const StakingLockExpire: T::BlockNumber = T::StakingLockExpire::get();
-     	/// 推荐退出后需要锁仓的时间
+     	/// how many blocks can unlock when you down the recommend list.
      	const RecommendLockExpire: T::BlockNumber = T::RecommendLockExpire::get();
-     	/// 抵押排名人数上限
+     	/// max miners number of the recommend list.
      	const RecommendMaxNumber: u32 = T::RecommendMaxNumber::get() as u32;
 
      	type Error = Error<T>;
@@ -190,7 +190,7 @@ decl_module! {
         fn deposit_event() = default;
 
 
-		/// 矿工注册
+		/// register.
 		#[weight = 10_000]
 		fn register(origin, plot_size: GIB, numeric_id: u128, miner_proportion: u32, reward_dest: Option<T::AccountId>) {
 
@@ -252,7 +252,7 @@ decl_module! {
 		}
 
 
-		/// 矿工申请进入推荐列表
+		/// if you want up to the recommend list. First, you should request.
 		#[weight = 10_000]
 		fn request_up_to_list(origin, amount: BalanceOf<T>) {
 
@@ -269,7 +269,7 @@ decl_module! {
 		}
 
 
-		/// 矿工退出推荐列表
+		/// the miner down from the recommended list
 		#[weight = 10_000]
 		fn request_down_from_list(origin) {
 			let miner = ensure_signed(origin)?;
@@ -294,7 +294,7 @@ decl_module! {
 
 		}
 
-		/// 修改矿工收益地址
+		/// the miner modify income address.
 		#[weight = 10_000]
 		fn update_reward_dest(origin, dest: T::AccountId) {
 			let miner = ensure_signed(origin)?;
@@ -310,7 +310,7 @@ decl_module! {
 		}
 
 
-		/// 矿工修改p盘id
+		/// the miner modify plot id.
 		#[weight = 10_000]
 		fn update_numeric_id(origin, numeric_id: u128) {
 			let miner = ensure_signed(origin)?;
@@ -338,7 +338,7 @@ decl_module! {
 		}
 
 
-		/// 更新磁盘信息
+		/// the miner modify the plot size.
         #[weight = 10_000]
         fn update_plot_size(origin, plot_size: GIB) {
 
@@ -381,7 +381,7 @@ decl_module! {
         }
 
 
-		/// 矿工停止挖矿
+		/// miners stop their machine.
 		#[weight = 10_000]
         fn stop_mining(origin) {
 
@@ -400,7 +400,7 @@ decl_module! {
 		}
 
 
-		/// 矿工重新开始挖矿
+		/// the miner restart mining.
 		#[weight = 10_000]
 		fn restart_mining(origin) {
 			let miner = ensure_signed(origin)?;
@@ -421,7 +421,7 @@ decl_module! {
 		}
 
 
-        /// 矿工删除抵押者
+        /// miners remove their staker.
         #[weight = 10_000]
         fn remove_staker(origin, staker: T::AccountId) {
 
@@ -435,7 +435,7 @@ decl_module! {
         }
 
 
-		/// 用户第一次抵押
+		/// the user staking for miners.
         #[weight = 10_000]
         fn staking(origin, miner: T::AccountId, amount: BalanceOf<T>) {
 
@@ -479,7 +479,7 @@ decl_module! {
         }
 
 
-		/// 抵押者更新抵押金额
+		/// users update their staking amount.
         #[weight = 10_000]
         fn update_staking(origin, miner: T::AccountId, oprate: Oprate, amount: BalanceOf<T>) {
 
@@ -492,7 +492,7 @@ decl_module! {
         }
 
 
-        /// 用户手动领取琐仓金额
+        /// unlock
         #[weight = 10_000]
         fn unlock(origin) {
         	let staker = ensure_signed(origin)?;
@@ -502,7 +502,7 @@ decl_module! {
         }
 
 
-        /// 用户退出抵押
+        /// the user exit staking.
         #[weight = 10_000]
         fn exit_Staking(origin, miner: T::AccountId) {
         	let staker = ensure_signed(origin)?;
@@ -513,7 +513,7 @@ decl_module! {
         }
 
 
-		/// 矿工更改分润比
+		/// miners update their mining reward proportion.
         #[weight = 10_000]
         fn update_proportion(origin, proportion: Percent) {
 
@@ -889,35 +889,35 @@ impl<T: Trait> Module<T> {
 decl_error! {
     /// Error for the ipse module.
     pub enum Error for Module<T: Trait> {
-    	/// p盘id已经被使用
+    	/// the numeric id is in using.
     	NumericIdInUsing,
-    	/// 已经注册过
+    	/// the miner already register.
 		AlreadyRegister,
-		/// 没有注册过
+		/// the miner is not register.
 		NotRegister,
-		/// p盘空间为0(不允许)
+		/// plot size should not 0.
 		PlotSizeIsZero,
-		/// 在冷冻期（只能矿工修改信息，用户不能进行抵押或是解抵押操作)
+		/// in chill time.
 		ChillTime,
-		/// 不在冷冻期
+		/// not in chill time.
 		NotChillTime,
-		/// 已经停止挖矿
+		/// miner already stop mining.
 		AlreadyStopMining,
-		/// 不是当前矿工的抵押者
+		/// not the staker of this miner.
 		NotYourStaker,
-		/// 已经抵押
+		/// the user already staking.
 		AlreadyStaking,
-		/// 数据溢出
+		/// over flow.
 		Overflow,
-		/// 抵押人数超过限制
+		/// the satkers number of this miner is up the max value.
 		StakerNumberToMax,
-		/// 账户金额不够
+		/// amount not enough.
 		AmountNotEnough,
-		/// 不在推荐列表中
+		/// not in the recommend list.
 		NotInList,
-		/// 挖矿没有停止
+		/// you did not stop mining.
 		MiningNotStop,
-		/// 金额太少
+		/// you should add the amount.
 		AmountTooLow,
 
 	}
