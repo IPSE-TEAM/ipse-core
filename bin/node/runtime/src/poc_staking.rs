@@ -535,7 +535,7 @@ decl_module! {
 
 
 		fn on_initialize(n: T::BlockNumber) -> Weight {
-			debug::info!("staking_poc----当前打印的高度是:{:?}", Self::now());
+			// debug::info!("staking_poc----当前打印的高度是:{:?}", Self::now());
 			let _ = Self::update_chill();
 			0
 

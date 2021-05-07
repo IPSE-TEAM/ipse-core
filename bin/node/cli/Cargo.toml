@@ -90,7 +90,7 @@ pallet-staking = { version = "2.0.0", path = "../../../frame/staking" }
 pallet-grandpa = { version = "2.0.0", path = "../../../frame/grandpa" }
 
 # node-specific dependencies
-node-runtime = { version = "2.0.0", path = "../runtime" }
+node-runtime = { version = "2.1.0", path = "../runtime" }
 node-rpc = { version = "2.0.0", path = "../rpc" }
 node-primitives = { version = "2.0.0", path = "../primitives" }
 node-executor = { version = "2.0.0", path = "../executor" }

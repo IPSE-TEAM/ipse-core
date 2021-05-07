@@ -6,6 +6,9 @@ use crate::poc_staking as staking;
 use crate::poc_staking::AccountIdOfPid;
 use crate::poc_staking::DeclaredCapacity;
 use sp_std::convert::{TryInto,TryFrom, Into};
+use sp_std::{collections::btree_set::BTreeSet};
+use num_traits::Zero;
+use crate::constants::time::HOURS;
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -111,6 +114,9 @@ decl_storage! {
 		/// how much per Gib.
 		pub CapacityPrice get(fn capacity_price): BalanceOf<T> = 10.saturated_into::<BalanceOf<T>>() * DOLLARS.saturated_into::<BalanceOf<T>>();
 
+		/// active miners (now_count, [account_id..], last_count, [account_id..])
+		pub ActiveMiners get(fn active_miners): (u32, BTreeSet<T::AccountId>, u32, BTreeSet<T::AccountId>);
+
     }
 }
 
@@ -211,7 +217,11 @@ decl_module! {
 
             let miner = ensure_signed(origin)?;
 
-			debug::info!("矿工: {:?},  提交挖矿!, height = {}, deadline = {}", miner.clone(), height, deadline);
+			<ActiveMiners<T>>::mutate(|h| if h.1.insert(miner.clone()) {
+				h.0 += 1;
+			});
+
+			debug::info!("miner: {:?},  submit deadline!, height = {}, deadline = {}", miner.clone(), height, deadline);
 
             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
@@ -229,7 +239,7 @@ decl_module! {
 			// 必须在同一周期 并且提交的时间比处理的时间迟
             if !(current_block / MiningExpire == height / MiningExpire && current_block >= height)
             {
-                debug::info!("提交挖矿过期! 请求数据的区块是：{:?}, 提交挖矿的区块是: {:?}, 提交的deadline是: {:?}", height, current_block, deadline);
+                debug::info!("expire! ：{:?}, off chain get info block: {:?}, deadline is: {:?}", height, current_block, deadline);
 
 				return Err(Error::<T>::HeightNotInDuration)?;
             }
@@ -247,7 +257,7 @@ decl_module! {
             // 如果这个块已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block / MiningExpire == block / MiningExpire {
 
-                debug::info!("不是最优答案! 本周期 height = {} 已经有较优best_dl = {}, 提交的deadline = {}!", height, best_dl, deadline);
+                debug::info!("not best deadline! best_dl = {}, submit deadline = {}!", best_dl, deadline);
 
                 return Err(Error::<T>::NotBestDeadline)?;
             }
@@ -255,7 +265,7 @@ decl_module! {
             let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
 
             if verify_ok.0 {
-            	debug::info!("挖矿成功!, 提交的deadline = {}", deadline);
+            	debug::info!("verify is ok!, deadline = {}", deadline);
 
                 // 这里保证了这个块的dl_info的最后一个总是最优解
                 if current_block / MiningExpire == block / MiningExpire {
@@ -275,7 +285,7 @@ decl_module! {
             }
 
             else {
-				debug::info!("验证没有通过! deadline = {:?}, target = {:?}, base_target = {:?}", verify_ok.1 / verify_ok.2, verify_ok.1, verify_ok.2);
+				debug::info!("verify failed! deadline = {:?}, target = {:?}, base_target = {:?}", verify_ok.1 / verify_ok.2, verify_ok.1, verify_ok.2);
 				return Err(Error::<T>::VerifyFaile)?;
             }
 
@@ -297,6 +307,16 @@ decl_module! {
 
 
         fn on_finalize(n: T::BlockNumber) {
+
+        	/// 每8个小时更新一次活跃矿工
+        	if (n % ( 8 * HOURS).saturated_into::<T::BlockNumber>()).is_zero() {
+        		<ActiveMiners<T>>::mutate(|h| {
+        			h.2 = h.0.clone();
+        			h.3 = h.1.clone();
+        			h.1.clear();
+        			h.0 = 0u32;
+        		});
+        	}
             let current_block = n.saturated_into::<u64>();
             let last_mining_block = Self::get_last_mining_block();
 
@@ -590,40 +610,27 @@ impl<T: Trait> Module<T> {
 			let total_staking = staking_info_opt.unwrap().total_staking;
 
 			// 矿工应该抵押的金额
-			let should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>();
+			let miner_should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>();
 
 			// 矿工抵押达标
-			if should_staking_amount <= total_staking {
-				debug::info!("矿工抵押达标(基本满足自己设定的容量和应该抵押的金额({:?})！", total_staking);
-				// 一个块挖一次
-				let net_mining_num = (now - update_time).saturated_into::<u64>() + 1;
+			if miner_should_staking_amount <= total_staking {
+				debug::info!("miner's staking enough！staking enough = {:?} ", total_staking);
+				// 2个块挖一次
+				let net_mining_num = (now - update_time).saturated_into::<u64>() / MiningExpire;
 
-				debug::info!("矿工: {:?}, 挖矿的概率是: {:?} / {:?}", miner.clone(), miner_mining_num, net_mining_num);
+				debug::info!("miner: {:?}, mining probability: {:?} / {:?}", miner.clone(), miner_mining_num, net_mining_num);
+
+				/// 全网该抵押的金额
+				let net_should_staking_total_amount = Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>();
 
 				// 矿工挖矿的概率如果偏高(超出20%) 那么就说明磁盘空间虚报， 偏低， 应该增加p盘空间
-				// 本机挖矿次数 / 全网挖矿次数 - 本机算力 / 全网算力 > 20%
-				// 以上公式换算得： 本机挖矿次数 * 全网算力 - 全网挖矿次数 * 本机算力 > 矿工挖矿概率允许的最大偏离值 * 全网挖矿次数 * 全网算力
+				// 本机挖矿次数 / 全网挖矿次数 - 本机算力 / 全网算力 > 20% * (本机算力 / 全网算力)
+				// 本机挖矿次数 / 全网挖矿次数 > (1 + 矿工挖矿概率允许的最大偏离值)	* (本机算力 / 全网算力)
+				// 以上公式换算得: 本机挖矿次数 * 全网算力 > 全网挖矿次数 * 本机算力 * (1 + 矿工挖矿概率允许的最大偏离值)
+				if miner_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(net_should_staking_total_amount) >
+					(net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount).saturating_add(T::ProbabilityDeviationValue::get() * (net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount)) {
 
-				if should_staking_amount.saturating_mul(net_mining_num.saturated_into::<BalanceOf<T>>())
-
-					<  miner_mining_num.saturated_into::<BalanceOf<T>>()
-					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-					  .saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>()
-
-					&& (miner_mining_num.saturated_into::<BalanceOf<T>>()
-					  .saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-					  .saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>()).saturating_sub(should_staking_amount.saturating_mul(
-						net_mining_num.saturated_into::<BalanceOf<T>>()))
-
-					> T::ProbabilityDeviationValue::get() *
-						(net_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(Self::get_total_capacity().saturated_into::<BalanceOf<T>>())
-						.saturating_mul(<CapacityPrice<T>>::get().saturated_into::<BalanceOf<T>>()))
-						 / GIB.saturated_into::<BalanceOf<T>>()
-
-				{
-
-					debug::info!("矿工挖矿概率偏高， 应该增加p盘空间！, 矿工: {:?}, 按照目前挖矿概率({:?}/{:?})， 至少需要： {:?} GiB", miner.clone(), miner_mining_num, net_mining_num, Self::get_total_capacity()
-					 * miner_mining_num / net_mining_num / GIB );
+					debug::info!("Miners: {:?} have a high probability of mining, and you should increase the disk space", miner.clone());
 
 					reward = Percent::from_percent(10) * reward;
 
@@ -635,7 +642,7 @@ impl<T: Trait> Module<T> {
 
 				// 如果挖矿概率不达标 那么就挖到多少给多少
 				else {
-					debug::info!("挖矿概率在全奖励范围！");
+					debug::info!("Get all reward.");
 					reward = reward;
 					Self::reward_staker(miner.clone(), reward);
 				}
@@ -644,7 +651,7 @@ impl<T: Trait> Module<T> {
 
 			// 矿工抵押不达标 直接10%奖励
 			else {
-				debug::info!("矿工抵押没有达标！");
+				debug::info!("Get 10% reward.");
 				reward = Percent::from_percent(10) * reward;
 				Self::reward_staker(miner.clone(), reward);
 				Self::reward_treasury(Percent::from_percent(90) * all_reward);
@@ -655,7 +662,7 @@ impl<T: Trait> Module<T> {
 
 		// 如果没有抵押信息
 		else {
-			debug::info!("矿工还没有抵押！");
+			debug::info!("miner have no staking info.");
 			reward = Percent::from_percent(10) * reward;
 			Self::reward_staker(miner.clone(), reward);
 			Self::reward_treasury(Percent::from_percent(90) * all_reward);
