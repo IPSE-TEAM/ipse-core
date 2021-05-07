@@ -96,22 +96,22 @@ decl_storage! {
         /// deadlines of the mining.
         pub DlInfo get(fn dl_info): Vec<MiningInfo<T::AccountId>>;
 
-        /// the mining history of per miner.
+        /// the mining history of miners.
         pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
-        /// the reward history of per user.
+        /// the reward history of users.
 		pub UserRewardHistory get(fn user_reward_history): map hasher(twox_64_concat) T::AccountId => Vec<(T::BlockNumber, BalanceOf<T>)>;
 
 		/// the net power(how much capacity)
 		pub NetPower get(fn net_power): u64;
 
-		/// how much capacity of a difficulty.
+		/// how much capacity that one difficulty.
 		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64 = 5;  /// 1024Gib = 200难度
 
-		/// how many block number that adjust difficulty.
+		/// how often to adjust difficulty.
 		pub AdjustDifficultyDuration get(fn adjust_difficulty_duration): u64 = 50;
 
-		/// how much per Gib.
+		/// how many LT that one Gib should staking.
 		pub CapacityPrice get(fn capacity_price): BalanceOf<T> = 10.saturated_into::<BalanceOf<T>>() * DOLLARS.saturated_into::<BalanceOf<T>>();
 
 		/// active miners (now_count, [account_id..], last_count, [account_id..])
@@ -181,7 +181,7 @@ decl_module! {
         }
 
 
-		/// how many blocks that automatic adjust the difficulty.
+		/// how often to adjust the difficulty.
         #[weight = 10_000]
         fn set_adjust_difficulty_duration(origin, block_num: u64) {
         	ensure_root(origin)?;
@@ -190,7 +190,7 @@ decl_module! {
         	Self::deposit_event(RawEvent::SetAdjustDifficultyDuration(block_num));
         }
 
-		/// how much per Gib.
+		/// how much LT that one Gib should staking.
 		#[weight = 10_000]
         fn set_capacity_price(origin, price: BalanceOf<T>) {
         	ensure_root(origin)?;
@@ -211,7 +211,7 @@ decl_module! {
         }
 
 
-		/// sunmit deadline.
+		/// submit deadline.
 		#[weight = 0]
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 

@@ -118,25 +118,25 @@ decl_storage! {
 		/// the staking info of miners.
 		pub StakingInfoOf get(fn staking_info_of): map hasher(twox_64_concat) T::AccountId => Option<StakingInfo<T::AccountId, BalanceOf<T>>>;
 
-		/// miners of the user that help stake.
+		/// the miners of the user that help stake.
 		pub MinersOf get(fn miners_of): map hasher(twox_64_concat) T::AccountId => Vec<T::AccountId>;
 
 		/// whose plot id?.
 		pub AccountIdOfPid get(fn accouont_id_of_pid): map hasher(twox_64_concat) u128 => Option<T::AccountId>;
 
-		/// exposed miners.
+		/// exposed miners(hope someone to stake him).
 		pub RecommendList get(fn recommend_list): Vec<(T::AccountId, BalanceOf<T>)>;
 
-		/// total declared capacity of miners.
+		/// the total declared capacity in the entire network.
 		pub DeclaredCapacity get(fn declared_capacity): u64;
 
 		/// minsers that already registered
 		pub Miners get(fn miners): BTreeSet<T::AccountId>;
 
-		/// miners that mining.
+		/// miners whom is mining.
 		pub MiningMiners get(fn mining_miners): BTreeSet<T::AccountId>;
 
-		/// the number of mining miners.
+		/// the total number of mining miners.
 		pub MiningNum get(fn mining_num): u64;
 
 		/// locks.
@@ -172,17 +172,17 @@ pub enum Event<T>
 
 decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-     	/// how many block of the chill time.
+     	/// how many block that the chill time.
      	const ChillDuration: T::BlockNumber = T::ChillDuration::get();
-     	/// how much you should deposit when staking.
+     	/// how much LT you should deposit when staking.
      	const StakingDeposit: BalanceOf<T> = T::StakingDeposit::get();
-     	/// max miners number that user can stake.
+     	/// the max users number that can help miner stake.
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
-     	/// how many blocks can unlock when you not stake.
+     	/// how many blocks that can unlock when you not stake.
      	const StakingLockExpire: T::BlockNumber = T::StakingLockExpire::get();
-     	/// how many blocks can unlock when you down the recommend list.
+     	/// how many blocks that can unlock when you down the recommend list.
      	const RecommendLockExpire: T::BlockNumber = T::RecommendLockExpire::get();
-     	/// max miners number of the recommend list.
+     	/// the max miners number of the recommend list.
      	const RecommendMaxNumber: u32 = T::RecommendMaxNumber::get() as u32;
 
      	type Error = Error<T>;
@@ -252,7 +252,7 @@ decl_module! {
 		}
 
 
-		/// if you want up to the recommend list. First, you should request.
+		/// request to expose in recommend list.
 		#[weight = 10_000]
 		fn request_up_to_list(origin, amount: BalanceOf<T>) {
 
@@ -269,7 +269,7 @@ decl_module! {
 		}
 
 
-		/// the miner down from the recommended list
+		/// request to down from the recommended list
 		#[weight = 10_000]
 		fn request_down_from_list(origin) {
 			let miner = ensure_signed(origin)?;
@@ -381,7 +381,7 @@ decl_module! {
         }
 
 
-		/// miners stop their machine.
+		/// the miner stop the machine.
 		#[weight = 10_000]
         fn stop_mining(origin) {
 
@@ -421,7 +421,7 @@ decl_module! {
 		}
 
 
-        /// miners remove their staker.
+        /// the delete him staker.
         #[weight = 10_000]
         fn remove_staker(origin, staker: T::AccountId) {
 
@@ -435,7 +435,7 @@ decl_module! {
         }
 
 
-		/// the user staking for miners.
+		/// the user stake for miners.
         #[weight = 10_000]
         fn staking(origin, miner: T::AccountId, amount: BalanceOf<T>) {
 
