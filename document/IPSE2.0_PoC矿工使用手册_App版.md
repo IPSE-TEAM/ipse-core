@@ -339,16 +339,25 @@ python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervis
 #### 4.1.3 启动挖矿
 启动前给矿工地址转足够的IPSE代币，因为启动后自动进行矿工注册操作;
 
+==启动挖矿有如下两种方式：==
+
+##### 4.1.3.1 python启动挖矿(异常自动重启)
 拷贝command.txt中的启动命令进行挖矿程序（末尾加 & 为了后台运行），如下:
 ```
 abc@abc:~/ipse2.0/ipse2.0-mining/localhost/10064825431032897010$ sudo nohup python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010.py --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 &
 ```
-#动态查看日志
+##### 4.1.3.2 不使用python,直接启动挖矿(异常不会自动重启)
+
+进入挖矿目录,启动挖矿（末尾加 & 为了后台运行），如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining/localhost/10064825431032897010$ tail -f poc-mining-10064825431032897010.log 
+cd /home/abc/ipse2.0/ipse2.0-mining/localhost/202100123456003000
 ```
+```
+./poc-mining-10064825431032897010   & 
+```
+
 #### 4.1.4 停止挖矿
-拷贝command.txt中的启动命令进行挖矿程序，如下:
+拷贝command.txt中的停止命令执行停止挖矿操作，如下:
 ```
 abc@abc:~/ipse2.0/ipse2.0-mining/localhost/10064825431032897010$ sudo nohup python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010.py --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
 
