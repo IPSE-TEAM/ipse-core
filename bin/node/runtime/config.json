@@ -3,6 +3,13 @@
     "LookupSource": "IndicesLookupSource",
     "GIB": "u64",
     "Amount": "u128",
+
+	 "AccountInfo": {
+		"nonce": "Index",
+		"refcount": "RefCount",
+		"data": "AccountData"
+	  },
+
     "Miner": {
           "account_id": "AccountId",
           "nickname": "Vec<u8>",
