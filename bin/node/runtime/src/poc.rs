@@ -212,7 +212,7 @@ decl_module! {
 
 
 		/// submit deadline.
-		#[weight = 0]
+		#[weight = T::DbWeight::get().reads(8 as Weight).saturating_add(T::DbWeight::get().writes(3 as Weight))]
         fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 
             let miner = ensure_signed(origin)?;
