@@ -106,7 +106,7 @@ decl_storage! {
 		pub NetPower get(fn net_power): u64;
 
 		/// how much capacity that one difficulty.
-		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64 = 5;  /// 1024Gib = 200难度
+		pub CapacityOfPerDifficulty get(fn capacity_of_per_difficult): u64 = 5;
 
 		/// how often to adjust difficulty.
 		pub AdjustDifficultyDuration get(fn adjust_difficulty_duration): u64 = 50;
