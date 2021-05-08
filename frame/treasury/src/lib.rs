@@ -392,6 +392,9 @@ decl_storage! {
 
 		/// Bounty indices that have been approved but not yet funded.
 		pub BountyApprovals get(fn bounty_approvals): Vec<BountyIndex>;
+
+		/// treasury'account_id
+		pub TreasuryAccountId get(fn treasury_account_id): T::AccountId;
 	}
 	add_extra_genesis {
 		build(|_config| {
@@ -1173,12 +1176,16 @@ decl_module! {
 		/// - The weight is overestimated if some approvals got missed.
 		/// # </weight>
 		fn on_initialize(n: T::BlockNumber) -> Weight {
+
+			<TreasuryAccountId<T, I>>::put(Self::account_id());
+
 			// Check to see if we should spend some funds!
 			if (n % T::SpendPeriod::get()).is_zero() {
 				Self::spend_funds()
 			} else {
 				0
 			}
+
 		}
 	}
 }
