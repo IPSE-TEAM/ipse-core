@@ -131,7 +131,7 @@ pub struct MinerOrder<AccountId, Balance> {
 
 /// History
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
-pub struct MiningHistory<AccountId, Balance, BlockNumber> {
+pub struct MiningHistory<Balance, BlockNumber> {
     // pub miner: AccountId,
     pub total_num: u64,
     pub history: Vec<(BlockNumber, Balance)>,
@@ -165,7 +165,7 @@ decl_storage! {
         pub MinerHistory get(fn miner_history): map hasher(twox_64_concat) T::AccountId => Vec<Order<T::AccountId, BalanceOf<T>>>;
 
 		/// the rewad history of users.
-        pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<T::AccountId,BalanceOf<T>, T::BlockNumber>>;
+        pub History get(fn history): map hasher(twox_64_concat) T::AccountId => Option<MiningHistory<BalanceOf<T>, T::BlockNumber>>;
 
 		/// whose url?.
         pub Url get(fn url): map hasher(twox_64_concat) Vec<u8> => T::AccountId;

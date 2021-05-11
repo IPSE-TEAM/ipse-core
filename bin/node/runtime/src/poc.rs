@@ -561,7 +561,7 @@ impl<T: Trait> Module<T> {
 			let n = <BalanceOf<T>>::from(n_opt.unwrap());
 
 			// 两年减半  每个块收益 = 总奖励 / n(第几个周期) / m年(每个周期多少年) / o(每年有多少个块)
-			reward = T::TotalMiningReward::get() / n / 2.saturated_indo::<BalanceOf<T>>() / Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
+			reward = T::TotalMiningReward::get() / n / 2.saturated_into::<BalanceOf<T>>() / Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
 
 			Ok(reward * MiningExpire.saturated_into::<BalanceOf<T>>())
 		}
