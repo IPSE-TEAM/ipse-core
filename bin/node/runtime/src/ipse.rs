@@ -132,7 +132,7 @@ pub struct MinerOrder<AccountId, Balance> {
 /// History
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MiningHistory<AccountId, Balance, BlockNumber> {
-    pub miner: AccountId,
+    // pub miner: AccountId,
     pub total_num: u64,
     pub history: Vec<(BlockNumber, Balance)>,
 }
@@ -570,7 +570,7 @@ impl<T: Trait> Module<T> {
             }
 
             history = Some(MiningHistory {
-                miner: miner_cp,
+                // miner: miner_cp,
                 total_num: num + 1u64,
                 history: vec,
             });
@@ -578,7 +578,7 @@ impl<T: Trait> Module<T> {
             let mut vec = vec![];
             vec.push((n, amount));
             history = Some(MiningHistory {
-                miner: miner_cp,
+                // miner: miner_cp,
                 total_num: 1u64,
                 history: vec,
             });

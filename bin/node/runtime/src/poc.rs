@@ -543,13 +543,16 @@ impl<T: Trait> Module<T> {
     fn get_reward_amount() -> result::Result<BalanceOf<T>, DispatchError> {
     	let now = <staking::Module<T>>::now();
 
+		// 多少年减半
+		let sub_half_reward_time = 2u32;
+
     	let year = now.checked_div(&T::BlockNumber::from(YEAR)).ok_or(Error::<T>::DivZero)?;
+    	let duration = year / T::BlockNumber::from(sub_half_reward_time);
 
-    	let duration = year / T::BlockNumber::from(2u32);
+		// 第几个周期
+    	let duration = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(duration).map_err(|_| Error::<T>::ConvertErr)? + 1u32;
 
-    	let duration = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(duration).map_err(|_| Error::<T>::ConvertErr)?;
-
-		let n_opt = 2u32.checked_pow(duration + 1u32);
+		let n_opt = sub_half_reward_time.checked_pow(duration);
 
 		let reward: BalanceOf<T>;
 
@@ -557,7 +560,8 @@ impl<T: Trait> Module<T> {
 
 			let n = <BalanceOf<T>>::from(n_opt.unwrap());
 
-			reward = T::TotalMiningReward::get() / n / Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
+			// 两年减半  每个块收益 = 总奖励 / n(第几个周期) / m年(每个周期多少年) / o(每年有多少个块)
+			reward = T::TotalMiningReward::get() / n / 2.saturated_indo::<BalanceOf<T>>() / Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
 
 			Ok(reward * MiningExpire.saturated_into::<BalanceOf<T>>())
 		}

@@ -346,7 +346,7 @@ parameter_types! {
 
 	pub const GENESIS_BASE_TARGET: u64 = 366503875925;
 
-	pub const TotalMiningReward: Balance = 3500_0000 * DOLLARS;
+	pub const TotalMiningReward: Balance = 5_0000_0000 * DOLLARS;
 
 	pub const ProbabilityDeviationValue: Percent = Percent::from_percent(50);
 
