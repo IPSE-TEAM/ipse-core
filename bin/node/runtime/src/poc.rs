@@ -627,12 +627,22 @@ impl<T: Trait> Module<T> {
 				/// 全网该抵押的金额
 				let net_should_staking_total_amount = Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>();
 
-				// 矿工挖矿的概率如果偏高(超出20%) 那么就说明磁盘空间虚报， 偏低， 应该增加p盘空间
+				// 矿工挖矿的概率如果偏高或是偏低 均只给10%的算力
+
 				// 本机挖矿次数 / 全网挖矿次数 - 本机算力 / 全网算力 > 20% * (本机算力 / 全网算力)
 				// 本机挖矿次数 / 全网挖矿次数 > (1 + 矿工挖矿概率允许的最大偏离值)	* (本机算力 / 全网算力)
 				// 以上公式换算得: 本机挖矿次数 * 全网算力 > 全网挖矿次数 * 本机算力 * (1 + 矿工挖矿概率允许的最大偏离值)
-				if miner_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(net_should_staking_total_amount) >
-					(net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount).saturating_add(T::ProbabilityDeviationValue::get() * (net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount)) {
+				// ***********这条判断的作用是为了让抵押者有足够的抵押****************
+				if (miner_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(net_should_staking_total_amount) >
+					(net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount).saturating_add(T::ProbabilityDeviationValue::get() * (net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount)) )
+
+				// 本机算力 / 全网算力 - 本机挖矿次数 / 全网挖矿次数 >  矿工挖矿概率允许的最大偏离值 * (本机算力 / 全网算力)
+				// (1 - 矿工挖矿概率允许的最大偏离值) * 本机算力 / 全网算力 > 本机挖矿次数 / 全网挖矿次数
+				// (1 - 矿工挖矿概率允许的最大偏离值) * 本机算力 * 全网挖矿次数 > 本机挖矿次数 * 全网算力
+				// ***********这条判断的作用是让抵押者去提升自己节点性能， 积极上报自己在线情况， 并参与链上治理（防止大家恶意投票把难度设置无限高)**********
+					|| ((net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount).saturating_sub(T::ProbabilityDeviationValue::get() * net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount)
+					> miner_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(net_should_staking_total_amount))
+				{
 
 					debug::info!("Miners: {:?} have a high probability of mining, and you should increase the disk space", miner.clone());
 
@@ -644,7 +654,7 @@ impl<T: Trait> Module<T> {
 
 				}
 
-				// 如果挖矿概率不达标 那么就挖到多少给多少
+				// 挖到多少给多少
 				else {
 					debug::info!("Get all reward.");
 					reward = reward;
