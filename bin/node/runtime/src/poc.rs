@@ -726,15 +726,25 @@ impl<T: Trait> Module<T> {
 		}
 
 		else {
-			// 奖励矿工
+			// 先奖励矿工（矿工独享的部分)
 			let miner_reward = staking_info.clone().miner_proportion * reward;
 			Self::reward_miner(miner.clone(), miner_reward, now);
+
 			let stakers_reward = reward - miner_reward;
 			let total_staking = staking_info.clone().total_staking;
 			for staker_info in stakers.iter() {
+
 				let staker_reward = stakers_reward.saturating_mul(staker_info.clone().1).checked_div(&total_staking).ok_or(Error::<T>::DivZero)?;
-				T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&staker_info.clone().0, staker_reward));
-				Self::update_reword_history(staker_info.clone().0, staker_reward, now);
+
+				// 如果是矿工 就用奖励矿工的方法来奖励
+				if staker_info.clone().0 == miner.clone() {
+					Self::reward_miner(miner.clone(), staker_reward, now);
+				}
+				else {
+					T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&staker_info.clone().0, staker_reward));
+					Self::update_reword_history(staker_info.clone().0, staker_reward, now);
+				}
+
 			}
 		}
 
