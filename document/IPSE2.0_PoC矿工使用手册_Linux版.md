@@ -145,12 +145,15 @@ root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-
  
    
 ## 三、矿工P盘
-当前只支持linux系统(如ubuntu18.04或ubuntu20.04)进行P盘及挖矿！
+linux系统(如ubuntu18.04或ubuntu20.04)进行P盘及挖矿！
 
 ### 3.1 下载P盘工具并解压
-
+输入以下命令进行下载P盘工具：
 ```
 abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz
+```
+下载过程中界面日志:
+```
 --2021-05-07 15:05:38--  https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz
 Resolving github.com (github.com)... 13.250.177.223
 Connecting to github.com (github.com)|13.250.177.223|:443... connected.
@@ -166,8 +169,9 @@ Saving to: ‘engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz’
 engraver-2.4.0-x86_64-unknown-linux-gnu 100%[============================================================================>] 633.99K   823KB/s    in 0.8s    
 
 2021-05-07 15:05:41 (823 KB/s) - ‘engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz’ saved [649208/649208]
-
-
+```
+解压P盘工具软件:
+```
 abc@abc:~/ipse2.0/ipse2.0-mining$ sudo tar -xvf engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz 
 engraver_cpu
 engraver_gpu
@@ -178,13 +182,13 @@ engraver_gpu
 
 P盘参数说明:
 ```
-sudo ./engraver_cpu  --n nonce  --id numeric_id  --path plot_dirs  --sn 0 > plot.log 2>&1 &
+engraver_gpu.exe [FLAGS] [OPTIONS] --n <nonces> --id <numeric_ID> --sn <start_nonce> --path <path>
+
 -----------------------------------------------------------------------------
---n nonce  P盘大小对应的nonce
---id numeric_id  P盘id
---path plot_dirs  指定P盘文件存放目录(如/data/data2000001234000100)
---sn 0  起始随机数（计算：已使用随机数。其它P盘大小随机数之和）
-> plot.log 2>&1 & 写入日志并后台运行
+--n <nonces>  P盘大小对应的nonce
+--id <numeric_ID>  P盘id
+--path <path>  指定P盘文件存放目录(如/data/data2000001234000100)，不指定则默认存放在当前目录
+--sn <start_nonce>  起始随机数（计算：已使用随机数。其它P盘大小随机数之和）
 
 -----------------------------------------------------------------------------
 nonce计算：
@@ -192,9 +196,49 @@ nonce计算：
 1GB=（1000*1000*1000）B=1000000000B
 1GiB/1GB=1073741824/1000000000=1.073741824
 计算:
-1 nonce=256KiB，1MiB= 4nonce，则1G= 1*1024*4=4096 nonce，1T=1000*1024*4=4096000 nonce,以此类推。
+1 nonce=256KiB，1MiB= 4nonce，则
+1GiB= 1*1024*4=4096 nonce，
+1TiB=1*1024*1024*4=4194304 nonce, 
+2TiB=2*1024*1024*4=8388608 nonce，以此类推。
 ```
+用户应注意，重叠的图会减小图的有效大小，因此应谨慎提供这些参数。
+计算起始随机数和绘图随机数的策略可以是：
+```
+对于第一个绘图文件（0）：
 
+开始随机数（0）= 0
+
+随机数（0）=用于MiB的绘图文件（0）的磁盘空间乘以4
+
+对于下一个绘图文件（i）
+
+起始随机数（i）=起始随机数（i-1）+随机数（i-1）
+
+随机数（i）的数量=用于文件（i）的磁盘空间，以4 x MiB乘以4
+
+示例：创建前两个10Gib图文件：
+
+第一个文件：
+
+开始随机数（0）= 0
+
+随机数（0）= 40960（10GiB = 10240 MiB = 40960随机数）
+
+结果文件名：numeric_ID_0_40960
+
+
+第二个文件：
+
+开始随机数（1）= 0 + 40960 = 40960
+
+随机数（1）的数量= 40960（10GiB = 10240 MiB = 40960随机数）
+
+结果文件名：numeric_ID_40960_40960
+
+-n，-n：要绘制的随机数（强制）
+
+如果将此选项设置为零，则绘图文件将具有可容纳在驱动器上的尽可能多的随机数。
+```
 
 ### 3.3 执行P盘命令
 通过执行以下命令进行P盘
@@ -220,9 +264,13 @@ abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 1006482543
 ## 四、矿工启动挖矿程序
 
 ### 4.1 下载挖矿相关配置文件
-下载最新版本的挖矿软件poc-mining及挖矿配置文件config.yaml、miners_config.yaml文件、supervision.py、update_config.py，运行以下命令进行下载:
+下载最新版本的挖矿软件poc-mining及挖矿配置文件config.yaml、miners_config.yaml文件、supervision、update_config，运行以下命令进行下载:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget -nc https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.4.0/update_config.py && python3 update_config.py
+abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget -nc https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.4.0/update_config && sudo ./update_config
+```
+并赋予可执行权限:
+```
+sudo chmod +x update_config
 ```
 
 完成上述步骤后，您可以miners_config.yaml在当前文件夹中找到。请接下来进行修改。（提示：以下是默认配置，您应该使用自己的配置。）
@@ -296,44 +344,51 @@ miners: # 矿工的统一配置
 
 执行python脚本，生成挖矿程序及挖矿配置文件，如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo python3 update_config.py 
+abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./update_config
+```
+```
 File ‘config.yaml’ already there; not retrieving.
 
-File ‘supervision.py’ already there; not retrieving.
+File ‘supervision’ already there; not retrieving.
 
 File ‘miners_config.yaml’ already there; not retrieving.
 
 File ‘poc-mining’ already there; not retrieving.
 
 0
-update_config.py:7: YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
+update_config:7: YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
   x = yaml.load(result)
-update_config.py:72: YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
+update_config:72: YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
   x = yaml.load(result)
 <class 'dict'>
 {'host': 'localhost', 'account_id': 10064825431032897010, 'phase': 'cash mixture tongue cry roof glare monkey island unfair brown spirit inflict', 'miner_proportion': 20, 'url': 'ws://localhost:9948', 'plot_size': 50, 'miner_reward_dest': '5FHb1AEeNui5ANvyT368dECmNEJeouLeeZ6a9z8GTvxPLaVs', 'plot_path': '/data/data10064825431032897010', 'max_deadline_value': 10000}
 localhost/
 localhost/10064825431032897010/
-localhost/10064825431032897010/supervision-10064825431032897010.py
+localhost/10064825431032897010/supervision-10064825431032897010
 localhost/10064825431032897010/poc-mining-10064825431032897010
 localhost/10064825431032897010/config.yaml
 
 ```
 在该文件夹localhost中，您可以找到另一个以P盘ID命名的文件夹，然后进入该文件夹，如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ cd localhost/10064825431032897010  
-abc@abc:~/ipse2.0/ipse2.0-mining$ ll
+abc@abc:~/ipse2.0/ipse2.0-mining$cd localhost/10064825431032897010  
+abc@abc:~/ipse2.0/ipse2.0-mining$ls -l
+```
+```
 总用量 15M
 -rw-r--r-- 1 root root  470 3月  25 16:56 command.txt
 -rw-r--r-- 1 root root 1.2K 3月  25 16:56 config.yaml
 -rwxrwxrwx 1 root root  15M 3月  25 16:56 poc-mining-10064825431032897010
--rw-r--r-- 1 root root 4.0K 3月  25 16:56 supervision-10064825431032897010.py
+-rw-r--r-- 1 root root 4.0K 3月  25 16:56 supervision-10064825431032897010
 ```
 command.txt文件里含启动挖矿/停止挖矿命令，如图:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining/localhost/10064825431032897010$ cat command.txt 
-python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010.py --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 
-python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010.py --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
+cat command.txt 
+```
+内容如下:
+```
+/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 
+/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
 ```
 
 #### 4.1.3 启动挖矿
@@ -341,28 +396,32 @@ python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervis
 
 ==启动挖矿有如下两种方式：==
 
-##### 4.1.3.1 python启动挖矿(异常自动重启)
+##### 4.1.3.1 supervision启动挖矿(异常自动重启)
 拷贝command.txt中的启动命令进行挖矿程序（末尾加 & 为了后台运行），如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining/localhost/10064825431032897010$ sudo nohup python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010.py --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 &
+sudo nohup /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 &
 ```
-##### 4.1.3.2 不使用python,直接启动挖矿(异常不会自动重启)
+查看动态日志：
+```
+tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010.log 
+```
+##### 4.1.3.2 不使用supervision,直接启动挖矿(异常不会自动重启)
 
 进入挖矿目录,启动挖矿（末尾加 & 为了后台运行），如下:
 ```
 cd /home/abc/ipse2.0/ipse2.0-mining/localhost/202100123456003000
 ```
 ```
-./poc-mining-10064825431032897010   & 
+sudo./poc-mining-10064825431032897010   & 
 ```
 
 #### 4.1.4 停止挖矿
 拷贝command.txt中的停止命令执行停止挖矿操作，如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining/localhost/10064825431032897010$ sudo nohup python3 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010.py --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
+sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
 
 ```
-如果无法杀死进程，则通过ps -ef| grep poc-mining获取进程id进行kill.
+通过ps -ef| grep poc-mining查看进程是否已杀死，如果无法杀死进程，则进行kill -9 进程id.
 
-如果P盘文件增大空间或者P盘id已更换，则对应修改配置文件再重启挖矿！
+如果P盘文件增大空间或者P盘id已更换，则对应修改配置文件再重启挖矿,且需在链上更新对应矿工的account_id和plot_size！
 
