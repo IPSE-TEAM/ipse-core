@@ -799,6 +799,7 @@ impl<T: Trait> Module<T> {
     		let miner_reward = Percent::from_percent(10) * amount;
     		T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, miner_reward));
     		Self::update_reword_history(miner, miner_reward, now);
+
     		let dest_reward = amount.saturating_sub(miner_reward);
     		T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&reward_dest, dest_reward));
 			Self::update_reword_history(reward_dest, dest_reward, now);
