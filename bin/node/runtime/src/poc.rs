@@ -689,8 +689,8 @@ impl<T: Trait> Module<T> {
 			let mut his = history_opt.unwrap();
 			his.total_num = miner_mining_num;
 			his.history.push((now, reward));
-			/// 只存储最新的100条记录
-			if his.history.len() >= 100 {
+			/// 只存储最新的300条记录
+			if his.history.len() >= 300 {
 				let mut old_history = his.history.clone();
 				let new_history = old_history.split_off(1);
 				his.history = new_history;
@@ -815,8 +815,8 @@ impl<T: Trait> Module<T> {
 
     	reward_history.push((block_num, amount));
 
-		/// 奖励记录限制在100条以内
-    	if reward_history.len() >= 100 {
+		/// 奖励记录限制在300条以内
+    	if reward_history.len() >= 300 {
     		let mut old_history = reward_history.clone();
     		let new_history = old_history.split_off(1);
     		<UserRewardHistory<T>>::insert(account_id, new_history);
