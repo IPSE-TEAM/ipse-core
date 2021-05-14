@@ -1,14 +1,14 @@
 # IPSE2.0矿工使用手册
 
 ## 矿工角色操作流程图:
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工流程图.jpg)
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工流程图.jpg)
 
 ## 环境说明:
 Ubuntu18.04或Ubuntu20.04系统
 ## 一、	搭建本地节点
 
 ### 1.1 下载程序
-[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/2.1.0/IPSE)
+[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/2.3.0/IPSE)
 
 节点服务器本地创建文件夹，下载链程序
 ```
@@ -16,7 +16,7 @@ Ubuntu18.04或Ubuntu20.04系统
 ➜  ~ cd ipse2.0/ipse2.0-node 
 ➜  ipse2.0-node ll
 total 0
-➜  ipse2.0-node wget https://github.com/IPSE-TEAM/ipse-core/releases/download/2.1.0/IPSE
+➜  ipse2.0-node wget https://github.com/IPSE-TEAM/ipse-core/releases/download/2.3.0/IPSE
 ```
 
 
@@ -87,29 +87,29 @@ root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-
 ### 2.1 矿工注册
 (1)打开ipse手机客户端，创建/导入账户，账户需要有足够的IPSE余额，支付相关交易手续费。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工注册.png)
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工注册.png)
 
 (2)进入“质押”-“矿工注册”页面，输入P盘空间、P盘id、佣金比例，进行矿工注册（默认收益地址是矿工自己的地址）。注册成功后跳转至质押界面；完成这一步，矿工就可以启动挖矿软件进行挖矿了。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工注册2.png)         
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工注册2.png)         
 
 ### 2.2 矿工修改信息
 冷却期:只有矿工能修改信息
 非冷却期：抵押者可以进行质押及退出质押操作
 (1) 进入“质押”-“矿工管理”页面，分别选择P盘空间、P盘id、佣金比例，进行修改，修改成功后信息随之更新。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工修改注册信息.png)          
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工修改注册信息.png)          
 ### 2.3 矿工推荐列表(抵押排名)
 
 #### 2.3.1 申请加入推荐列表
 
 (1) 进入“质押”-“矿工管理”页面，选择“抵押排名”,输入amount，提交申请加入推荐列表
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工申请进入推荐列表.png)
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工申请进入推荐列表.png)
          
 (2)进入“质押”-“参与质押”页面，选择矿工列表，可以查看正在推荐列表的矿工信息，点击地址右边可查看到该矿工的挖矿记录；质押者可选择抵押排名中指定的矿工进行质押，获得挖矿分佣奖励。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/参与质押-矿工列表.png)           
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/参与质押-矿工列表.png)           
 
 
 
@@ -117,7 +117,7 @@ root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-
 
 进入“质押”-“矿工管理”页面，点击“退出抵押排名”进行退出操作，提交后退出推荐列表成功，并锁定抵押排名金额进入锁定期；不影响抵押者已进行质押的质押金额及出块奖励分佣。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工退出抵押排名.png)           
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工退出抵押排名.png)           
 
 
 
@@ -125,7 +125,7 @@ root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-
 
 (1)进入“质押”-“矿工管理”页面，选择质押者列表的某个质押者进行删除，矿工删除质押者成功；自动返还质押者的质押金额—该质押者金额进入锁定期；扣除保留金额 1 ipse，作为惩罚。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工删除质押者.png)  
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工删除质押者.png)  
           
 
 
@@ -135,12 +135,12 @@ root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-
 矿工需手动去退出抵押排名列表，操作会锁定抵押排名金额进入锁定期；
 质押者需手动去减少质押或退出质押，操作会锁定质押金额进入锁定期。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工停止挖矿.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工停止挖矿.png) 
              
 ### 2.6 矿工重新启动挖矿
 矿工挖矿状态为停止状态，需要启动挖矿，可以重新挖矿。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/PoC_Staking/矿工重启挖矿.png)  
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工重启挖矿.png)  
 
  
    
