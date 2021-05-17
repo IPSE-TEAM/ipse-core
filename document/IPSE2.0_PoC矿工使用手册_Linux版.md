@@ -75,6 +75,8 @@ root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-
 linux系统(如ubuntu18.04或ubuntu20.04)进行P盘及挖矿！
 
 ### 2.1 下载P盘工具并解压
+
+[P盘工具Linux版的下载地址](https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz)
 输入以下命令进行下载P盘工具：
 ```
 abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz
@@ -174,19 +176,19 @@ nonce计算：
 
 通过执行以下命令进行P盘:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897010 --path /data/data10064825431032897010 --sn 0  &
+abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
 ```
 提示指定的P盘文件存放路径不存在，那么我们先新建该文件路径
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo mkdir -p /data/data10064825431032897010                                                                          
-abc@abc:~/ipse2.0/ipse2.0-mining$ ll /data/data10064825431032897010 
+abc@abc:~/ipse2.0/ipse2.0-mining$ sudo mkdir -p /data/data10064825431032897                                                                          
+abc@abc:~/ipse2.0/ipse2.0-mining$ ll /data/data10064825431032897 
 总用量 0
 
 ```
 
 再次执行P盘操作
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897010 --path /data/data10064825431032897010 --sn 0  &
+abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
 ```
  
 **如果使用engraver_cpu进行绘图，cpu太慢，占用cpu过多，温度过高，则请使用engraver_gpu进行绘图;**
@@ -227,7 +229,7 @@ miner_proportion #矿工挖矿获得的奖励占比
 url  #本地节点或远程节点的地址(如输入本地节点 “ws://localhost:9948”)
 plot_size #矿工的P盘容量(GiB)
 miner_reward_dest #矿工挖矿奖励的存放账户地址
-plot_path #矿工P盘的路径(注: 如上面P盘文件存放路径为/data/data10064825431032897010,则这里写/data/data10064825431032897010)
+plot_path #矿工P盘的路径(注: 如上面P盘文件存放路径为/data/data10064825431032897,则这里写/data/data10064825431032897)
 max_deadline_value #允许提交的最大deadline值
 --------------------------------------------------------
 ```
@@ -241,13 +243,13 @@ max_deadline_value #允许提交的最大deadline值
 miners: # 矿工的统一配置
    #224
    - {host: localhost,
-      account_id: 10064825431032897010,
+      account_id: 10064825431032897,
       phase: defense ball area outside castle divert fortune crazy gather camp response yard,
       miner_proportion: 20,
       url: "ws://localhost:9948",
       plot_size: 3700,
       miner_reward_dest: 5GWX6izv5A7Ja2ik7jctcXDZ8MZFF8BePSKEgs37J5DMbXha,
-      plot_path: /data/data10064825431032897010,
+      plot_path: /data/data10064825431032897,
       max_deadline_value: 10000
    }
 ```
@@ -256,13 +258,13 @@ miners: # 矿工的统一配置
 miners: # 矿工的统一配置
    #224
    - {host: localhost,
-      account_id: 10064825431032897010,
+      account_id: 10064825431032897,
       phase: defense ball area outside castle divert fortune crazy gather camp response yard,
       miner_proportion: 20,
       url: "ws://localhost:9948",
       plot_size: 3700,
       miner_reward_dest: 5GWX6izv5A7Ja2ik7jctcXDZ8MZFF8BePSKEgs37J5DMbXha,
-      plot_path: /data/data10064825431032897010,
+      plot_path: /data/data10064825431032897,
       max_deadline_value: 10000
    }
    - {host: localhost,
@@ -297,25 +299,25 @@ update_config:7: YAMLLoadWarning: calling yaml.load() without Loader=... is depr
 update_config:72: YAMLLoadWarning: calling yaml.load() without Loader=... is deprecated, as the default Loader is unsafe. Please read https://msg.pyyaml.org/load for full details.
   x = yaml.load(result)
 <class 'dict'>
-{'host': 'localhost', 'account_id': 10064825431032897010, 'phase': 'cash mixture tongue cry roof glare monkey island unfair brown spirit inflict', 'miner_proportion': 20, 'url': 'ws://localhost:9948', 'plot_size': 50, 'miner_reward_dest': '5FHb1AEeNui5ANvyT368dECmNEJeouLeeZ6a9z8GTvxPLaVs', 'plot_path': '/data/data10064825431032897010', 'max_deadline_value': 10000}
+{'host': 'localhost', 'account_id': 10064825431032897, 'phase': 'cash mixture tongue cry roof glare monkey island unfair brown spirit inflict', 'miner_proportion': 20, 'url': 'ws://localhost:9948', 'plot_size': 50, 'miner_reward_dest': '5FHb1AEeNui5ANvyT368dECmNEJeouLeeZ6a9z8GTvxPLaVs', 'plot_path': '/data/data10064825431032897', 'max_deadline_value': 10000}
 localhost/
-localhost/10064825431032897010/
-localhost/10064825431032897010/supervision-10064825431032897010
-localhost/10064825431032897010/poc-mining-10064825431032897010
-localhost/10064825431032897010/config.yaml
+localhost/10064825431032897/
+localhost/10064825431032897/supervision-10064825431032897
+localhost/10064825431032897/poc-mining-10064825431032897
+localhost/10064825431032897/config.yaml
 
 ```
 在该文件夹localhost中，您可以找到另一个以P盘ID命名的文件夹，然后进入该文件夹，如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$cd localhost/10064825431032897010  
+abc@abc:~/ipse2.0/ipse2.0-mining$cd localhost/10064825431032897  
 abc@abc:~/ipse2.0/ipse2.0-mining$ls -l
 ```
 ```
 总用量 15M
 -rw-r--r-- 1 root root  470 3月  25 16:56 command.txt
 -rw-r--r-- 1 root root 1.2K 3月  25 16:56 config.yaml
--rwxrwxrwx 1 root root  15M 3月  25 16:56 poc-mining-10064825431032897010
--rw-r--r-- 1 root root 4.0K 3月  25 16:56 supervision-10064825431032897010
+-rwxrwxrwx 1 root root  15M 3月  25 16:56 poc-mining-10064825431032897
+-rw-r--r-- 1 root root 4.0K 3月  25 16:56 supervision-10064825431032897
 ```
 command.txt文件里含启动挖矿/停止挖矿命令，如图:
 ```
@@ -323,8 +325,8 @@ cat command.txt
 ```
 内容如下:
 ```
-/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 
-/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
+/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10064825431032897 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897 --log-max-size 10 
+/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10064825431032897 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897 --log-max-size 10 --stop
 ```
 
 #### 3.1.3 启动挖矿
@@ -335,11 +337,11 @@ cat command.txt
 ##### 3.1.3.1 supervision启动挖矿(异常自动重启)
 拷贝command.txt中的启动命令进行挖矿程序（末尾加 & 为了后台运行），如下:
 ```
-sudo nohup /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 &
+sudo nohup /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10064825431032897 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897 --log-max-size 10 &
 ```
 查看动态日志：
 ```
-tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010.log 
+tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897.log 
 ```
 日志输出类似以下内容说明启动挖矿成功，如下：
 ```
@@ -366,13 +368,13 @@ tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mini
 cd /home/abc/ipse2.0/ipse2.0-mining/localhost/202100123456003000
 ```
 ```
-sudo./poc-mining-10064825431032897010   & 
+sudo./poc-mining-10064825431032897   & 
 ```
 
 #### 3.1.4 停止挖矿
 拷贝command.txt中的停止命令执行停止挖矿操作，如下:
 ```
-sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
+sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10064825431032897 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897 --log-max-size 10 --stop
 
 ```
 通过ps -ef| grep poc-mining查看进程是否已杀死，如果无法杀死进程，则进行kill -9 进程id.
