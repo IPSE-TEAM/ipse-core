@@ -1,8 +1,5 @@
 # IPSE2.0_PoC矿工使用手册_Linux版
 
-## 矿工角色操作流程图:
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工流程图.jpg)
-
 ## 环境说明:
 Ubuntu18.04或Ubuntu20.04系统
 ## 一、	搭建本地节点
@@ -51,15 +48,6 @@ Mar 25 15:31:19.328  INFO 👤 Role: AUTHORITY
 Mar 25 15:31:19.328  INFO 💾 Database: RocksDb at db/chains/ipse_local_testnet/db
 Mar 25 15:31:19.328  INFO ⛓  Native runtime: node-267 (substrate-node-1.tx1.au10)
 Mar 25 15:31:19.401  INFO 🏷 Local node identity is: 12D3KooWMeuwhySA5nLYwWHRGyZxiSSxehfxthZTG5jMXU7ecaE4
-Mar 25 15:31:19.692  INFO staking_poc----当前打印的高度是:69580
-Mar 25 15:31:19.692  INFO poc_staking era start_time: 69449, chill end_time: 69499
-Mar 25 15:31:19.719  INFO 📦 Highest known block at #69579
-Mar 25 15:31:19.720  INFO 〽️ Prometheus server started at 127.0.0.1:9615
-Mar 25 15:31:19.738  INFO Listening for new connections on 0.0.0.0:9948.
-Mar 25 15:31:19.739  INFO 👶 Starting BABE Authorship worker
-Mar 25 15:31:19.991  INFO Accepted a new tcp connection from 119.136.126.101:25472.
-Mar 25 15:31:20.373  INFO 🔍 Discovered new external address for our node: /ip4/47.98.139.83/tcp/30333/p2p/12D3KooWMeuwhySA5nLYwWHRGyZxiSSxehfxthZTG5jMXU7ecaE4
-Mar 25 15:31:20.447  INFO Accepted a new tcp connection from 119.136.126.101:25490.
 Mar 25 15:31:21.034  INFO staking_poc----当前打印的高度是:69580
 Mar 25 15:31:21.034  INFO poc_staking era start_time: 69449, chill end_time: 69499
 Mar 25 15:31:21.077  INFO execute_block: staking_poc----当前打印的高度是:69580    {block}
@@ -81,73 +69,12 @@ root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-
 如果想成为验证人节点，则参考以下文档:
 
 [Polkadot网络上设置验证人节点](https://wiki.polkadot.network/docs/zh-CN/maintain-guides-how-to-validate-polkadot)
-## 二、矿工app端操作
-[App下载链接](https://www.ipse.io/app/ipse.apk )
 
-### 2.1 矿工注册
-(1)打开ipse手机客户端，创建/导入账户，账户需要有足够的IPSE余额，支付相关交易手续费。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工注册.png)
-
-(2)进入“质押”-“矿工注册”页面，输入P盘空间、P盘id、佣金比例，进行矿工注册（默认收益地址是矿工自己的地址）。注册成功后跳转至质押界面；完成这一步，矿工就可以启动挖矿软件进行挖矿了。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工注册2.png)         
-
-### 2.2 矿工修改信息
-冷却期:只有矿工能修改信息
-非冷却期：抵押者可以进行质押及退出质押操作
-(1) 进入“质押”-“矿工管理”页面，分别选择P盘空间、P盘id、佣金比例，进行修改，修改成功后信息随之更新。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工修改注册信息.png)          
-### 2.3 矿工推荐列表(抵押排名)
-
-#### 2.3.1 申请加入推荐列表
-
-(1) 进入“质押”-“矿工管理”页面，选择“抵押排名”,输入amount，提交申请加入推荐列表
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工申请进入推荐列表.png)
-         
-(2)进入“质押”-“参与质押”页面，选择矿工列表，可以查看正在推荐列表的矿工信息，点击地址右边可查看到该矿工的挖矿记录；质押者可选择抵押排名中指定的矿工进行质押，获得挖矿分佣奖励。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/参与质押-矿工列表.png)           
-
-
-
-#### 2.3.2 退出推荐列表 
-
-进入“质押”-“矿工管理”页面，点击“退出抵押排名”进行退出操作，提交后退出推荐列表成功，并锁定抵押排名金额进入锁定期；不影响抵押者已进行质押的质押金额及出块奖励分佣。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工退出抵押排名.png)           
-
-
-
-### 2.4 矿工删除抵押者
-
-(1)进入“质押”-“矿工管理”页面，选择质押者列表的某个质押者进行删除，矿工删除质押者成功；自动返还质押者的质押金额—该质押者金额进入锁定期；扣除保留金额 1 ipse，作为惩罚。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工删除质押者.png)  
-          
-
-
-### 2.5 矿工停止挖矿
-
-(1)进入“质押”-“矿工管理”页面，点击“停止挖矿”进行操作，停止挖矿成功，矿工可查看之前的挖矿记录；
-矿工需手动去退出抵押排名列表，操作会锁定抵押排名金额进入锁定期；
-质押者需手动去减少质押或退出质押，操作会锁定质押金额进入锁定期。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工停止挖矿.png) 
-             
-### 2.6 矿工重新启动挖矿
-矿工挖矿状态为停止状态，需要启动挖矿，可以重新挖矿。
-
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工重启挖矿.png)  
-
- 
    
-## 三、矿工P盘
+## 二、矿工P盘
 linux系统(如ubuntu18.04或ubuntu20.04)进行P盘及挖矿！
 
-### 3.1 下载P盘工具并解压
+### 2.1 下载P盘工具并解压
 输入以下命令进行下载P盘工具：
 ```
 abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz
@@ -178,7 +105,7 @@ engraver_gpu
 
 ```
 
-### 3.2 P盘参数说明
+### 2.2 P盘参数说明
 
 P盘参数说明:
 ```
@@ -201,6 +128,8 @@ nonce计算：
 1TiB=1*1024*1024*4=4194304 nonce, 
 2TiB=2*1024*1024*4=8388608 nonce，以此类推。
 ```
+**注意: --id <numeric_ID>的长度必须小于19位数字**
+
 用户应注意，重叠的图会减小图的有效大小，因此应谨慎提供这些参数。
 计算起始随机数和绘图随机数的策略可以是：
 ```
@@ -240,8 +169,10 @@ nonce计算：
 如果将此选项设置为零，则绘图文件将具有可容纳在驱动器上的尽可能多的随机数。
 ```
 
-### 3.3 执行P盘命令
-通过执行以下命令进行P盘
+### 2.3 执行P盘命令
+**注意: --id <numeric_ID>的长度必须小于19位数字**
+
+通过执行以下命令进行P盘:
 ```
 abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897010 --path /data/data10064825431032897010 --sn 0  &
 ```
@@ -258,12 +189,13 @@ abc@abc:~/ipse2.0/ipse2.0-mining$ ll /data/data10064825431032897010
 abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897010 --path /data/data10064825431032897010 --sn 0  &
 ```
  
+**如果使用engraver_cpu进行绘图，cpu太慢，占用cpu过多，温度过高，则请使用engraver_gpu进行绘图;**
 
 完成P盘后或进行P盘的过程中，接着下一步操作。
 
-## 四、矿工启动挖矿程序
+## 三、矿工启动挖矿程序
 
-### 4.1 下载挖矿相关配置文件
+### 3.1 下载挖矿相关配置文件
 下载最新版本的挖矿软件poc-mining及挖矿配置文件config.yaml、miners_config.yaml文件、supervision、update_config，运行以下命令进行下载:
 ```
 abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget -nc https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.4.0/update_config && sudo ./update_config
@@ -299,7 +231,11 @@ plot_path #矿工P盘的路径(注: 如上面P盘文件存放路径为/data/data
 max_deadline_value #允许提交的最大deadline值
 --------------------------------------------------------
 ```
-#### 4.1.1 修改配置文件
+**注意: account_id的长度必须小于19位数字**
+
+
+
+#### 3.1.1 修改配置文件
 打开miners_config.yaml文件，对应修改文件中host 、account_id 、phase、 miner_proportion 、url 、plot_size 、miner_reward_dest、plot_path、max_deadline_value的值，并保存退出。
 ```
 miners: # 矿工的统一配置
@@ -340,7 +276,7 @@ miners: # 矿工的统一配置
       max_deadline_value: 10000
    }
 ```
-#### 4.1.2 生成挖矿目录
+#### 3.1.2 生成挖矿目录
 
 执行python脚本，生成挖矿程序及挖矿配置文件，如下:
 ```
@@ -391,12 +327,12 @@ cat command.txt
 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
 ```
 
-#### 4.1.3 启动挖矿
+#### 3.1.3 启动挖矿
 启动前给矿工地址转足够的IPSE代币，因为启动后自动进行矿工注册操作;
 
 ==启动挖矿有如下两种方式：==
 
-##### 4.1.3.1 supervision启动挖矿(异常自动重启)
+##### 3.1.3.1 supervision启动挖矿(异常自动重启)
 拷贝command.txt中的启动命令进行挖矿程序（末尾加 & 为了后台运行），如下:
 ```
 sudo nohup /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 &
@@ -405,7 +341,25 @@ sudo nohup /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/super
 ```
 tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010.log 
 ```
-##### 4.1.3.2 不使用supervision,直接启动挖矿(异常不会自动重启)
+日志输出类似以下内容说明启动挖矿成功，如下：
+```
+23:54:57 [INFO]  Scavenger v.3.4.0
+23:54:57 [INFO]  path=/data/data11611391906548388081, files=1, size=3.6333 TiB
+23:54:57 [INFO]  plot files loaded: total drives=1, total capacity=3.6333 TiB
+23:54:57 [INFO]  reader-threads=1 CPU-threads=24
+23:54:57 [INFO]  CPU-buffer=4(+24)
+23:54:57 [INFO]  you are rergister, and now start mining.
+23:55:17 [INFO]  ************************************* start mining **************************************************
+23:55:18 [INFO]  new block: height=185421, scoop=169
+23:55:18 [INFO]  deadline:13978326
+23:55:18 [INFO]  deadline:1056359
+23:55:26 [INFO]  new block: height=185422, scoop=749                               
+23:55:26 [INFO]  scan overdue, can not submmit!
+......
+23:55:36 [INFO]  drive  840 finished, speed=198 MiB/s                           
+23:55:37 [INFO]  %%%%%%%%%%%%%%%%%%%%%%%%%  scan plot spend time: 11.010550429s %%%%%%%%%%%%%%%%%%%%%%%%%%
+```
+##### 3.1.3.2 不使用supervision,直接启动挖矿(异常不会自动重启)
 
 进入挖矿目录,启动挖矿（末尾加 & 为了后台运行），如下:
 ```
@@ -415,7 +369,7 @@ cd /home/abc/ipse2.0/ipse2.0-mining/localhost/202100123456003000
 sudo./poc-mining-10064825431032897010   & 
 ```
 
-#### 4.1.4 停止挖矿
+#### 3.1.4 停止挖矿
 拷贝command.txt中的停止命令执行停止挖矿操作，如下:
 ```
 sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision-10064825431032897010 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/poc-mining-10064825431032897010 --log-max-size 10 --stop
@@ -424,4 +378,66 @@ sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897010/supervision
 通过ps -ef| grep poc-mining查看进程是否已杀死，如果无法杀死进程，则进行kill -9 进程id.
 
 如果P盘文件增大空间或者P盘id已更换，则对应修改配置文件再重启挖矿,且需在链上更新对应矿工的account_id和plot_size！
+
+# 附录
+## 四、矿工app端操作
+[App下载链接](https://www.ipse.io/app/ipse.apk )
+
+### 4.1 矿工注册
+(1)打开ipse手机客户端，创建/导入账户，账户需要有足够的IPSE余额，支付相关交易手续费。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工注册.png)
+
+(2)进入“质押”-“矿工注册”页面，输入P盘空间、P盘id、佣金比例，进行矿工注册（默认收益地址是矿工自己的地址）。注册成功后跳转至质押界面；完成这一步，矿工就可以启动挖矿软件进行挖矿了。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工注册2.png)         
+
+### 4.2 矿工修改信息
+冷却期:只有矿工能修改信息
+非冷却期：抵押者可以进行质押及退出质押操作
+(1) 进入“质押”-“矿工管理”页面，分别选择P盘空间、P盘id、佣金比例，进行修改，修改成功后信息随之更新。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工修改注册信息.png)          
+### 4.3 矿工推荐列表(抵押排名)
+
+#### 4.3.1 申请加入推荐列表
+
+(1) 进入“质押”-“矿工管理”页面，选择“抵押排名”,输入amount，提交申请加入推荐列表
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工申请进入推荐列表.png)
+         
+(2)进入“质押”-“参与质押”页面，选择矿工列表，可以查看正在推荐列表的矿工信息，点击地址右边可查看到该矿工的挖矿记录；质押者可选择抵押排名中指定的矿工进行质押，获得挖矿分佣奖励。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/参与质押-矿工列表.png)           
+
+
+
+#### 4.3.2 退出推荐列表 
+
+进入“质押”-“矿工管理”页面，点击“退出抵押排名”进行退出操作，提交后退出推荐列表成功，并锁定抵押排名金额进入锁定期；不影响抵押者已进行质押的质押金额及出块奖励分佣。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工退出抵押排名.png)           
+
+
+
+### 4.4 矿工删除抵押者
+
+(1)进入“质押”-“矿工管理”页面，选择质押者列表的某个质押者进行删除，矿工删除质押者成功；自动返还质押者的质押金额—该质押者金额进入锁定期；扣除保留金额 1 ipse，作为惩罚。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工删除质押者.png)  
+          
+
+
+### 4.5 矿工停止挖矿
+
+(1)进入“质押”-“矿工管理”页面，点击“停止挖矿”进行操作，停止挖矿成功，矿工可查看之前的挖矿记录；
+矿工需手动去退出抵押排名列表，操作会锁定抵押排名金额进入锁定期；
+质押者需手动去减少质押或退出质押，操作会锁定质押金额进入锁定期。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工停止挖矿.png) 
+             
+### 4.6 矿工重新启动挖矿
+矿工挖矿状态为停止状态，需要启动挖矿，可以重新挖矿。
+
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工重启挖矿.png)  
 
