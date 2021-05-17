@@ -1,4 +1,4 @@
-# IPSE2.0矿工使用手册
+# IPSE2.0_PoC矿工使用手册_Linux版
 
 ## 矿工角色操作流程图:
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/矿工流程图.jpg)
