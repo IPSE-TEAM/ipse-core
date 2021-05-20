@@ -1,6 +1,6 @@
 # IPSE2.0_IPSE存储矿工及用户使用手册
 IPSE矿工及用户业务流程图:
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/IPSE矿工及用户.jpg)
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/IPSE矿工及用户.jpg)
 
 ## 环境说明:
 
@@ -182,15 +182,15 @@ end rm expired data file
 #### 3.2.1 矿工申请抵押排名
 进入”标注”-“矿工管理”,选择”抵押排名”输入金额并提交，进入抵押排名成功，标注页面就可以看到排名信息。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/IPSE矿工申请抵押排名.png)      
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/IPSE矿工申请抵押排名.png)      
 #### 3.2.2 矿工查看已确认订单
 进入”标注”-“矿工管理”，选择”已确认订单”，可以查看到自己账户下所有的订单。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/查看已确认订单.png)    
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/查看已确认订单.png)    
 #### 3.2.3 矿工查看挖矿记录
 进入”标注”-“矿工管理”，选择”挖矿记录”可查看到自己的挖矿记录。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/矿工查看挖矿记录.png)    
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/矿工查看挖矿记录.png)    
 
 #### 3.2.4 矿工更新注册信息
 两种方式:
@@ -199,7 +199,7 @@ end rm expired data file
 #### 3.2.5 矿工退出抵押排名
 进入”标注”-“矿工管理”，选择”退出抵押排名”并提交交易，退出抵押排名成功，抵押金额实时返还给矿工。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/矿工退出抵押排名.png)     
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/矿工退出抵押排名.png)     
 
 ## 四、用户使用ipse存储功能
 ### 4.1 前提
@@ -211,21 +211,21 @@ end rm expired data file
 #### 4.2.1 查看矿工信息
 进入”标注”-“标注”，选择任意矿工，点击右边的图标，可以查看该矿工的挖矿信息。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/用户查看矿工信息.png)      
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/用户查看矿工信息.png)      
 #### 4.2.2 上传文件
 进入”标注”-“标注”页面，选择指定矿工，进行上传文件。上传文件成功，根据上传文件大小进行计算费用；
 保留金额=上传文件大小(单位:Byte)*矿工设定的单价(n IPSE/Byte)*存储天数
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/用户上传文件.png)         
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/用户上传文件.png)         
 
 #### 4.2.3 查看订单明细
 用户上传文件成功，返回”标注”页面，最新订单数据列表增加一条订单记录，点击可查看订单明细
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/查看订单详情.png)    
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/查看订单详情.png)    
 
 
 #### 4.2.4 访问ipse.io搜索已上传文件
 浏览器打开www.ipse.io，输入已确认订单的hash，可以查看到所上传的文件信息
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.1.0/document/ipse_img/IPSE/ipse浏览器访问.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/IPSE/ipse浏览器访问.png) 
    
