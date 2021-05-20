@@ -620,7 +620,12 @@ impl<T: Trait> Module<T> {
 			if miner_should_staking_amount <= total_staking {
 				debug::info!("miner's staking enough！staking enough = {:?} ", total_staking);
 				// 2个块挖一次
-				let net_mining_num = (now - update_time).saturated_into::<u64>() / MiningExpire;
+				let mut net_mining_num = (now - update_time).saturated_into::<u64>() / MiningExpire;
+
+				// 如果计算出来的全网挖矿次数比矿工挖矿次数少, 那么就等与矿工挖矿次数
+				if net_mining_num < miner_mining_num {
+					net_mining_num = miner_mining_num
+				}
 
 				debug::info!("miner: {:?}, mining probability: {:?} / {:?}", miner.clone(), miner_mining_num, net_mining_num);
 
