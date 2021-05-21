@@ -386,7 +386,7 @@ decl_module! {
 		/// the miner stop the machine.
 		#[weight = 10_000]
         fn stop_mining(origin) {
-
+        	// 停止挖矿不会清空自己的挖矿记录 也不会更新自己的日期
         	let miner = ensure_signed(origin)?;
 
         	Self::is_can_mining(miner.clone())?;
