@@ -331,6 +331,8 @@ decl_module! {
 			}
 			);
 
+			// T::PocHandler::remove_history(miner.clone());
+
 			<AccountIdOfPid<T>>::insert(pid, miner.clone());
 
 			Self::deposit_event(RawEvent::UpdateNumericId(miner, pid));
@@ -396,6 +398,7 @@ decl_module! {
 					<MiningMiners<T>>::mutate(|h| h.remove(&miner));
 				}
 			});
+
 			Self::deposit_event(RawEvent::StopMining(miner));
 		}
 
@@ -417,6 +420,8 @@ decl_module! {
 					<MiningMiners<T>>::mutate(|h| h.insert(miner.clone()));
 				}
 			});
+			T::PocHandler::remove_history(miner.clone());
+
 			Self::deposit_event(RawEvent::RestartMining(miner));
 		}
 
