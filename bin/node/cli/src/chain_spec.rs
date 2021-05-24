@@ -19,7 +19,7 @@
 //! Substrate chain configurations.
 
 use sc_chain_spec::ChainSpecExtension;
-use sp_core::{Pair, Public, crypto::UncheckedInto, sr25519};
+use sp_core::{Pair, Public, crypto::UncheckedInto, sr25519, crypto::{AccountId32, Ss58Codec}};
 use serde::{Serialize, Deserialize};
 use node_runtime::{
 	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
@@ -42,6 +42,7 @@ use serde_json::{map::{Map}, value::Value};
 
 pub use node_primitives::{AccountId, Balance, Signature};
 pub use node_runtime::GenesisConfig;
+
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -176,6 +177,7 @@ pub fn testnet_genesis(
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
 		vec![
+			// get_account_id_from_seed::<sr25519::Public>("Alice"),
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
 			get_account_id_from_seed::<sr25519::Public>("Bob"),
 			get_account_id_from_seed::<sr25519::Public>("Charlie"),
@@ -192,7 +194,7 @@ pub fn testnet_genesis(
 	});
 	let num_endowed_accounts = endowed_accounts.len();
 
-	const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
+	const ENDOWMENT: Balance = 200_0000 * DOLLARS;
 	const STASH: Balance = 100 * DOLLARS;
 
 	GenesisConfig {
@@ -240,7 +242,13 @@ pub fn testnet_genesis(
 						.map(|member| (member, STASH))
 						.collect(),
 		}),
-		pallet_collective_Instance1: Some(CouncilConfig::default()),
+		// 技术委员会
+		pallet_collective_Instance1: Some(vec![
+			AccountId32::from_string("5GWjgushRVRgms7o54wKk8ZGitF6V6yHkmFBHZ8FmQKMdDAP").unwrap(),
+			AccountId32::from_string("5FWJYoLowtLAcpPrDbVkg4s79sf44w4r4xwhWQyEYXRHDUDF").unwrap(),
+			AccountId32::from()
+
+		]),
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
 			members: endowed_accounts.iter()
 						.take((num_endowed_accounts + 1) / 2)
