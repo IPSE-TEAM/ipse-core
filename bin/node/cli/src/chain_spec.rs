@@ -75,6 +75,10 @@ pub fn ipse_testnet_config() -> Result<ChainSpec, String> {
 	ChainSpec::from_json_bytes(&include_bytes!("../res/customspec.json")[..])
 }
 
+pub fn ipse_mainnet_config() -> Result<ChainSpec, String> {
+	ChainSpec::from_json_bytes(&include_bytes!("../res/mainnet.json")[..])
+}
+
 
 fn session_keys(
 	grandpa: GrandpaId,

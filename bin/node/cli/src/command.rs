@@ -25,7 +25,7 @@ use crate::service::{new_partial, new_full_base, NewFullBase};
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Ipse Node".into()
+		"IPSE Node".into()
 	}
 
 	fn impl_version() -> String {
@@ -52,9 +52,8 @@ impl SubstrateCli for Cli {
 		Ok(match id {
 			"dev" => Box::new(chain_spec::development_config()),
 			"local" => Box::new(chain_spec::local_testnet_config()),
-			"main" => Box::new(chain_spec::main_testnet_config()),
+			"main" => Box::new(chain_spec::ipse_mainnet_config()?),
 			"" | "fir" | "flaming-fir" => Box::new(chain_spec::flaming_fir_config()?),
-			// "staging" => Box::new(chain_spec::staging_testnet_config()),
 			"staging" => Box::new(chain_spec::ipse_testnet_config()?),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
