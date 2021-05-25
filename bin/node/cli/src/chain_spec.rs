@@ -85,7 +85,7 @@ fn session_keys(
 	SessionKeys { grandpa, babe, im_online, authority_discovery }
 }
 
-fn staging_testnet_config_genesis() -> GenesisConfig {
+fn main_testnet_config_genesis() -> GenesisConfig {
 
 	let initial_authorities= get_staging_initial_authorities();
 
@@ -102,29 +102,29 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 }
 
 /// Staging testnet config.
-pub fn staging_testnet_config() -> ChainSpec {
+pub fn main_testnet_config() -> ChainSpec {
 
 	let boot_nodes = vec![
 		// node1
-		String::from("/ip4/3.1.221.201/tcp/30333/p2p/12D3KooWBgdPph5eAQsn5nUSPhKqq9fn5XVjNR3yMy785QbNwJHp").try_into().unwrap(),
+		String::from("/ip4/3.1.221.201/tcp/30334/p2p/12D3KooWBgdPph5eAQsn5nUSPhKqq9fn5XVjNR3yMy785QbNwJHp").try_into().unwrap(),
 		// node2
-		String::from("/ip4/54.201.92.12/tcp/30333/p2p/12D3KooWP6egRqMQ2AThH4T2XALoRt4GuDEgs72ftxjiyFQHUNDg").try_into().unwrap(),
+		String::from("/ip4/54.149.69.67/tcp/30334/p2p/12D3KooWP6egRqMQ2AThH4T2XALoRt4GuDEgs72ftxjiyFQHUNDg").try_into().unwrap(),
 		// node3
-		String::from("/ip4/119.23.253.24/tcp/30333/p2p/12D3KooWFeLe5p2ck9vkYtSsbbTQGMmJ4zEAnKWtDPWr8iVyLQSQ").try_into().unwrap(),
+		String::from("/ip4/119.23.253.24/tcp/30334/p2p/12D3KooWFeLe5p2ck9vkYtSsbbTQGMmJ4zEAnKWtDPWr8iVyLQSQ").try_into().unwrap(),
 		// node4
-		String::from("/ip4/3.125.157.48/tcp/30333/p2p/12D3KooWQ3DuSwL1Cf8FiShgE8T15mYpUa1GnkoJwp2y3Fjp76cM").try_into().unwrap(),
+		String::from("/ip4/3.125.157.48/tcp/30334/p2p/12D3KooWQ3DuSwL1Cf8FiShgE8T15mYpUa1GnkoJwp2y3Fjp76cM").try_into().unwrap(),
 	];
 	ChainSpec::from_genesis(
-		"IPSETestnet",
-		"IPSE_testnet",
+		"IPSE Mainnet",
+		"IPSE2.0",
 		ChainType::Live,
-		staging_testnet_config_genesis,
+		main_testnet_config_genesis,
 		boot_nodes,
 		Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
 			.expect("Staging telemetry url is valid; qed")),
-		Some("ipse"),
+		Some("ipse2.0"),
 		Some(get_properties()),
-		Default::default(),
+		Default::default(), // 跟平行链相关的配置 忽略掉
 	)
 }
 
@@ -195,7 +195,8 @@ pub fn testnet_genesis(
 	let num_endowed_accounts = endowed_accounts.len();
 
 	const ENDOWMENT: Balance = 200_0000 * DOLLARS;
-	const STASH: Balance = 100 * DOLLARS;
+	// 抵押尽量多一点（增大后面抵押者成本， 也能保证初始验证人稳定)
+	const STASH: Balance = 10000 * DOLLARS;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
@@ -224,8 +225,9 @@ pub fn testnet_genesis(
 				))
 			}).collect::<Vec<_>>(),
 		}),
+
 		pallet_staking: Some(StakingConfig {
-			validator_count: initial_authorities.len() as u32 * 2,
+			validator_count: 20, // 验证人打开到20
 			minimum_validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities.iter().map(|x| {
 				(x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator)
@@ -234,28 +236,40 @@ pub fn testnet_genesis(
 			slash_reward_fraction: Perbill::from_percent(10),
 			.. Default::default()
 		}),
-		pallet_democracy: Some(DemocracyConfig::default()),
-		pallet_elections_phragmen: Some(ElectionsPhragmenConfig {
-			members: endowed_accounts.iter()
-						.take((num_endowed_accounts + 1) / 2)
-						.cloned()
-						.map(|member| (member, STASH))
-						.collect(),
-		}),
-		// 技术委员会
-		pallet_collective_Instance1: Some(vec![
-			AccountId32::from_string("5GWjgushRVRgms7o54wKk8ZGitF6V6yHkmFBHZ8FmQKMdDAP").unwrap(),
-			AccountId32::from_string("5FWJYoLowtLAcpPrDbVkg4s79sf44w4r4xwhWQyEYXRHDUDF").unwrap(),
-			AccountId32::from()
 
-		]),
+		pallet_democracy: Some(DemocracyConfig::default()),
+
+		// 议会成员初始化为0
+		pallet_elections_phragmen: Some(Default::default()),
+
+		// 议会初始化为0
+		pallet_collective_Instance1: Some(Default::default()),
+
+		// 技术委员会
 		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
-			members: endowed_accounts.iter()
-						.take((num_endowed_accounts + 1) / 2)
-						.cloned()
-						.collect(),
+			members: vec![
+				// huai
+				AccountId32::from_string("5GWjgushRVRgms7o54wKk8ZGitF6V6yHkmFBHZ8FmQKMdDAP").unwrap(),
+				// yuan
+				AccountId32::from_string("5FWJYoLowtLAcpPrDbVkg4s79sf44w4r4xwhWQyEYXRHDUDF").unwrap(),
+				// bing
+				AccountId32::from_string("5CaZHv97m7iuMPFLd4Bnnt6Av2cPRCHfURqpHb94aVaBteRB").unwrap(),
+				// you
+				AccountId32::from_string("5He9UnqWYVqDgBuxxrqGfxZWnuZ3ke7AhqPnyRkukrEpRrrc").unwrap(),
+				// hao
+				AccountId32::from_string("5DCPX1kxcd5qZxmcUoypYCBu9zYvgU8QxL7Ff3CRFKgmMRi9").unwrap(),
+				// wen
+				AccountId32::from_string("5Dt43fTPLRDJXcKNAXWtRhcrSA89LLMgZbRrgzaUshUxM8sn").unwrap(),
+				// yu
+				AccountId32::from_string("5DPt9hfH5ea8R6A3dGsACj7GsnG9U3LGdykyGjSLRMynqztG").unwrap(),
+				// kun
+				AccountId32::from_string("5F1KPuXvHNr3p18yAWMzbvioWg61EucVgRaznx8tDVW9FdX4").unwrap(),
+
+			],
+
 			phantom: Default::default(),
 		}),
+
 		pallet_contracts: Some(ContractsConfig {
 			current_schedule: pallet_contracts::Schedule {
 				enable_println, // this should only be enabled on development chains
