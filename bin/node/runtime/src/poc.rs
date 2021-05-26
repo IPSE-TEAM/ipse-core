@@ -111,7 +111,7 @@ decl_storage! {
 		/// how often to adjust difficulty.
 		pub AdjustDifficultyDuration get(fn adjust_difficulty_duration): u64 = 50;
 
-		/// how many LT that one Gib should staking.
+		/// how much IPSE that one Gib should staking.
 		pub CapacityPrice get(fn capacity_price): BalanceOf<T> = 10.saturated_into::<BalanceOf<T>>() * DOLLARS.saturated_into::<BalanceOf<T>>();
 
 		/// active miners (now_count, [account_id..], last_count, [account_id..])
@@ -190,7 +190,7 @@ decl_module! {
         	Self::deposit_event(RawEvent::SetAdjustDifficultyDuration(block_num));
         }
 
-		/// how much LT that one Gib should staking.
+		/// how much IPSE that one Gib should staking.
 		#[weight = 10_000]
         fn set_capacity_price(origin, price: BalanceOf<T>) {
         	ensure_root(origin)?;
