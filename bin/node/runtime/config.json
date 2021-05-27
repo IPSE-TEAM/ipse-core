@@ -100,8 +100,8 @@
       },
       "AddressStatus": {
         "_enum": [
-          "active",
-          "inActive"
+          "Active",
+          "InActive"
         ]
       },
       "FetchFailedOf":{

@@ -114,9 +114,9 @@ pub trait Trait: system::Trait + timestamp::Trait + SendTransactionTypes<Call<Se
     //                 + AsRef<[u8]> + From<[u8; 32]>;
 
     /// The local AuthorityId
-   type AuthorityId: RuntimeAppPublic + Clone + Parameter +
-                    Into<sr25519::Public> + From<sr25519::Public> + AccountIdPublicConver<AccountId=Self::AccountId> +
-                    From<<Self as frame_system::Trait>::AccountId> + From<[u8; 32]>;
+    type AuthorityId: RuntimeAppPublic + Clone + Parameter +
+    Into<sr25519::Public> + From<sr25519::Public> + AccountIdPublicConver<AccountId=Self::AccountId> +
+    From<<Self as frame_system::Trait>::AccountId> + From<[u8; 32]>;
 
     // tx 队列的最大长度
     type TxsMaxCount: Get<u32>;
@@ -134,13 +134,11 @@ pub trait Trait: system::Trait + timestamp::Trait + SendTransactionTypes<Call<Se
 
 decl_error! {
     pub enum Error for Module<T: Trait> {
-      /// 账号不一直
+      /// account not match
       MemoMissMatch,
 
-      /// tx 已经被使用过
       TxExisted,
 
-      /// tx 正在被使用中
       TxInUsing,
 
       /// txsoverlimit
@@ -150,16 +148,15 @@ decl_error! {
 
 	  Exist,
 
-	  /// 账号错误
+	  /// account error
 	  MemoInvalid,
 
-	  /// tx 已经被兑换过了
+	  /// tx exchaned
 	  Exchanged,
 
-	  /// 截止兑换
+	  /// Out of exchange time
 	  DeadExchange,
 
-	  /// 没有铸币权限
 	  NoPermission,
     }
 }
@@ -303,10 +300,10 @@ decl_module! {
         let curent_status = <TokenStatus<T>>::get(tx.clone()).0;
         // 等于0表示没被占用,继续向下执行
         ensure!(<TokenStatus<T>>::get(tx.clone()).0 == 0, Error::<T>::TxInUsing);
-        debug::info!("当前长度: {:?}",TokenStatusLen::get());
+        debug::info!("TokenStatusLen: {:?}",TokenStatusLen::get());
         ensure!(TokenStatusLen::get() <= T::TxsMaxCount::get(), Error::<T>::OverMaximum);
         <TokenStatus<T>>::insert(tx.clone(),(1000,who.clone()));
-        debug::info!("TokenStatus 初始化状态为:{:?}",<TokenStatus<T>>::get(tx.clone()).0);
+        debug::info!("TokenStatus init status:{:?}",<TokenStatus<T>>::get(tx.clone()).0);
         TokenStatusLen::mutate(|n|*n += 1);
         Self::deposit_event(RawEvent::AddExchangeQueueEvent(tx.clone()));
         Ok(())
@@ -332,17 +329,17 @@ decl_module! {
 //        1001: 表示验证1次，但是请求失败了
 //        130x: 终止，3个验证通过 pass
 //        1x7x: 终止，7个节点验证不通过,就failed
-//        1009: 终止，网络全部失败   todo: 怎么处理？ 目前按照 failed处理
+//        1009: 终止，网络全部失败
 //        1109: pass 处理
 
        let (token_status,accept_account) = <TokenStatus<T>>::get(tx.clone());
        debug::info!("token_status={:?},accept_account={:?}",token_status,accept_account);
-       ensure!(<TokenStatus<T>>::contains_key(tx.clone()), "不需要再操作,tx已经从TokenStatus移除");
+       ensure!(<TokenStatus<T>>::contains_key(tx.clone()), "tx removed from TokenStatus");
        match SucTxExchange::get(&tx){  // 也可以不需要此判断
         Some(_) => return Err(Error::<T>::Exchanged)?,
         _ => (),
       }
-      debug::info!("获取到了本地服务的返回信息,对状态位操作");
+      debug::info!("The return message of the local service was obtained.operate status");
       // let status = post_tx_transfer_data.code;
       if status == 0{   // 0
         // 成功
@@ -370,7 +367,7 @@ decl_module! {
              <TokenStatus<T>>::mutate(&tx,|val|val.0 = val.0.checked_add(10).unwrap()); // 失败次数加1,总次数加1
       }
       Self::verify_handle(&tx, quantity);
-      debug::info!("----上链成功: record_suc_verify:{:?}-----", duration);
+      debug::info!("----onchain: record_suc_verify:{:?}-----", duration);
       Ok(())
     }
 
@@ -387,10 +384,10 @@ decl_module! {
             ensure_none(origin)?;
             <TokenStatus<T>>::try_mutate(&tx,|val|{
                 if val.0 == 0 {
-                    debug::error!("当前 TokenStatus 状态为 0.不需要再操作,tx已经从TokenStatus移除");
+                    debug::error!("TokenStatus status 0.tx removed from TokenStatus");
                     return Err("");
                 }
-                debug::info!("record_fail_verify 对状态位加 1");
+                debug::info!("record_fail_verify status bit +1");
                 val.0 = val.0.checked_add(1).unwrap();  // 无应答情况
                 return Ok(&tx)}
             )?;
@@ -401,7 +398,7 @@ decl_module! {
                     err: err.clone()
             };
             let status:u64 = <TokenStatus<T>>::get(tx.clone()).0;
-            debug::info!("------验证失败:status={:?},tx={:?}-------",status,hex::encode(&tx));
+            debug::info!("------verify failed:status={:?},tx={:?}-------",status,hex::encode(&tx));
             Self::verify_handle(&tx, 0);
             <FetchFailed<T>>::mutate(&account, |fetch_failed| {
             if fetch_failed.len()>50{  // 最多保留50个的长度
@@ -411,12 +408,11 @@ decl_module! {
             });
             /**
             if err == WAIT_HTTP_CONVER_REPONSE.as_bytes().to_vec(){ // 本地服务没开起来
-            // todo: 需不需要额外处理
             }
             */
 
             Self::deposit_event(RawEvent::FailedEvent(account.clone(),block,tx));
-            debug::info!("------fetch失败记录上链成功:record_fail_verify--------");
+            debug::info!("------failed fetch  are recorded onchain: record_fail_verify--------");
             Ok(())
     }
 
@@ -446,7 +442,7 @@ impl<T: Trait> Module<T> {
             let (status,accept_account) = value;   // 注册的账号名
             let tx= tx_key;  // 转账tx
             let tx_hex = hex::encode(&tx);
-            debug::info!("迭代器获取 tx = {:?}",tx_hex);
+            debug::info!("iterator tx = {:?}",tx_hex);
 
             // post json 构造
             // let body = Self::get_json(&tx,&accept_account).ok_or("get_json error");
@@ -466,8 +462,8 @@ impl<T: Trait> Module<T> {
                 Ok(mut post_tx_transfer_data) => {
                     let tx_hex = hex::encode(&tx);
                     debug::info!("*** fetch ***: {:?}:{:?}",
-                            core::str::from_utf8(EOS_NODE_URL).unwrap(),
-                            tx_hex);
+                                 core::str::from_utf8(EOS_NODE_URL).unwrap(),
+                                 tx_hex);
                     Self::call_record_address(block_num, key.clone(), local_account, &tx, post_tx_transfer_data)?;
                 },
                 Err(e) => {
@@ -537,9 +533,9 @@ impl<T: Trait> Module<T> {
     fn get_json(tx: &[u8], accept_account: &T::AccountId) -> Option<Vec<u8>> {
         let keys:[&[u8];2] = [b"tx",b"account"];
         let tx_vec= hex_to_u8(tx);
-        debug::info!("转换后的tx={:?}",core::str::from_utf8(&tx_vec).ok()?);
+        debug::info!("the converted tx={:?}",core::str::from_utf8(&tx_vec).ok()?);
         let acc = Self::account_convert_u8(accept_account.clone());
-        debug::info!("转换后的 acc={:?}",core::str::from_utf8(&acc).ok()?);
+        debug::info!("the converted acc={:?}",core::str::from_utf8(&acc).ok()?);
         let vals:[&[u8];2] = [&tx_vec,&acc];
 
         let mut json_val = vec![POST_KEYWORD[0]];
@@ -557,7 +553,7 @@ impl<T: Trait> Module<T> {
         json_val.push(POST_KEYWORD[4]);    //json_val.push("}");
 
         let json_vec = json_val.concat().to_vec();
-        debug::info!("请求的json:{:?}",core::str::from_utf8(&json_vec).ok()?);
+        debug::info!("requested json:{:?}",core::str::from_utf8(&json_vec).ok()?);
 
         Some(json_vec)
     }
@@ -566,14 +562,14 @@ impl<T: Trait> Module<T> {
     fn local_authority_keys() -> (Option<T::AuthorityId>,Option<T::AccountId>){
         let authorities = NotaryKeys::<T>::get();
         let key_id = core::str::from_utf8(&T::AuthorityId::ID.0).unwrap();
-        debug::info!("当前的节点 keytypeId: {:?}",key_id);
+        debug::info!("keytypeId: {:?}",key_id);
         for i in T::AuthorityId::all().iter(){   // 本地的账号
             let authority: T::AuthorityId = (*i).clone();
             let  authority_sr25519: sr25519::Public = authority.clone().into();
             let s: T::AccountId= authority.clone().into_account32();
-            debug::info!("本地账号信息:{:?}",s);
+            debug::info!("local accounts:{:?}",s);
             if authorities.contains(&s){
-                debug::info!("找到了本地账号: {:?}",s);
+                debug::info!("matched account: {:?}",s);
                 return (Some(authority),Some(s));
             }
         }
@@ -590,12 +586,12 @@ impl<T: Trait> Module<T> {
         let (status,accept_account) = <TokenStatus<T>>::get(tx);
         let num = TokenStatusLen::get();
         if status  < 1000{
-            debug::error!("=====绑定验证失败:当前的 tx={:?},状态为 {:?},=====",hex::encode(tx),status);
+            debug::error!("=====Binding validation failed: tx={:?},status {:?},=====",hex::encode(tx),status);
             <TokenStatus<T>>::remove(tx);
             if num > 0{
                 TokenStatusLen::mutate(|n|*n -= 1);
             }
-            return Err("status 小于 1000");
+            return Err("status < 1000");
         }
 
         debug::info!("--------onchain set status={:?}--------",status);
@@ -621,9 +617,9 @@ impl<T: Trait> Module<T> {
         // let active_status = <EosExchangeInfo<T>>::get(accept_account.clone(), tx.clone());
         match verify_status{
             VerifyStatus::Failed => {  // 失败
-            debug::info!("--注册失败--");
+                debug::info!("--fail to register--");
                 <TokenStatus<T>>::remove(tx); // 移除掉
-                debug::info!("移除 tx={:?},队列剩余:{:?} 个",hex::encode(tx.clone()),num);
+                debug::info!("remove tx={:?},queue len:{:?} ",hex::encode(tx.clone()),num);
                 if num > 0{
                     TokenStatusLen::mutate(|n|*n -= 1);
                 }
@@ -631,10 +627,10 @@ impl<T: Trait> Module<T> {
                 // Self::insert_active_status(accept_account.clone(), tx, AddressStatus::InActive);
             }
             VerifyStatus::Pass => {  // 成功
-            debug::info!("--------成功兑换--------");
-                // todo: 调用铸币
+                debug::info!("--------exchanged suc--------");
+                // 调用铸币
                 Self::create_token(accept_account.clone(),quantity);
-                debug::info!("移除 tx={:?},队列剩余:{:?} 个",hex::encode(tx.clone()),num);
+                debug::info!("remove tx={:?},queue len::{:?}",hex::encode(tx.clone()),num);
                 <TokenStatus<T>>::remove(tx); // 移除掉
                 if num >0{
                     TokenStatusLen::mutate(|n|*n -= 1);
@@ -653,12 +649,12 @@ impl<T: Trait> Module<T> {
     //     let position = register_list.iter().position(|p| p.3 == symbol.clone());  // 注册的列表
     //     match position{
     //         Some(x) => {
-    //             debug::info!("---------AddressOf 已经存在了 {:?}---------",hex::encode(tx));
+    //             debug::info!("---------AddressOf haved {:?}---------",hex::encode(tx));
     //             register_list[x] = (token_address,active_status,tx.to_vec(),symbol);
     //             <AddressOf<T>>::insert(register_account,register_list);
     //         },
     //         None => {
-    //             debug::info!("------- AddressOf 不存在 {:?}-----------",hex::encode(tx));
+    //             debug::info!("------- AddressOf not found {:?}-----------",hex::encode(tx));
     //             <AddressOf<T>>::mutate(register_account, |v|{
     //                 v.push((token_address,active_status,tx.to_vec(),symbol));
     //             });
@@ -731,7 +727,7 @@ impl<T: Trait> Module<T> {
     }
 
     fn get_verify_status(post_transfer_data: &mut PostTxTransferData, acc: T::AccountId){
-       /// 验证, 返回状态码
+        /// 验证, 返回状态码
         if post_transfer_data.code != 1 {  // 1: 本地服务获取eos节点查询无效
             // 255和0是本地服务返回来的状态
             if post_transfer_data.code == 0 {post_transfer_data.code = 2100;}  // 设置一个初始值
@@ -759,7 +755,7 @@ impl<T: Trait> Module<T> {
 
 
             }else{
-                debug::info!("可逆 或者 不是post");
+                debug::info!("reversible or not post token");
                 post_transfer_data.code = 2001;
             }
 
@@ -776,7 +772,7 @@ impl<T: Trait> Module<T> {
                 return
             },
         };
-        debug::info!("{:?}兑换的个数为:{:?}",&who,decimal);
+        debug::info!("{:?}exchanged num:{:?}",&who,decimal);
         T::OnUnbalanced::on_unbalanced(T::Currency::deposit_creating(&who, decimal));
         Self::deposit_event(RawEvent::CreateToken(who, decimal));
     }
@@ -828,10 +824,10 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
                 });
 
                 if !signature_valid {
-                    debug::error!("................ record_suc_verify 签名验证失败 .....................");
+                    debug::error!("................ record_suc_verify signed fail .....................");
                     return InvalidTransaction::BadProof.into();
                 }
-                debug::info!("................ record_suc_verify 签名验证成功 .....................");
+                debug::info!("................ record_suc_verify signed suc .....................");
                 Ok(ValidTransaction {
                     priority: <T as Trait>::UnsignedPriority::get(),
                     requires: vec![],
@@ -848,7 +844,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
                     key.verify(&encoded_sign, &signature)
                 });
                 if !signature_valid {
-                    debug::error!("................ record_fail_verify 签名验证失败 .....................");
+                    debug::error!("................ record_fail_verify signed fail .....................");
                     return InvalidTransaction::BadProof.into();
                 }
                 Ok(ValidTransaction {
@@ -864,7 +860,6 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
         }
     }
 }
-
 
 
 
