@@ -486,11 +486,11 @@ decl_module! {
 
 		/// users update their staking amount.
         #[weight = 10_000]
-        fn update_staking(origin, miner: T::AccountId, oprate: Operate , amount: BalanceOf<T>) {
+        fn update_staking(origin, miner: T::AccountId, operate: Operate , amount: BalanceOf<T>) {
 
         	let staker = ensure_signed(origin)?;
 
-			Self::update_staking_info(miner, staker.clone(), oprate, Some(amount), false)?;
+			Self::update_staking_info(miner, staker.clone(), operate, Some(amount), false)?;
 
 			Self::deposit_event(RawEvent::UpdateStaking(staker, amount));
 
@@ -714,11 +714,11 @@ impl<T: Trait> Module<T> {
 
 
 	/// 琐仓操作
-	fn lock(who: T::AccountId, oprate: Operate , amount: BalanceOf<T>) {
+	fn lock(who: T::AccountId, operate: Operate , amount: BalanceOf<T>) {
 
 		let locks_opt = <Locks<T>>::get(who.clone());
 		let reasons = WithdrawReason::Transfer | WithdrawReason::Reserve;
-		match oprate {
+		match operate {
 			Operate ::Sub => {
 				// 如果本来就没有， 那么就直接过
 				if locks_opt.is_none() {
@@ -800,7 +800,7 @@ impl<T: Trait> Module<T> {
 
 
 	/// 更新已经抵押过的用户的抵押金额
-	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Operate , amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
+	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, operate: Operate , amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
 		// 如果操作是减仓 那么amount_opt是none意味着抵押者退出
 		// 如果操作是加仓 那么amount_opt 不能是none值
 		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
@@ -822,7 +822,7 @@ impl<T: Trait> Module<T> {
 				amount = amount_opt.unwrap()
 			}
 
-			match  oprate {
+			match  operate {
 
 				Operate ::Add => {
 					let bond = staker_info.1.clone();

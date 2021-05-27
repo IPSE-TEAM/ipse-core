@@ -3935,7 +3935,7 @@ dependencies = [
 
 [[package]]
 name = "node-cli"
-version = "2.1.0"
+version = "3.0.0"
 dependencies = [
  "assert_cmd",
  "frame-benchmarking-cli",
@@ -4113,7 +4113,7 @@ dependencies = [
 
 [[package]]
 name = "node-runtime"
-version = "2.1.0"
+version = "3.0.0"
 dependencies = [
  "alt_serde",
  "conjugate-poc",
