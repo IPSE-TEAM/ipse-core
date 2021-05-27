@@ -1,19 +1,15 @@
 # IPSE2.0_PoC矿工使用手册_Linux版
 
-## 环境说明:
-Ubuntu18.04或Ubuntu20.04系统
-## 一、	搭建本地节点
 
+## 一、	搭建本地节点
+### 环境说明:
+Ubuntu18.04或Ubuntu20.04系统
 ### 1.1 下载程序
-[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/2.3.0/IPSE)
+[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.0/IPSE)
 
 节点服务器本地创建文件夹，下载链程序
 ```
-➜  ~ mkdir -p ipse2.0/ipse2.0-node
-➜  ~ cd ipse2.0/ipse2.0-node 
-➜  ipse2.0-node ll
-total 0
-➜  ipse2.0-node wget https://github.com/IPSE-TEAM/ipse-core/releases/download/2.3.0/IPSE
+sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.0/IPSE
 ```
 
 
@@ -22,7 +18,7 @@ total 0
 
 通过运行以下指令来开始同步您的节点(写入日志文件及后台运行):
 ```
-/IPSE --chain  staging --ws-port 9948 --base-path db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
+./IPSE --chain  main --ws-port 9948 --base-path db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
 ```
 如果您不想马上运行验证模式下。
 --pruning=archive选项意味着--validator和-sentry选项，因此仅如果在没有这两个选项之一的情况下启动节点，则必须明确要求。 如果您不设置为 archive 节点，即使不在运行验证人和哨兵模式时，也需要切换时重新同步数据库。
@@ -32,8 +28,9 @@ total 0
 ### 1.3 启动本地节点
 
 节点同步数据完成，关闭IPSE程序，重新启动本地节点，运行以下命令(写入日志文件及后台运行):
+
 ```
-./IPSE --chain  staging  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
+./IPSE --chain  main  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
 ```
 通过tail –f ipse.log查看日志详情.
 ```
@@ -60,11 +57,11 @@ Mar 25 15:31:21.081  INFO execute_block:apply_extrinsic: 矿工: 16c3ab6a5c4213d
 ### 1.4 关闭本地节点
 查看IPSE进程号，并杀掉进程，命令如下:
 ```
-➜  ~ ps -ef |grep IPSE                                              
+ps -ef |grep IPSE                                              
 root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
 root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
-➜  ~ 
-➜  ~ kill -9 1795222
+
+kill -9 1795222
 ```
 如果想成为验证人节点，则参考以下文档:
 
@@ -79,7 +76,7 @@ linux系统(如ubuntu18.04或ubuntu20.04)进行P盘及挖矿！
 [P盘工具Linux版的下载地址](https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz)
 输入以下命令进行下载P盘工具：
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz
+sudo wget https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz
 ```
 下载过程中界面日志:
 ```
@@ -101,7 +98,7 @@ engraver-2.4.0-x86_64-unknown-linux-gnu 100%[===================================
 ```
 解压P盘工具软件:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo tar -xvf engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz 
+sudo tar -xvf engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz 
 engraver_cpu
 engraver_gpu
 
@@ -176,19 +173,19 @@ nonce计算：
 
 通过执行以下命令进行P盘:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
+sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
 ```
 提示指定的P盘文件存放路径不存在，那么我们先新建该文件路径
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo mkdir -p /data/data10064825431032897                                                                          
-abc@abc:~/ipse2.0/ipse2.0-mining$ ll /data/data10064825431032897 
+sudo mkdir -p /data/data10064825431032897                                                                          
+ll /data/data10064825431032897 
 总用量 0
 
 ```
 
 再次执行P盘操作
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
+sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
 ```
  
 **如果使用engraver_cpu进行绘图，cpu太慢，占用cpu过多，温度过高，则请使用engraver_gpu进行绘图;**
@@ -200,7 +197,7 @@ abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./engraver_gpu --n 409600 --id 1006482543
 ### 3.1 下载挖矿相关配置文件
 下载最新版本的挖矿软件poc-mining及挖矿配置文件config.yaml、miners_config.yaml文件、supervision、update_config，运行以下命令进行下载:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo wget -nc https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.4.0/update_config && sudo ./update_config
+sudo wget -nc https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.4.0/update_config && sudo ./update_config
 ```
 并赋予可执行权限:
 ```
@@ -223,7 +220,7 @@ miners: # 矿工的统一配置
    }
 --------------------------------------------------------
 host #当前目录生成矿工文件夹名称 
-account_id #矿工的P盘ID
+account_id #矿工的P盘ID（全网唯一，请自定义）
 phase  #矿工的助记词
 miner_proportion #矿工挖矿获得的奖励占比
 url  #本地节点或远程节点的地址(如输入本地节点 “ws://localhost:9948”)
@@ -282,7 +279,7 @@ miners: # 矿工的统一配置
 
 执行python脚本，生成挖矿程序及挖矿配置文件，如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$ sudo ./update_config
+sudo ./update_config
 ```
 ```
 File ‘config.yaml’ already there; not retrieving.

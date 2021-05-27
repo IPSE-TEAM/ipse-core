@@ -4,15 +4,11 @@
 ### 环境说明:
 Ubuntu18.04或Ubuntu20.04系统
 ### 1.1 下载程序
-[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/2.1.2/IPSE)
+[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.0/IPSE)
 
 节点服务器本地创建文件夹，下载链程序
 ```
-➜  ~ mkdir -p ipse2.0/ipse2.0-node
-➜  ~ cd ipse2.0/ipse2.0-node 
-➜  ipse2.0-node ll
-total 0
-➜  ipse2.0-node wget hhttps://github.com/IPSE-TEAM/ipse-core/releases/download/2.1.2/IPSE
+sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.0/IPSE
 ```
 
 
@@ -21,7 +17,7 @@ total 0
 
 通过运行以下指令来开始同步您的节点(写入日志文件及后台运行):
 ```
-/IPSE --chain  staging --ws-port 9948 --base-path db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
+./IPSE --chain  main --ws-port 9948 --base-path db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
 ```
 如果您不想马上运行验证模式下。
 --pruning=archive选项意味着--validator和-sentry选项，因此仅如果在没有这两个选项之一的情况下启动节点，则必须明确要求。 如果您不设置为 archive 节点，即使不在运行验证人和哨兵模式时，也需要切换时重新同步数据库。
@@ -31,8 +27,9 @@ total 0
 ### 1.3 启动本地节点
 
 节点同步数据完成，关闭IPSE程序，重新启动本地节点，运行以下命令(写入日志文件及后台运行):
+
 ```
-./IPSE --chain  staging  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
+./IPSE --chain  main  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
 ```
 通过tail –f ipse.log查看日志详情.
 ```
@@ -59,16 +56,17 @@ Mar 25 15:31:21.081  INFO execute_block:apply_extrinsic: 矿工: 16c3ab6a5c4213d
 ### 1.4 关闭本地节点
 查看IPSE进程号，并杀掉进程，命令如下:
 ```
-➜  ~ ps -ef |grep IPSE                                              
+ps -ef |grep IPSE                                              
 root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
 root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
-➜  ~ 
-➜  ~ kill -9 1795222
+
+kill -9 1795222
 ```
 如果想成为验证人节点，则参考以下文档:
 
 [Polkadot网络上设置验证人节点](https://wiki.polkadot.network/docs/zh-CN/maintain-guides-how-to-validate-polkadot)
 
+   
 
 ## 二、矿工P盘
 ### 环境说明:
@@ -160,15 +158,15 @@ nonce计算：
 
 通过执行以下命令进行P盘(以1GiB为例):
 ```
-F:\plot>engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
+engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
 ```
 提示指定的P盘文件存放路径不存在，那么我们先新建该文件路径
 ```
-F:\plot>mkdir F:\plot\data
+mkdir F:\plot\data
 ```
 再次执行P盘操作
 ```
-F:\plot>engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
+engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
 ```
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/cmd_start_plotting.png) 
 
