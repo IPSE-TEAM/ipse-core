@@ -230,7 +230,7 @@ decl_module! {
 
             if let Some(miner_info) = Miners::<T>::get(&miner).as_mut() {
 
-                ensure!(miner_info.capacity > size, Error::<T>::InsufficientCapacityists);
+                ensure!(miner_info.capacity > size, Error::<T>::InsufficientCapacity);
 
                 miner_info.capacity = miner_info.capacity - size;
 
@@ -673,7 +673,7 @@ decl_error! {
         AmountNotEnough,
         NotInList,
         /// Miners provide insufficient storage capacity
-        InsufficientCapacityists,
+        InsufficientCapacity,
         NoneCapacity,
         NoneDays,
     }

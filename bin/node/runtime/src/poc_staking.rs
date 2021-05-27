@@ -92,14 +92,14 @@ pub struct StakingInfo<AccountId, Balance> {
 
 /// 操作
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
-pub enum Oprate {
+pub enum Operate {
 	/// 添加
 	Add,
 	/// 减少
 	Sub,
 }
 
-impl Default for Oprate {
+impl Default for Operate {
 	fn default() -> Self {
 		Self::Add
 	}
@@ -174,7 +174,7 @@ decl_module! {
      pub struct Module<T: Trait> for enum Call where origin: T::Origin {
      	/// how many block that the chill time.
      	const ChillDuration: T::BlockNumber = T::ChillDuration::get();
-     	/// how much LT you should deposit when staking.
+     	/// how much IPSE you should deposit when staking.
      	const StakingDeposit: BalanceOf<T> = T::StakingDeposit::get();
      	/// the max users number that can help miner stake.
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
@@ -432,7 +432,7 @@ decl_module! {
 
 			let miner = ensure_signed(origin)?;
 
-			Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, true)?;
+			Self::update_staking_info(miner.clone(), staker.clone(), Operate::Sub, None, true)?;
 
 			Self::staker_remove_miner(staker.clone(), miner.clone());
 
@@ -486,11 +486,11 @@ decl_module! {
 
 		/// users update their staking amount.
         #[weight = 10_000]
-        fn update_staking(origin, miner: T::AccountId, oprate: Oprate, amount: BalanceOf<T>) {
+        fn update_staking(origin, miner: T::AccountId, operate: Operate, amount: BalanceOf<T>) {
 
         	let staker = ensure_signed(origin)?;
 
-			Self::update_staking_info(miner, staker.clone(), oprate, Some(amount), false)?;
+			Self::update_staking_info(miner, staker.clone(), operate, Some(amount), false)?;
 
 			Self::deposit_event(RawEvent::UpdateStaking(staker, amount));
 
@@ -511,7 +511,7 @@ decl_module! {
         #[weight = 10_000]
         fn exit_Staking(origin, miner: T::AccountId) {
         	let staker = ensure_signed(origin)?;
-        	Self::update_staking_info(miner.clone(), staker.clone(), Oprate::Sub, None, false)?;
+        	Self::update_staking_info(miner.clone(), staker.clone(), Operate::Sub, None, false)?;
         	Self::staker_remove_miner(staker.clone(), miner.clone());
         	Self::deposit_event(RawEvent::ExitStaking(staker, miner));
 
@@ -680,7 +680,7 @@ impl<T: Trait> Module<T> {
 	/// 琐仓添加金额
 	fn lock_add_amount(who: T::AccountId, amount: BalanceOf<T>, expire: T::BlockNumber) {
 
-		Self::lock(who.clone(), Oprate::Add, amount);
+		Self::lock(who.clone(), Operate::Add, amount);
 		let locks_opt = <Locks<T>>::get(who.clone());
 		if locks_opt.is_some() {
 			let mut locks = locks_opt.unwrap();
@@ -701,7 +701,7 @@ impl<T: Trait> Module<T> {
 		<Locks<T>>::mutate(who.clone(), |h_opt| if let Some(h) = h_opt {
 			h.retain(|i|
 				if i.0 <= now {
-					Self::lock(who.clone(), Oprate::Sub, i.1);
+					Self::lock(who.clone(), Operate::Sub, i.1);
 					false
 					}
 				else {
@@ -714,12 +714,12 @@ impl<T: Trait> Module<T> {
 
 
 	/// 琐仓操作
-	fn lock(who: T::AccountId, oprate: Oprate, amount: BalanceOf<T>) {
+	fn lock(who: T::AccountId, operate: Operate, amount: BalanceOf<T>) {
 
 		let locks_opt = <Locks<T>>::get(who.clone());
 		let reasons = WithdrawReason::Transfer | WithdrawReason::Reserve;
-		match oprate {
-			Oprate::Sub => {
+		match operate {
+			Operate::Sub => {
 				// 如果本来就没有， 那么就直接过
 				if locks_opt.is_none() {
 
@@ -731,7 +731,7 @@ impl<T: Trait> Module<T> {
 
 			},
 
-			Oprate::Add => {
+			Operate::Add => {
 				// 如果本来就没有, 那么就创建
 				if locks_opt.is_none() {
 					T::StakingCurrency::set_lock(Staking_ID, &who, amount, reasons);
@@ -800,7 +800,7 @@ impl<T: Trait> Module<T> {
 
 
 	/// 更新已经抵押过的用户的抵押金额
-	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, oprate: Oprate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
+	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, operate: Operate, amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
 		// 如果操作是减仓 那么amount_opt是none意味着抵押者退出
 		// 如果操作是加仓 那么amount_opt 不能是none值
 		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
@@ -822,9 +822,9 @@ impl<T: Trait> Module<T> {
 				amount = amount_opt.unwrap()
 			}
 
-			match  oprate {
+			match  operate {
 
-				Oprate::Add => {
+				Operate::Add => {
 					let bond = staker_info.1.clone();
 					let now_bond = bond.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
 					let total_staking = staking_info.total_staking;
