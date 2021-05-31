@@ -198,9 +198,9 @@ pub fn testnet_genesis(
 	});
 	let num_endowed_accounts = endowed_accounts.len();
 
-	const ENDOWMENT: Balance = 200_0000 * DOLLARS;
+	const ENDOWMENT: Balance = 2021 * DOLLARS;
 	// 抵押尽量多一点（增大后面抵押者成本， 也能保证初始验证人稳定)
-	const STASH: Balance = 10000 * DOLLARS;
+	const STASH: Balance = 100 * DOLLARS;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
