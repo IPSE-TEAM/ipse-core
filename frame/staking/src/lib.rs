@@ -182,6 +182,7 @@
 //! ```
 //! This payout is used to reward stakers as defined in next section
 //!
+//!
 //! ```nocompile
 //! remaining_payout = max_yearly_inflation * total_tokens / era_per_year - staker_payout
 //! ```
@@ -860,6 +861,8 @@ pub trait Trait: frame_system::Trait + SendTransactionTypes<Call<Self>> {
 	/// length of a session will be pointless.
 	type ElectionLookahead: Get<Self::BlockNumber>;
 
+	type MinBondAmount: Get<BalanceOf<Self>>;
+
 	/// The overarching call type.
 	type Call: Dispatchable + From<Call<Self>> + IsSubType<Call<Self>> + Clone;
 
@@ -1248,6 +1251,7 @@ decl_error! {
 		IncorrectHistoryDepth,
 		/// Incorrect number of slashing spans provided.
 		IncorrectSlashingSpans,
+		BondAmountToowLow,
 	}
 }
 
@@ -1258,6 +1262,8 @@ decl_module! {
 
 		/// Number of eras that staked funds must remain bonded for.
 		const BondingDuration: EraIndex = T::BondingDuration::get();
+
+		const MinBondAmount: BalanceOf<T> = T::MinBondAmount::get();
 
 		/// Number of eras that slashes are deferred by, after computation.
 		///
@@ -1433,6 +1439,8 @@ decl_module! {
 			payee: RewardDestination<T::AccountId>,
 		) {
 			let stash = ensure_signed(origin)?;
+
+			ensure!(value >= T::MinBondAmount::get(), Error::<T>::BondAmountToowLow);
 
 			if <Bonded<T>>::contains_key(&stash) {
 				Err(Error::<T>::AlreadyBonded)?

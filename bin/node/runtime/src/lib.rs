@@ -314,6 +314,7 @@ parameter_types! {
 
 	pub const ChillDuration: BlockNumber = EPOCH_DURATION_IN_BLOCKS;
 	pub const StakingDeposit: Balance = 1 * DOLLARS;
+	pub const PocStakingMinAmount: Balance = 100 * DOLLARS;
 	pub const StakerMaxNumber: usize = 64;
 	pub const RecommendMaxNumber: usize = 50;
 	pub const StakingLockExpire: BlockNumber = 7*DAYS;
@@ -340,6 +341,8 @@ impl poc_staking::Trait for Runtime {
 	type RecommendLockExpire = RecommendLockExpire;
 
 	type RecommendMaxNumber = RecommendMaxNumber;
+
+	type PocStakingMinAmount = PocStakingMinAmount;
 }
 
 parameter_types! {
@@ -522,12 +525,13 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
-	pub const SessionsPerEra: sp_staking::SessionIndex = 6;  // 6个小时一个时代
-	pub const BondingDuration: pallet_staking::EraIndex = 4 * 7; // 7天
+	pub const SessionsPerEra: sp_staking::SessionIndex = 6;  //
+	pub const BondingDuration: pallet_staking::EraIndex = 4 * 7; //
 	pub const SlashDeferDuration: pallet_staking::EraIndex = 27; //
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub const ElectionLookahead: BlockNumber = EPOCH_DURATION_IN_BLOCKS / 4;
+	pub const MinBondAmount: Balance = 1000 * DOLLARS;
 	pub const MaxIterations: u32 = 10;
 	// 0.05%. The higher the value, the more strict solution acceptance becomes.
 	pub MinSolutionScoreBump: Perbill = Perbill::from_rational_approximation(5u32, 10_000);
@@ -557,6 +561,7 @@ impl pallet_staking::Trait for Runtime {
 	type RewardCurve = RewardCurve;
 	type NextNewSession = Session;
 	type ElectionLookahead = ElectionLookahead;
+	type MinBondAmount = MinBondAmount;
 	type Call = Call;
 	type MaxIterations = MaxIterations;
 	type MinSolutionScoreBump = MinSolutionScoreBump;

@@ -225,7 +225,6 @@ decl_module! {
 
             ensure!(deadline <= T::MaxDeadlineValue::get(), Error::<T>::DeadlineTooLarge);
 
-            //必须是注册过的矿工才能挖矿
             ensure!(<staking::Module<T>>::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
 
 			let real_pid = <staking::Module<T>>::disk_of(&miner).unwrap().numeric_id;
@@ -236,7 +235,6 @@ decl_module! {
 
             debug::info!("starting Verify Deadline !!!");
 
-			// 必须在同一周期 并且提交的时间比处理的时间迟
             if !(current_block / MiningExpire == height / MiningExpire && current_block >= height)
             {
                 debug::info!("expire! ：{:?}, off chain get info block: {:?}, deadline is: {:?}", height, current_block, deadline);
@@ -244,7 +242,6 @@ decl_module! {
 				return Err(Error::<T>::HeightNotInDuration)?;
             }
 
-			// 获取区块高度和最佳的deadline
             let dl = Self::dl_info();
             let (block, best_dl) = if let Some(dl_info) = dl.iter().last() {
                 (dl_info.clone().block, dl_info.best_dl)
@@ -254,7 +251,6 @@ decl_module! {
 
 
             // Someone(miner) has mined a better deadline at this mining cycle before.
-            // 如果这个块已经有比较好的deadline 那么就终止执行
             if best_dl <= deadline && current_block / MiningExpire == block / MiningExpire {
 
                 debug::info!("not best deadline! best_dl = {}, submit deadline = {}!", best_dl, deadline);
@@ -267,7 +263,6 @@ decl_module! {
             if verify_ok.0 {
             	debug::info!("verify is ok!, deadline = {}", deadline);
 
-                // 这里保证了这个块的dl_info的最后一个总是最优解
                 if current_block / MiningExpire == block / MiningExpire {
 
                     DlInfo::<T>::mutate(|dl| dl.pop());
@@ -308,7 +303,6 @@ decl_module! {
 
         fn on_finalize(n: T::BlockNumber) {
 
-        	/// 每8个小时更新一次活跃矿工
         	if (n % ( 8 * HOURS).saturated_into::<T::BlockNumber>()).is_zero() {
         		<ActiveMiners<T>>::mutate(|h| {
         			h.2 = h.0.clone();
@@ -334,7 +328,7 @@ decl_module! {
 			}
 
 			if (current_block + 1) % MiningExpire == 0 {
-				// 如果这个块有poc出块 那么就说明有用户挖矿
+
 				if current_block / MiningExpire == last_mining_block / MiningExpire {
 
 					if let Some(miner_info) = Self::dl_info().last() {
@@ -355,8 +349,6 @@ decl_module! {
 
 			}
 
-
-			// 20个块调整挖矿难度
             if current_block % <AdjustDifficultyDuration>::get() == 0 {
                 Self::adjust_difficulty(current_block);
             }
@@ -380,7 +372,6 @@ impl<T: Trait> Module<T> {
 		let ave_deadline = Self::get_ave_deadline().1;
 		let mining_count = Self::get_ave_deadline().0;
 
-		// deadline太小 并且挖矿次数不是0 难度低 要增加难度 减小base_target
 		if (ave_deadline < 2000 && mining_count > 0) {
 
 			let mut new = last_base_target.saturating_mul(10) / SPEED;
@@ -397,7 +388,6 @@ impl<T: Trait> Module<T> {
                 });
 		}
 
-		// deadline平均值在18000以上 说明难度太高 要降低难度 base_target变大
         else if ave_deadline > 3000 {
             let new = last_base_target.saturating_mul(SPEED) / 10;
 			Self::append_target_info(Difficulty{
@@ -409,7 +399,6 @@ impl<T: Trait> Module<T> {
 
         }
 
-		// 如果deadline平均值在8000与18000之间 或是0 则不作调整
         else {
             let new = last_base_target;
             debug::info!("[DIFFICULTY] use avg,  base_target = {}", new);
@@ -430,7 +419,7 @@ impl<T: Trait> Module<T> {
 		Self::append_dl_info(MiningInfo{
 				miner: None,
 				best_dl: T::MaxDeadlineValue::get(),
-				block: current_block, // 记录当前区块
+				block: current_block,
 			});
 		debug::info!("<<REWARD>> treasury on block {}", current_block);
 
@@ -455,7 +444,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-	// 取最后一次base_target
     fn get_last_base_target() -> (u64, u64) {
         let ti = Self::target_info();
 
@@ -469,7 +457,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-	/// 平均的出块时间
     fn get_ave_deadline() -> (u64, u64) {
         let dl = Self::dl_info();
         let mut iter = dl.iter().rev();
@@ -533,23 +520,19 @@ impl<T: Trait> Module<T> {
     }
 
 
-    /// 获取国库id
     fn get_treasury_id() -> T::AccountId {
     	<treasury::Module<T>>::account_id()
     }
 
 
-    /// 获取本次奖励
     fn get_reward_amount() -> result::Result<BalanceOf<T>, DispatchError> {
     	let now = <staking::Module<T>>::now();
 
-		// 多少年减半
 		let sub_half_reward_time = 2u32;
 
     	let year = now.checked_div(&T::BlockNumber::from(YEAR)).ok_or(Error::<T>::DivZero)?;
     	let duration = year / T::BlockNumber::from(sub_half_reward_time);
 
-		// 第几个周期
     	let duration = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(duration).map_err(|_| Error::<T>::ConvertErr)? + 1u32;
 
 		let n_opt = sub_half_reward_time.checked_pow(duration);
@@ -560,7 +543,6 @@ impl<T: Trait> Module<T> {
 
 			let n = <BalanceOf<T>>::from(n_opt.unwrap());
 
-			// 两年减半  每个块收益 = 总奖励 / n(第几个周期) / m年(每个周期多少年) / o(每年有多少个块)
 			reward = T::TotalMiningReward::get() / n / 2.saturated_into::<BalanceOf<T>>() / Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
 
 			Ok(reward * MiningExpire.saturated_into::<BalanceOf<T>>())
@@ -572,7 +554,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-    /// block_num类型数据转变成balance
     fn block_convert_to_balance(n: T::BlockNumber) -> result::Result<BalanceOf<T>, DispatchError> {
 		let n_u = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(n).map_err(|_| Error::<T>::ConvertErr)?;
 		let n_b = <	BalanceOf<T> as TryFrom::<u32>>::try_from(n_u).map_err(|_| Error::<T>::ConvertErr)?;
@@ -580,7 +561,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-    /// 奖励国库
     fn reward_treasury(reward: BalanceOf<T>) {
     	let account_id = Self::get_treasury_id();
     	T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&account_id, reward));
@@ -588,11 +568,10 @@ impl<T: Trait> Module<T> {
     }
 
 
-    /// 奖励矿工
     fn reward(miner: T::AccountId, mut reward: BalanceOf<T>) -> DispatchResult {
 
 		let all_reward = reward.clone();
-		// 获取自己的本机容量
+
 		let machine_info = <staking::Module<T>>::disk_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let disk = machine_info.clone().plot_size;
 		let update_time = machine_info.clone().update_time;
@@ -604,47 +583,30 @@ impl<T: Trait> Module<T> {
 
 		let now = <staking::Module<T>>::now();
 
-		// 获取该矿工的抵押信息
 		let staking_info_opt = <staking::Module<T>>::staking_info_of(&miner);
 
-		// 如果已经有抵押信息
 		if staking_info_opt.is_some() {
 
-			// 获取总抵押金额
 			let total_staking = staking_info_opt.unwrap().total_staking;
 
-			// 矿工应该抵押的金额
 			let miner_should_staking_amount = disk.saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>();
 
-			// 矿工抵押达标
 			if miner_should_staking_amount <= total_staking {
 				debug::info!("miner's staking enough！staking enough = {:?} ", total_staking);
-				// 2个块挖一次
+
 				let mut net_mining_num = (now - update_time).saturated_into::<u64>() / MiningExpire;
 
-				// 如果计算出来的全网挖矿次数比矿工挖矿次数少, 那么就等与矿工挖矿次数
 				if net_mining_num < miner_mining_num {
 					net_mining_num = miner_mining_num
 				}
 
 				debug::info!("miner: {:?}, mining probability: {:?} / {:?}", miner.clone(), miner_mining_num, net_mining_num);
 
-				/// 全网该抵押的金额
 				let net_should_staking_total_amount = Self::get_total_capacity().saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) / GIB.saturated_into::<BalanceOf<T>>();
 
-				// 矿工挖矿的概率如果偏高或是偏低 均只给10%的算力
-
-				// 本机挖矿次数 / 全网挖矿次数 - 本机算力 / 全网算力 > 20% * (本机算力 / 全网算力)
-				// 本机挖矿次数 / 全网挖矿次数 > (1 + 矿工挖矿概率允许的最大偏离值)	* (本机算力 / 全网算力)
-				// 以上公式换算得: 本机挖矿次数 * 全网算力 > 全网挖矿次数 * 本机算力 * (1 + 矿工挖矿概率允许的最大偏离值)
-				// ***********这条判断的作用是为了让抵押者有足够的抵押****************
 				if (miner_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(net_should_staking_total_amount) >
 					(net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount).saturating_add(T::ProbabilityDeviationValue::get() * (net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount)) )
 
-				// 本机算力 / 全网算力 - 本机挖矿次数 / 全网挖矿次数 >  矿工挖矿概率允许的最大偏离值 * (本机算力 / 全网算力)
-				// (1 - 矿工挖矿概率允许的最大偏离值) * 本机算力 / 全网算力 > 本机挖矿次数 / 全网挖矿次数
-				// (1 - 矿工挖矿概率允许的最大偏离值) * 本机算力 * 全网挖矿次数 > 本机挖矿次数 * 全网算力
-				// ***********这条判断的作用是让抵押者去提升自己节点性能， 积极上报自己在线情况， 并参与链上治理（防止大家恶意投票把算力调整太低))**********
 					|| ((net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount).saturating_sub(T::ProbabilityDeviationValue::get() * net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount)
 					> miner_mining_num.saturated_into::<BalanceOf<T>>().saturating_mul(net_should_staking_total_amount))
 				{
@@ -659,7 +621,6 @@ impl<T: Trait> Module<T> {
 
 				}
 
-				// 挖到多少给多少
 				else {
 					debug::info!("Get all reward.");
 					reward = reward;
@@ -668,7 +629,6 @@ impl<T: Trait> Module<T> {
 
 			}
 
-			// 矿工抵押不达标 直接10%奖励
 			else {
 				debug::info!("Get 10% reward.");
 				reward = Percent::from_percent(10) * reward;
@@ -679,7 +639,6 @@ impl<T: Trait> Module<T> {
 
 			}
 
-		// 如果没有抵押信息
 		else {
 			debug::info!("miner have no staking info.");
 			reward = Percent::from_percent(10) * reward;
@@ -694,7 +653,7 @@ impl<T: Trait> Module<T> {
 			let mut his = history_opt.unwrap();
 			his.total_num = miner_mining_num;
 			his.history.push((now, reward));
-			/// 只存储最新的300条记录
+
 			if his.history.len() >= 300 {
 				let mut old_history = his.history.clone();
 				let new_history = old_history.split_off(1);
@@ -718,7 +677,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-   	// 奖励每一个成员（抵押者）
    	fn reward_staker(miner: T::AccountId, reward: BalanceOf<T>) -> DispatchResult {
 
    		let now = <staking::Module<T>>::now();
@@ -731,7 +689,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		else {
-			// 先奖励矿工（矿工独享的部分)
+
 			let miner_reward = staking_info.clone().miner_proportion * reward;
 			Self::reward_miner(miner.clone(), miner_reward, now);
 
@@ -741,7 +699,6 @@ impl<T: Trait> Module<T> {
 
 				let staker_reward = stakers_reward.saturating_mul(staker_info.clone().1).checked_div(&total_staking).ok_or(Error::<T>::DivZero)?;
 
-				// 如果是矿工 就用奖励矿工的方法来奖励
 				if staker_info.clone().0 == miner.clone() {
 					Self::reward_miner(miner.clone(), staker_reward, now);
 				}
@@ -757,7 +714,6 @@ impl<T: Trait> Module<T> {
    	}
 
 
-    /// 获取全网容量(根据挖矿难度来调整)
     fn get_total_capacity() -> u64 {
 
 		let mut old_target_info_vec = <TargetInfo>::get();
@@ -791,7 +747,6 @@ impl<T: Trait> Module<T> {
     }
 
 
-    /// 奖励矿工
     fn reward_miner(miner: T::AccountId, amount: BalanceOf<T>, now: T::BlockNumber) {
     	let disk = <staking::Module<T>>::disk_of(&miner).unwrap();
 		let reward_dest = disk.reward_dest;
@@ -800,7 +755,7 @@ impl<T: Trait> Module<T> {
 			Self::update_reword_history(reward_dest.clone(), amount, now);
     	}
     	else {
-    		/// 为了矿工有充足的手续费 预留10%
+
     		let miner_reward = Percent::from_percent(10) * amount;
     		T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, miner_reward));
     		Self::update_reword_history(miner, miner_reward, now);
@@ -813,14 +768,12 @@ impl<T: Trait> Module<T> {
     }
 
 
-    /// 更新用户的奖励记录
     fn update_reword_history(account_id: T::AccountId, amount: BalanceOf<T>, block_num: T::BlockNumber) {
 
     	let mut reward_history = <UserRewardHistory<T>>::get(account_id.clone());
 
     	reward_history.push((block_num, amount));
 
-		/// 奖励记录限制在300条以内
     	if reward_history.len() >= 300 {
     		let mut old_history = reward_history.clone();
     		let new_history = old_history.split_off(1);
@@ -834,15 +787,13 @@ impl<T: Trait> Module<T> {
     }
 
 
-    // 添加dl_info(最高数据量有所限制 目前设置500条)
     fn append_dl_info(dl_info: MiningInfo<T::AccountId>) {
-    	// 获取dl_info
+
     	let mut old_dl_info_vec = <DlInfo<T>>::get();
     	let len = old_dl_info_vec.len();
 
     	old_dl_info_vec.push(dl_info);
 
-		/// 显示2000条数据
     	if len >= 2000 {
 
     		let new_dl_info = old_dl_info_vec.split_off(len - 2000);

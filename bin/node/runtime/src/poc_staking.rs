@@ -44,6 +44,8 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 
 	type StakingDeposit: Get<BalanceOf<Self>>;
 
+	type PocStakingMinAmount: Get<BalanceOf<Self>>;
+
 	type StakingSlash: OnUnbalanced<NegativeImbalanceOf<Self>>;
 
 	type StakerMaxNumber: Get<usize>;
@@ -59,43 +61,42 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 }
 
 
-/// 矿工的机器信息
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MachineInfo<BlockNumber, AccountId> {
-	/// 磁盘空间
+
 	pub plot_size: GIB,
-	/// P盘id
+
 	pub numeric_id: u128,
-	/// 更新时间
+
 	pub update_time: BlockNumber,
-	/// 机器是否在运行（这个是用户抵押的依据)
+
 	pub is_stop: bool,
-	/// 收益地址
+
 	pub reward_dest: AccountId,
 
 }
 
 
-/// 抵押信息
+
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct StakingInfo<AccountId, Balance> {
-	/// 矿工
+
 	pub miner: AccountId,
-	/// 矿工分润占比
+
 	pub miner_proportion: Percent,
-	/// 总的抵押金额
+
 	pub total_staking: Balance,
-	/// 其他人的抵押 （staker， 抵押金额， 保留金额)
+
 	pub others: Vec<(AccountId, Balance, Balance)>,
 }
 
 
-/// 操作
+
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
 pub enum Operate {
-	/// 添加
+
 	Add,
-	/// 减少
+
 	Sub,
 }
 
@@ -176,6 +177,8 @@ decl_module! {
      	const ChillDuration: T::BlockNumber = T::ChillDuration::get();
      	/// how much LT you should deposit when staking.
      	const StakingDeposit: BalanceOf<T> = T::StakingDeposit::get();
+		/// the min amount of staking.
+     	const PocStakingMinAmount: BalanceOf<T> = T::PocStakingMinAmount::get();
      	/// the max users number that can help miner stake.
      	const StakerMaxNumber: u32 = T::StakerMaxNumber::get() as u32;
      	/// how many blocks that can unlock when you not stake.
@@ -184,6 +187,7 @@ decl_module! {
      	const RecommendLockExpire: T::BlockNumber = T::RecommendLockExpire::get();
      	/// the max miners number of the recommend list.
      	const RecommendMaxNumber: u32 = T::RecommendMaxNumber::get() as u32;
+
 
      	type Error = Error<T>;
 
@@ -204,7 +208,6 @@ decl_module! {
 
 			ensure!(kib != 0 as GIB, Error::<T>::PlotSizeIsZero);
 
-			// 把gib转变成b
 			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
@@ -256,10 +259,8 @@ decl_module! {
 		#[weight = 10_000]
 		fn request_up_to_list(origin, amount: BalanceOf<T>) {
 
-			// 矿工才能操作
 			let miner = ensure_signed(origin)?;
 
-			// 自己是可以挖矿的矿工
 			ensure!(Self::is_can_mining(miner.clone())?, Error::<T>::NotRegister);
 
 			Self::sort_account_by_amount(miner.clone(), amount)?;
@@ -273,7 +274,6 @@ decl_module! {
 		#[weight = 10_000]
 		fn request_down_from_list(origin) {
 			let miner = ensure_signed(origin)?;
-			// 获取推荐列表
 			let mut list = <RecommendList<T>>::get();
 			if let Some(pos) = list.iter().position(|h| h.0 == miner) {
 				let amount = list.remove(pos).1;
@@ -348,12 +348,10 @@ decl_module! {
 
         	let kib = plot_size;
 
-			// 把gib转变成b
 			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(disk != 0 as GIB, Error::<T>::PlotSizeIsZero);
 
-			/// 必须在非冷冻期
 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
 
 			T::PocHandler::remove_history(miner.clone());
@@ -386,7 +384,7 @@ decl_module! {
 		/// the miner stop the machine.
 		#[weight = 10_000]
         fn stop_mining(origin) {
-        	// 停止挖矿不会清空自己的挖矿记录 也不会更新自己的日期
+
         	let miner = ensure_signed(origin)?;
 
         	Self::is_can_mining(miner.clone())?;
@@ -407,9 +405,9 @@ decl_module! {
 		#[weight = 10_000]
 		fn restart_mining(origin) {
 			let miner = ensure_signed(origin)?;
-			// 自己是矿工
+
 			ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
-			// 挖矿已经停止过
+
 			ensure!(<DiskOf<T>>::get(miner.clone()).unwrap().is_stop == true, Error::<T>::MiningNotStop);
 			<DiskOf<T>>::mutate(miner.clone(), |h| {
 				if let Some(x) = h {
@@ -448,10 +446,10 @@ decl_module! {
 
 			Self::is_can_mining(miner.clone())?;
 
-			// 不在冷冻期
 			ensure!(!<IsChillTime>::get(), Error::<T>::ChillTime);
 
-			// 还没有抵押
+			ensure!(amount >= T::PocStakingMinAmount::get(), Error::<T>::StakingAmountooLow);
+
 			if Self::staker_pos(miner.clone(), who.clone()).is_some() {
 
 				return Err(Error::<T>::AlreadyStaking)?;
@@ -524,7 +522,6 @@ decl_module! {
 
         	let miner = ensure_signed(origin)?;
 
-// 			// 在冻结期内才能执行
         	ensure!(<IsChillTime>::get(), Error::<T>::NotChillTime);
 
         	Self::is_can_mining(miner.clone())?;
@@ -566,14 +563,12 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// 获取当前区块
 	pub fn now() -> T::BlockNumber {
 
 		<system::Module<T>>::block_number()
 	}
 
 
-	/// 判断自己是否是某个矿工的抵押者(是的话在什么位置)
 	fn staker_pos(miner: T::AccountId, staker: T::AccountId) -> Option<usize> {
 		let staking_info = <StakingInfoOf<T>>::get(&miner).unwrap();
 		let others = staking_info.others;
@@ -582,7 +577,6 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// 判断是否进入冷却期
 	fn update_chill() -> DispatchResult {
 
 		let now = Self::now();
@@ -607,7 +601,7 @@ impl<T: Trait> Module<T> {
 
 	}
 
-	/// 判断是否已经注册
+
 	fn is_register(miner: T::AccountId) -> bool {
 
 		if <DiskOf<T>>::contains_key(&miner) && <StakingInfoOf<T>>::contains_key(&miner) {
@@ -618,22 +612,18 @@ impl<T: Trait> Module<T> {
 			false
 		}
 
-
 	}
 
 
-	/// 判断矿工是否可以挖矿
 	pub fn is_can_mining(miner: T::AccountId) -> result::Result<bool, DispatchError> {
 		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
-		// 已经停止挖矿不能再操作
 		ensure!(!<DiskOf<T>>::get(&miner).unwrap().is_stop, Error::<T>::AlreadyStopMining);
 
 		Ok(true)
 	}
 
 
-	/// staker删除自己抵押的矿工记录
 	fn staker_remove_miner(staker: T::AccountId, miner: T::AccountId) {
 
 		<MinersOf<T>>::mutate(staker.clone(), |miners|  {
@@ -643,9 +633,9 @@ impl<T: Trait> Module<T> {
 
 	}
 
-	/// 排列矿工后需要做的
+
 	fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
-		// 先对矿工进行抵押
+
 		if index < T::RecommendMaxNumber::get() {
 
 			T::StakingCurrency::reserve(&miner, amount)?;
@@ -656,12 +646,12 @@ impl<T: Trait> Module<T> {
 
 		if old_list.len() >= T::RecommendMaxNumber::get() {
 			let abandon = old_list.split_off(T::RecommendMaxNumber::get());
-			// 对被淘汰的人进行释放
+
 			for i in abandon {
 				T::StakingCurrency::unreserve(&i.0, i.1);
 				let now = Self::now();
 				let expire = now.saturating_add(T::RecommendLockExpire::get());
-				/// 对被淘汰的名单进行锁仓
+
 				Self::lock_add_amount(i.0, i.1, expire);
 			}
 		}
@@ -677,7 +667,6 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// 琐仓添加金额
 	fn lock_add_amount(who: T::AccountId, amount: BalanceOf<T>, expire: T::BlockNumber) {
 
 		Self::lock(who.clone(), Operate ::Add, amount);
@@ -695,7 +684,6 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// 琐仓减少金额
 	fn lock_sub_amount(who: T::AccountId) {
 		let now = Self::now();
 		<Locks<T>>::mutate(who.clone(), |h_opt| if let Some(h) = h_opt {
@@ -713,14 +701,12 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// 琐仓操作
 	fn lock(who: T::AccountId, operate: Operate , amount: BalanceOf<T>) {
 
 		let locks_opt = <Locks<T>>::get(who.clone());
 		let reasons = WithdrawReason::Transfer | WithdrawReason::Reserve;
 		match operate {
 			Operate ::Sub => {
-				// 如果本来就没有， 那么就直接过
 				if locks_opt.is_none() {
 
 				}
@@ -732,7 +718,6 @@ impl<T: Trait> Module<T> {
 			},
 
 			Operate ::Add => {
-				// 如果本来就没有, 那么就创建
 				if locks_opt.is_none() {
 					T::StakingCurrency::set_lock(Staking_ID, &who, amount, reasons);
 				}
@@ -746,15 +731,12 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// 根据抵押的金额来排列account_id
 	fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
 
-		// 获取之前的列表
 		let mut old_list = <RecommendList<T>>::get();
 
 		let mut miner_old_info: Option<(T::AccountId, BalanceOf<T>)> = None;
 
-		// 如果之前有 那就累加金额
 		if let Some(pos) = old_list.iter().position(|h| h.0 == miner.clone()) {
 
 			miner_old_info = Some(old_list.remove(pos));
@@ -762,7 +744,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		if miner_old_info.is_some() {
-			// 判断能否继续琐仓amount 如果是 就暂时释放；如果不行 就退出
+
 			let old_amount = miner_old_info.clone().unwrap().1;
 
 			ensure!(T::StakingCurrency::can_reserve(&miner, amount), Error::<T>::AmountNotEnough);
@@ -773,7 +755,6 @@ impl<T: Trait> Module<T> {
 
 		}
 
-		// 如果列表为空， 直接更新数据
 		if old_list.len() == 0 {
 
 			Self::sort_after(miner, amount, 0, old_list)?;
@@ -799,10 +780,8 @@ impl<T: Trait> Module<T> {
 	}
 
 
-	/// 更新已经抵押过的用户的抵押金额
 	fn update_staking_info(miner: T::AccountId, staker: T::AccountId, operate: Operate , amount_opt: Option<BalanceOf<T>>, is_slash: bool) -> DispatchResult {
-		// 如果操作是减仓 那么amount_opt是none意味着抵押者退出
-		// 如果操作是加仓 那么amount_opt 不能是none值
+
 		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
 		let mut amount: BalanceOf<T>;
@@ -814,7 +793,6 @@ impl<T: Trait> Module<T> {
 
 			let mut staker_info = staking_info.others.remove(pos);
 
-			/// 这个是减仓的时候
 			if amount_opt.is_none() {
 				amount = staker_info.1.clone()
 			}
@@ -843,7 +821,7 @@ impl<T: Trait> Module<T> {
 					let now_staking = total_staking.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
 
 					T::StakingCurrency::unreserve(&staker, amount);
-					// 把减少的这部分金额加入琐仓
+
 					let now = Self::now();
 					let expire = now.saturating_add(T::StakingLockExpire::get());
 					Self::lock_add_amount(staker.clone(), amount, expire);
@@ -924,6 +902,7 @@ decl_error! {
 		MiningNotStop,
 		/// you should add the amount.
 		AmountTooLow,
-
+		/// you staking amount too low
+		StakingAmountooLow,
 	}
 }

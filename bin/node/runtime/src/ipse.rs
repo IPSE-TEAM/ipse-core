@@ -389,7 +389,6 @@ decl_module! {
 		#[weight = 10_000]
 		fn apply_to_recommended_list(origin, amount: BalanceOf<T>) {
 
-			// 矿工才能操作
 			let miner = ensure_signed(origin)?;
 
 			ensure!(<Miners<T>>::contains_key(&miner), Error::<T>::MinerNotFound);
@@ -406,7 +405,7 @@ decl_module! {
 		#[weight = 10_000]
 		fn drop_out_recommended_list(origin) {
 			let miner = ensure_signed(origin)?;
-			// 获取推荐列表
+
 			let mut list = <RecommendList<T>>::get();
 			if let Some(pos) = list.iter().position(|h| h.0 == miner) {
 				let amount = list.remove(pos).1;
@@ -588,15 +587,12 @@ impl<T: Trait> Module<T> {
     }
 
     fn sort_after(miner: T::AccountId, amount: BalanceOf<T>, index: usize, mut old_list: Vec<(T::AccountId, BalanceOf<T>)>) -> result::Result<(), DispatchError> {
-        // 先对矿工进行抵押
-
         T::StakingCurrency::reserve(&miner, amount)?;
 
         old_list.insert(index, (miner, amount));
 
         if old_list.len() > 20 {
             let abandon = old_list.split_off(20);
-            // 对被淘汰的人进行释放
             for i in abandon {
                 T::StakingCurrency::unreserve(&i.0, i.1);
             }

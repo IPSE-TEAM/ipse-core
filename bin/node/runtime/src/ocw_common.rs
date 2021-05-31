@@ -11,21 +11,21 @@ use pallet_authority_discovery as authority_discovery;
 use sp_runtime::{offchain::http};
 use alt_serde::de::{Error,Unexpected};  // declare_error_trait
 use alt_serde::{Deserialize, Deserializer};
-use frame_support::{StorageMap,StorageValue,traits::{LockableCurrency,Currency}}; // 含有get
+use frame_support::{StorageMap,StorageValue,traits::{LockableCurrency,Currency}};
 
 pub const CONTRACT_ACCOUNT: &[u8] = b"ipsecontract";
 pub const DESTROY_ACCOUNT: &[u8] = b"eosio.saving";
 pub const CONTRACT_SYMBOL: &[u8] = b"POST";
-pub const VERIFY_STATUS: &[u8] = b"verify_status";  // 验证的返回状态
+pub const VERIFY_STATUS: &[u8] = b"verify_status";
 pub const PENDING_TIME_OUT: &'static str = "Error in waiting http response back";
 pub const WAIT_HTTP_CONVER_REPONSE: &'static str ="Error in waiting http_result convert response";
 
 #[cfg_attr(feature = "std", derive())]
-/// 这个用于表述地址状态
+
 #[derive(Encode, Decode, Clone, Debug, PartialEq, Eq)]
 pub enum AddressStatus{
-    Active,  // 已经激活
-    InActive,  // 未激活
+    Active,
+    InActive,
 }
 
 /// enum中derive不了Default
@@ -44,7 +44,7 @@ pub struct PostTxTransferData {
     pub is_post_transfer: bool,
 
     #[serde(deserialize_with = "de_string_to_bytes")]
-    pub contract_account: Vec<u8>,   // 必须要验证合约账号是否一致
+    pub contract_account: Vec<u8>,
     #[serde(deserialize_with = "de_string_to_bytes")]
     pub from: Vec<u8>,
     #[serde(deserialize_with = "de_string_to_bytes")]
@@ -72,11 +72,11 @@ pub fn de_string_decode_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
     where D: Deserializer<'de>,
 {
     let s: &str = Deserialize::deserialize(de)?;
-    // debug::info!("获取到的字符串:{:?}",s);
+
     if s.len() < 2 {
         return Err(D::Error::invalid_value(Unexpected::Str(s), &"0x..."))
     }
-    match hex::decode(&s[2..]){  // 传入的是 0x开头字符串,去掉 0x
+    match hex::decode(&s[2..]){
         Ok(s_vec) =>{
             Ok(s_vec)
         },
@@ -94,7 +94,7 @@ pub fn de_float_to_integer<'de, D>(de: D) -> Result<u64, D::Error>
     Ok(f as u64)
 }
 
-// post json中常用的关键字符
+
 pub(crate) const POST_KEYWORD:[&[u8]; 5] = [
     b"{",     // {
     b"\"",   // "
@@ -107,7 +107,7 @@ pub(crate) const POST_KEYWORD:[&[u8]; 5] = [
 #[cfg_attr(feature = "std", derive(Debug, PartialEq, Eq))]
 #[derive(Encode, Decode,Clone)]
 pub struct FetchFailed<BlockNumber>{
-    // 失败的请求
+
     pub block_num: BlockNumber,
     pub tx: Vec<u8>,
     pub err: Vec<u8>
@@ -119,7 +119,7 @@ pub type FetchFailedOf<T> = FetchFailed<<T as system::Trait>::BlockNumber>;
 pub type BlockNumberOf<T> = <T as system::Trait>::BlockNumber;  // u32
 pub type StdResult<T> = core::result::Result<T, &'static str>;
 
-// 为了兼容返回为空的情况
+
 pub type StrDispatchResult = core::result::Result<(), &'static str>;
 
 pub fn vecchars_to_vecbytes <I: IntoIterator<Item = char> + Clone>(it: &I) -> Vec<u8> {
@@ -127,8 +127,8 @@ pub fn vecchars_to_vecbytes <I: IntoIterator<Item = char> + Clone>(it: &I) -> Ve
 }
 
 pub fn int_covert_str(inner: u64) ->Vec<u8>{
-    let mut x:u32 = 0;    //位数
-    let mut s :Vec<&str> = vec![]; //保存字符串
+    let mut x:u32 = 0;
+    let mut s :Vec<&str> = vec![];
     loop {
         let r = inner / ((10 as u64).pow(x));
         if r == 0 {
@@ -159,11 +159,9 @@ pub fn num_to_char<'a>(n:u64)->&'a str{
 }
 
 pub fn hex_to_u8(param: &[u8]) -> Vec<u8> {
-    // 将 param 加上 0x
-    // 将 param  首先转化为 16进制字符串,然后加上0x  . 将tx等16进制保持字符串传递
-    // 例如: param的十六进制形式为0x1122,变为"0x"+"1122"的字符串,然后编码为&[u8]
+
     let hex_0x = "0x".as_bytes();
-    let tx_hex =  hex::encode(param);   // tx_hex 是 16进制的字符串,只是表现形式是字符串而已
+    let tx_hex =  hex::encode(param);
     let tx_vec = &[hex_0x,tx_hex.as_bytes()].concat();
 
     return tx_vec.to_vec();
