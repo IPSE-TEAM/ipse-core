@@ -117,6 +117,13 @@ pub fn main_testnet_config() -> ChainSpec {
 		String::from("/ip4/119.23.253.24/tcp/30334/p2p/12D3KooWFeLe5p2ck9vkYtSsbbTQGMmJ4zEAnKWtDPWr8iVyLQSQ").try_into().unwrap(),
 		// node4
 		String::from("/ip4/3.125.157.48/tcp/30334/p2p/12D3KooWQ3DuSwL1Cf8FiShgE8T15mYpUa1GnkoJwp2y3Fjp76cM").try_into().unwrap(),
+
+		// usa
+		String::from("/dns/mainnet-usa.ipse.io/tcp/30333/p2p/12D3KooWD6sBdRYgkzaFCVhGXUbsgkKYcK4cj2r9fbSgSnGXyJxT").try_into().unwrap(),
+		// china
+		String::from("/dns/mainnet-china.ipse.io/tcp/30333/p2p/12D3KooWD6sBdRYgkzaFCVhGXUbsgkKYcK4cj2r9fbSgSnGXyJxT").try_into().unwrap(),
+		// europe
+		String::from("/dns/mainnet-europe.ipse.io/tcp/30333/p2p/12D3KooWD6sBdRYgkzaFCVhGXUbsgkKYcK4cj2r9fbSgSnGXyJxT").try_into().unwrap(),
 	];
 	ChainSpec::from_genesis(
 		"IPSE Mainnet",
