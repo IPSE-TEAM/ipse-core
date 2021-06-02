@@ -143,6 +143,9 @@ decl_storage! {
 		/// locks.
 		pub Locks get(fn locks): map hasher(twox_64_concat) T::AccountId => Option<Vec<(T::BlockNumber, BalanceOf<T>)>>;
 
+		/// The chill time  (start, end).
+		pub ChillTime get(fn chill_time): (T::BlockNumber, T::BlockNumber);
+
 
     }
 }
@@ -583,17 +586,25 @@ impl<T: Trait> Module<T> {
 
 		let era_start_time = <staking::Module<T>>::era_start_block_number();
 
-		let chill_duration = T::ChillDuration::get();
+		let chill_duration = T::ChillDuration::get();  // 一个session区块数
 
-		let time = chill_duration.checked_add(&era_start_time).ok_or(Error::<T>::Overflow)?;
+		let era = chill_duration * 6.saturated_into::<T::BlockNumber>();  // 一个era区块数
 
-		debug::info!("poc_staking era start_time: {:?}, chill end_time: {:?}", era_start_time, time);
+		// 获取时代消耗的区块
+		let num = now % era;
+		let num1 = now / era;
 
-		if now <= time {
+		if num < chill_duration {
+			let start = num1 * era;
+			let end = num1 * era + chill_duration;
+			<ChillTime<T>>::put((start, end));
 			<IsChillTime>::put(true);
 		}
-
 		else {
+			let start = (num1 + 1.saturated_into::<T::BlockNumber>()) * era;
+			let end = (num1 + 1.saturated_into::<T::BlockNumber>()) * era + chill_duration;
+			<ChillTime<T>>::put((start, end));
+
 			<IsChillTime>::put(false);
 		}
 
