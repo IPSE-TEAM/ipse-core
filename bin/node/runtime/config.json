@@ -79,7 +79,7 @@
         "others": "Vec<(AccountId, Balance, Balance)>"
     },
 
-    "Operate ": {
+    "Operate": {
         "_enum": ["Add", "Sub"]
     },
 
