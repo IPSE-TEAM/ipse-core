@@ -17,7 +17,7 @@ sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https
 
 通过运行以下指令来开始同步您的节点(写入日志文件及后台运行):
 ```
-./IPSE --chain  main --ws-port 9948 --base-path db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
+sudo ./IPSE --chain  main --ws-port 9948 --base-path ./db(这里是节点数据存放路径) --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
 ```
 如果您不想马上运行验证模式下。
 --pruning=archive选项意味着--validator和-sentry选项，因此仅如果在没有这两个选项之一的情况下启动节点，则必须明确要求。 如果您不设置为 archive 节点，即使不在运行验证人和哨兵模式时，也需要切换时重新同步数据库。
@@ -29,7 +29,7 @@ sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https
 节点同步数据完成，关闭IPSE程序，重新启动本地节点，运行以下命令(写入日志文件及后台运行):
 
 ```
-./IPSE --chain  main  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
+sudo ./IPSE --chain  main  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
 ```
 通过tail –f ipse.log查看日志详情.
 ```
