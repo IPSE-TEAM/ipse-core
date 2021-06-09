@@ -62,15 +62,15 @@ If you want to be a validator node, refer to the following documentation:
 
 [Polkadot set the validator nodes on the network](https://wiki.polkadot.network/docs/zh-CN/maintain-guides-how-to-validate-polkadot)
 
-# 2 IPSE2.0 Instructions for POC Miners
-POC mining supports Ubuntu and Windows systems.
+# 2 IPSE2.0 Instructions for PoC Miners
+PoC mining supports Ubuntu and Windows systems.
 ## 2.1 Ubuntu systems mining
 
-Please refer to Chapters 2 and 3 in the [IPSE2.0_POC Miner Manual_Linux](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Miner%20Manual%20_Linux.md)
+Please refer to Chapters 2 and 3 in the [IPSE2.0_PoC Miner Manual_Linux](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Miner%20Manual%20_Linux.md)
 
 ## 2.2 Windows systems mining
 
-Please refer to Chapters 2 and 3 in the [IPSE2.0_POC Miner Manual_Windows](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Miner%20Manual_Windows.md)
+Please refer to Chapters 2 and 3 in the [IPSE2.0_PoC Miner Manual_Windows](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Miner%20Manual_Windows.md)
 
 # 3 IPSE2.0 Instructions for IPSE storage miner
 If you become an IPSE storage miner and a user uploads a file to your storage server, you will be charged based on the size of the uploaded file, and the storage miner will receive this portion of the reward.
@@ -82,4 +82,4 @@ total_price = file_size(Byte) * unit_price * days
 [How to become an IPSE storage miner](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_IPSE%20Storage%20Miner%20and%20User%20Manual_APP.md)
 
 # 4 IPSE2.0 Instructions for PoC Pledgers
-Users can earn mining rewards by pledging POC miners. Please refer to [IPSE2.0_POC Pledge User Manual](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_POC%20Pledge%20User%20Manual_APP.md) for details.
+Users can earn mining rewards by pledging POC miners. Please refer to [IPSE2.0_PoC Pledge User Manual](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Pledge%20User%20Manual_APP.md) for details.
