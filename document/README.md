@@ -3,7 +3,8 @@ Build a local node
 ## Environment Description:
 Ubuntu18.04 or Ubuntu20.04 system
 ## 1.1 Download the program
-[Program download address] (https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.0/IPSE)
+
+[Program download address](https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE)
 The node server creates the folder locally and downloads the chain program
 ```
 sudo mkdir -p ipse2.0/ipse2.0-node && CD ipse2.0/ipse2.0-node && sudo wgethttps://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE
@@ -56,16 +57,18 @@ Root 1795222 1 2 Mar24?00:47:46./IPSE --chain main --execution= nativeElseasm --
 Root 1833766 1833711 0 15:26 PTS /0 00:00:00 00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS--exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
 kill -9 1795222
 ```
-If you want to be a validator node, refer to the following documentation:
-[Polkadot set the validator nodes on the network] (https://wiki.polkadot.network/docs/zh-CN/maintain-guides-how-to-validate-polkadot)
 
+If you want to be a validator node, refer to the following documentation:
+
+[Polkadot set the validator nodes on the network](https://wiki.polkadot.network/docs/zh-CN/maintain-guides-how-to-validate-polkadot)
 
 # 2 IPSE2.0 Instructions for POC Miners
 POC mining supports Ubuntu and Windows systems.
 ## 2.1 Ubuntu systems mining
-Please refer to Chapters 2 and 3 in the [IPSE2.0_POC Miner Manual_Linux](https://github.com/IPSE-TEAM/ipse-core/tree/ipse/document/IPSE2.0_PoC Miner Manual_Ubuntu.md)
+Please refer to Chapters 2 and 3 in the[IPSE2.0_POC Miner Manual_Linux](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Miner%20Manual%20_Linux.md)
 ## 2.2 Windows systems mining
-Please refer to Chapters 2 and 3 in the [IPSE2.0_POC Miner Manual_Windows](https://github.com/IPSE-TEAM/ipse-core/tree/ipse/document/IPSE2.0_PoC Miner Manual_Windows.md)
+
+Please refer to Chapters 2 and 3 in the [IPSE2.0_POC Miner Manual_Windows](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Miner%20Manual_Windows.md)
 
 # 3 IPSE2.0 Instructions for IPSE storage miner
 If you become an IPSE storage miner and a user uploads a file to your storage server, you will be charged based on the size of the uploaded file, and the storage miner will receive this portion of the reward.
@@ -73,6 +76,6 @@ Calculation formula:
 ```
 total_price = file_size (Byte) * unit_price * days
 ```
-[How to become an IPSE storage miner](https://github.com/IPSE-TEAM/ipse-core/tree/ipse/document/IPSE2.0_IPSE Storage Miner and User Manual_APP.md)
+[How to become an IPSE storage miner](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_IPSE%20Storage%20Miner%20and%20User%20Manual_APP.md)
 # 4 IPSE2.0 Instructions for PoC Pledgers
-Users can earn mining rewards by pledging POC miners. Please refer to [IPSE2.0_POC Pledge User Manual](https://github.com/IPSE-TEAM/ipse-core/tree/ipse/document/IPSE2.0_POC Pledge User Manual_APP.md) for details.
+Users can earn mining rewards by pledging POC miners. Please refer to [IPSE2.0_POC Pledge User Manual](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_POC%20Pledge%20User%20Manual_APP.md) for details.

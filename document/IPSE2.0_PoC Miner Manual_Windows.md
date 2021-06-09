@@ -4,11 +4,11 @@
 ### 环境说明:
 Ubuntu18.04或Ubuntu20.04系统
 ### 1.1 下载程序
-[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.0/IPSE)
+[链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE)
 
 节点服务器本地创建文件夹，下载链程序
 ```
-sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.0/IPSE
+sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE
 ```
 
 
