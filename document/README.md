@@ -3,8 +3,8 @@ Build a local node
 ## Environment Description:
 Ubuntu18.04 or Ubuntu20.04 system
 ## 1.1 Download the program
-
 [Program download address](https://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE)
+
 The node server creates the folder locally and downloads the chain program
 ```
 sudo mkdir -p ipse2.0/ipse2.0-node && CD ipse2.0/ipse2.0-node && sudo wgethttps://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE
@@ -27,7 +27,7 @@ Depending on the size of the chain at the time, this step may take anywhere from
 If you want to estimate how much more time is needed, the server log (via the command tail -f ipse.log) shows the processed and newly validated blocks for your node.You can then compare with Telemetry or the current PolkadotJS blockchain browser.
 
 ## 1.3 Start the local node
-When the node synchronization data is completed, close the IPSE program, restart the local node(staging or main), and run the following commands (write to log files and run in the background):
+When the node synchronization data is completed, close the IPSE program, restart the local node(Test Network or Main Network), and run the following commands (write to log files and run in the background):
 ```
 sudo ./IPSE --chain main --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
 ```
@@ -76,7 +76,7 @@ Please refer to Chapters 2 and 3 in the [IPSE2.0_POC Miner Manual_Windows](https
 If you become an IPSE storage miner and a user uploads a file to your storage server, you will be charged based on the size of the uploaded file, and the storage miner will receive this portion of the reward.
 Calculation formula:
 ```
-total_price = file_size (Byte) * unit_price * days
+total_price = file_size(Byte) * unit_price * days
 ```
 
 [How to become an IPSE storage miner](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_IPSE%20Storage%20Miner%20and%20User%20Manual_APP.md)
