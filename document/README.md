@@ -7,7 +7,7 @@ Ubuntu18.04 or Ubuntu20.04 system
 
 The node server creates the folder locally and downloads the chain program
 ```
-sudo mkdir -p ipse2.0/ipse2.0-node && CD ipse2.0/ipse2.0-node && sudo wgethttps://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE
+sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wgethttps://github.com/IPSE-TEAM/ipse-core/releases/download/3.0.1/IPSE
 ```
 ## 1.2 Synchronize node data
 Start synchronizing your nodes by running the following instructions (write to log files and run in the background):
@@ -52,9 +52,14 @@ Then the mining program can directly connect ws://localhost:9948 to mine.
 ## 1.4 Close the local node
 View the IPSE process number and kill the process with the following command:
 ```
-Ps - ef | grep IPSE
+ps - ef | grep IPSE
+```
+```
 Root 1795222 1 2 Mar24?00:47:46./IPSE --chain main --execution= nativeElseasm --unsafe-ws-external -- rpc-external --rpc-cors=all--ws-port 9948 --rpc-port 30339 --base-path db --rpc-methods=Unsafe --pool-limit 100000 --ws-max-connections 50000
 Root 1833766 1833711 0 15:26 PTS /0 00:00:00 00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS--exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
+```
+
+```
 kill -9 1795222
 ```
 
