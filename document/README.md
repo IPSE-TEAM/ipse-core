@@ -82,4 +82,4 @@ total_price = file_size(Byte) * unit_price * days
 [How to become an IPSE storage miner](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_IPSE%20Storage%20Miner%20and%20User%20Manual_APP.md)
 
 # 4 IPSE2.0 Instructions for PoC Pledgers
-Users can earn mining rewards by pledging POC miners. Please refer to [IPSE2.0_PoC Pledge User Manual](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Pledge%20User%20Manual_APP.md) for details.
+Users can earn mining rewards by pledging PoC miners. Please refer to [IPSE2.0_PoC Pledge User Manual](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Pledge%20User%20Manual_APP.md) for details.
