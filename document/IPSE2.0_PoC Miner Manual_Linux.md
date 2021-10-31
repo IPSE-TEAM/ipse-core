@@ -72,7 +72,7 @@ Mar 25 15:31:21.081  INFO execute_block:apply_extrinsic: 节点方: 16c3ab6a5c42
 ### 1.4 关闭本地节点
 查看IPSE进程号，并杀掉进程，命令如下:
 ```
-ps -ef |grep IPSE                                              
+ps -ef |grep IPSE
 root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path ./db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
 root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
 
@@ -100,7 +100,7 @@ sudo wget https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/eng
 Resolving github.com (github.com)... 13.250.177.223
 Connecting to github.com (github.com)|13.250.177.223|:443... connected.
 HTTP request sent, awaiting response... 302 Found
-Location: 
+Location:
 .....
 Resolving github-releases.githubusercontent.com (github-releases.githubusercontent.com)... 185.199.108.154, 185.199.110.154, 185.199.109.154, ...
 Connecting to github-releases.githubusercontent.com (github-releases.githubusercontent.com)|185.199.108.154|:443... connected.
@@ -108,13 +108,13 @@ HTTP request sent, awaiting response... 200 OK
 Length: 649208 (634K) [application/octet-stream]
 Saving to: ‘engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz’
 
-engraver-2.4.0-x86_64-unknown-linux-gnu 100%[============================================================================>] 633.99K   823KB/s    in 0.8s    
+engraver-2.4.0-x86_64-unknown-linux-gnu 100%[============================================================================>] 633.99K   823KB/s    in 0.8s
 
 2021-05-07 15:05:41 (823 KB/s) - ‘engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz’ saved [649208/649208]
 ```
 解压P盘工具软件:
 ```
-sudo tar -xvf engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz 
+sudo tar -xvf engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz
 engraver_cpu
 engraver_gpu
 
@@ -140,7 +140,7 @@ nonce计算：
 计算:
 1 nonce=256KiB，1MiB= 4nonce，则
 1GiB= 1*1024*4=4096 nonce，
-1TiB=1*1024*1024*4=4194304 nonce, 
+1TiB=1*1024*1024*4=4194304 nonce,
 2TiB=2*1024*1024*4=8388608 nonce，以此类推。
 ```
 **注意: --id <numeric_ID>的长度必须小于19位数字**
@@ -193,8 +193,8 @@ sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data100648254
 ```
 提示指定的P盘文件存放路径不存在，那么我们先新建该文件路径
 ```
-sudo mkdir -p /data/data10064825431032897                                                                          
-ll /data/data10064825431032897 
+sudo mkdir -p /data/data10064825431032897
+ll /data/data10064825431032897
 总用量 0
 
 ```
@@ -228,14 +228,14 @@ miners: # 节点方的统一配置
      account_id: 10717349404514113857, # plot id
      phase: cash mixture tongue cry roof glare monkey island unfair brown spirit inflict, # your secret key
      miner_proportion: 20,  # how much proportion that the miner should get in a rewad.
-     url: 'ws://localhost:9944',  # synchronization node 
+     url: 'ws://localhost:9944',  # synchronization node
      plot_size: 50, # plot size (The unit is Gib).
      miner_reward_dest: 5FHb1AEeNui5ANvyT368dECmNEJeouLeeZ6a9z8GTvxPLaVs, # Miner income address
      plot_path: '/data/test_data',  # where is the plot file on your computer.
      max_deadline_value: 5000  # The maximum number of the deadline allowed.
    }
 --------------------------------------------------------
-host #当前目录生成节点方文件夹名称 
+host #当前目录生成节点方文件夹名称
 account_id #节点方的P盘ID（全网唯一，请自定义）
 phase  #节点方的助记词
 miner_proportion #节点方出块获得的奖励占比
@@ -323,7 +323,7 @@ localhost/10064825431032897/config.yaml
 ```
 在该文件夹localhost中，您可以找到另一个以P盘ID命名的文件夹，然后进入该文件夹，如下:
 ```
-abc@abc:~/ipse2.0/ipse2.0-mining$cd localhost/10064825431032897  
+abc@abc:~/ipse2.0/ipse2.0-mining$cd localhost/10064825431032897
 abc@abc:~/ipse2.0/ipse2.0-mining$ls -l
 ```
 ```
@@ -335,11 +335,11 @@ abc@abc:~/ipse2.0/ipse2.0-mining$ls -l
 ```
 command.txt文件里含启动出块/停止出块命令，如图:
 ```
-cat command.txt 
+cat command.txt
 ```
 内容如下:
 ```
-/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10064825431032897 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897 --log-max-size 10 
+/home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10064825431032897 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897 --log-max-size 10
 /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10064825431032897 --mining /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897 --log-max-size 10 --stop
 ```
 
@@ -355,7 +355,7 @@ sudo nohup /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervis
 ```
 查看动态日志：
 ```
-tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897.log 
+tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-10064825431032897.log
 ```
 日志输出类似以下内容说明启动出块成功，如下：
 ```
@@ -369,10 +369,10 @@ tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-
 23:55:18 [INFO]  new block: height=185421, scoop=169
 23:55:18 [INFO]  deadline:13978326
 23:55:18 [INFO]  deadline:1056359
-23:55:26 [INFO]  new block: height=185422, scoop=749                               
+23:55:26 [INFO]  new block: height=185422, scoop=749
 23:55:26 [INFO]  scan overdue, can not submmit!
 ......
-23:55:36 [INFO]  drive  840 finished, speed=198 MiB/s                           
+23:55:36 [INFO]  drive  840 finished, speed=198 MiB/s
 23:55:37 [INFO]  %%%%%%%%%%%%%%%%%%%%%%%%%  scan plot spend time: 11.010550429s %%%%%%%%%%%%%%%%%%%%%%%%%%
 ```
 ##### 3.1.3.2 不使用supervision,直接启动出块(异常不会自动重启)
@@ -382,7 +382,7 @@ tail -f /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/poc-mining-
 cd /home/abc/ipse2.0/ipse2.0-mining/localhost/202100123456003000
 ```
 ```
-sudo./poc-mining-10064825431032897   & 
+sudo./poc-mining-10064825431032897   &
 ```
 
 #### 3.1.4 停止出块
@@ -406,14 +406,14 @@ sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10
 
 (2)进入“质押”-“节点方注册”页面，输入P盘空间、P盘id、佣金比例，进行节点方注册（默认收益地址是节点方自己的地址）。注册成功后跳转至质押界面；完成这一步，节点方就可以启动出块软件进行出块了。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方注册2.png)         
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方注册2.png)
 
 ### 4.2 节点方修改信息
 冷却期:只有节点方能修改信息
 非冷却期：抵押者可以进行质押及退出质押操作
 (1) 进入“质押”-“节点方管理”页面，分别选择P盘空间、P盘id、佣金比例，进行修改，修改成功后信息随之更新。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方修改注册信息.png)          
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方修改注册信息.png)
 ### 4.3 节点方推荐列表(抵押排名)
 
 #### 4.3.1 申请加入推荐列表
@@ -421,18 +421,18 @@ sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10
 (1) 进入“质押”-“节点方管理”页面，选择“抵押排名”,输入amount，提交申请加入推荐列表
 
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方申请进入推荐列表.png)
-         
+
 (2)进入“质押”-“参与质押”页面，选择节点方列表，可以查看正在推荐列表的节点方信息，点击地址右边可查看到该节点方的出块记录；质押者可选择抵押排名中指定的节点方进行质押，获得出块分佣奖励。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/参与质押-节点方列表.png)           
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/参与质押-节点方列表.png)
 
 
 
-#### 4.3.2 退出推荐列表 
+#### 4.3.2 退出推荐列表
 
 进入“质押”-“节点方管理”页面，点击“退出抵押排名”进行退出操作，提交后退出推荐列表成功，并锁定抵押排名金额进入锁定期；不影响抵押者已进行质押的质押金额及出块奖励分佣。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方退出抵押排名.png)           
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方退出抵押排名.png)
 
 
 
@@ -440,8 +440,8 @@ sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10
 
 (1)进入“质押”-“节点方管理”页面，选择质押者列表的某个质押者进行删除，节点方删除质押者成功；自动返还质押者的质押金额—该质押者金额进入锁定期；扣除保留金额 1 ipse，作为惩罚。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方删除质押者.png)  
-          
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方删除质押者.png)
+
 
 
 ### 4.5 节点方停止出块
@@ -450,14 +450,14 @@ sudo /home/abc/ipse2.0/ipse2.0-mining/localhost/10064825431032897/supervision-10
 节点方需手动去退出抵押排名列表，操作会锁定抵押排名金额进入锁定期；
 质押者需手动去减少质押或退出质押，操作会锁定质押金额进入锁定期。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方停止出块.png) 
-             
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方停止出块.png)
+
 ### 4.6 节点方重新启动出块
 进入“Poc质押”-“节点方管理”页面，节点方出块状态为停止状态，需要启动出块，可以重新出块。
 
 **注:如果节点方每次出块奖励为9.5 IPSE，则需要手动重启节点方！**
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方重启出块.png)  
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方重启出块.png)
 
 
 
