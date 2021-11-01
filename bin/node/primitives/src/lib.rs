@@ -41,7 +41,7 @@ pub type AccountIndex = u32;
 /// Balance of an account.
 pub type Balance = u128;
 
-pub type GIB = u64;
+pub type GiB = u64;
 
 /// Type used for expressing timestamp.
 pub type Moment = u64;

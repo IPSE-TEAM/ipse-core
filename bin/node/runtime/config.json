@@ -1,8 +1,8 @@
 {   "test": "u64",
 	"TiB": "u64",
+	"GiB": "u64",
     "Address": "IndicesLookupSource",
     "LookupSource": "IndicesLookupSource",
-    "GIB": "u64",
     "Amount": "u128",
 
 	 "AccountInfo": {

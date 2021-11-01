@@ -37,7 +37,7 @@ use system::{ensure_signed};
 use sp_runtime::{traits::{SaturatedConversion, Saturating, CheckedDiv, CheckedAdd, CheckedSub}, Percent};
 use sp_std::vec::Vec;
 use sp_std::vec;
-use node_primitives::GIB;
+use node_primitives::GiB;
 use crate::ipse_traits::PocHandler;
 use sp_std::{collections::btree_set::BTreeSet};
 
@@ -81,7 +81,7 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
 pub struct MachineInfo<BlockNumber, AccountId> {
 
-	pub plot_size: GIB,
+	pub plot_size: GiB,
 
 	pub numeric_id: u128,
 
@@ -174,7 +174,7 @@ pub enum Event<T>
 	Balance = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance,
     {
 
-        UpdatePlotSize(AccountId, GIB),
+        UpdatePlotSize(AccountId, GiB),
         Register(AccountId, u64),
         StopMining(AccountId),
         RemoveStaker(AccountId, AccountId),
@@ -216,7 +216,7 @@ decl_module! {
 
 		/// register.
 		#[weight = 10_000]
-		fn register(origin, plot_size: GIB, numeric_id: u128, miner_proportion: u32, reward_dest: Option<T::AccountId>) {
+		fn register(origin, plot_size: GiB, numeric_id: u128, miner_proportion: u32, reward_dest: Option<T::AccountId>) {
 
 			let miner_proportion = Percent::from_percent(miner_proportion as u8);
 
@@ -226,9 +226,9 @@ decl_module! {
 
 			let pid = numeric_id;
 
-			ensure!(kib != 0 as GIB, Error::<T>::PlotSizeIsZero);
+			ensure!(kib != 0 as GiB, Error::<T>::PlotSizeIsZero);
 
-			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
+			let disk = kib.checked_mul((1024 * 1024 * 1024) as GiB).ok_or(Error::<T>::Overflow)?;
 
 			ensure!(disk <= T::MaxPlotSize::get(), Error::<T>::PlotSizeToMax);
 
@@ -364,15 +364,15 @@ decl_module! {
 
 		/// the miner modify the plot size.
         #[weight = 10_000]
-        fn update_plot_size(origin, plot_size: GIB) {
+        fn update_plot_size(origin, plot_size: GiB) {
 
         	let miner = ensure_signed(origin)?;
 
         	let kib = plot_size;
 
-			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
+			let disk = kib.checked_mul((1024 * 1024 * 1024) as GiB).ok_or(Error::<T>::Overflow)?;
 
-			ensure!(disk != 0 as GIB , Error::<T>::PlotSizeIsZero);
+			ensure!(disk != 0 as GiB , Error::<T>::PlotSizeIsZero);
 
 			ensure!(disk <= T::MaxPlotSize::get(), Error::<T>::PlotSizeToMax);
 

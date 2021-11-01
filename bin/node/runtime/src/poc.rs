@@ -24,6 +24,7 @@ use sp_std::convert::{TryInto,TryFrom, Into};
 use sp_std::{collections::btree_set::BTreeSet};
 use num_traits::Zero;
 use crate::constants::time::HOURS;
+use node_primitives::GiB;
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -217,7 +218,7 @@ decl_module! {
 
         /// how much capacity that one difficulty.
         #[weight = 10_000]
-        fn set_capacity_of_per_difficulty(origin, capacity: u64) {
+        fn set_capacity_of_per_difficulty(origin, capacity: GiB) {
         	ensure_root(origin)?;
         	ensure!(capacity != 0u64, Error::<T>::CapacityIsZero);
         	<CapacityOfPerDifficulty>::put(capacity);
@@ -228,7 +229,7 @@ decl_module! {
 
 		/// submit deadline.
 		#[weight = 50_000_000 as Weight + T::DbWeight::get().reads(8 as Weight).saturating_add(T::DbWeight::get().writes(3 as Weight))]
-        fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
+        fn mining(origin, numeric_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 
             let miner = ensure_signed(origin)?;
 
@@ -244,7 +245,7 @@ decl_module! {
 
 			let real_pid = <staking::Module<T>>::disk_of(&miner).unwrap().numeric_id;
 
-			ensure!(real_pid == account_id.into(), Error::<T>::PidErr);
+			ensure!(real_pid == numeric_id.into(), Error::<T>::PidErr);
 
             let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
 
@@ -273,7 +274,7 @@ decl_module! {
                 return Err(Error::<T>::NotBestDeadline)?;
             }
 
-            let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+            let verify_ok = Self::verify_dl(numeric_id, height, sig, nonce, deadline);
 
             if verify_ok.0 {
             	debug::info!("verify is ok!, deadline = {}", deadline);
