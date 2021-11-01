@@ -73,7 +73,7 @@ Mar 25 15:31:21.081  INFO execute_block:apply_extrinsic: 节点方: 16c3ab6a5c42
 ### 1.4 关闭本地节点
 查看IPSE进程号，并杀掉进程，命令如下:
 ```
-ps -ef |grep IPSE                                              
+ps -ef |grep IPSE
 root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path ./db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
 root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
 
@@ -83,7 +83,7 @@ sudo  kill -9 1795222
 
 [设置验证人节点](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/README.md)
 
-   
+
 
 ## 二、节点方P盘
 ### 环境说明:
@@ -93,7 +93,7 @@ Windows7/10系统
 
 [window版P盘工具下载地址](https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-pc-windows-msvc.zip.zip)
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/plot_dir.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/plot_dir.png)
 
 #### 可选择 命令行界面 或 图形用户界面的任意一种进行P盘操作
 
@@ -102,9 +102,9 @@ Windows7/10系统
 Windows系统当前目录打开CMD命令行界面方法:
 ```
 Windows7:按住键盘shift键，点击鼠标右键，点击“在此处打开命令窗口（W）”，进入CMD命令行界面
-Windows10:按住键盘shift键，点击鼠标右键，选择"在此处打开powershell窗口"，执行 start cmd,进入CMD命令行界面 
+Windows10:按住键盘shift键，点击鼠标右键，选择"在此处打开powershell窗口"，执行 start cmd,进入CMD命令行界面
 ```
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/engraver_help_page.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/engraver_help_page.png)
 
 #### 2.2.1 P盘参数说明
 
@@ -126,7 +126,7 @@ nonce计算：
 计算:
 1 nonce=256KiB，1MiB= 4nonce，则
 1GiB= 1*1024*4=4096 nonce，
-1TiB=1*1024*1024*4=4194304 nonce, 
+1TiB=1*1024*1024*4=4194304 nonce,
 2TiB=2*1024*1024*4=8388608 nonce，以此类推。
 ```
 **注意: --id <numeric_ID>的长度必须小于19位数字**
@@ -185,7 +185,7 @@ mkdir F:\plot\data
 ```
 engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
 ```
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/cmd_start_plotting.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/cmd_start_plotting.png)
 
 **注意:如果使用engraver_cpu进行绘图，cpu太慢，占用cpu过多，温度过高，则请使用engraver_gpu进行绘图;**
 
@@ -194,9 +194,9 @@ engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
 ### 2.3 图形用户界面说明
 下载适当版本的Engraver并解压缩存档后，目标文件夹将包含两个文件：Engraver可执行文件和Engraver图形用户界面（EngraverGui）。通过双击EngraverGui可执行文件来启动图形用户界面。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/plot_dir.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/plot_dir.png)
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/GUI_homepage.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/GUI_homepage.png)
 
 #### 2.3.1 基本设置(basic Settings)
 
@@ -206,7 +206,7 @@ Numeric ID：将用于创建绘图文件的数字帐户ID
 Output Folder：系统上将要存储结果文件的文件夹。使用“浏览”按钮导航到所需位置
 Drive Info：指目标驱动器的信息。用户选择输出文件夹后，将填充驱动器信息
 ```
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/basic_Settings.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/basic_Settings.png)
 
 驱动器信息包括目标驱动器上的可用空间，可存储到可用空间中的最大随机数以及逻辑扇区大小。
 ```
@@ -216,17 +216,17 @@ Maxinum(最大)：如果选择此选项，将创建打印文件以填充目标�
 Value(值)：如果用户选择此选项，则他们可以输入所需的打印文件大小在随机数，MiB，TiB或GiB中。根据所选择的单位，雕刻机将以随机数或存储大小单位显示相应的值。
 ```
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/basic_Settings2.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/basic_Settings2.png)
 
 
 
 请注意，Engraver会根据逻辑扇区的大小舍入P盘文件的大小。这样做是为了启用快速直接I / O功能。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/basic_Settings3.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/basic_Settings3.png)
 
 #### 2.3.2 高级设置(Advanced Settings)
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/Advanced_Settings.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/Advanced_Settings.png)
 
 高级设置选项卡包括以下选项：
 
@@ -245,7 +245,7 @@ I/O：
 
 **注意: account_id <numeric_ID>的长度必须小于19位数字**
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/GUI_start-plotting.png) 
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/plot_win_img/GUI_start-plotting.png)
 
 单击“Stop Plotting”按钮可以停止绘图。确认后，绘图将停止。
 
@@ -260,7 +260,7 @@ Engraver支持绘图恢复。要恢复绘图文件(P盘文件)，用户将转到
 ## 三、节点方启动出块程序
 
 ### 3.1 下载出块程序
-[poc-mining(Windows版本)下载链接](https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.5.0/ipse2.0-mining_1.0-x86_64-pc-windows-msvc.zip)
+[poc-mining(Windows版本)下载链接](https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.4.0/ipse2.0-mining_1.0-x86_64-pc-windows-msvc.zip)
 
 下载出块软件poc-mining最新版本(Windows版本)，压缩包包含三个文件：出块配置文件config.yaml、监控工具w10supervision、出块软件poc-mining，解压到对应目录:
 
@@ -386,14 +386,14 @@ E:\IPSE\plot\win10>
 
 (2)进入“质押”-“节点方注册”页面，输入P盘空间、P盘id、佣金比例，进行节点方注册（默认收益地址是节点方自己的地址）。注册成功后跳转至质押界面；完成这一步，节点方就可以启动出块软件进行出块了。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方注册2.png)         
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方注册2.png)
 
 ### 4.2 节点方修改信息
 冷却期:只有节点方能修改信息
 非冷却期：抵押者可以进行质押及退出质押操作
 (1) 进入“质押”-“节点方管理”页面，分别选择P盘空间、P盘id、佣金比例，进行修改，修改成功后信息随之更新。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方修改注册信息.png)          
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方修改注册信息.png)
 ### 4.3 节点方推荐列表(抵押排名)
 
 #### 4.3.1 申请加入推荐列表
@@ -401,18 +401,18 @@ E:\IPSE\plot\win10>
 (1) 进入“质押”-“节点方管理”页面，选择“抵押排名”,输入amount，提交申请加入推荐列表
 
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方申请进入推荐列表.png)
-         
+
 (2)进入“质押”-“参与质押”页面，选择节点方列表，可以查看正在推荐列表的节点方信息，点击地址右边可查看到该节点方的出块记录；质押者可选择抵押排名中指定的节点方进行质押，获得出块分佣奖励。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/参与质押-节点方列表.png)           
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/参与质押-节点方列表.png)
 
 
 
-#### 4.3.2 退出推荐列表 
+#### 4.3.2 退出推荐列表
 
 进入“质押”-“节点方管理”页面，点击“退出抵押排名”进行退出操作，提交后退出推荐列表成功，并锁定抵押排名金额进入锁定期；不影响抵押者已进行质押的质押金额及出块奖励分佣。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方退出抵押排名.png)           
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方退出抵押排名.png)
 
 
 
@@ -420,8 +420,8 @@ E:\IPSE\plot\win10>
 
 (1)进入“质押”-“节点方管理”页面，选择质押者列表的某个质押者进行删除，节点方删除质押者成功；自动返还质押者的质押金额—该质押者金额进入锁定期；扣除保留金额 1 ipse，作为惩罚。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方删除质押者.png)  
-          
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方删除质押者.png)
+
 
 
 ### 4.5 节点方停止出块
@@ -430,11 +430,10 @@ E:\IPSE\plot\win10>
 节点方需手动去退出抵押排名列表，操作会锁定抵押排名金额进入锁定期；
 质押者需手动去减少质押或退出质押，操作会锁定质押金额进入锁定期。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方停止出块.png) 
-             
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方停止出块.png)
+
 ### 4.6 节点方重新启动出块
 节点方出块状态为停止状态，需要启动出块，可以重新出块。
 
-![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方重启出块.png)  
+![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@2.3.0/document/ipse_img/PoC_Staking/节点方重启出块.png)
 
- 

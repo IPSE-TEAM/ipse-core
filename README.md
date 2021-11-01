@@ -78,7 +78,7 @@ Secret phrase `goat involve type wait genuine exile husband beach iron undo tiss
 ```
 
 ```buildoutcfg
-./IPSE --chain staging \
+./IPSE --chain main \
 --base-path /tmp/mynode \
 --name MyNode \
 --validator \
