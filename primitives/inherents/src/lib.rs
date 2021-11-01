@@ -34,15 +34,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(missing_docs)]
 
-use codec::{Encode, Decode};
+use codec::{Decode, Encode};
 
-use sp_std::{collections::btree_map::{BTreeMap, IntoIter, Entry}, vec::Vec};
+use sp_std::{
+	collections::btree_map::{BTreeMap, Entry, IntoIter},
+	vec::Vec,
+};
 
 #[cfg(feature = "std")]
 use parking_lot::RwLock;
 
 #[cfg(feature = "std")]
-use std::{sync::Arc, format};
+use std::{format, sync::Arc};
 
 /// An error that can occur within the inherent data system.
 #[cfg(feature = "std")]
@@ -83,7 +86,7 @@ pub type InherentIdentifier = [u8; 8];
 #[derive(Clone, Default, Encode, Decode)]
 pub struct InherentData {
 	/// All inherent data encoded with parity-scale-codec and an identifier.
-	data: BTreeMap<InherentIdentifier, Vec<u8>>
+	data: BTreeMap<InherentIdentifier, Vec<u8>>,
 }
 
 impl InherentData {
@@ -110,20 +113,14 @@ impl InherentData {
 				entry.insert(inherent.encode());
 				Ok(())
 			},
-			Entry::Occupied(_) => {
-				Err("Inherent with same identifier already exists!".into())
-			}
+			Entry::Occupied(_) => Err("Inherent with same identifier already exists!".into()),
 		}
 	}
 
 	/// Replace the data for an inherent.
 	///
 	/// If it does not exist, the data is just inserted.
-	pub fn replace_data<I: codec::Encode>(
-		&mut self,
-		identifier: InherentIdentifier,
-		inherent: &I,
-	) {
+	pub fn replace_data<I: codec::Encode>(&mut self, identifier: InherentIdentifier, inherent: &I) {
 		self.data.insert(identifier, inherent.encode());
 	}
 
@@ -139,13 +136,10 @@ impl InherentData {
 		identifier: &InherentIdentifier,
 	) -> Result<Option<I>, Error> {
 		match self.data.get(identifier) {
-			Some(inherent) =>
-				I::decode(&mut &inherent[..])
-					.map_err(|_| {
-						"Could not decode requested inherent type!".into()
-					})
-					.map(Some),
-			None => Ok(None)
+			Some(inherent) => I::decode(&mut &inherent[..])
+				.map_err(|_| "Could not decode requested inherent type!".into())
+				.map(Some),
+			None => Ok(None),
 		}
 	}
 
@@ -173,11 +167,7 @@ pub struct CheckInherentsResult {
 
 impl Default for CheckInherentsResult {
 	fn default() -> Self {
-		Self {
-			okay: true,
-			errors: InherentData::new(),
-			fatal_error: false,
-		}
+		Self { okay: true, errors: InherentData::new(), fatal_error: false }
 	}
 }
 
@@ -251,8 +241,8 @@ impl CheckInherentsResult {
 impl PartialEq for CheckInherentsResult {
 	fn eq(&self, other: &Self) -> bool {
 		self.fatal_error == other.fatal_error &&
-		self.okay == other.okay &&
-		self.errors.data == other.errors.data
+			self.okay == other.okay &&
+			self.errors.data == other.errors.data
 	}
 }
 
@@ -278,17 +268,16 @@ impl InherentDataProviders {
 	/// # Result
 	///
 	/// Will return an error, if a provider with the same identifier already exists.
-	pub fn register_provider<P: ProvideInherentData + Send + Sync +'static>(
+	pub fn register_provider<P: ProvideInherentData + Send + Sync + 'static>(
 		&self,
 		provider: P,
 	) -> Result<(), Error> {
 		if self.has_provider(&provider.inherent_identifier()) {
-			Err(
-				format!(
-					"Inherent data provider with identifier {:?} already exists!",
-					&provider.inherent_identifier()
-				).into()
+			Err(format!(
+				"Inherent data provider with identifier {:?} already exists!",
+				&provider.inherent_identifier()
 			)
+			.into())
 		} else {
 			provider.on_register(self)?;
 			self.providers.write().push(Box::new(provider));
@@ -315,23 +304,28 @@ impl InherentDataProviders {
 	///
 	/// Useful if the implementation encounters an error for an identifier it does not know.
 	pub fn error_to_string(&self, identifier: &InherentIdentifier, error: &[u8]) -> String {
-		let res = self.providers.read().iter().filter_map(|p|
-			if p.inherent_identifier() == identifier {
-				Some(
-					p.error_to_string(error)
-						.unwrap_or_else(|| error_to_string_fallback(identifier))
-				)
-			} else {
-				None
-			}
-		).next();
+		let res = self
+			.providers
+			.read()
+			.iter()
+			.filter_map(|p| {
+				if p.inherent_identifier() == identifier {
+					Some(
+						p.error_to_string(error)
+							.unwrap_or_else(|| error_to_string_fallback(identifier)),
+					)
+				} else {
+					None
+				}
+			})
+			.next();
 
 		match res {
 			Some(res) => res,
 			None => format!(
 				"Error while checking inherent of type \"{}\", but this inherent type is unknown.",
 				String::from_utf8_lossy(identifier)
-			)
+			),
 		}
 	}
 }
@@ -412,7 +406,9 @@ pub trait ProvideInherent {
 	/// If `Some`, indicates that an inherent is required. Check will return the inner error if no
 	/// inherent is found. If `Err`, indicates that the check failed and further operations should
 	/// be aborted.
-	fn is_inherent_required(_: &InherentData) -> Result<Option<Self::Error>, Self::Error> { Ok(None) }
+	fn is_inherent_required(_: &InherentData) -> Result<Option<Self::Error>, Self::Error> {
+		Ok(None)
+	}
 
 	/// Check the given inherent if it is valid.
 	/// Checking the inherent is optional and can be omitted.
@@ -424,7 +420,7 @@ pub trait ProvideInherent {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use codec::{Encode, Decode};
+	use codec::{Decode, Encode};
 
 	const TEST_INHERENT_0: InherentIdentifier = *b"testinh0";
 	const TEST_INHERENT_1: InherentIdentifier = *b"testinh1";
@@ -468,9 +464,7 @@ mod tests {
 
 	impl TestInherentDataProvider {
 		fn new() -> Self {
-			let inst = Self {
-				registered: Default::default(),
-			};
+			let inst = Self { registered: Default::default() };
 
 			// just make sure
 			assert!(!inst.is_registered());
@@ -541,15 +535,11 @@ mod tests {
 		providers.register_provider(provider.clone()).unwrap();
 		assert!(provider.is_registered());
 
-		assert_eq!(
-			&providers.error_to_string(&TEST_INHERENT_0, &[1, 2]), ERROR_TO_STRING
-		);
+		assert_eq!(&providers.error_to_string(&TEST_INHERENT_0, &[1, 2]), ERROR_TO_STRING);
 
-		assert!(
-			providers
-				.error_to_string(&TEST_INHERENT_1, &[1, 2])
-				.contains("inherent type is unknown")
-		);
+		assert!(providers
+			.error_to_string(&TEST_INHERENT_1, &[1, 2])
+			.contains("inherent type is unknown"));
 	}
 
 	#[test]

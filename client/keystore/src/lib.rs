@@ -17,16 +17,25 @@
 //! Keystore (and session key management) for ed25519 based chains like Polkadot.
 
 #![warn(missing_docs)]
-use std::{collections::{HashMap, HashSet}, path::PathBuf, fs::{self, File}, io::{self, Write}, sync::Arc};
+use parking_lot::RwLock;
+use sp_application_crypto::{ecdsa, ed25519, sr25519, AppKey, AppPair, AppPublic};
 use sp_core::{
-	crypto::{IsWrappedBy, CryptoTypePublicPair, KeyTypeId, Pair as PairT, ExposeSecret, SecretString, Public},
+	crypto::{
+		CryptoTypePublicPair, ExposeSecret, IsWrappedBy, KeyTypeId, Pair as PairT, Public,
+		SecretString,
+	},
+	sr25519::{Pair as Sr25519Pair, Public as Sr25519Public},
 	traits::{BareCryptoStore, Error as TraitError},
-	sr25519::{Public as Sr25519Public, Pair as Sr25519Pair},
-	vrf::{VRFTranscriptData, VRFSignature, make_transcript},
+	vrf::{make_transcript, VRFSignature, VRFTranscriptData},
 	Encode,
 };
-use sp_application_crypto::{AppKey, AppPublic, AppPair, ed25519, sr25519, ecdsa};
-use parking_lot::RwLock;
+use std::{
+	collections::{HashMap, HashSet},
+	fs::{self, File},
+	io::{self, Write},
+	path::PathBuf,
+	sync::Arc,
+};
 
 /// Keystore pointer
 pub type KeyStorePtr = Arc<RwLock<Store>>;
@@ -39,22 +48,22 @@ pub enum Error {
 	/// JSON error.
 	Json(serde_json::Error),
 	/// Invalid password.
-	#[display(fmt="Invalid password")]
+	#[display(fmt = "Invalid password")]
 	InvalidPassword,
 	/// Invalid BIP39 phrase
-	#[display(fmt="Invalid recovery phrase (BIP39) data")]
+	#[display(fmt = "Invalid recovery phrase (BIP39) data")]
 	InvalidPhrase,
 	/// Invalid seed
-	#[display(fmt="Invalid seed")]
+	#[display(fmt = "Invalid seed")]
 	InvalidSeed,
 	/// Public key type is not supported
-	#[display(fmt="Key crypto type is not supported")]
+	#[display(fmt = "Key crypto type is not supported")]
 	KeyNotSupported(KeyTypeId),
 	/// Pair not found for public key and KeyTypeId
-	#[display(fmt="Pair not found for {} public key", "_0")]
+	#[display(fmt = "Pair not found for {} public key", "_0")]
 	PairNotFound(String),
 	/// Keystore unavailable
-	#[display(fmt="Keystore unavailable")]
+	#[display(fmt = "Keystore unavailable")]
 	Unavailable,
 }
 
@@ -66,9 +75,8 @@ impl From<Error> for TraitError {
 		match error {
 			Error::KeyNotSupported(id) => TraitError::KeyNotSupported(id),
 			Error::PairNotFound(e) => TraitError::PairNotFound(e),
-			Error::InvalidSeed | Error::InvalidPhrase | Error::InvalidPassword => {
-				TraitError::ValidationError(error.to_string())
-			},
+			Error::InvalidSeed | Error::InvalidPhrase | Error::InvalidPassword =>
+				TraitError::ValidationError(error.to_string()),
 			Error::Unavailable => TraitError::Unavailable,
 			Error::Io(e) => TraitError::Other(e.to_string()),
 			Error::Json(e) => TraitError::Other(e.to_string()),
@@ -112,19 +120,11 @@ impl Store {
 
 	/// Create a new in-memory store.
 	pub fn new_in_memory() -> KeyStorePtr {
-		Arc::new(RwLock::new(Self {
-			path: None,
-			additional: HashMap::new(),
-			password: None
-		}))
+		Arc::new(RwLock::new(Self { path: None, additional: HashMap::new(), password: None }))
 	}
 
 	/// Get the key phrase for the given public key and key type from the in-memory store.
-	fn get_additional_pair(
-		&self,
-		public: &[u8],
-		key_type: KeyTypeId,
-	) -> Option<&String> {
+	fn get_additional_pair(&self, public: &[u8], key_type: KeyTypeId) -> Option<&String> {
 		let key = (key_type, public.to_vec());
 		self.additional.get(&key)
 	}
@@ -153,10 +153,7 @@ impl Store {
 	///
 	/// Places it into the file system store.
 	pub fn insert_by_type<Pair: PairT>(&self, key_type: KeyTypeId, suri: &str) -> Result<Pair> {
-		let pair = Pair::from_string(
-			suri,
-			self.password()
-		).map_err(|_| Error::InvalidSeed)?;
+		let pair = Pair::from_string(suri, self.password()).map_err(|_| Error::InvalidSeed)?;
 		self.insert_unknown(key_type, suri, pair.public().as_slice())
 			.map_err(|_| Error::Unavailable)?;
 		Ok(pair)
@@ -222,15 +219,13 @@ impl Store {
 	}
 
 	/// Get a key pair for the given public key and key type.
-	pub fn key_pair_by_type<Pair: PairT>(&self,
+	pub fn key_pair_by_type<Pair: PairT>(
+		&self,
 		public: &Pair::Public,
 		key_type: KeyTypeId,
 	) -> Result<Pair> {
 		let phrase = self.key_phrase_by_type(public.as_slice(), key_type)?;
-		let pair = Pair::from_string(
-			&phrase,
-			self.password(),
-		).map_err(|_| Error::InvalidPhrase)?;
+		let pair = Pair::from_string(&phrase, self.password()).map_err(|_| Error::InvalidPhrase)?;
 
 		if &pair.public() == public {
 			Ok(pair)
@@ -241,7 +236,8 @@ impl Store {
 
 	/// Get a key pair for the given public key.
 	pub fn key_pair<Pair: AppPair>(&self, public: &<Pair as AppKey>::Public) -> Result<Pair> {
-		self.key_pair_by_type::<Pair::Generic>(IsWrappedBy::from_ref(public), Pair::ID).map(Into::into)
+		self.key_pair_by_type::<Pair::Generic>(IsWrappedBy::from_ref(public), Pair::ID)
+			.map(Into::into)
 	}
 
 	/// Get public keys of all stored keys that match the key type.
@@ -252,11 +248,7 @@ impl Store {
 	/// registered under the application type.
 	pub fn public_keys<Public: AppPublic>(&self) -> Result<Vec<Public>> {
 		self.raw_public_keys(Public::ID)
-			.map(|v| {
-				v.into_iter()
-				 .map(|k| Public::from_slice(k.as_slice()))
-				 .collect()
-			})
+			.map(|v| v.into_iter().map(|k| Public::from_slice(k.as_slice())).collect())
 	}
 
 	/// Returns the file path for the given public key and key type.
@@ -270,7 +262,9 @@ impl Store {
 
 	/// Returns a list of raw public keys filtered by `KeyTypeId`
 	fn raw_public_keys(&self, id: KeyTypeId) -> Result<Vec<Vec<u8>>> {
-		let mut public_keys: Vec<Vec<u8>> = self.additional.keys()
+		let mut public_keys: Vec<Vec<u8>> = self
+			.additional
+			.keys()
 			.into_iter()
 			.filter_map(|k| if k.0 == id { Some(k.1.clone()) } else { None })
 			.collect();
@@ -285,11 +279,11 @@ impl Store {
 					match hex::decode(name) {
 						Ok(ref hex) if hex.len() > 4 => {
 							if &hex[0..4] != &id.0 {
-								continue;
+								continue
 							}
 							let public = hex[4..].to_vec();
 							public_keys.push(public);
-						}
+						},
 						_ => continue,
 					}
 				}
@@ -301,29 +295,23 @@ impl Store {
 }
 
 impl BareCryptoStore for Store {
-	fn keys(
-		&self,
-		id: KeyTypeId
-	) -> std::result::Result<Vec<CryptoTypePublicPair>, TraitError> {
+	fn keys(&self, id: KeyTypeId) -> std::result::Result<Vec<CryptoTypePublicPair>, TraitError> {
 		let raw_keys = self.raw_public_keys(id)?;
-		Ok(raw_keys.into_iter()
-			.fold(Vec::new(), |mut v, k| {
-				v.push(CryptoTypePublicPair(sr25519::CRYPTO_ID, k.clone()));
-				v.push(CryptoTypePublicPair(ed25519::CRYPTO_ID, k.clone()));
-				v.push(CryptoTypePublicPair(ecdsa::CRYPTO_ID, k));
-				v
-			}))
+		Ok(raw_keys.into_iter().fold(Vec::new(), |mut v, k| {
+			v.push(CryptoTypePublicPair(sr25519::CRYPTO_ID, k.clone()));
+			v.push(CryptoTypePublicPair(ed25519::CRYPTO_ID, k.clone()));
+			v.push(CryptoTypePublicPair(ecdsa::CRYPTO_ID, k));
+			v
+		}))
 	}
 
 	fn supported_keys(
 		&self,
 		id: KeyTypeId,
-		keys: Vec<CryptoTypePublicPair>
+		keys: Vec<CryptoTypePublicPair>,
 	) -> std::result::Result<Vec<CryptoTypePublicPair>, TraitError> {
 		let all_keys = self.keys(id)?.into_iter().collect::<HashSet<_>>();
-		Ok(keys.into_iter()
-		   .filter(|key| all_keys.contains(key))
-		   .collect::<Vec<_>>())
+		Ok(keys.into_iter().filter(|key| all_keys.contains(key)).collect::<Vec<_>>())
 	}
 
 	fn sign_with(
@@ -339,7 +327,7 @@ impl BareCryptoStore for Store {
 					.key_pair_by_type::<ed25519::Pair>(&pub_key, id)
 					.map_err(|e| TraitError::from(e))?;
 				Ok(key_pair.sign(msg).encode())
-			}
+			},
 			sr25519::CRYPTO_ID => {
 				let pub_key = sr25519::Public::from_slice(key.1.as_slice());
 				let key_pair: sr25519::Pair = self
@@ -353,18 +341,14 @@ impl BareCryptoStore for Store {
 					.key_pair_by_type::<ecdsa::Pair>(&pub_key, id)
 					.map_err(|e| TraitError::from(e))?;
 				Ok(key_pair.sign(msg).encode())
-			}
-			_ => Err(TraitError::KeyNotSupported(id))
+			},
+			_ => Err(TraitError::KeyNotSupported(id)),
 		}
 	}
 
 	fn sr25519_public_keys(&self, key_type: KeyTypeId) -> Vec<sr25519::Public> {
 		self.raw_public_keys(key_type)
-			.map(|v| {
-				v.into_iter()
-				 .map(|k| sr25519::Public::from_slice(k.as_slice()))
-				 .collect()
-			})
+			.map(|v| v.into_iter().map(|k| sr25519::Public::from_slice(k.as_slice())).collect())
 			.unwrap_or_default()
 	}
 
@@ -376,19 +360,16 @@ impl BareCryptoStore for Store {
 		let pair = match seed {
 			Some(seed) => self.insert_ephemeral_from_seed_by_type::<sr25519::Pair>(seed, id),
 			None => self.generate_by_type::<sr25519::Pair>(id),
-		}.map_err(|e| -> TraitError { e.into() })?;
+		}
+		.map_err(|e| -> TraitError { e.into() })?;
 
 		Ok(pair.public())
 	}
 
 	fn ed25519_public_keys(&self, key_type: KeyTypeId) -> Vec<ed25519::Public> {
 		self.raw_public_keys(key_type)
-			.map(|v| {
-				v.into_iter()
-				 .map(|k| ed25519::Public::from_slice(k.as_slice()))
-				 .collect()
-			})
-    		.unwrap_or_default()
+			.map(|v| v.into_iter().map(|k| ed25519::Public::from_slice(k.as_slice())).collect())
+			.unwrap_or_default()
 	}
 
 	fn ed25519_generate_new(
@@ -399,18 +380,15 @@ impl BareCryptoStore for Store {
 		let pair = match seed {
 			Some(seed) => self.insert_ephemeral_from_seed_by_type::<ed25519::Pair>(seed, id),
 			None => self.generate_by_type::<ed25519::Pair>(id),
-		}.map_err(|e| -> TraitError { e.into() })?;
+		}
+		.map_err(|e| -> TraitError { e.into() })?;
 
 		Ok(pair.public())
 	}
 
 	fn ecdsa_public_keys(&self, key_type: KeyTypeId) -> Vec<ecdsa::Public> {
 		self.raw_public_keys(key_type)
-			.map(|v| {
-				v.into_iter()
-					.map(|k| ecdsa::Public::from_slice(k.as_slice()))
-					.collect()
-			})
+			.map(|v| v.into_iter().map(|k| ecdsa::Public::from_slice(k.as_slice())).collect())
 			.unwrap_or_default()
 	}
 
@@ -422,21 +400,23 @@ impl BareCryptoStore for Store {
 		let pair = match seed {
 			Some(seed) => self.insert_ephemeral_from_seed_by_type::<ecdsa::Pair>(seed, id),
 			None => self.generate_by_type::<ecdsa::Pair>(id),
-		}.map_err(|e| -> TraitError { e.into() })?;
+		}
+		.map_err(|e| -> TraitError { e.into() })?;
 
 		Ok(pair.public())
 	}
 
-	fn insert_unknown(&mut self, key_type: KeyTypeId, suri: &str, public: &[u8])
-		-> std::result::Result<(), ()>
-	{
+	fn insert_unknown(
+		&mut self,
+		key_type: KeyTypeId,
+		suri: &str,
+		public: &[u8],
+	) -> std::result::Result<(), ()> {
 		Store::insert_unknown(self, key_type, suri, public).map_err(|_| ())
 	}
 
 	fn password(&self) -> Option<&str> {
-		self.password.as_ref()
-			.map(|p| p.expose_secret())
-			.map(|p| p.as_str())
+		self.password.as_ref().map(|p| p.expose_secret()).map(|p| p.as_str())
 	}
 
 	fn has_keys(&self, public_keys: &[(Vec<u8>, KeyTypeId)]) -> bool {
@@ -450,23 +430,21 @@ impl BareCryptoStore for Store {
 		transcript_data: VRFTranscriptData,
 	) -> std::result::Result<VRFSignature, TraitError> {
 		let transcript = make_transcript(transcript_data);
-		let pair = self.key_pair_by_type::<Sr25519Pair>(public, key_type)
+		let pair = self
+			.key_pair_by_type::<Sr25519Pair>(public, key_type)
 			.map_err(|e| TraitError::PairNotFound(e.to_string()))?;
 
 		let (inout, proof, _) = pair.as_ref().vrf_sign(transcript);
-		Ok(VRFSignature {
-			output: inout.to_output(),
-			proof,
-		})
+		Ok(VRFSignature { output: inout.to_output(), proof })
 	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use tempfile::TempDir;
-	use sp_core::{testing::SR25519, crypto::Ss58Codec};
+	use sp_core::{crypto::Ss58Codec, testing::SR25519};
 	use std::str::FromStr;
+	use tempfile::TempDir;
 
 	#[test]
 	fn basic_store() {
@@ -490,7 +468,9 @@ mod tests {
 
 		let pair: ed25519::AppPair = store
 			.write()
-			.insert_ephemeral_from_seed("0x3d97c819d68f9bafa7d6e79cb991eebcd77d966c5334c0b94d9e1fa7ad0869dc")
+			.insert_ephemeral_from_seed(
+				"0x3d97c819d68f9bafa7d6e79cb991eebcd77d966c5334c0b94d9e1fa7ad0869dc",
+			)
 			.unwrap();
 		assert_eq!(
 			"5DKUrgFqCPV8iAXx9sjy1nyBygQCeiUYRFWurZGhnrn3HJCA",
@@ -507,10 +487,9 @@ mod tests {
 	fn password_being_used() {
 		let password = String::from("password");
 		let temp_dir = TempDir::new().unwrap();
-		let store = Store::open(
-			temp_dir.path(),
-			Some(FromStr::from_str(password.as_str()).unwrap()),
-		).unwrap();
+		let store =
+			Store::open(temp_dir.path(), Some(FromStr::from_str(password.as_str()).unwrap()))
+				.unwrap();
 
 		let pair: ed25519::AppPair = store.write().generate().unwrap();
 		assert_eq!(
@@ -522,10 +501,9 @@ mod tests {
 		let store = Store::open(temp_dir.path(), None).unwrap();
 		assert!(store.read().key_pair::<ed25519::AppPair>(&pair.public()).is_err());
 
-		let store = Store::open(
-			temp_dir.path(),
-			Some(FromStr::from_str(password.as_str()).unwrap()),
-		).unwrap();
+		let store =
+			Store::open(temp_dir.path(), Some(FromStr::from_str(password.as_str()).unwrap()))
+				.unwrap();
 		assert_eq!(
 			pair.public(),
 			store.read().key_pair::<ed25519::AppPair>(&pair.public()).unwrap().public(),
@@ -540,9 +518,16 @@ mod tests {
 		let mut public_keys = Vec::new();
 		for i in 0..10 {
 			public_keys.push(store.write().generate::<ed25519::AppPair>().unwrap().public());
-			public_keys.push(store.write().insert_ephemeral_from_seed::<ed25519::AppPair>(
-				&format!("0x3d97c819d68f9bafa7d6e79cb991eebcd7{}d966c5334c0b94d9e1fa7ad0869dc", i),
-			).unwrap().public());
+			public_keys.push(
+				store
+					.write()
+					.insert_ephemeral_from_seed::<ed25519::AppPair>(&format!(
+						"0x3d97c819d68f9bafa7d6e79cb991eebcd7{}d966c5334c0b94d9e1fa7ad0869dc",
+						i
+					))
+					.unwrap()
+					.public(),
+			);
 		}
 
 		// Generate a key of a different type
@@ -563,16 +548,15 @@ mod tests {
 		let secret_uri = "//Alice";
 		let key_pair = sr25519::AppPair::from_string(secret_uri, None).expect("Generates key pair");
 
-		store.write().insert_unknown(
-			SR25519,
-			secret_uri,
-			key_pair.public().as_ref(),
-		).expect("Inserts unknown key");
+		store
+			.write()
+			.insert_unknown(SR25519, secret_uri, key_pair.public().as_ref())
+			.expect("Inserts unknown key");
 
-		let store_key_pair = store.read().key_pair_by_type::<sr25519::AppPair>(
-			&key_pair.public(),
-			SR25519,
-		).expect("Gets key pair from keystore");
+		let store_key_pair = store
+			.read()
+			.key_pair_by_type::<sr25519::AppPair>(&key_pair.public(), SR25519)
+			.expect("Gets key pair from keystore");
 
 		assert_eq!(key_pair.public(), store_key_pair.public());
 	}
@@ -585,8 +569,6 @@ mod tests {
 		let file_name = temp_dir.path().join(hex::encode(&SR25519.0[..2]));
 		fs::write(file_name, "test").expect("Invalid file is written");
 
-		assert!(
-			store.read().sr25519_public_keys(SR25519).is_empty(),
-		);
+		assert!(store.read().sr25519_public_keys(SR25519).is_empty(),);
 	}
 }

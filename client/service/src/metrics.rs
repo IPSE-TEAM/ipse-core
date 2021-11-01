@@ -18,17 +18,17 @@
 
 use std::{convert::TryFrom, time::SystemTime};
 
-use crate::{NetworkStatus, NetworkState, NetworkStatusSinks, config::Configuration};
+use crate::{config::Configuration, NetworkState, NetworkStatus, NetworkStatusSinks};
 use futures_timer::Delay;
-use prometheus_endpoint::{register, Gauge, U64, Registry, PrometheusError, Opts, GaugeVec};
-use sc_telemetry::{telemetry, SUBSTRATE_INFO};
-use sp_api::ProvideRuntimeApi;
-use sp_runtime::traits::{NumberFor, Block, SaturatedConversion, UniqueSaturatedInto};
-use sp_transaction_pool::{PoolStatus, MaintainedTransactionPool};
-use sp_utils::metrics::register_globals;
-use sp_utils::mpsc::TracingUnboundedReceiver;
+use prometheus_endpoint::{register, Gauge, GaugeVec, Opts, PrometheusError, Registry, U64};
 use sc_client_api::{ClientInfo, UsageProvider};
 use sc_network::config::Role;
+use sc_telemetry::{telemetry, SUBSTRATE_INFO};
+use sp_api::ProvideRuntimeApi;
+use sp_runtime::traits::{Block, NumberFor, SaturatedConversion, UniqueSaturatedInto};
+use sp_transaction_pool::{MaintainedTransactionPool, PoolStatus};
+use sp_utils::metrics::register_globals;
+use sp_utils::mpsc::TracingUnboundedReceiver;
 use std::sync::Arc;
 use std::time::Duration;
 use wasm_timer::Instant;
@@ -52,54 +52,74 @@ impl PrometheusMetrics {
 		version: &str,
 		roles: u64,
 	) -> Result<Self, PrometheusError> {
-		register(Gauge::<U64>::with_opts(
-			Opts::new(
-				"build_info",
-				"A metric with a constant '1' value labeled by name, version"
-			)
+		register(
+			Gauge::<U64>::with_opts(
+				Opts::new(
+					"build_info",
+					"A metric with a constant '1' value labeled by name, version",
+				)
 				.const_label("name", name)
-				.const_label("version", version)
-		)?, &registry)?.set(1);
+				.const_label("version", version),
+			)?,
+			&registry,
+		)?
+		.set(1);
 
-		register(Gauge::<U64>::new(
-			"node_roles", "The roles the node is running as",
-		)?, &registry)?.set(roles);
+		register(Gauge::<U64>::new("node_roles", "The roles the node is running as")?, &registry)?
+			.set(roles);
 
 		register_globals(registry)?;
 
-		let start_time_since_epoch = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-			.unwrap_or_default();
-		register(Gauge::<U64>::new(
-			"process_start_time_seconds",
-			"Number of seconds between the UNIX epoch and the moment the process started",
-		)?, registry)?.set(start_time_since_epoch.as_secs());
+		let start_time_since_epoch =
+			SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
+		register(
+			Gauge::<U64>::new(
+				"process_start_time_seconds",
+				"Number of seconds between the UNIX epoch and the moment the process started",
+			)?,
+			registry,
+		)?
+		.set(start_time_since_epoch.as_secs());
 
 		Ok(Self {
 			// generic internals
-			block_height: register(GaugeVec::new(
-				Opts::new("block_height", "Block height info of the chain"),
-				&["status"]
-			)?, registry)?,
+			block_height: register(
+				GaugeVec::new(
+					Opts::new("block_height", "Block height info of the chain"),
+					&["status"],
+				)?,
+				registry,
+			)?,
 
-			number_leaves: register(Gauge::new(
-				"number_leaves", "Number of known chain leaves (aka forks)",
-			)?, registry)?,
+			number_leaves: register(
+				Gauge::new("number_leaves", "Number of known chain leaves (aka forks)")?,
+				registry,
+			)?,
 
-			ready_transactions_number: register(Gauge::new(
-				"ready_transactions_number", "Number of transactions in the ready queue",
-			)?, registry)?,
+			ready_transactions_number: register(
+				Gauge::new(
+					"ready_transactions_number",
+					"Number of transactions in the ready queue",
+				)?,
+				registry,
+			)?,
 
 			// I/ O
-			database_cache: register(Gauge::new(
-				"database_cache_bytes", "RocksDB cache size in bytes",
-			)?, registry)?,
-			state_cache: register(Gauge::new(
-				"state_cache_bytes", "State cache size in bytes",
-			)?, registry)?,
-			state_db: register(GaugeVec::new(
-				Opts::new("state_db_cache_bytes", "State DB cache in bytes"),
-				&["subtype"]
-			)?, registry)?,
+			database_cache: register(
+				Gauge::new("database_cache_bytes", "RocksDB cache size in bytes")?,
+				registry,
+			)?,
+			state_cache: register(
+				Gauge::new("state_cache_bytes", "State cache size in bytes")?,
+				registry,
+			)?,
+			state_db: register(
+				GaugeVec::new(
+					Opts::new("state_db_cache_bytes", "State DB cache in bytes"),
+					&["subtype"],
+				)?,
+				registry,
+			)?,
 		})
 	}
 }
@@ -186,24 +206,27 @@ impl MetricsService {
 			let mut net_state = None;
 			if let Some(rx) = net_status_rx.as_mut() {
 				match Self::latest(rx) {
-					Ok(status) => { net_status = status; }
-					Err(()) => { net_status_rx = None; }
+					Ok(status) => {
+						net_status = status;
+					},
+					Err(()) => {
+						net_status_rx = None;
+					},
 				}
 			}
 			if let Some(rx) = net_state_rx.as_mut() {
 				match Self::latest(rx) {
-					Ok(state) => { net_state = state; }
-					Err(()) => { net_state_rx = None; }
+					Ok(state) => {
+						net_state = state;
+					},
+					Err(()) => {
+						net_state_rx = None;
+					},
 				}
 			}
 
 			// Update / Send the metrics.
-			self.update(
-				&client.usage_info(),
-				&transactions.status(),
-				net_status,
-				net_state,
-			);
+			self.update(&client.usage_info(), &transactions.status(), net_status, net_state);
 
 			// Schedule next tick.
 			timer.reset(timer_interval);
@@ -216,13 +239,11 @@ impl MetricsService {
 
 		while let Ok(next) = rx.try_next() {
 			match next {
-				Some(v) => {
-					value = Some(v)
-				}
+				Some(v) => value = Some(v),
 				None => {
 					log::error!("Receiver closed unexpectedly.");
 					return Err(())
-				}
+				},
 			}
 		}
 
@@ -259,14 +280,8 @@ impl MetricsService {
 		);
 
 		if let Some(metrics) = self.metrics.as_ref() {
-			metrics
-				.block_height
-				.with_label_values(&["finalized"])
-				.set(finalized_number);
-			metrics
-				.block_height
-				.with_label_values(&["best"])
-				.set(best_number);
+			metrics.block_height.with_label_values(&["finalized"]).set(finalized_number);
+			metrics.block_height.with_label_values(&["best"]).set(best_number);
 
 			if let Ok(leaves) = u64::try_from(info.chain.number_leaves) {
 				metrics.number_leaves.set(leaves);
@@ -278,15 +293,17 @@ impl MetricsService {
 				metrics.database_cache.set(info.memory.database_cache.as_bytes() as u64);
 				metrics.state_cache.set(info.memory.state_cache.as_bytes() as u64);
 
-				metrics.state_db.with_label_values(&["non_canonical"]).set(
-					info.memory.state_db.non_canonical.as_bytes() as u64,
-				);
+				metrics
+					.state_db
+					.with_label_values(&["non_canonical"])
+					.set(info.memory.state_db.non_canonical.as_bytes() as u64);
 				if let Some(pruning) = info.memory.state_db.pruning {
 					metrics.state_db.with_label_values(&["pruning"]).set(pruning.as_bytes() as u64);
 				}
-				metrics.state_db.with_label_values(&["pinned"]).set(
-					info.memory.state_db.pinned.as_bytes() as u64,
-				);
+				metrics
+					.state_db
+					.with_label_values(&["pinned"])
+					.set(info.memory.state_db.pinned.as_bytes() as u64);
 			}
 		}
 
@@ -298,14 +315,13 @@ impl MetricsService {
 
 			let diff_bytes_inbound = total_bytes_inbound - self.last_total_bytes_inbound;
 			let diff_bytes_outbound = total_bytes_outbound - self.last_total_bytes_outbound;
-			let (avg_bytes_per_sec_inbound, avg_bytes_per_sec_outbound) =
-				if elapsed > 0 {
-					self.last_total_bytes_inbound = total_bytes_inbound;
-					self.last_total_bytes_outbound = total_bytes_outbound;
-					(diff_bytes_inbound / elapsed, diff_bytes_outbound / elapsed)
-				} else {
-					(diff_bytes_inbound, diff_bytes_outbound)
-				};
+			let (avg_bytes_per_sec_inbound, avg_bytes_per_sec_outbound) = if elapsed > 0 {
+				self.last_total_bytes_inbound = total_bytes_inbound;
+				self.last_total_bytes_outbound = total_bytes_outbound;
+				(diff_bytes_inbound / elapsed, diff_bytes_outbound / elapsed)
+			} else {
+				(diff_bytes_inbound, diff_bytes_outbound)
+			};
 
 			telemetry!(
 				SUBSTRATE_INFO;

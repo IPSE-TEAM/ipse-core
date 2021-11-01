@@ -29,23 +29,24 @@
 //! whose voting is serially unsuccessful.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
-use sp_std::prelude::*;
-use sp_runtime::{
-	RuntimeDebug, DispatchResult, print,
-	traits::{Zero, One, StaticLookup, Saturating},
-};
+use codec::{Decode, Encode};
 use frame_support::{
-	decl_storage, decl_event, ensure, decl_module, decl_error,
-	weights::{Weight, DispatchClass},
+	decl_error, decl_event, decl_module, decl_storage, ensure,
 	traits::{
-		Currency, ExistenceRequirement, Get, LockableCurrency, LockIdentifier, BalanceStatus,
-		OnUnbalanced, ReservableCurrency, WithdrawReason, WithdrawReasons, ChangeMembers,
-	}
+		BalanceStatus, ChangeMembers, Currency, ExistenceRequirement, Get, LockIdentifier,
+		LockableCurrency, OnUnbalanced, ReservableCurrency, WithdrawReason, WithdrawReasons,
+	},
+	weights::{DispatchClass, Weight},
 };
-use codec::{Encode, Decode};
-use frame_system::{ensure_signed, ensure_root};
+use frame_system::{ensure_root, ensure_signed};
+use sp_runtime::{
+	print,
+	traits::{One, Saturating, StaticLookup, Zero},
+	DispatchResult, RuntimeDebug,
+};
+use sp_std::prelude::*;
 
 mod mock;
 mod tests;
@@ -70,8 +71,8 @@ mod tests;
 // - remove inactive voter (either you or the target is removed; if the target, you get their
 //   "voter" bond back; O(1); one fewer DB entry, one DB change)
 // - submit candidacy (you pay a "candidate" bond; O(1); one extra DB entry, two DB changes)
-// - present winner/runner-up (you may pay a "presentation" bond of O(voters) if the presentation
-//   is invalid; O(voters) compute; ) protected operations:
+// - present winner/runner-up (you may pay a "presentation" bond of O(voters) if the presentation is
+//   invalid; O(voters) compute; ) protected operations:
 // - remove candidacy (remove all votes for a candidate) (one fewer DB entry, two DB changes)
 
 // to avoid a potentially problematic case of not-enough approvals prior to voting causing a
@@ -125,8 +126,8 @@ pub struct VoterInfo<Balance> {
 /// Used to demonstrate the status of a particular index in the global voter list.
 #[derive(PartialEq, Eq, RuntimeDebug)]
 pub enum CellStatus {
-	/// Any out of bound index. Means a push a must happen to the chunk pointed by `NextVoterSet<T>`.
-	/// Voting fee is applied in case a new chunk is created.
+	/// Any out of bound index. Means a push a must happen to the chunk pointed by
+	/// `NextVoterSet<T>`. Voting fee is applied in case a new chunk is created.
 	Head,
 	/// Already occupied by another voter. Voting fee is applied.
 	Occupied,
@@ -139,7 +140,8 @@ pub const VOTER_SET_SIZE: usize = 64;
 /// NUmber of approvals grouped in one chunk.
 pub const APPROVAL_SET_SIZE: usize = 8;
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 type NegativeImbalanceOf<T> =
 	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
@@ -159,8 +161,7 @@ pub trait Trait: frame_system::Trait {
 	type ModuleId: Get<LockIdentifier>;
 
 	/// The currency that people are electing with.
-	type Currency:
-		LockableCurrency<Self::AccountId, Moment=Self::BlockNumber>
+	type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>
 		+ ReservableCurrency<Self::AccountId>;
 
 	/// Handler for the unbalanced reduction when slashing a validator.
@@ -713,7 +714,7 @@ decl_event!(
 		BadReaperSlashed(AccountId),
 		/// A tally (for approval votes of \[seats\]) has started.
 		TallyStarted(u32),
-		/// A tally (for approval votes of seat(s)) has ended (with one or more new members). 
+		/// A tally (for approval votes of seat(s)) has ended (with one or more new members).
 		/// \[incoming, outgoing\]
 		TallyFinalized(Vec<AccountId>, Vec<AccountId>),
 	}
@@ -734,7 +735,8 @@ impl<T: Trait> Module<T> {
 
 	/// Iff the member `who` still has a seat at blocknumber `n` returns `true`.
 	pub fn will_still_be_member_at(who: &T::AccountId, n: T::BlockNumber) -> bool {
-		Self::members().iter()
+		Self::members()
+			.iter()
 			.find(|&&(ref a, _)| a == who)
 			.map(|&(_, expires)| expires > n)
 			.unwrap_or(false)
@@ -754,13 +756,14 @@ impl<T: Trait> Module<T> {
 			None
 		} else {
 			let c = Self::members();
-			let (next_possible, count, coming) =
-				if let Some((tally_end, comers, leavers)) = Self::next_finalize() {
-					// if there's a tally in progress, then next tally can begin immediately afterwards
-					(tally_end, c.len() - leavers.len() + comers as usize, comers)
-				} else {
-					(<frame_system::Module<T>>::block_number(), c.len(), 0)
-				};
+			let (next_possible, count, coming) = if let Some((tally_end, comers, leavers)) =
+				Self::next_finalize()
+			{
+				// if there's a tally in progress, then next tally can begin immediately afterwards
+				(tally_end, c.len() - leavers.len() + comers as usize, comers)
+			} else {
+				(<frame_system::Module<T>>::block_number(), c.len(), 0)
+			};
 			if count < desired_seats as usize {
 				Some(next_possible)
 			} else {
@@ -772,7 +775,8 @@ impl<T: Trait> Module<T> {
 				} else {
 					Some(c[c.len() - (desired_seats - coming) as usize].1)
 				}
-			}.map(Self::next_vote_from)
+			}
+			.map(Self::next_vote_from)
 		}
 	}
 
@@ -819,18 +823,12 @@ impl<T: Trait> Module<T> {
 
 		ensure!(!Self::presentation_active(), Error::<T>::ApprovalPresentation);
 		ensure!(index == Self::vote_index(), Error::<T>::InvalidVoteIndex);
-		ensure!(
-			!candidates_len.is_zero(),
-			Error::<T>::ZeroCandidates,
-		);
+		ensure!(!candidates_len.is_zero(), Error::<T>::ZeroCandidates,);
 		// Prevent a vote from voters that provide a list of votes that exceeds the candidates
 		// length since otherwise an attacker may be able to submit a very long list of `votes` that
 		// far exceeds the amount of candidates and waste more computation than a reasonable voting
 		// bond would cover.
-		ensure!(
-			candidates_len >= votes.len(),
-			Error::<T>::TooManyVotes,
-		);
+		ensure!(candidates_len >= votes.len(), Error::<T>::TooManyVotes,);
 		ensure!(value >= T::MinimumVotingLock::get(), Error::<T>::InsufficientLockedValue);
 
 		// Amount to be locked up.
@@ -882,19 +880,14 @@ impl<T: Trait> Module<T> {
 						NextVoterSet::put(next + 1);
 					}
 					<Voters<T>>::append(next, Some(who.clone()));
-				}
+				},
 			}
 
 			T::Currency::reserve(&who, T::VotingBond::get())?;
 			VoterCount::mutate(|c| *c = *c + 1);
 		}
 
-		T::Currency::set_lock(
-			T::ModuleId::get(),
-			&who,
-			locked_balance,
-			WithdrawReasons::all(),
-		);
+		T::Currency::set_lock(T::ModuleId::get(), &who, locked_balance, WithdrawReasons::all());
 
 		<VoterInfoOf<T>>::insert(
 			&who,
@@ -903,7 +896,7 @@ impl<T: Trait> Module<T> {
 				last_win: index,
 				stake: locked_balance,
 				pot: pot_to_set,
-			}
+			},
 		);
 		Self::set_approvals_chunked(&who, votes);
 
@@ -920,13 +913,18 @@ impl<T: Trait> Module<T> {
 		let retaining_seats = members.len() - expiring.len();
 		if retaining_seats < desired_seats {
 			let empty_seats = desired_seats - retaining_seats;
-			<NextFinalize<T>>::put(
-				(number + Self::presentation_duration(), empty_seats as u32, expiring)
-			);
+			<NextFinalize<T>>::put((
+				number + Self::presentation_duration(),
+				empty_seats as u32,
+				expiring,
+			));
 
 			// initialize leaderboard.
 			let leaderboard_size = empty_seats + T::CarryCount::get() as usize;
-			<Leaderboard<T>>::put(vec![(BalanceOf::<T>::zero(), T::AccountId::default()); leaderboard_size]);
+			<Leaderboard<T>>::put(vec![
+				(BalanceOf::<T>::zero(), T::AccountId::default());
+				leaderboard_size
+			]);
 
 			Self::deposit_event(RawEvent::TallyStarted(empty_seats as u32));
 		}
@@ -940,19 +938,22 @@ impl<T: Trait> Module<T> {
 		let (_, coming, expiring): (T::BlockNumber, u32, Vec<T::AccountId>) =
 			<NextFinalize<T>>::take()
 				.ok_or("finalize can only be called after a tally is started.")?;
-		let leaderboard: Vec<(BalanceOf<T>, T::AccountId)> = <Leaderboard<T>>::take()
-			.unwrap_or_default();
+		let leaderboard: Vec<(BalanceOf<T>, T::AccountId)> =
+			<Leaderboard<T>>::take().unwrap_or_default();
 		let new_expiry = <frame_system::Module<T>>::block_number() + Self::term_duration();
 
 		// return bond to winners.
 		let candidacy_bond = T::CandidacyBond::get();
-		let incoming: Vec<_> = leaderboard.iter()
+		let incoming: Vec<_> = leaderboard
+			.iter()
 			.rev()
 			.take_while(|&&(b, _)| !b.is_zero())
 			.take(coming as usize)
 			.map(|(_, a)| a)
 			.cloned()
-			.inspect(|a| { T::Currency::unreserve(a, candidacy_bond); })
+			.inspect(|a| {
+				T::Currency::unreserve(a, candidacy_bond);
+			})
 			.collect();
 
 		// Update last win index for anyone voted for any of the incomings.
@@ -962,14 +963,16 @@ impl<T: Trait> Module<T> {
 				.iter()
 				.filter_map(|mv| mv.as_ref())
 				.filter(|v| Self::approvals_of_at(*v, index))
-				.for_each(|v| <VoterInfoOf<T>>::mutate(v, |a| {
-					if let Some(activity) = a { activity.last_win = Self::vote_index() + 1; }
-				}));
+				.for_each(|v| {
+					<VoterInfoOf<T>>::mutate(v, |a| {
+						if let Some(activity) = a {
+							activity.last_win = Self::vote_index() + 1;
+						}
+					})
+				});
 		});
 		let members = Self::members();
-		let outgoing: Vec<_> = members.iter()
-			.take(expiring.len())
-			.map(|a| a.0.clone()).collect();
+		let outgoing: Vec<_> = members.iter().take(expiring.len()).map(|a| a.0.clone()).collect();
 
 		// set the new membership set.
 		let mut new_set: Vec<_> = members
@@ -985,8 +988,9 @@ impl<T: Trait> Module<T> {
 
 		// clear all except runners-up from candidate list.
 		let candidates = Self::candidates();
-		let mut new_candidates = vec![T::AccountId::default(); candidates.len()];	// shrink later.
-		let runners_up = leaderboard.into_iter()
+		let mut new_candidates = vec![T::AccountId::default(); candidates.len()]; // shrink later.
+		let runners_up = leaderboard
+			.into_iter()
 			.rev()
 			.take_while(|&(b, _)| !b.is_zero())
 			.skip(coming as usize)
@@ -1011,11 +1015,10 @@ impl<T: Trait> Module<T> {
 			}
 		}
 		// discard any superfluous slots.
-		if let Some(last_index) = new_candidates
-			.iter()
-			.rposition(|c| *c != T::AccountId::default()) {
-				new_candidates.truncate(last_index + 1);
-			}
+		if let Some(last_index) = new_candidates.iter().rposition(|c| *c != T::AccountId::default())
+		{
+			new_candidates.truncate(last_index + 1);
+		}
 
 		Self::deposit_event(RawEvent::TallyFinalized(incoming, outgoing));
 
@@ -1044,7 +1047,7 @@ impl<T: Trait> Module<T> {
 		loop {
 			let next_set = <Voters<T>>::get(index);
 			if next_set.is_empty() {
-				break;
+				break
 			} else {
 				index += 1;
 				all.extend(next_set);
@@ -1090,9 +1093,7 @@ impl<T: Trait> Module<T> {
 		approvals_flag_vec
 			.chunks(APPROVAL_SET_SIZE)
 			.enumerate()
-			.for_each(|(index, slice)| <ApprovalsOf<T>>::insert(
-				(&who, index as SetIndex), slice)
-			);
+			.for_each(|(index, slice)| <ApprovalsOf<T>>::insert((&who, index as SetIndex), slice));
 	}
 
 	/// shorthand for fetching a specific approval of a voter at a specific (global) index.
@@ -1117,7 +1118,7 @@ impl<T: Trait> Module<T> {
 	/// Return true of the bit `n` of scalar `x` is set to `1` and false otherwise.
 	fn bit_at(x: ApprovalFlag, n: usize) -> bool {
 		if n < APPROVAL_FLAG_LEN {
-			x & ( 1 << n ) != 0
+			x & (1 << n) != 0
 		} else {
 			false
 		}
@@ -1128,7 +1129,7 @@ impl<T: Trait> Module<T> {
 	pub fn bool_to_flag(x: Vec<bool>) -> Vec<ApprovalFlag> {
 		let mut result: Vec<ApprovalFlag> = Vec::with_capacity(x.len() / APPROVAL_FLAG_LEN);
 		if x.is_empty() {
-			return result;
+			return result
 		}
 		result.push(0);
 		let mut index = 0;
@@ -1137,7 +1138,9 @@ impl<T: Trait> Module<T> {
 			let shl_index = counter % APPROVAL_FLAG_LEN;
 			result[index] += (if x[counter] { 1 } else { 0 }) << shl_index;
 			counter += 1;
-			if counter > x.len() - 1 { break; }
+			if counter > x.len() - 1 {
+				break
+			}
 			if counter % APPROVAL_FLAG_LEN == 0 {
 				result.push(0);
 				index += 1;
@@ -1149,15 +1152,18 @@ impl<T: Trait> Module<T> {
 	/// Convert a vec of flags (u32) to boolean.
 	pub fn flag_to_bool(chunk: Vec<ApprovalFlag>) -> Vec<bool> {
 		let mut result = Vec::with_capacity(chunk.len());
-		if chunk.is_empty() { return vec![] }
-		chunk.into_iter()
-			.map(|num|
+		if chunk.is_empty() {
+			return vec![]
+		}
+		chunk
+			.into_iter()
+			.map(|num| {
 				(0..APPROVAL_FLAG_LEN).map(|bit| Self::bit_at(num, bit)).collect::<Vec<bool>>()
-			)
+			})
 			.for_each(|c| {
 				let last_approve = match c.iter().rposition(|n| *n) {
 					Some(index) => index + 1,
-					None => 0
+					None => 0,
 				};
 				result.extend(c.into_iter().take(last_approve));
 			});
@@ -1171,7 +1177,9 @@ impl<T: Trait> Module<T> {
 		let mut index = 0_u32;
 		loop {
 			let chunk = Self::approvals_of((who.clone(), index));
-			if chunk.is_empty() { break; }
+			if chunk.is_empty() {
+				break
+			}
 			all.extend(Self::flag_to_bool(chunk));
 			index += 1;
 		}
@@ -1204,7 +1212,9 @@ impl<T: Trait> Module<T> {
 	/// returned if `t` is zero.
 	fn get_offset(stake: BalanceOf<T>, t: VoteIndex) -> BalanceOf<T> {
 		let decay_ratio: BalanceOf<T> = T::DecayRatio::get().into();
-		if t > 150 { return stake * decay_ratio }
+		if t > 150 {
+			return stake * decay_ratio
+		}
 		let mut offset = stake;
 		let mut r = Zero::zero();
 		let decay = decay_ratio + One::one();

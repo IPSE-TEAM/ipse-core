@@ -17,12 +17,12 @@
 
 //! Substrate client possible errors.
 
-use std::{self, error, result};
-use sp_state_machine;
-use sp_runtime::transaction_validity::TransactionValidityError;
-use sp_consensus;
-use derive_more::{Display, From};
 use codec::Error as CodecError;
+use derive_more::{Display, From};
+use sp_consensus;
+use sp_runtime::transaction_validity::TransactionValidityError;
+use sp_state_machine;
+use std::{self, error, result};
 
 /// Client Result type alias
 pub type Result<T> = result::Result<T, Error>;

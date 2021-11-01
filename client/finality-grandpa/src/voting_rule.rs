@@ -29,7 +29,8 @@ use sp_runtime::generic::BlockId;
 use sp_runtime::traits::{Block as BlockT, Header, NumberFor, One, Zero};
 
 /// A trait for custom voting rules in GRANDPA.
-pub trait VotingRule<Block, B>: Send + Sync where
+pub trait VotingRule<Block, B>: Send + Sync
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
@@ -54,7 +55,8 @@ pub trait VotingRule<Block, B>: Send + Sync where
 	) -> Option<(Block::Hash, NumberFor<Block>)>;
 }
 
-impl<Block, B> VotingRule<Block, B> for () where
+impl<Block, B> VotingRule<Block, B> for ()
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
@@ -74,7 +76,8 @@ impl<Block, B> VotingRule<Block, B> for () where
 /// behind the best block.
 #[derive(Clone)]
 pub struct BeforeBestBlockBy<N>(N);
-impl<Block, B> VotingRule<Block, B> for BeforeBestBlockBy<NumberFor<Block>> where
+impl<Block, B> VotingRule<Block, B> for BeforeBestBlockBy<NumberFor<Block>>
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
@@ -88,7 +91,7 @@ impl<Block, B> VotingRule<Block, B> for BeforeBestBlockBy<NumberFor<Block>> wher
 		use sp_arithmetic::traits::Saturating;
 
 		if current_target.number().is_zero() {
-			return None;
+			return None
 		}
 
 		// find the target number restricted by this rule
@@ -96,15 +99,11 @@ impl<Block, B> VotingRule<Block, B> for BeforeBestBlockBy<NumberFor<Block>> wher
 
 		// our current target is already lower than this rule would restrict
 		if target_number >= *current_target.number() {
-			return None;
+			return None
 		}
 
 		// find the block at the given target height
-		find_target(
-			backend,
-			target_number,
-			current_target,
-		)
+		find_target(backend, target_number, current_target)
 	}
 }
 
@@ -113,7 +112,8 @@ impl<Block, B> VotingRule<Block, B> for BeforeBestBlockBy<NumberFor<Block>> wher
 /// should fall.
 pub struct ThreeQuartersOfTheUnfinalizedChain;
 
-impl<Block, B> VotingRule<Block, B> for ThreeQuartersOfTheUnfinalizedChain where
+impl<Block, B> VotingRule<Block, B> for ThreeQuartersOfTheUnfinalizedChain
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
@@ -138,15 +138,11 @@ impl<Block, B> VotingRule<Block, B> for ThreeQuartersOfTheUnfinalizedChain where
 
 		// our current target is already lower than this rule would restrict
 		if target_number >= *current_target.number() {
-			return None;
+			return None
 		}
 
 		// find the block at the given target height
-		find_target(
-			backend,
-			target_number,
-			current_target,
-		)
+		find_target(backend, target_number, current_target)
 	}
 }
 
@@ -155,7 +151,8 @@ fn find_target<Block, B>(
 	backend: &B,
 	target_number: NumberFor<Block>,
 	current_header: &Block::Header,
-) -> Option<(Block::Hash, NumberFor<Block>)> where
+) -> Option<(Block::Hash, NumberFor<Block>)>
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
@@ -172,11 +169,13 @@ fn find_target<Block, B>(
 		}
 
 		if *target_header.number() == target_number {
-			return Some((target_hash, target_number));
+			return Some((target_hash, target_number))
 		}
 
 		target_hash = *target_header.parent_hash();
-		target_header = backend.header(BlockId::Hash(target_hash)).ok()?
+		target_header = backend
+			.header(BlockId::Hash(target_hash))
+			.ok()?
 			.expect("Header known to exist due to the existence of one of its descendents; qed");
 	}
 }
@@ -187,13 +186,12 @@ struct VotingRules<Block, B> {
 
 impl<B, Block> Clone for VotingRules<B, Block> {
 	fn clone(&self) -> Self {
-		VotingRules {
-			rules: self.rules.clone(),
-		}
+		VotingRules { rules: self.rules.clone() }
 	}
 }
 
-impl<Block, B> VotingRule<Block, B> for VotingRules<Block, B> where
+impl<Block, B> VotingRule<Block, B> for VotingRules<Block, B>
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
@@ -204,20 +202,13 @@ impl<Block, B> VotingRule<Block, B> for VotingRules<Block, B> where
 		best_target: &Block::Header,
 		current_target: &Block::Header,
 	) -> Option<(Block::Hash, NumberFor<Block>)> {
-		let restricted_target = self.rules.iter().fold(
-			current_target.clone(),
-			|current_target, rule| {
-				rule.restrict_vote(
-					backend,
-					base,
-					best_target,
-					&current_target,
-				)
+		let restricted_target =
+			self.rules.iter().fold(current_target.clone(), |current_target, rule| {
+				rule.restrict_vote(backend, base, best_target, &current_target)
 					.and_then(|(hash, _)| backend.header(BlockId::Hash(hash)).ok())
 					.and_then(std::convert::identity)
 					.unwrap_or(current_target)
-			},
-		);
+			});
 
 		let restricted_hash = restricted_target.hash();
 
@@ -235,7 +226,8 @@ pub struct VotingRulesBuilder<Block, B> {
 	rules: Vec<Box<dyn VotingRule<Block, B>>>,
 }
 
-impl<Block, B> Default for VotingRulesBuilder<Block, B> where
+impl<Block, B> Default for VotingRulesBuilder<Block, B>
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
@@ -246,19 +238,19 @@ impl<Block, B> Default for VotingRulesBuilder<Block, B> where
 	}
 }
 
-impl<Block, B> VotingRulesBuilder<Block, B> where
+impl<Block, B> VotingRulesBuilder<Block, B>
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {
 	/// Return a new voting rule builder using the given backend.
 	pub fn new() -> Self {
-		VotingRulesBuilder {
-			rules: Vec::new(),
-		}
+		VotingRulesBuilder { rules: Vec::new() }
 	}
 
 	/// Add a new voting rule to the builder.
-	pub fn add<R>(mut self, rule: R) -> Self where
+	pub fn add<R>(mut self, rule: R) -> Self
+	where
 		R: VotingRule<Block, B> + 'static,
 	{
 		self.rules.push(Box::new(rule));
@@ -266,8 +258,9 @@ impl<Block, B> VotingRulesBuilder<Block, B> where
 	}
 
 	/// Add all given voting rules to the builder.
-	pub fn add_all<I>(mut self, rules: I) -> Self where
-		I: IntoIterator<Item=Box<dyn VotingRule<Block, B>>>,
+	pub fn add_all<I>(mut self, rules: I) -> Self
+	where
+		I: IntoIterator<Item = Box<dyn VotingRule<Block, B>>>,
 	{
 		self.rules.extend(rules);
 		self
@@ -276,13 +269,12 @@ impl<Block, B> VotingRulesBuilder<Block, B> where
 	/// Return a new `VotingRule` that applies all of the previously added
 	/// voting rules in-order.
 	pub fn build(self) -> impl VotingRule<Block, B> + Clone {
-		VotingRules {
-			rules: Arc::new(self.rules),
-		}
+		VotingRules { rules: Arc::new(self.rules) }
 	}
 }
 
-impl<Block, B> VotingRule<Block, B> for Box<dyn VotingRule<Block, B>> where
+impl<Block, B> VotingRule<Block, B> for Box<dyn VotingRule<Block, B>>
+where
 	Block: BlockT,
 	B: HeaderBackend<Block>,
 {

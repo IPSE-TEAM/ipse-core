@@ -18,15 +18,18 @@
 //! Test utilities
 
 use super::*;
-use frame_support::{
-	impl_outer_origin, impl_outer_dispatch, impl_outer_event, parameter_types,
-	weights::Weight,
-};
-use sp_core::H256;
-use sp_runtime::{Perbill, traits::{BlakeTwo256, IdentityLookup}, testing::Header};
-use sp_io;
 use crate as sudo;
 use frame_support::traits::Filter;
+use frame_support::{
+	impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types, weights::Weight,
+};
+use sp_core::H256;
+use sp_io;
+use sp_runtime::{
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
+	Perbill,
+};
 
 // Logger module to track execution.
 pub mod logger {
@@ -169,8 +172,6 @@ pub type LoggerCall = logger::Call<Test>;
 // Build test environment by setting the root `key` for the Genesis.
 pub fn new_test_ext(root_key: u64) -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	GenesisConfig::<Test>{
-		key: root_key,
-	}.assimilate_storage(&mut t).unwrap();
+	GenesisConfig::<Test> { key: root_key }.assimilate_storage(&mut t).unwrap();
 	t.into()
 }

@@ -37,49 +37,49 @@ pub enum Error {
 	#[from(ignore)]
 	ApiError(String),
 	/// Method is not found
-	#[display(fmt="Method not found: '{}'", _0)]
+	#[display(fmt = "Method not found: '{}'", _0)]
 	#[from(ignore)]
 	MethodNotFound(String),
 	/// Code is invalid (expected single byte)
-	#[display(fmt="Invalid Code: {}", _0)]
+	#[display(fmt = "Invalid Code: {}", _0)]
 	#[from(ignore)]
 	InvalidCode(String),
 	/// Could not get runtime version.
-	#[display(fmt="On-chain runtime does not specify version")]
+	#[display(fmt = "On-chain runtime does not specify version")]
 	VersionInvalid,
 	/// Externalities have failed.
-	#[display(fmt="Externalities error")]
+	#[display(fmt = "Externalities error")]
 	Externalities,
 	/// Invalid index.
-	#[display(fmt="Invalid index provided")]
+	#[display(fmt = "Invalid index provided")]
 	InvalidIndex,
 	/// Invalid return type.
-	#[display(fmt="Invalid type returned (should be u64)")]
+	#[display(fmt = "Invalid type returned (should be u64)")]
 	InvalidReturn,
 	/// Runtime failed.
-	#[display(fmt="Runtime error")]
+	#[display(fmt = "Runtime error")]
 	Runtime,
 	/// Runtime panicked.
-	#[display(fmt="Runtime panicked: {}", _0)]
+	#[display(fmt = "Runtime panicked: {}", _0)]
 	#[from(ignore)]
 	RuntimePanicked(String),
 	/// Invalid memory reference.
-	#[display(fmt="Invalid memory reference")]
+	#[display(fmt = "Invalid memory reference")]
 	InvalidMemoryReference,
 	/// The runtime must provide a global named `__heap_base` of type i32 for specifying where the
 	/// allocator is allowed to place its data.
-	#[display(fmt="The runtime doesn't provide a global named `__heap_base`")]
+	#[display(fmt = "The runtime doesn't provide a global named `__heap_base`")]
 	HeapBaseNotFoundOrInvalid,
 	/// The runtime WebAssembly module is not allowed to have the `start` function.
-	#[display(fmt="The runtime has the `start` function")]
+	#[display(fmt = "The runtime has the `start` function")]
 	RuntimeHasStartFn,
 	/// Some other error occurred
 	Other(String),
 	/// Some error occurred in the allocator
-	#[display(fmt="Error in allocator: {}", _0)]
+	#[display(fmt = "Error in allocator: {}", _0)]
 	Allocator(sp_allocator::Error),
 	/// Execution of a host function failed.
-	#[display(fmt="Host function {} execution failed with: {}", _0, _1)]
+	#[display(fmt = "Host function {} execution failed with: {}", _0, _1)]
 	FunctionExecution(String, String),
 }
 

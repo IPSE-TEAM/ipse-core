@@ -15,21 +15,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use futures::{
+	channel::{mpsc, oneshot},
+	compat::*,
+	future::{ok, ready, select},
+	prelude::*,
+};
 use futures01::sync::mpsc as mpsc01;
+use libp2p_wasm_ext::{ffi, ExtTransport};
 use log::{debug, info};
+use sc_chain_spec::Extension;
 use sc_network::config::TransportConfig;
 use sc_service::{
-	RpcSession, Role, Configuration, TaskManager, RpcHandlers,
 	config::{DatabaseConfig, KeystoreConfig, NetworkConfiguration},
-	GenericChainSpec, RuntimeGenesis
-};
-use wasm_bindgen::prelude::*;
-use futures::{
-	prelude::*, channel::{oneshot, mpsc}, compat::*, future::{ready, ok, select}
+	Configuration, GenericChainSpec, Role, RpcHandlers, RpcSession, RuntimeGenesis, TaskManager,
 };
 use std::pin::Pin;
-use sc_chain_spec::Extension;
-use libp2p_wasm_ext::{ExtTransport, ffi};
+use wasm_bindgen::prelude::*;
 
 pub use console_error_panic_hook::set_once as set_console_error_panic_hook;
 pub use console_log::init_with_level as init_console_log;
@@ -37,8 +39,9 @@ pub use console_log::init_with_level as init_console_log;
 /// Create a service configuration from a chain spec.
 ///
 /// This configuration contains good defaults for a browser light client.
-pub async fn browser_configuration<G, E>(chain_spec: GenericChainSpec<G, E>)
-	-> Result<Configuration, Box<dyn std::error::Error>>
+pub async fn browser_configuration<G, E>(
+	chain_spec: GenericChainSpec<G, E>,
+) -> Result<Configuration, Box<dyn std::error::Error>>
 where
 	G: RuntimeGenesis + 'static,
 	E: Extension + 'static + Send,
@@ -67,7 +70,8 @@ where
 		task_executor: (|fut, _| {
 			wasm_bindgen_futures::spawn_local(fut);
 			async {}
-		}).into(),
+		})
+		.into(),
 		telemetry_external_transport: Some(transport),
 		role: Role::Light,
 		database: {
@@ -141,12 +145,11 @@ pub fn start_client(mut task_manager: TaskManager, rpc_handlers: RpcHandlers) ->
 			Box::pin(async move {
 				let _ = task_manager.future().await;
 			}),
-		).map(drop)
+		)
+		.map(drop),
 	);
 
-	Client {
-		rpc_send_tx,
-	}
+	Client { rpc_send_tx }
 }
 
 #[wasm_bindgen]
@@ -163,12 +166,8 @@ impl Client {
 		});
 		wasm_bindgen_futures::future_to_promise(async {
 			match rx.await {
-				Ok(fut) => {
-					fut.await
-						.map(|s| JsValue::from_str(&s))
-						.ok_or_else(|| JsValue::NULL)
-				},
-				Err(_) => Err(JsValue::NULL)
+				Ok(fut) => fut.await.map(|s| JsValue::from_str(&s)).ok_or_else(|| JsValue::NULL),
+				Err(_) => Err(JsValue::NULL),
 			}
 		})
 	}
@@ -191,7 +190,8 @@ impl Client {
 		});
 
 		wasm_bindgen_futures::spawn_local(async move {
-			let _ = rx.compat()
+			let _ = rx
+				.compat()
 				.try_for_each(|s| {
 					let _ = callback.call1(&callback, &JsValue::from_str(&s));
 					ok(())

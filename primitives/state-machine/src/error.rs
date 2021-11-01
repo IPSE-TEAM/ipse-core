@@ -16,7 +16,6 @@
 // limitations under the License.
 
 /// State Machine Errors
-
 use sp_std::fmt;
 
 /// State Machine Error bound.
@@ -44,5 +43,7 @@ pub enum ExecutionError {
 }
 
 impl fmt::Display for ExecutionError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { write!(f, "Externalities Error") }
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Externalities Error")
+	}
 }

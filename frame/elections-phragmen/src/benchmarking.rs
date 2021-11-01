@@ -20,9 +20,9 @@
 
 use super::*;
 
-use frame_system::RawOrigin;
-use frame_benchmarking::{benchmarks, account};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::OnInitialize;
+use frame_system::RawOrigin;
 
 use crate::Module as Elections;
 
@@ -35,8 +35,8 @@ type Lookup<T> = <<T as frame_system::Trait>::Lookup as StaticLookup>::Source;
 macro_rules! whitelist {
 	($acc:ident) => {
 		frame_benchmarking::benchmarking::add_to_whitelist(
-			frame_system::Account::<T>::hashed_key_for(&$acc).into()
-		);
+			frame_system::Account::<T>::hashed_key_for(&$acc).into(),
+			);
 	};
 }
 
@@ -83,53 +83,58 @@ fn defunct_for<T: Trait>(who: T::AccountId) -> DefunctVoter<Lookup<T>> {
 }
 
 /// Add `c` new candidates.
-fn submit_candidates<T: Trait>(c: u32, prefix: &'static str)
-	-> Result<Vec<T::AccountId>, &'static str>
-{
-	(0..c).map(|i| {
-		let account = endowed_account::<T>(prefix, i);
-		<Elections<T>>::submit_candidacy(
-			RawOrigin::Signed(account.clone()).into(),
-			candidate_count::<T>(),
-		).map_err(|_| "failed to submit candidacy")?;
-		Ok(account)
-	}).collect::<Result<_, _>>()
+fn submit_candidates<T: Trait>(
+	c: u32,
+	prefix: &'static str,
+) -> Result<Vec<T::AccountId>, &'static str> {
+	(0..c)
+		.map(|i| {
+			let account = endowed_account::<T>(prefix, i);
+			<Elections<T>>::submit_candidacy(
+				RawOrigin::Signed(account.clone()).into(),
+				candidate_count::<T>(),
+			)
+			.map_err(|_| "failed to submit candidacy")?;
+			Ok(account)
+		})
+		.collect::<Result<_, _>>()
 }
 
 /// Add `c` new candidates with self vote.
-fn submit_candidates_with_self_vote<T: Trait>(c: u32, prefix: &'static str)
-	-> Result<Vec<T::AccountId>, &'static str>
-{
+fn submit_candidates_with_self_vote<T: Trait>(
+	c: u32,
+	prefix: &'static str,
+) -> Result<Vec<T::AccountId>, &'static str> {
 	let candidates = submit_candidates::<T>(c, prefix)?;
 	let stake = default_stake::<T>(BALANCE_FACTOR);
-	let _ = candidates.iter().map(|c|
-		submit_voter::<T>(c.clone(), vec![c.clone()], stake)
-	).collect::<Result<_, _>>()?;
+	let _ = candidates
+		.iter()
+		.map(|c| submit_voter::<T>(c.clone(), vec![c.clone()], stake))
+		.collect::<Result<_, _>>()?;
 	Ok(candidates)
 }
 
-
 /// Submit one voter.
-fn submit_voter<T: Trait>(caller: T::AccountId, votes: Vec<T::AccountId>, stake: BalanceOf<T>)
-	-> Result<(), sp_runtime::DispatchError>
-{
+fn submit_voter<T: Trait>(
+	caller: T::AccountId,
+	votes: Vec<T::AccountId>,
+	stake: BalanceOf<T>,
+) -> Result<(), sp_runtime::DispatchError> {
 	<Elections<T>>::vote(RawOrigin::Signed(caller).into(), votes, stake)
 }
 
 /// create `num_voter` voters who randomly vote for at most `votes` of `all_candidates` if
 /// available.
-fn distribute_voters<T: Trait>(mut all_candidates: Vec<T::AccountId>, num_voters: u32, votes: usize)
-	-> Result<(), &'static str>
-{
+fn distribute_voters<T: Trait>(
+	mut all_candidates: Vec<T::AccountId>,
+	num_voters: u32,
+	votes: usize,
+) -> Result<(), &'static str> {
 	let stake = default_stake::<T>(BALANCE_FACTOR);
 	for i in 0..num_voters {
 		// to ensure that votes are different
 		all_candidates.rotate_left(1);
-		let votes = all_candidates
-			.iter()
-			.cloned()
-			.take(votes)
-			.collect::<Vec<_>>();
+		let votes = all_candidates.iter().cloned().take(votes).collect::<Vec<_>>();
 		let voter = endowed_account::<T>("voter", i);
 		submit_voter::<T>(voter, votes, stake)?;
 	}
@@ -148,13 +153,11 @@ fn fill_seats_up_to<T: Trait>(m: u32) -> Result<Vec<T::AccountId>, &'static str>
 		m as usize,
 		"wrong number of members and runners-up",
 	);
-	Ok(
-		<Elections<T>>::members()
-			.into_iter()
-			.map(|(x, _)| x)
-			.chain(<Elections<T>>::runners_up().into_iter().map(|(x, _)| x))
-			.collect()
-	)
+	Ok(<Elections<T>>::members()
+		.into_iter()
+		.map(|(x, _)| x)
+		.chain(<Elections<T>>::runners_up().into_iter().map(|(x, _)| x))
+		.collect())
 }
 
 /// removes all the storage items to reverse any genesis state.

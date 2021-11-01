@@ -23,13 +23,12 @@
 //! targeted at handling input parameter parsing providing
 //! a reasonable abstraction.
 
-use structopt::StructOpt;
-use sc_service::config::OffchainWorkerConfig;
 use sc_network::config::Role;
+use sc_service::config::OffchainWorkerConfig;
+use structopt::StructOpt;
 
 use crate::error;
 use crate::OffchainWorkerEnabled;
-
 
 /// Offchain worker related parameters.
 #[derive(Debug, StructOpt)]
@@ -50,20 +49,13 @@ pub struct OffchainWorkerParams {
 	///
 	/// Enables a runtime to write directly to a offchain workers
 	/// DB during block import.
-	#[structopt(
-		long = "enable-offchain-indexing",
-		value_name = "ENABLE_OFFCHAIN_INDEXING"
-	)]
+	#[structopt(long = "enable-offchain-indexing", value_name = "ENABLE_OFFCHAIN_INDEXING")]
 	pub indexing_enabled: bool,
 }
 
 impl OffchainWorkerParams {
 	/// Load spec to `Configuration` from `OffchainWorkerParams` and spec factory.
-	pub fn offchain_worker(
-		&self,
-		role: &Role,
-	) -> error::Result<OffchainWorkerConfig>
-	{
+	pub fn offchain_worker(&self, role: &Role) -> error::Result<OffchainWorkerConfig> {
 		let enabled = match (&self.enabled, role) {
 			(OffchainWorkerEnabled::WhenValidating, Role::Authority { .. }) => true,
 			(OffchainWorkerEnabled::Always, _) => true,

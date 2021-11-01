@@ -20,7 +20,7 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::weights::{Weight, constants::RocksDbWeight as DbWeight};
+use frame_support::weights::{constants::RocksDbWeight as DbWeight, Weight};
 
 impl crate::WeightInfo for () {
 	fn propose_spend() -> Weight {
@@ -38,7 +38,7 @@ impl crate::WeightInfo for () {
 			.saturating_add(DbWeight::get().reads(2 as Weight))
 			.saturating_add(DbWeight::get().writes(1 as Weight))
 	}
-	fn report_awesome(r: u32, ) -> Weight {
+	fn report_awesome(r: u32) -> Weight {
 		(101602000 as Weight)
 			.saturating_add((2000 as Weight).saturating_mul(r as Weight))
 			.saturating_add(DbWeight::get().reads(2 as Weight))
@@ -50,26 +50,26 @@ impl crate::WeightInfo for () {
 			.saturating_add(DbWeight::get().reads(1 as Weight))
 			.saturating_add(DbWeight::get().writes(2 as Weight))
 	}
-	fn tip_new(r: u32, t: u32, ) -> Weight {
+	fn tip_new(r: u32, t: u32) -> Weight {
 		(63995000 as Weight)
 			.saturating_add((2000 as Weight).saturating_mul(r as Weight))
 			.saturating_add((153000 as Weight).saturating_mul(t as Weight))
 			.saturating_add(DbWeight::get().reads(2 as Weight))
 			.saturating_add(DbWeight::get().writes(2 as Weight))
 	}
-	fn tip(t: u32, ) -> Weight {
+	fn tip(t: u32) -> Weight {
 		(46765000 as Weight)
 			.saturating_add((711000 as Weight).saturating_mul(t as Weight))
 			.saturating_add(DbWeight::get().reads(2 as Weight))
 			.saturating_add(DbWeight::get().writes(1 as Weight))
 	}
-	fn close_tip(t: u32, ) -> Weight {
+	fn close_tip(t: u32) -> Weight {
 		(160874000 as Weight)
 			.saturating_add((379000 as Weight).saturating_mul(t as Weight))
 			.saturating_add(DbWeight::get().reads(3 as Weight))
 			.saturating_add(DbWeight::get().writes(3 as Weight))
 	}
-	fn propose_bounty(d: u32, ) -> Weight {
+	fn propose_bounty(d: u32) -> Weight {
 		(86198000 as Weight)
 			.saturating_add((1000 as Weight).saturating_mul(d as Weight))
 			.saturating_add(DbWeight::get().reads(2 as Weight))
@@ -120,7 +120,7 @@ impl crate::WeightInfo for () {
 			.saturating_add(DbWeight::get().reads(1 as Weight))
 			.saturating_add(DbWeight::get().writes(1 as Weight))
 	}
-	fn on_initialize_proposals(p: u32, ) -> Weight {
+	fn on_initialize_proposals(p: u32) -> Weight {
 		(119765000 as Weight)
 			.saturating_add((108368000 as Weight).saturating_mul(p as Weight))
 			.saturating_add(DbWeight::get().reads(2 as Weight))
@@ -128,7 +128,7 @@ impl crate::WeightInfo for () {
 			.saturating_add(DbWeight::get().writes(2 as Weight))
 			.saturating_add(DbWeight::get().writes((3 as Weight).saturating_mul(p as Weight)))
 	}
-	fn on_initialize_bounties(b: u32, ) -> Weight {
+	fn on_initialize_bounties(b: u32) -> Weight {
 		(112536000 as Weight)
 			.saturating_add((107132000 as Weight).saturating_mul(b as Weight))
 			.saturating_add(DbWeight::get().reads(2 as Weight))

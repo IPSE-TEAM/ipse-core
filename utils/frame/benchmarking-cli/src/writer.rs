@@ -17,24 +17,21 @@
 
 // Outputs benchmark results to Rust files that can be ingested by the runtime.
 
+use frame_benchmarking::{Analysis, BenchmarkBatch, BenchmarkSelector};
+use sp_runtime::traits::Zero;
 use std::fs::{self, File, OpenOptions};
 use std::io::prelude::*;
 use std::path::PathBuf;
-use frame_benchmarking::{BenchmarkBatch, BenchmarkSelector, Analysis};
-use sp_runtime::traits::Zero;
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub fn open_file(path: PathBuf) -> Result<File, std::io::Error> {
-	OpenOptions::new()
-		.create(true)
-		.write(true)
-		.truncate(true)
-		.open(path)
+	OpenOptions::new().create(true).write(true).truncate(true).open(path)
 }
 
 fn underscore<Number>(i: Number) -> String
-	where Number: std::string::ToString
+where
+	Number: std::string::ToString,
 {
 	let mut s = String::new();
 	let i_str = i.to_string();
@@ -59,16 +56,20 @@ pub fn write_trait(
 	file_path.set_extension("rs");
 	let mut file = crate::writer::open_file(file_path)?;
 
-	let indent = if spaces {"    "} else {"\t"};
+	let indent = if spaces { "    " } else { "\t" };
 
 	let mut current_pallet = Vec::<u8>::new();
 
 	// Skip writing if there are no batches
-	if batches.is_empty() { return Ok(()) }
+	if batches.is_empty() {
+		return Ok(())
+	}
 
 	for batch in batches {
 		// Skip writing if there are no results
-		if batch.results.is_empty() { continue }
+		if batch.results.is_empty() {
+			continue
+		}
 
 		let pallet_string = String::from_utf8(batch.pallet.clone()).unwrap();
 		let benchmark_string = String::from_utf8(batch.benchmark.clone()).unwrap();
@@ -117,7 +118,6 @@ pub fn write_results(
 	trait_name: &String,
 	spaces: bool,
 ) -> Result<(), std::io::Error> {
-
 	let header_text = match header {
 		Some(header_file) => {
 			let text = fs::read_to_string(header_file)?;
@@ -126,19 +126,22 @@ pub fn write_results(
 		None => None,
 	};
 
-	let indent = if spaces {"    "} else {"\t"};
+	let indent = if spaces { "    " } else { "\t" };
 	let date = chrono::Utc::now();
 
 	let mut current_pallet = Vec::<u8>::new();
 
 	// Skip writing if there are no batches
-	if batches.is_empty() { return Ok(()) }
+	if batches.is_empty() {
+		return Ok(())
+	}
 
 	let mut batches_iter = batches.iter().peekable();
 
 	let first_pallet = String::from_utf8(
-		batches_iter.peek().expect("we checked that batches is not empty").pallet.clone()
-	).unwrap();
+		batches_iter.peek().expect("we checked that batches is not empty").pallet.clone(),
+	)
+	.unwrap();
 
 	let mut file_path = path.clone();
 	file_path.push(first_pallet);
@@ -148,7 +151,9 @@ pub fn write_results(
 
 	while let Some(batch) = batches_iter.next() {
 		// Skip writing if there are no results
-		if batch.results.is_empty() { continue }
+		if batch.results.is_empty() {
+			continue
+		}
 
 		let pallet_string = String::from_utf8(batch.pallet.clone()).unwrap();
 		let benchmark_string = String::from_utf8(batch.benchmark.clone()).unwrap();
@@ -182,10 +187,7 @@ pub fn write_results(
 			)?;
 
 			// allow statements
-			write!(
-				file,
-				"#![allow(unused_parens)]\n#![allow(unused_imports)]\n\n",
-			)?;
+			write!(file, "#![allow(unused_parens)]\n#![allow(unused_imports)]\n\n",)?;
 
 			// general imports
 			write!(
@@ -200,51 +202,62 @@ pub fn write_results(
 			write!(
 				file,
 				"impl<T: frame_system::Trait> {}::{} for {}<T> {{\n",
-				pallet_string,
-				trait_name,
-				struct_name,
+				pallet_string, trait_name, struct_name,
 			)?;
 
 			current_pallet = batch.pallet.clone()
 		}
 
 		// Analysis results
-		let extrinsic_time = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::ExtrinsicTime).unwrap();
+		let extrinsic_time =
+			Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::ExtrinsicTime).unwrap();
 		let reads = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Reads).unwrap();
 		let writes = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Writes).unwrap();
 
-		// Analysis data may include components that are not used, this filters out anything whose value is zero.
+		// Analysis data may include components that are not used, this filters out anything whose
+		// value is zero.
 		let mut used_components = Vec::new();
 		let mut used_extrinsic_time = Vec::new();
 		let mut used_reads = Vec::new();
 		let mut used_writes = Vec::new();
 		extrinsic_time.slopes.iter().zip(extrinsic_time.names.iter()).for_each(|(slope, name)| {
 			if !slope.is_zero() {
-				if !used_components.contains(&name) { used_components.push(name); }
+				if !used_components.contains(&name) {
+					used_components.push(name);
+				}
 				used_extrinsic_time.push((slope, name));
 			}
 		});
 		reads.slopes.iter().zip(reads.names.iter()).for_each(|(slope, name)| {
 			if !slope.is_zero() {
-				if !used_components.contains(&name) { used_components.push(name); }
+				if !used_components.contains(&name) {
+					used_components.push(name);
+				}
 				used_reads.push((slope, name));
 			}
 		});
 		writes.slopes.iter().zip(writes.names.iter()).for_each(|(slope, name)| {
 			if !slope.is_zero() {
-				if !used_components.contains(&name) { used_components.push(name); }
+				if !used_components.contains(&name) {
+					used_components.push(name);
+				}
 				used_writes.push((slope, name));
 			}
 		});
 
-		let all_components = batch.results[0].components
+		let all_components = batch.results[0]
+			.components
 			.iter()
 			.map(|(name, _)| -> String { return name.to_string() })
 			.collect::<Vec<String>>();
 		if all_components.len() != used_components.len() {
 			let mut unused_components = all_components;
 			unused_components.retain(|x| !used_components.contains(&x));
-			write!(file, "{}// WARNING! Some components were not used: {:?}\n", indent, unused_components)?;
+			write!(
+				file,
+				"{}// WARNING! Some components were not used: {:?}\n",
+				indent, unused_components
+			)?;
 		}
 
 		// function name
@@ -256,12 +269,20 @@ pub fn write_results(
 		// return value
 		write!(file, ") -> Weight {{\n")?;
 
-		write!(file, "{}{}({} as Weight)\n", indent, indent, underscore(extrinsic_time.base.saturating_mul(1000)))?;
+		write!(
+			file,
+			"{}{}({} as Weight)\n",
+			indent,
+			indent,
+			underscore(extrinsic_time.base.saturating_mul(1000))
+		)?;
 		used_extrinsic_time.iter().try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
 			write!(
 				file,
 				"{}{}{}.saturating_add(({} as Weight).saturating_mul({} as Weight))\n",
-				indent, indent, indent,
+				indent,
+				indent,
+				indent,
 				underscore(slope.saturating_mul(1000)),
 				name,
 			)
@@ -271,8 +292,7 @@ pub fn write_results(
 			write!(
 				file,
 				"{}{}{}.saturating_add(T::DbWeight::get().reads({} as Weight))\n",
-				indent, indent, indent,
-				reads.base,
+				indent, indent, indent, reads.base,
 			)?;
 		}
 		used_reads.iter().try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
@@ -289,8 +309,7 @@ pub fn write_results(
 			write!(
 				file,
 				"{}{}{}.saturating_add(T::DbWeight::get().writes({} as Weight))\n",
-				indent, indent, indent,
-				writes.base,
+				indent, indent, indent, writes.base,
 			)?;
 		}
 		used_writes.iter().try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
@@ -308,7 +327,8 @@ pub fn write_results(
 
 		// Check if this is the end of the iterator
 		if let Some(next) = batches_iter.peek() {
-			// Next pallet is different than current pallet, so we close up the file and open a new one.
+			// Next pallet is different than current pallet, so we close up the file and open a new
+			// one.
 			if next.pallet != current_pallet {
 				write!(file, "}}\n")?;
 				let next_pallet = String::from_utf8(next.pallet.clone()).unwrap();

@@ -19,23 +19,29 @@
 //!
 //! NOTE: If you're looking for `parameter_types`, it has moved in to the top-level module.
 
-use sp_std::{prelude::*, result, marker::PhantomData, ops::Div, fmt::Debug};
-use codec::{FullCodec, Codec, Encode, Decode, EncodeLike};
-use sp_core::u32_trait::Value as U32;
-use sp_runtime::{
-	RuntimeDebug, ConsensusEngineId, DispatchResult, DispatchError, traits::{
-		MaybeSerializeDeserialize, AtLeast32Bit, Saturating, TrailingZeroInput, Bounded, Zero,
-		BadOrigin, AtLeast32BitUnsigned
-	},
-};
 use crate::dispatch::Parameter;
 use crate::storage::StorageMap;
 use crate::weights::Weight;
+use codec::{Codec, Decode, Encode, EncodeLike, FullCodec};
 use impl_trait_for_tuples::impl_for_tuples;
+use sp_core::u32_trait::Value as U32;
+use sp_runtime::{
+	traits::{
+		AtLeast32Bit, AtLeast32BitUnsigned, BadOrigin, Bounded, MaybeSerializeDeserialize,
+		Saturating, TrailingZeroInput, Zero,
+	},
+	ConsensusEngineId, DispatchError, DispatchResult, RuntimeDebug,
+};
+use sp_std::{fmt::Debug, marker::PhantomData, ops::Div, prelude::*, result};
 
 /// Re-expected for the macro.
 #[doc(hidden)]
-pub use sp_std::{mem::{swap, take}, cell::RefCell, vec::Vec, boxed::Box};
+pub use sp_std::{
+	boxed::Box,
+	cell::RefCell,
+	mem::{swap, take},
+	vec::Vec,
+};
 
 /// Simple trait for providing a filter over a reference to some type.
 pub trait Filter<T> {
@@ -44,7 +50,9 @@ pub trait Filter<T> {
 }
 
 impl<T> Filter<T> for () {
-	fn filter(_: &T) -> bool { true }
+	fn filter(_: &T) -> bool {
+		true
+	}
 }
 
 /// Trait to add a constraint onto the filter.
@@ -109,12 +117,18 @@ pub trait InstanceFilter<T>: Sized + Send + Sync {
 	fn filter(&self, _: &T) -> bool;
 
 	/// Determines whether `self` matches at least everything that `_o` does.
-	fn is_superset(&self, _o: &Self) -> bool { false }
+	fn is_superset(&self, _o: &Self) -> bool {
+		false
+	}
 }
 
 impl<T> InstanceFilter<T> for () {
-	fn filter(&self, _: &T) -> bool { true }
-	fn is_superset(&self, _o: &Self) -> bool { true }
+	fn filter(&self, _: &T) -> bool {
+		true
+	}
+	fn is_superset(&self, _o: &Self) -> bool {
+		true
+	}
 }
 
 #[macro_export]
@@ -210,7 +224,9 @@ mod test_impl_filter_stack {
 	pub struct IsCallable;
 	pub struct BaseFilter;
 	impl Filter<u32> for BaseFilter {
-		fn filter(x: &u32) -> bool { x % 2 == 0 }
+		fn filter(x: &u32) -> bool {
+			x % 2 == 0
+		}
 	}
 	impl_filter_stack!(
 		crate::traits::test_impl_filter_stack::IsCallable,
@@ -316,9 +332,14 @@ pub trait StoredMap<K, T> {
 	fn mutate_exists<R>(k: &K, f: impl FnOnce(&mut Option<T>) -> R) -> R;
 	/// Maybe mutate the item only if an `Ok` value is returned from `f`. Do nothing if an `Err` is
 	/// returned. It is removed or reset to default value if it has been mutated to `None`
-	fn try_mutate_exists<R, E>(k: &K, f: impl FnOnce(&mut Option<T>) -> Result<R, E>) -> Result<R, E>;
+	fn try_mutate_exists<R, E>(
+		k: &K,
+		f: impl FnOnce(&mut Option<T>) -> Result<R, E>,
+	) -> Result<R, E>;
 	/// Set the item to something new.
-	fn insert(k: &K, t: T) { Self::mutate(k, |i| *i = t); }
+	fn insert(k: &K, t: T) {
+		Self::mutate(k, |i| *i = t);
+	}
 	/// Remove the item or otherwise replace it with its default value; we don't care which.
 	fn remove(k: &K);
 }
@@ -344,22 +365,23 @@ impl<T> Happened<T> for () {
 /// be the default value), or where the account is being removed or reset back to the default value
 /// where previously it did exist (though may have been in a default state). This works well with
 /// system module's `CallOnCreatedAccount` and `CallKillAccount`.
-pub struct StorageMapShim<
-	S,
-	Created,
-	Removed,
-	K,
-	T
->(sp_std::marker::PhantomData<(S, Created, Removed, K, T)>);
+pub struct StorageMapShim<S, Created, Removed, K, T>(
+	sp_std::marker::PhantomData<(S, Created, Removed, K, T)>,
+);
 impl<
-	S: StorageMap<K, T, Query=T>,
-	Created: Happened<K>,
-	Removed: Happened<K>,
-	K: FullCodec,
-	T: FullCodec,
-> StoredMap<K, T> for StorageMapShim<S, Created, Removed, K, T> {
-	fn get(k: &K) -> T { S::get(k) }
-	fn is_explicit(k: &K) -> bool { S::contains_key(k) }
+		S: StorageMap<K, T, Query = T>,
+		Created: Happened<K>,
+		Removed: Happened<K>,
+		K: FullCodec,
+		T: FullCodec,
+	> StoredMap<K, T> for StorageMapShim<S, Created, Removed, K, T>
+{
+	fn get(k: &K) -> T {
+		S::get(k)
+	}
+	fn is_explicit(k: &K) -> bool {
+		S::contains_key(k)
+	}
 	fn insert(k: &K, t: T) {
 		let existed = S::contains_key(&k);
 		S::insert(k, t);
@@ -395,11 +417,15 @@ impl<
 		}
 		r
 	}
-	fn try_mutate_exists<R, E>(k: &K, f: impl FnOnce(&mut Option<T>) -> Result<R, E>) -> Result<R, E> {
+	fn try_mutate_exists<R, E>(
+		k: &K,
+		f: impl FnOnce(&mut Option<T>) -> Result<R, E>,
+	) -> Result<R, E> {
 		S::try_mutate_exists(k, |maybe_value| {
 			let existed = maybe_value.is_some();
 			f(maybe_value).map(|v| (existed, maybe_value.is_some(), v))
-		}).map(|(existed, exists, v)| {
+		})
+		.map(|(existed, exists, v)| {
 			if !existed && exists {
 				Created::happened(k);
 			} else if existed && !exists {
@@ -459,7 +485,10 @@ pub trait Len {
 	fn len(&self) -> usize;
 }
 
-impl<T: IntoIterator + Clone,> Len for T where <T as IntoIterator>::IntoIter: ExactSizeIterator {
+impl<T: IntoIterator + Clone> Len for T
+where
+	<T as IntoIterator>::IntoIter: ExactSizeIterator,
+{
 	fn len(&self) -> usize {
 		self.clone().into_iter().len()
 	}
@@ -474,26 +503,34 @@ pub trait Get<T> {
 }
 
 impl<T: Default> Get<T> for () {
-	fn get() -> T { T::default() }
+	fn get() -> T {
+		T::default()
+	}
 }
 
 /// A trait for querying whether a type can be said to "contain" a value.
 pub trait Contains<T: Ord> {
 	/// Return `true` if this "contains" the given value `t`.
-	fn contains(t: &T) -> bool { Self::sorted_members().binary_search(t).is_ok() }
+	fn contains(t: &T) -> bool {
+		Self::sorted_members().binary_search(t).is_ok()
+	}
 
 	/// Get a vector of all members in the set, ordered.
 	fn sorted_members() -> Vec<T>;
 
 	/// Get the number of items in the set.
-	fn count() -> usize { Self::sorted_members().len() }
+	fn count() -> usize {
+		Self::sorted_members().len()
+	}
 
 	/// Add an item that would satisfy `contains`. It does not make sure any other
 	/// state is correctly maintained or generated.
 	///
 	/// **Should be used for benchmarking only!!!**
 	#[cfg(feature = "runtime-benchmarks")]
-	fn add(_t: &T) { unimplemented!() }
+	fn add(_t: &T) {
+		unimplemented!()
+	}
 }
 
 /// A trait for querying bound for the length of an implementation of `Contains`
@@ -535,12 +572,14 @@ pub trait OnKilledAccount<AccountId> {
 pub trait FindAuthor<Author> {
 	/// Find the author of a block based on the pre-runtime digests.
 	fn find_author<'a, I>(digests: I) -> Option<Author>
-		where I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])>;
+	where
+		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>;
 }
 
 impl<A> FindAuthor<A> for () {
 	fn find_author<'a, I>(_: I) -> Option<A>
-		where I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])>
+	where
+		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
 		None
 	}
@@ -604,7 +643,10 @@ pub trait OnUnbalanced<Imbalance: TryDrop> {
 	/// Handler for some imbalances. The different imbalances might have different origins or
 	/// meanings, dependent on the context. Will default to simply calling on_unbalanced for all
 	/// of them. Infallible.
-	fn on_unbalanceds<B>(amounts: impl Iterator<Item=Imbalance>) where Imbalance: crate::traits::Imbalance<B> {
+	fn on_unbalanceds<B>(amounts: impl Iterator<Item = Imbalance>)
+	where
+		Imbalance: crate::traits::Imbalance<B>,
+	{
 		Self::on_unbalanced(amounts.fold(Imbalance::zero(), |i, x| x.merge(i)))
 	}
 
@@ -615,7 +657,9 @@ pub trait OnUnbalanced<Imbalance: TryDrop> {
 
 	/// Actually handle a non-zero imbalance. You probably want to implement this rather than
 	/// `on_unbalanced`.
-	fn on_nonzero_unbalanced(amount: Imbalance) { drop(amount); }
+	fn on_nonzero_unbalanced(amount: Imbalance) {
+		drop(amount);
+	}
 }
 
 impl<Imbalance: TryDrop> OnUnbalanced<Imbalance> for () {}
@@ -687,7 +731,8 @@ pub trait Imbalance<Balance>: Sized + TryDrop {
 	/// NOTE: This requires up to `first + second` room for a multiply, and `first + second` should
 	/// fit into a `u32`. Overflow will safely saturate in both cases.
 	fn ration(self, first: u32, second: u32) -> (Self, Self)
-		where Balance: From<u32> + Saturating + Div<Output=Balance>
+	where
+		Balance: From<u32> + Saturating + Div<Output = Balance>,
 	{
 		let total: u32 = first.saturating_add(second);
 		let amount1 = self.peek().saturating_mul(first.into()) / total.into();
@@ -708,7 +753,8 @@ pub trait Imbalance<Balance>: Sized + TryDrop {
 	///
 	/// A convenient replacement for `split` and `merge`.
 	fn ration_merge(self, first: u32, second: u32, others: (Self, Self)) -> (Self, Self)
-		where Balance: From<u32> + Saturating + Div<Output=Balance>
+	where
+		Balance: From<u32> + Saturating + Div<Output = Balance>,
 	{
 		let (a, b) = self.ration(first, second);
 		(a.merge(others.0), b.merge(others.1))
@@ -729,7 +775,8 @@ pub trait Imbalance<Balance>: Sized + TryDrop {
 	///
 	/// A convenient replacement for `split` and `merge`.
 	fn ration_merge_into(self, first: u32, second: u32, others: &mut (Self, Self))
-		where Balance: From<u32> + Saturating + Div<Output=Balance>
+	where
+		Balance: From<u32> + Saturating + Div<Output = Balance>,
 	{
 		let (a, b) = self.ration(first, second);
 		others.0.subsume(a);
@@ -782,7 +829,7 @@ pub trait Imbalance<Balance>: Sized + TryDrop {
 }
 
 /// Either a positive or a negative imbalance.
-pub enum SignedImbalance<B, P: Imbalance<B>>{
+pub enum SignedImbalance<B, P: Imbalance<B>> {
 	/// A positive imbalance (funds have been created but none destroyed).
 	Positive(P),
 	/// A negative imbalance (funds have been destroyed but none created).
@@ -790,10 +837,11 @@ pub enum SignedImbalance<B, P: Imbalance<B>>{
 }
 
 impl<
-	P: Imbalance<B, Opposite=N>,
-	N: Imbalance<B, Opposite=P>,
-	B: AtLeast32BitUnsigned + FullCodec + Copy + MaybeSerializeDeserialize + Debug + Default,
-> SignedImbalance<B, P> {
+		P: Imbalance<B, Opposite = N>,
+		N: Imbalance<B, Opposite = P>,
+		B: AtLeast32BitUnsigned + FullCodec + Copy + MaybeSerializeDeserialize + Debug + Default,
+	> SignedImbalance<B, P>
+{
 	pub fn zero() -> Self {
 		SignedImbalance::Positive(P::zero())
 	}
@@ -825,23 +873,18 @@ impl<
 }
 
 /// Split an unbalanced amount two ways between a common divisor.
-pub struct SplitTwoWays<
-	Balance,
-	Imbalance,
-	Part1,
-	Target1,
-	Part2,
-	Target2,
->(PhantomData<(Balance, Imbalance, Part1, Target1, Part2, Target2)>);
+pub struct SplitTwoWays<Balance, Imbalance, Part1, Target1, Part2, Target2>(
+	PhantomData<(Balance, Imbalance, Part1, Target1, Part2, Target2)>,
+);
 
 impl<
-	Balance: From<u32> + Saturating + Div<Output=Balance>,
-	I: Imbalance<Balance>,
-	Part1: U32,
-	Target1: OnUnbalanced<I>,
-	Part2: U32,
-	Target2: OnUnbalanced<I>,
-> OnUnbalanced<I> for SplitTwoWays<Balance, I, Part1, Target1, Part2, Target2>
+		Balance: From<u32> + Saturating + Div<Output = Balance>,
+		I: Imbalance<Balance>,
+		Part1: U32,
+		Target1: OnUnbalanced<I>,
+		Part2: U32,
+		Target2: OnUnbalanced<I>,
+	> OnUnbalanced<I> for SplitTwoWays<Balance, I, Part1, Target1, Part2, Target2>
 {
 	fn on_nonzero_unbalanced(amount: I) {
 		let total: u32 = Part1::VALUE + Part2::VALUE;
@@ -855,16 +898,20 @@ impl<
 /// Abstraction over a fungible assets system.
 pub trait Currency<AccountId> {
 	/// The balance of an account.
-	type Balance: AtLeast32BitUnsigned + FullCodec + Copy + MaybeSerializeDeserialize + Debug +
-		Default;
+	type Balance: AtLeast32BitUnsigned
+		+ FullCodec
+		+ Copy
+		+ MaybeSerializeDeserialize
+		+ Debug
+		+ Default;
 
 	/// The opaque token type for an imbalance. This is returned by unbalanced operations
 	/// and must be dealt with. It may be dropped but cannot be cloned.
-	type PositiveImbalance: Imbalance<Self::Balance, Opposite=Self::NegativeImbalance>;
+	type PositiveImbalance: Imbalance<Self::Balance, Opposite = Self::NegativeImbalance>;
 
 	/// The opaque token type for an imbalance. This is returned by unbalanced operations
 	/// and must be dealt with. It may be dropped but cannot be cloned.
-	type NegativeImbalance: Imbalance<Self::Balance, Opposite=Self::PositiveImbalance>;
+	type NegativeImbalance: Imbalance<Self::Balance, Opposite = Self::PositiveImbalance>;
 
 	// PUBLIC IMMUTABLES
 
@@ -878,8 +925,8 @@ pub trait Currency<AccountId> {
 	/// The total amount of issuance in the system.
 	fn total_issuance() -> Self::Balance;
 
-	/// The minimum balance any single account may have. This is equivalent to the `Balances` module's
-	/// `ExistentialDeposit`.
+	/// The minimum balance any single account may have. This is equivalent to the `Balances`
+	/// module's `ExistentialDeposit`.
 	fn minimum_balance() -> Self::Balance;
 
 	/// Reduce the total issuance by `amount` and return the according imbalance. The imbalance will
@@ -947,17 +994,14 @@ pub trait Currency<AccountId> {
 	///
 	/// As much funds up to `value` will be deducted as possible. If this is less than `value`,
 	/// then a non-zero second item will be returned.
-	fn slash(
-		who: &AccountId,
-		value: Self::Balance
-	) -> (Self::NegativeImbalance, Self::Balance);
+	fn slash(who: &AccountId, value: Self::Balance) -> (Self::NegativeImbalance, Self::Balance);
 
 	/// Mints `value` to the free balance of `who`.
 	///
 	/// If `who` doesn't exist, nothing is done and an Err returned.
 	fn deposit_into_existing(
 		who: &AccountId,
-		value: Self::Balance
+		value: Self::Balance,
 	) -> result::Result<Self::PositiveImbalance, DispatchError>;
 
 	/// Similar to deposit_creating, only accepts a `NegativeImbalance` and returns nothing on
@@ -976,17 +1020,11 @@ pub trait Currency<AccountId> {
 	/// Adds up to `value` to the free balance of `who`. If `who` doesn't exist, it is created.
 	///
 	/// Infallible.
-	fn deposit_creating(
-		who: &AccountId,
-		value: Self::Balance,
-	) -> Self::PositiveImbalance;
+	fn deposit_creating(who: &AccountId, value: Self::Balance) -> Self::PositiveImbalance;
 
 	/// Similar to deposit_creating, only accepts a `NegativeImbalance` and returns nothing on
 	/// success.
-	fn resolve_creating(
-		who: &AccountId,
-		value: Self::NegativeImbalance,
-	) {
+	fn resolve_creating(who: &AccountId, value: Self::NegativeImbalance) {
 		let v = value.peek();
 		drop(value.offset(Self::deposit_creating(who, v)));
 	}
@@ -1023,8 +1061,8 @@ pub trait Currency<AccountId> {
 	/// Ensure an account's free balance equals some value; this will create the account
 	/// if needed.
 	///
-	/// Returns a signed imbalance and status to indicate if the account was successfully updated or update
-	/// has led to killing of the account.
+	/// Returns a signed imbalance and status to indicate if the account was successfully updated or
+	/// update has led to killing of the account.
 	fn make_free_balance_be(
 		who: &AccountId,
 		balance: Self::Balance,
@@ -1052,7 +1090,7 @@ pub trait ReservableCurrency<AccountId>: Currency<AccountId> {
 	/// is less than `value`, then a non-zero second item will be returned.
 	fn slash_reserved(
 		who: &AccountId,
-		value: Self::Balance
+		value: Self::Balance,
 	) -> (Self::NegativeImbalance, Self::Balance);
 
 	/// The amount of the balance of a given account that is externally reserved; this can still get
@@ -1156,10 +1194,7 @@ pub trait LockableCurrency<AccountId>: Currency<AccountId> {
 	);
 
 	/// Remove an existing lock.
-	fn remove_lock(
-		id: LockIdentifier,
-		who: &AccountId,
-	);
+	fn remove_lock(id: LockIdentifier, who: &AccountId);
 }
 
 /// A vesting schedule over a currency. This allows a particular currency to have vesting limits
@@ -1173,7 +1208,8 @@ pub trait VestingSchedule<AccountId> {
 
 	/// Get the amount that is currently being vested and cannot be transferred out of this account.
 	/// Returns `None` if the account has no vesting schedule.
-	fn vesting_balance(who: &AccountId) -> Option<<Self::Currency as Currency<AccountId>>::Balance>;
+	fn vesting_balance(who: &AccountId)
+		-> Option<<Self::Currency as Currency<AccountId>>::Balance>;
 
 	/// Adds a vesting schedule to a given account.
 	///
@@ -1238,7 +1274,7 @@ impl WithdrawReasons {
 	/// assert_eq!(
 	/// 	WithdrawReason::Fee | WithdrawReason::Transfer | WithdrawReason::Reserve | WithdrawReason::Tip,
 	/// 	WithdrawReasons::except(WithdrawReason::TransactionPayment),
-	///	);
+	/// 	);
 	/// # }
 	/// ```
 	pub fn except(one: WithdrawReason) -> WithdrawReasons {
@@ -1271,8 +1307,8 @@ pub trait ChangeMembers<AccountId: Clone + Ord> {
 		sorted_new: &[AccountId],
 	);
 
-	/// Set the new members; they **must already be sorted**. This will compute the diff and use it to
-	/// call `change_members_sorted`.
+	/// Set the new members; they **must already be sorted**. This will compute the diff and use it
+	/// to call `change_members_sorted`.
 	///
 	/// This resets any previous value of prime.
 	fn set_members_sorted(new_members: &[AccountId], old_members: &[AccountId]) {
@@ -1280,11 +1316,11 @@ pub trait ChangeMembers<AccountId: Clone + Ord> {
 		Self::change_members_sorted(&incoming[..], &outgoing[..], &new_members);
 	}
 
-	/// Set the new members; they **must already be sorted**. This will compute the diff and use it to
-	/// call `change_members_sorted`.
+	/// Set the new members; they **must already be sorted**. This will compute the diff and use it
+	/// to call `change_members_sorted`.
 	fn compute_members_diff(
 		new_members: &[AccountId],
-		old_members: &[AccountId]
+		old_members: &[AccountId],
 	) -> (Vec<AccountId>, Vec<AccountId>) {
 		let mut old_iter = old_members.iter();
 		let mut new_iter = new_members.iter();
@@ -1298,19 +1334,19 @@ pub trait ChangeMembers<AccountId: Clone + Ord> {
 				(Some(old), Some(new)) if old == new => {
 					old_i = old_iter.next();
 					new_i = new_iter.next();
-				}
+				},
 				(Some(old), Some(new)) if old < new => {
 					outgoing.push(old.clone());
 					old_i = old_iter.next();
-				}
+				},
 				(Some(old), None) => {
 					outgoing.push(old.clone());
 					old_i = old_iter.next();
-				}
+				},
 				(_, Some(new)) => {
 					incoming.push(new.clone());
 					new_i = new_iter.next();
-				}
+				},
 			}
 		}
 		(incoming, outgoing)
@@ -1385,7 +1421,8 @@ impl<N: Zero> Lateness<N> for () {
 }
 
 /// Implementors of this trait provide information about whether or not some validator has
-/// been registered with them. The [Session module](../../pallet_session/index.html) is an implementor.
+/// been registered with them. The [Session module](../../pallet_session/index.html) is an
+/// implementor.
 pub trait ValidatorRegistration<ValidatorId> {
 	/// Returns true if the provided validator ID has been registered with the implementing runtime
 	/// module
@@ -1404,8 +1441,12 @@ pub trait PalletInfo {
 }
 
 impl PalletInfo for () {
-	fn index<P: 'static>() -> Option<usize> { Some(0) }
-	fn name<P: 'static>() -> Option<&'static str> { Some("test") }
+	fn index<P: 'static>() -> Option<usize> {
+		Some(0)
+	}
+	fn name<P: 'static>() -> Option<&'static str> {
+		Some("test")
+	}
 }
 
 /// The function and pallet name of the Call.
@@ -1449,7 +1490,9 @@ pub trait OnInitialize<BlockNumber> {
 	/// The block is being initialized. Implement to have something happen.
 	///
 	/// Return the non-negotiable weight consumed in the block.
-	fn on_initialize(_n: BlockNumber) -> crate::weights::Weight { 0 }
+	fn on_initialize(_n: BlockNumber) -> crate::weights::Weight {
+		0
+	}
 }
 
 #[impl_for_tuples(30)]
@@ -1475,7 +1518,9 @@ pub trait OnRuntimeUpgrade {
 	/// block local data are not accessible.
 	///
 	/// Return the non-negotiable weight consumed for runtime upgrade.
-	fn on_runtime_upgrade() -> crate::weights::Weight { 0 }
+	fn on_runtime_upgrade() -> crate::weights::Weight {
+		0
+	}
 }
 
 #[impl_for_tuples(30)]
@@ -1516,8 +1561,8 @@ pub mod schedule {
 	/// is considered finished and removed.
 	pub type Period<BlockNumber> = (BlockNumber, u32);
 
-	/// Priority with which a call is scheduled. It's just a linear amount with lowest values meaning
-	/// higher priority.
+	/// Priority with which a call is scheduled. It's just a linear amount with lowest values
+	/// meaning higher priority.
 	pub type Priority = u8;
 
 	/// The dispatch time of a scheduled task.
@@ -1532,8 +1577,8 @@ pub mod schedule {
 	/// The highest priority. We invert the value so that normal sorting will place the highest
 	/// priority at the beginning of the list.
 	pub const HIGHEST_PRIORITY: Priority = 0;
-	/// Anything of this value or lower will definitely be scheduled on the block that they ask for, even
-	/// if it breaches the `MaximumWeight` limitation.
+	/// Anything of this value or lower will definitely be scheduled on the block that they ask for,
+	/// even if it breaches the `MaximumWeight` limitation.
 	pub const HARD_DEADLINE: Priority = 63;
 	/// The lowest priority. Most stuff should be around here.
 	pub const LOWEST_PRIORITY: Priority = 255;
@@ -1553,7 +1598,7 @@ pub mod schedule {
 			maybe_periodic: Option<Period<BlockNumber>>,
 			priority: Priority,
 			origin: Origin,
-			call: Call
+			call: Call,
 		) -> Result<Self::Address, DispatchError>;
 
 		/// Cancel a scheduled task. If periodic, then it will cancel all further instances of that,
@@ -1583,7 +1628,7 @@ pub mod schedule {
 			maybe_periodic: Option<Period<BlockNumber>>,
 			priority: Priority,
 			origin: Origin,
-			call: Call
+			call: Call,
 		) -> Result<Self::Address, ()>;
 
 		/// Cancel a scheduled, named task. If periodic, then it will cancel all further instances
@@ -1624,7 +1669,10 @@ pub trait UnfilteredDispatchable {
 	type Origin;
 
 	/// Dispatch this call but do not check the filter in origin.
-	fn dispatch_bypass_filter(self, origin: Self::Origin) -> crate::dispatch::DispatchResultWithPostInfo;
+	fn dispatch_bypass_filter(
+		self,
+		origin: Self::Origin,
+	) -> crate::dispatch::DispatchResultWithPostInfo;
 }
 
 /// Methods available on `frame_system::Trait::Origin`.
@@ -1669,21 +1717,30 @@ pub trait IsType<T>: Into<T> + From<T> {
 }
 
 impl<T> IsType<T> for T {
-	fn from_ref(t: &T) -> &Self { t }
-	fn into_ref(&self) -> &T { self }
-	fn from_mut(t: &mut T) -> &mut Self { t }
-	fn into_mut(&mut self) -> &mut T { self }
+	fn from_ref(t: &T) -> &Self {
+		t
+	}
+	fn into_ref(&self) -> &T {
+		self
+	}
+	fn from_mut(t: &mut T) -> &mut Self {
+		t
+	}
+	fn into_mut(&mut self) -> &mut T {
+		self
+	}
 }
 
 /// An instance of a pallet in the storage.
 ///
-/// It is required that these instances are unique, to support multiple instances per pallet in the same runtime!
+/// It is required that these instances are unique, to support multiple instances per pallet in the
+/// same runtime!
 ///
 /// E.g. for module MyModule default instance will have prefix "MyModule" and other instances
 /// "InstanceNMyModule".
 pub trait Instance: 'static {
-    /// Unique module prefix. E.g. "InstanceNMyModule" or "MyModule"
-    const PREFIX: &'static str ;
+	/// Unique module prefix. E.g. "InstanceNMyModule" or "MyModule"
+	const PREFIX: &'static str;
 }
 
 #[cfg(test)]

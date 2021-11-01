@@ -17,26 +17,36 @@
 
 //! In-memory implementation of `Database`
 
-use std::collections::HashMap;
-use crate::{Database, Change, ColumnId, Transaction, error};
+use crate::{error, Change, ColumnId, Database, Transaction};
 use parking_lot::RwLock;
+use std::collections::HashMap;
 
 #[derive(Default)]
 /// This implements `Database` as an in-memory hash map. `commit` is not atomic.
-pub struct MemDb<H: Clone + Send + Sync + Eq + PartialEq + Default + std::hash::Hash>
-	(RwLock<(HashMap<ColumnId, HashMap<Vec<u8>, Vec<u8>>>, HashMap<H, Vec<u8>>)>);
+pub struct MemDb<H: Clone + Send + Sync + Eq + PartialEq + Default + std::hash::Hash>(
+	RwLock<(HashMap<ColumnId, HashMap<Vec<u8>, Vec<u8>>>, HashMap<H, Vec<u8>>)>,
+);
 
 impl<H> Database<H> for MemDb<H>
-	where H: Clone + Send + Sync + Eq + PartialEq + Default + std::hash::Hash
+where
+	H: Clone + Send + Sync + Eq + PartialEq + Default + std::hash::Hash,
 {
 	fn commit(&self, transaction: Transaction<H>) -> error::Result<()> {
 		let mut s = self.0.write();
 		for change in transaction.0.into_iter() {
 			match change {
-				Change::Set(col, key, value) => { s.0.entry(col).or_default().insert(key, value); },
-				Change::Remove(col, key) => { s.0.entry(col).or_default().remove(&key); },
-				Change::Store(hash, preimage) => { s.1.insert(hash, preimage); },
-				Change::Release(hash) => { s.1.remove(&hash); },
+				Change::Set(col, key, value) => {
+					s.0.entry(col).or_default().insert(key, value);
+				},
+				Change::Remove(col, key) => {
+					s.0.entry(col).or_default().remove(&key);
+				},
+				Change::Store(hash, preimage) => {
+					s.1.insert(hash, preimage);
+				},
+				Change::Release(hash) => {
+					s.1.remove(&hash);
+				},
 			}
 		}
 
@@ -55,7 +65,8 @@ impl<H> Database<H> for MemDb<H>
 }
 
 impl<H> MemDb<H>
-	where H: Clone + Send + Sync + Eq + PartialEq + Default + std::hash::Hash
+where
+	H: Clone + Send + Sync + Eq + PartialEq + Default + std::hash::Hash,
 {
 	/// Create a new instance
 	pub fn new() -> Self {
@@ -68,4 +79,3 @@ impl<H> MemDb<H>
 		s.0.get(&col).map(|c| c.len()).unwrap_or(0)
 	}
 }
-

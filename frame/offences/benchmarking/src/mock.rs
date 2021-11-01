@@ -22,15 +22,14 @@
 use super::*;
 use frame_support::{
 	parameter_types,
-	weights::{Weight, constants::WEIGHT_PER_SECOND},
+	weights::{constants::WEIGHT_PER_SECOND, Weight},
 };
 use frame_system as system;
 use sp_runtime::{
-	SaturatedConversion,
-	traits::{IdentityLookup, Block as BlockT},
 	testing::{Header, UintAuthorityId},
+	traits::{Block as BlockT, IdentityLookup},
+	SaturatedConversion,
 };
-
 
 type AccountId = u64;
 type AccountIndex = u32;
@@ -111,7 +110,8 @@ impl pallet_session::SessionHandler<AccountId> for TestSessionHandler {
 		_: bool,
 		_: &[(AccountId, Ks)],
 		_: &[(AccountId, Ks)],
-	) {}
+	) {
+	}
 
 	fn on_disabled(_: usize) {}
 }
@@ -207,7 +207,10 @@ impl pallet_offences::Trait for Test {
 	type WeightSoftLimit = OffencesWeightSoftLimit;
 }
 
-impl<T> frame_system::offchain::SendTransactionTypes<T> for Test where Call: From<T> {
+impl<T> frame_system::offchain::SendTransactionTypes<T> for Test
+where
+	Call: From<T>,
+{
 	type Extrinsic = Extrinsic;
 	type OverarchingCall = Call;
 }

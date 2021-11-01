@@ -20,13 +20,16 @@
 #![cfg(test)]
 
 use super::*;
-use sp_std::prelude::*;
-use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, testing::{H256, Header}};
 use frame_support::{
-	dispatch::DispatchResult,
-	decl_module, decl_storage, impl_outer_origin, assert_ok, assert_err, ensure
+	assert_err, assert_ok, decl_module, decl_storage, dispatch::DispatchResult, ensure,
+	impl_outer_origin,
 };
-use frame_system::{RawOrigin, ensure_signed, ensure_none};
+use frame_system::{ensure_none, ensure_signed, RawOrigin};
+use sp_runtime::{
+	testing::{Header, H256},
+	traits::{BlakeTwo256, IdentityLookup},
+};
+use sp_std::prelude::*;
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Test where
@@ -64,7 +67,8 @@ pub trait OtherTrait {
 }
 
 pub trait Trait: frame_system::Trait + OtherTrait
-	where Self::OtherEvent: Into<<Self as Trait>::Event>
+where
+	Self::OtherEvent: Into<<Self as Trait>::Event>,
 {
 	type Event;
 }
@@ -112,7 +116,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
 
-benchmarks!{
+benchmarks! {
 	where_clause { where <T as OtherTrait>::OtherEvent: Into<<T as Trait>::Event> }
 
 	_ {
@@ -177,7 +181,8 @@ fn benchmarks_macro_works() {
 		&selected,
 		&[(BenchmarkParameter::b, 1)],
 		true,
-	).expect("failed to create closure");
+	)
+	.expect("failed to create closure");
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(closure());
@@ -195,7 +200,8 @@ fn benchmarks_macro_rename_works() {
 		&selected,
 		&[(BenchmarkParameter::b, 1)],
 		true,
-	).expect("failed to create closure");
+	)
+	.expect("failed to create closure");
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(closure());
@@ -213,7 +219,8 @@ fn benchmarks_macro_works_for_non_dispatchable() {
 		&selected,
 		&[(BenchmarkParameter::x, 1)],
 		true,
-	).expect("failed to create closure");
+	)
+	.expect("failed to create closure");
 
 	assert_ok!(closure());
 }
@@ -227,7 +234,8 @@ fn benchmarks_macro_verify_works() {
 		&selected,
 		&[(BenchmarkParameter::b, 1)],
 		true,
-	).expect("failed to create closure");
+	)
+	.expect("failed to create closure");
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(closure());
@@ -240,7 +248,8 @@ fn benchmarks_macro_verify_works() {
 		&selected,
 		&[(BenchmarkParameter::x, 10000)],
 		true,
-	).expect("failed to create closure");
+	)
+	.expect("failed to create closure");
 
 	new_test_ext().execute_with(|| {
 		assert_err!(closure(), "You forgot to sort!");

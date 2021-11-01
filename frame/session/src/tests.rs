@@ -18,14 +18,14 @@
 // Tests for the Session Pallet
 
 use super::*;
-use frame_support::{traits::OnInitialize, assert_ok};
+use frame_support::{assert_ok, traits::OnInitialize};
+use mock::{
+	authorities, before_session_end_called, force_new_session, new_test_ext,
+	reset_before_session_end_called, session_changed, set_next_validators, set_session_length,
+	Origin, Session, System, SESSION_CHANGED, TEST_SESSION_CHANGED,
+};
 use sp_core::crypto::key_types::DUMMY;
 use sp_runtime::testing::UintAuthorityId;
-use mock::{
-	SESSION_CHANGED, TEST_SESSION_CHANGED, authorities, force_new_session,
-	set_next_validators, set_session_length, session_changed, Origin, System, Session,
-	reset_before_session_end_called, before_session_end_called, new_test_ext,
-};
 
 fn initialize_block(block: u64) {
 	SESSION_CHANGED.with(|l| *l.borrow_mut() = false);
@@ -76,10 +76,10 @@ fn authorities_should_track_validators() {
 		set_next_validators(vec![1, 2]);
 		force_new_session();
 		initialize_block(1);
-		assert_eq!(Session::queued_keys(), vec![
-			(1, UintAuthorityId(1).into()),
-			(2, UintAuthorityId(2).into()),
-		]);
+		assert_eq!(
+			Session::queued_keys(),
+			vec![(1, UintAuthorityId(1).into()), (2, UintAuthorityId(2).into()),]
+		);
 		assert_eq!(Session::validators(), vec![1, 2, 3]);
 		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
 		assert!(before_session_end_called());
@@ -87,10 +87,10 @@ fn authorities_should_track_validators() {
 
 		force_new_session();
 		initialize_block(2);
-		assert_eq!(Session::queued_keys(), vec![
-			(1, UintAuthorityId(1).into()),
-			(2, UintAuthorityId(2).into()),
-		]);
+		assert_eq!(
+			Session::queued_keys(),
+			vec![(1, UintAuthorityId(1).into()), (2, UintAuthorityId(2).into()),]
+		);
 		assert_eq!(Session::validators(), vec![1, 2]);
 		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2)]);
 		assert!(before_session_end_called());
@@ -100,22 +100,28 @@ fn authorities_should_track_validators() {
 		assert_ok!(Session::set_keys(Origin::signed(4), UintAuthorityId(4).into(), vec![]));
 		force_new_session();
 		initialize_block(3);
-		assert_eq!(Session::queued_keys(), vec![
-			(1, UintAuthorityId(1).into()),
-			(2, UintAuthorityId(2).into()),
-			(4, UintAuthorityId(4).into()),
-		]);
+		assert_eq!(
+			Session::queued_keys(),
+			vec![
+				(1, UintAuthorityId(1).into()),
+				(2, UintAuthorityId(2).into()),
+				(4, UintAuthorityId(4).into()),
+			]
+		);
 		assert_eq!(Session::validators(), vec![1, 2]);
 		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2)]);
 		assert!(before_session_end_called());
 
 		force_new_session();
 		initialize_block(4);
-		assert_eq!(Session::queued_keys(), vec![
-			(1, UintAuthorityId(1).into()),
-			(2, UintAuthorityId(2).into()),
-			(4, UintAuthorityId(4).into()),
-		]);
+		assert_eq!(
+			Session::queued_keys(),
+			vec![
+				(1, UintAuthorityId(1).into()),
+				(2, UintAuthorityId(2).into()),
+				(4, UintAuthorityId(4).into()),
+			]
+		);
 		assert_eq!(Session::validators(), vec![1, 2, 4]);
 		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(4)]);
 	});
@@ -255,13 +261,16 @@ fn periodic_session_works() {
 	struct Offset;
 
 	impl Get<u64> for Period {
-		fn get() -> u64 { 10 }
+		fn get() -> u64 {
+			10
+		}
 	}
 
 	impl Get<u64> for Offset {
-		fn get() -> u64 { 3 }
+		fn get() -> u64 {
+			3
+		}
 	}
-
 
 	type P = PeriodicSessions<Period, Offset>;
 
@@ -282,13 +291,11 @@ fn periodic_session_works() {
 fn session_keys_generate_output_works_as_set_keys_input() {
 	new_test_ext().execute_with(|| {
 		let new_keys = mock::MockSessionKeys::generate(None);
-		assert_ok!(
-			Session::set_keys(
-				Origin::signed(2),
-				<mock::Test as Trait>::Keys::decode(&mut &new_keys[..]).expect("Decode keys"),
-				vec![],
-			)
-		);
+		assert_ok!(Session::set_keys(
+			Origin::signed(2),
+			<mock::Test as Trait>::Keys::decode(&mut &new_keys[..]).expect("Decode keys"),
+			vec![],
+		));
 	});
 }
 

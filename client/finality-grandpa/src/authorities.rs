@@ -18,11 +18,11 @@
 
 //! Utilities for dealing with authorities, authority sets, and handoffs.
 
-use fork_tree::ForkTree;
-use parking_lot::RwLock;
 use finality_grandpa::voter_set::VoterSet;
-use parity_scale_codec::{Encode, Decode};
+use fork_tree::ForkTree;
 use log::debug;
+use parity_scale_codec::{Decode, Encode};
+use parking_lot::RwLock;
 use sc_telemetry::{telemetry, CONSENSUS_INFO};
 use sp_finality_grandpa::{AuthorityId, AuthorityList};
 
@@ -59,8 +59,9 @@ impl<H, N> SharedAuthoritySet<H, N> {
 }
 
 impl<H: Eq, N> SharedAuthoritySet<H, N>
-where N: Add<Output=N> + Ord + Clone + Debug,
-	  H: Clone + Debug
+where
+	N: Add<Output = N> + Ord + Clone + Debug,
+	H: Clone + Debug,
 {
 	/// Get the earliest limit-block number that's higher or equal to the given
 	/// min number, if any.
@@ -117,8 +118,9 @@ pub(crate) struct AuthoritySet<H, N> {
 }
 
 impl<H, N> AuthoritySet<H, N>
-where H: PartialEq,
-	  N: Ord,
+where
+	H: PartialEq,
+	N: Ord,
 {
 	// authority sets must be non-empty and all weights must be greater than 0
 	fn invalid_authority_list(authorities: &AuthorityList) -> bool {
@@ -128,7 +130,7 @@ where H: PartialEq,
 	/// Get a genesis set with given authorities.
 	pub(crate) fn genesis(initial: AuthorityList) -> Option<Self> {
 		if Self::invalid_authority_list(&initial) {
-			return None;
+			return None
 		}
 
 		Some(AuthoritySet {
@@ -147,7 +149,7 @@ where H: PartialEq,
 		pending_forced_changes: Vec<PendingChange<H, N>>,
 	) -> Option<Self> {
 		if Self::invalid_authority_list(&authorities) {
-			return None;
+			return None
 		}
 
 		Some(AuthoritySet {
@@ -189,7 +191,7 @@ where
 		for change in &self.pending_forced_changes {
 			if is_descendent_of(&change.canon_hash, best_hash)? {
 				forced = Some((change.canon_hash.clone(), change.canon_height.clone()));
-				break;
+				break
 			}
 		}
 
@@ -197,16 +199,13 @@ where
 		for (_, _, change) in self.pending_standard_changes.roots() {
 			if is_descendent_of(&change.canon_hash, best_hash)? {
 				standard = Some((change.canon_hash.clone(), change.canon_height.clone()));
-				break;
+				break
 			}
 		}
 
 		let earliest = match (forced, standard) {
-			(Some(forced), Some(standard)) => Some(if forced.1 < standard.1 {
-				forced
-			} else {
-				standard
-			}),
+			(Some(forced), Some(standard)) =>
+				Some(if forced.1 < standard.1 { forced } else { standard }),
 			(Some(forced), None) => Some(forced),
 			(None, Some(standard)) => Some(standard),
 			(None, None) => None,
@@ -219,7 +218,8 @@ where
 		&mut self,
 		pending: PendingChange<H, N>,
 		is_descendent_of: &F,
-	) -> Result<(), Error<E>> where
+	) -> Result<(), Error<E>>
+	where
 		F: Fn(&H, &H) -> Result<bool, E>,
 		E: std::error::Error,
 	{
@@ -230,12 +230,7 @@ where
 							   (delayed by {:?} blocks).",
 			   (&number, &hash), pending.delay);
 
-		self.pending_standard_changes.import(
-			hash,
-			number,
-			pending,
-			is_descendent_of,
-		)?;
+		self.pending_standard_changes.import(hash, number, pending, is_descendent_of)?;
 
 		debug!(target: "afg", "There are now {} alternatives for the next pending standard change (roots), \
 							   and a total of {} pending standard changes (across all forks).",
@@ -250,7 +245,8 @@ where
 		&mut self,
 		pending: PendingChange<H, N>,
 		is_descendent_of: &F,
-	) -> Result<(), Error<E>> where
+	) -> Result<(), Error<E>>
+	where
 		F: Fn(&H, &H) -> Result<bool, E>,
 		E: std::error::Error,
 	{
@@ -259,17 +255,17 @@ where
 				is_descendent_of(&change.canon_hash, &pending.canon_hash)
 					.map_err(fork_tree::Error::Client)?
 			{
-				return Err(fork_tree::Error::UnfinalizedAncestor.into());
+				return Err(fork_tree::Error::UnfinalizedAncestor.into())
 			}
 		}
 
 		// ordered first by effective number and then by signal-block number.
 		let key = (pending.effective_number(), pending.canon_height.clone());
-		let idx = self.pending_forced_changes
-			.binary_search_by_key(&key, |change| (
-				change.effective_number(),
-				change.canon_height.clone(),
-			))
+		let idx = self
+			.pending_forced_changes
+			.binary_search_by_key(&key, |change| {
+				(change.effective_number(), change.canon_height.clone())
+			})
 			.unwrap_or_else(|i| i);
 
 		debug!(target: "afg", "Inserting potential forced set change at block {:?} \
@@ -293,29 +289,28 @@ where
 		&mut self,
 		pending: PendingChange<H, N>,
 		is_descendent_of: &F,
-	) -> Result<(), Error<E>> where
+	) -> Result<(), Error<E>>
+	where
 		F: Fn(&H, &H) -> Result<bool, E>,
 		E: std::error::Error,
 	{
 		if Self::invalid_authority_list(&pending.next_authorities) {
-			return Err(Error::InvalidAuthoritySet);
+			return Err(Error::InvalidAuthoritySet)
 		}
 
 		match pending.delay_kind {
-			DelayKind::Best { .. } => {
-				self.add_forced_change(pending, is_descendent_of)
-			},
-			DelayKind::Finalized => {
-				self.add_standard_change(pending, is_descendent_of)
-			},
+			DelayKind::Best { .. } => self.add_forced_change(pending, is_descendent_of),
+			DelayKind::Finalized => self.add_standard_change(pending, is_descendent_of),
 		}
 	}
 
 	/// Inspect pending changes. Standard pending changes are iterated first,
 	/// and the changes in the tree are traversed in pre-order, afterwards all
 	/// forced changes are iterated.
-	pub(crate) fn pending_changes(&self) -> impl Iterator<Item=&PendingChange<H, N>> {
-		self.pending_standard_changes.iter().map(|(_, _, c)| c)
+	pub(crate) fn pending_changes(&self) -> impl Iterator<Item = &PendingChange<H, N>> {
+		self.pending_standard_changes
+			.iter()
+			.map(|(_, _, c)| c)
 			.chain(self.pending_forced_changes.iter())
 	}
 
@@ -326,7 +321,8 @@ where
 	/// Only standard changes are taken into account for the current
 	/// limit, since any existing forced change should preclude the voter from voting.
 	pub(crate) fn current_limit(&self, min: N) -> Option<N> {
-		self.pending_standard_changes.roots()
+		self.pending_standard_changes
+			.roots()
 			.filter(|&(_, _, c)| c.effective_number() >= min)
 			.min_by_key(|&(_, _, c)| c.effective_number())
 			.map(|(_, _, c)| c.effective_number())
@@ -348,11 +344,14 @@ where
 		is_descendent_of: &F,
 		initial_sync: bool,
 	) -> Result<Option<(N, Self)>, E>
-		where F: Fn(&H, &H) -> Result<bool, E>,
+	where
+		F: Fn(&H, &H) -> Result<bool, E>,
 	{
 		let mut new_set = None;
 
-		for change in self.pending_forced_changes.iter()
+		for change in self
+			.pending_forced_changes
+			.iter()
 			.take_while(|c| c.effective_number() <= best_number) // to prevent iterating too far
 			.filter(|c| c.effective_number() == best_number)
 		{
@@ -360,7 +359,8 @@ where
 			// the block that signaled the change.
 			if change.canon_hash == best_hash || is_descendent_of(&change.canon_hash, &best_hash)? {
 				// apply this change: make the set canonical
-				afg_log!(initial_sync,
+				afg_log!(
+					initial_sync,
 					"👴 Applying authority set change forced at block #{:?}",
 					change.canon_height,
 				);
@@ -373,14 +373,17 @@ where
 					_ => unreachable!("pending_forced_changes only contains forced changes; forced changes have delay kind Best; qed."),
 				};
 
-				new_set = Some((median_last_finalized, AuthoritySet {
-					current_authorities: change.next_authorities.clone(),
-					set_id: self.set_id + 1,
-					pending_standard_changes: ForkTree::new(), // new set, new changes.
-					pending_forced_changes: Vec::new(),
-				}));
+				new_set = Some((
+					median_last_finalized,
+					AuthoritySet {
+						current_authorities: change.next_authorities.clone(),
+						set_id: self.set_id + 1,
+						pending_standard_changes: ForkTree::new(), // new set, new changes.
+						pending_forced_changes: Vec::new(),
+					},
+				));
 
-				break;
+				break
 			}
 
 			// we don't wipe forced changes until another change is
@@ -406,28 +409,24 @@ where
 		finalized_number: N,
 		is_descendent_of: &F,
 		initial_sync: bool,
-	) -> Result<Status<H, N>, Error<E>> where
+	) -> Result<Status<H, N>, Error<E>>
+	where
 		F: Fn(&H, &H) -> Result<bool, E>,
 		E: std::error::Error,
 	{
-		let mut status = Status {
-			changed: false,
-			new_set_block: None,
-		};
+		let mut status = Status { changed: false, new_set_block: None };
 
 		match self.pending_standard_changes.finalize_with_descendent_if(
 			&finalized_hash,
 			finalized_number.clone(),
 			is_descendent_of,
-			|change| change.effective_number() <= finalized_number
+			|change| change.effective_number() <= finalized_number,
 		)? {
 			fork_tree::FinalizationResult::Changed(change) => {
 				status.changed = true;
 
-				let pending_forced_changes = std::mem::replace(
-					&mut self.pending_forced_changes,
-					Vec::new(),
-				);
+				let pending_forced_changes =
+					std::mem::replace(&mut self.pending_forced_changes, Vec::new());
 
 				// we will keep all forced change for any later blocks and that are a
 				// descendent of the finalized block (i.e. they are from this fork).
@@ -441,7 +440,8 @@ where
 				}
 
 				if let Some(change) = change {
-					afg_log!(initial_sync,
+					afg_log!(
+						initial_sync,
 						"👴 Applying authority set change scheduled at block #{:?}",
 						change.canon_height,
 					);
@@ -452,10 +452,7 @@ where
 					self.current_authorities = change.next_authorities;
 					self.set_id += 1;
 
-					status.new_set_block = Some((
-						finalized_hash,
-						finalized_number,
-					));
+					status.new_set_block = Some((finalized_hash, finalized_number));
 				}
 			},
 			fork_tree::FinalizationResult::Unchanged => {},
@@ -479,16 +476,19 @@ where
 		finalized_hash: H,
 		finalized_number: N,
 		is_descendent_of: &F,
-	) -> Result<Option<bool>, Error<E>> where
+	) -> Result<Option<bool>, Error<E>>
+	where
 		F: Fn(&H, &H) -> Result<bool, E>,
 		E: std::error::Error,
 	{
-		self.pending_standard_changes.finalizes_any_with_descendent_if(
-			&finalized_hash,
-			finalized_number.clone(),
-			is_descendent_of,
-			|change| change.effective_number() == finalized_number
-		).map_err(Error::ForkTree)
+		self.pending_standard_changes
+			.finalizes_any_with_descendent_if(
+				&finalized_hash,
+				finalized_number.clone(),
+				is_descendent_of,
+				|change| change.effective_number() == finalized_number,
+			)
+			.map_err(Error::ForkTree)
 	}
 }
 
@@ -522,7 +522,9 @@ pub(crate) struct PendingChange<H, N> {
 }
 
 impl<H: Decode, N: Decode> Decode for PendingChange<H, N> {
-	fn decode<I: parity_scale_codec::Input>(value: &mut I) -> Result<Self, parity_scale_codec::Error> {
+	fn decode<I: parity_scale_codec::Input>(
+		value: &mut I,
+	) -> Result<Self, parity_scale_codec::Error> {
 		let next_authorities = Decode::decode(value)?;
 		let delay = Decode::decode(value)?;
 		let canon_height = Decode::decode(value)?;
@@ -530,17 +532,11 @@ impl<H: Decode, N: Decode> Decode for PendingChange<H, N> {
 
 		let delay_kind = DelayKind::decode(value).unwrap_or(DelayKind::Finalized);
 
-		Ok(PendingChange {
-			next_authorities,
-			delay,
-			canon_height,
-			canon_hash,
-			delay_kind,
-		})
+		Ok(PendingChange { next_authorities, delay, canon_height, canon_hash, delay_kind })
 	}
 }
 
-impl<H, N: Add<Output=N> + Clone> PendingChange<H, N> {
+impl<H, N: Add<Output = N> + Clone> PendingChange<H, N> {
 	/// Returns the effective number this change will be applied at.
 	pub fn effective_number(&self) -> N {
 		self.canon_height.clone() + self.delay.clone()
@@ -552,14 +548,13 @@ mod tests {
 	use super::*;
 	use sp_core::crypto::Public;
 
-	fn static_is_descendent_of<A>(value: bool)
-		-> impl Fn(&A, &A) -> Result<bool, std::io::Error>
-	{
+	fn static_is_descendent_of<A>(value: bool) -> impl Fn(&A, &A) -> Result<bool, std::io::Error> {
 		move |_, _| Ok(value)
 	}
 
 	fn is_descendent_of<A, F>(f: F) -> impl Fn(&A, &A) -> Result<bool, std::io::Error>
-		where F: Fn(&A, &A) -> bool
+	where
+		F: Fn(&A, &A) -> bool,
 	{
 		move |base, hash| Ok(f(base, hash))
 	}
@@ -575,14 +570,12 @@ mod tests {
 			pending_forced_changes: Vec::new(),
 		};
 
-		let change = |height| {
-			PendingChange {
-				next_authorities: current_authorities.clone(),
-				delay: 0,
-				canon_height: height,
-				canon_hash: height.to_string(),
-				delay_kind: DelayKind::Finalized,
-			}
+		let change = |height| PendingChange {
+			next_authorities: current_authorities.clone(),
+			delay: 0,
+			canon_height: height,
+			canon_hash: height.to_string(),
+			delay_kind: DelayKind::Finalized,
 		};
 
 		let is_descendent_of = static_is_descendent_of(false);
@@ -590,25 +583,13 @@ mod tests {
 		authorities.add_pending_change(change(1), &is_descendent_of).unwrap();
 		authorities.add_pending_change(change(2), &is_descendent_of).unwrap();
 
-		assert_eq!(
-			authorities.current_limit(0),
-			Some(1),
-		);
+		assert_eq!(authorities.current_limit(0), Some(1),);
 
-		assert_eq!(
-			authorities.current_limit(1),
-			Some(1),
-		);
+		assert_eq!(authorities.current_limit(1), Some(1),);
 
-		assert_eq!(
-			authorities.current_limit(2),
-			Some(2),
-		);
+		assert_eq!(authorities.current_limit(2), Some(2),);
 
-		assert_eq!(
-			authorities.current_limit(3),
-			None,
-		);
+		assert_eq!(authorities.current_limit(3), None,);
 	}
 
 	#[test]
@@ -648,11 +629,16 @@ mod tests {
 
 		authorities.add_pending_change(change_a.clone(), &static_is_descendent_of(false)).unwrap();
 		authorities.add_pending_change(change_b.clone(), &static_is_descendent_of(false)).unwrap();
-		authorities.add_pending_change(change_c.clone(), &is_descendent_of(|base, hash| match (*base, *hash) {
-			("hash_a", "hash_c") => true,
-			("hash_b", "hash_c") => false,
-			_ => unreachable!(),
-		})).unwrap();
+		authorities
+			.add_pending_change(
+				change_c.clone(),
+				&is_descendent_of(|base, hash| match (*base, *hash) {
+					("hash_a", "hash_c") => true,
+					("hash_b", "hash_c") => false,
+					_ => unreachable!(),
+				}),
+			)
+			.unwrap();
 
 		// forced changes are iterated last
 		let change_d = PendingChange {
@@ -712,40 +698,39 @@ mod tests {
 		authorities.add_pending_change(change_a.clone(), &static_is_descendent_of(true)).unwrap();
 		authorities.add_pending_change(change_b.clone(), &static_is_descendent_of(true)).unwrap();
 
-		assert_eq!(
-			authorities.pending_changes().collect::<Vec<_>>(),
-			vec![&change_b, &change_a],
-		);
+		assert_eq!(authorities.pending_changes().collect::<Vec<_>>(), vec![&change_b, &change_a],);
 
-		// finalizing "hash_c" won't enact the change signaled at "hash_a" but it will prune out "hash_b"
-		let status = authorities.apply_standard_changes(
-			"hash_c",
-			11,
-			&is_descendent_of(|base, hash| match (*base, *hash) {
-				("hash_a", "hash_c") => true,
-				("hash_b", "hash_c") => false,
-				_ => unreachable!(),
-			}),
-			false,
-		).unwrap();
+		// finalizing "hash_c" won't enact the change signaled at "hash_a" but it will prune out
+		// "hash_b"
+		let status = authorities
+			.apply_standard_changes(
+				"hash_c",
+				11,
+				&is_descendent_of(|base, hash| match (*base, *hash) {
+					("hash_a", "hash_c") => true,
+					("hash_b", "hash_c") => false,
+					_ => unreachable!(),
+				}),
+				false,
+			)
+			.unwrap();
 
 		assert!(status.changed);
 		assert_eq!(status.new_set_block, None);
-		assert_eq!(
-			authorities.pending_changes().collect::<Vec<_>>(),
-			vec![&change_a],
-		);
+		assert_eq!(authorities.pending_changes().collect::<Vec<_>>(), vec![&change_a],);
 
 		// finalizing "hash_d" will enact the change signaled at "hash_a"
-		let status = authorities.apply_standard_changes(
-			"hash_d",
-			15,
-			&is_descendent_of(|base, hash| match (*base, *hash) {
-				("hash_a", "hash_d") => true,
-				_ => unreachable!(),
-			}),
-			false,
-		).unwrap();
+		let status = authorities
+			.apply_standard_changes(
+				"hash_d",
+				15,
+				&is_descendent_of(|base, hash| match (*base, *hash) {
+					("hash_a", "hash_d") => true,
+					_ => unreachable!(),
+				}),
+				false,
+			)
+			.unwrap();
 
 		assert!(status.changed);
 		assert_eq!(status.new_set_block, Some(("hash_d", 15)));
@@ -805,12 +790,8 @@ mod tests {
 			Err(Error::ForkTree(fork_tree::Error::UnfinalizedAncestor))
 		));
 
-		let status = authorities.apply_standard_changes(
-			"hash_b",
-			15,
-			&is_descendent_of,
-			false,
-		).unwrap();
+		let status =
+			authorities.apply_standard_changes("hash_b", 15, &is_descendent_of, false).unwrap();
 
 		assert!(status.changed);
 		assert_eq!(status.new_set_block, Some(("hash_b", 15)));
@@ -819,12 +800,8 @@ mod tests {
 		assert_eq!(authorities.set_id, 1);
 
 		// after finalizing `change_a` it should be possible to finalize `change_c`
-		let status = authorities.apply_standard_changes(
-			"hash_d",
-			40,
-			&is_descendent_of,
-			false,
-		).unwrap();
+		let status =
+			authorities.apply_standard_changes("hash_d", 40, &is_descendent_of, false).unwrap();
 
 		assert!(status.changed);
 		assert_eq!(status.new_set_block, Some(("hash_d", 40)));
@@ -933,7 +910,9 @@ mod tests {
 		// there's an effective change triggered at block 15 but not a standard one.
 		// so this should do nothing.
 		assert_eq!(
-			authorities.enacts_standard_change("hash_c", 15, &static_is_descendent_of(true)).unwrap(),
+			authorities
+				.enacts_standard_change("hash_c", 15, &static_is_descendent_of(true))
+				.unwrap(),
 			None,
 		);
 
@@ -951,37 +930,37 @@ mod tests {
 			delay_kind: DelayKind::Best { median_last_finalized: 0 },
 		};
 
-		let is_descendent_of_a = is_descendent_of(|base: &&str, _| {
-			base.starts_with("hash_a")
-		});
+		let is_descendent_of_a = is_descendent_of(|base: &&str, _| base.starts_with("hash_a"));
 
 		assert!(authorities.add_pending_change(change_c, &is_descendent_of_a).is_err());
 
 		// too early.
-		assert!(
-			authorities.apply_forced_changes("hash_a10", 10, &static_is_descendent_of(true), false)
-				.unwrap()
-				.is_none()
-		);
+		assert!(authorities
+			.apply_forced_changes("hash_a10", 10, &static_is_descendent_of(true), false)
+			.unwrap()
+			.is_none());
 
 		// too late.
-		assert!(
-			authorities.apply_forced_changes("hash_a16", 16, &static_is_descendent_of(true), false)
-				.unwrap()
-				.is_none()
-		);
+		assert!(authorities
+			.apply_forced_changes("hash_a16", 16, &static_is_descendent_of(true), false)
+			.unwrap()
+			.is_none());
 
 		// on time -- chooses the right change.
 		assert_eq!(
-			authorities.apply_forced_changes("hash_a15", 15, &is_descendent_of_a, false)
+			authorities
+				.apply_forced_changes("hash_a15", 15, &is_descendent_of_a, false)
 				.unwrap()
 				.unwrap(),
-			(42, AuthoritySet {
-				current_authorities: set_a,
-				set_id: 1,
-				pending_standard_changes: ForkTree::new(),
-				pending_forced_changes: Vec::new(),
-			}),
+			(
+				42,
+				AuthoritySet {
+					current_authorities: set_a,
+					set_id: 1,
+					pending_standard_changes: ForkTree::new(),
+					pending_forced_changes: Vec::new(),
+				}
+			),
 		);
 	}
 
@@ -1003,23 +982,17 @@ mod tests {
 			delay: 0,
 			canon_height: 5,
 			canon_hash: "hash_a",
-			delay_kind: DelayKind::Best {
-				median_last_finalized: 0,
-			},
+			delay_kind: DelayKind::Best { median_last_finalized: 0 },
 		};
 
 		// and import it
-		authorities
-			.add_pending_change(change_a, &static_is_descendent_of(false))
-			.unwrap();
+		authorities.add_pending_change(change_a, &static_is_descendent_of(false)).unwrap();
 
 		// it should be enacted at the same block that signaled it
-		assert!(
-			authorities
-				.apply_forced_changes("hash_a", 5, &static_is_descendent_of(false), false)
-				.unwrap()
-				.is_some()
-		);
+		assert!(authorities
+			.apply_forced_changes("hash_a", 5, &static_is_descendent_of(false), false)
+			.unwrap()
+			.is_some());
 	}
 
 	#[test]
@@ -1073,52 +1046,33 @@ mod tests {
 		});
 
 		// add the three pending changes
-		authorities
-			.add_pending_change(change_b, &is_descendent_of)
-			.unwrap();
-		authorities
-			.add_pending_change(change_a0, &is_descendent_of)
-			.unwrap();
-		authorities
-			.add_pending_change(change_a1, &is_descendent_of)
-			.unwrap();
+		authorities.add_pending_change(change_b, &is_descendent_of).unwrap();
+		authorities.add_pending_change(change_a0, &is_descendent_of).unwrap();
+		authorities.add_pending_change(change_a1, &is_descendent_of).unwrap();
 
 		// the earliest change at block `best_a` should be the change at A0 (#5)
 		assert_eq!(
-			authorities
-				.next_change(&"best_a", &is_descendent_of)
-				.unwrap(),
+			authorities.next_change(&"best_a", &is_descendent_of).unwrap(),
 			Some(("hash_a0", 5)),
 		);
 
 		// the earliest change at block `best_b` should be the change at B (#4)
 		assert_eq!(
-			authorities
-				.next_change(&"best_b", &is_descendent_of)
-				.unwrap(),
+			authorities.next_change(&"best_b", &is_descendent_of).unwrap(),
 			Some(("hash_b", 4)),
 		);
 
 		// we apply the change at A0 which should prune it and the fork at B
-		authorities
-			.apply_standard_changes("hash_a0", 5, &is_descendent_of, false)
-			.unwrap();
+		authorities.apply_standard_changes("hash_a0", 5, &is_descendent_of, false).unwrap();
 
 		// the next change is now at A1 (#10)
 		assert_eq!(
-			authorities
-				.next_change(&"best_a", &is_descendent_of)
-				.unwrap(),
+			authorities.next_change(&"best_a", &is_descendent_of).unwrap(),
 			Some(("hash_a1", 10)),
 		);
 
 		// there's no longer any pending change at `best_b` fork
-		assert_eq!(
-			authorities
-				.next_change(&"best_b", &is_descendent_of)
-				.unwrap(),
-			None,
-		);
+		assert_eq!(authorities.next_change(&"best_b", &is_descendent_of).unwrap(), None,);
 
 		// we a forced change at A10 (#8)
 		let change_a10 = PendingChange {
@@ -1126,20 +1080,14 @@ mod tests {
 			delay: 0,
 			canon_height: 8,
 			canon_hash: "hash_a10",
-			delay_kind: DelayKind::Best {
-				median_last_finalized: 0,
-			},
+			delay_kind: DelayKind::Best { median_last_finalized: 0 },
 		};
 
-		authorities
-			.add_pending_change(change_a10, &static_is_descendent_of(false))
-			.unwrap();
+		authorities.add_pending_change(change_a10, &static_is_descendent_of(false)).unwrap();
 
 		// it should take precedence over the change at A1 (#10)
 		assert_eq!(
-			authorities
-				.next_change(&"best_a", &is_descendent_of)
-				.unwrap(),
+			authorities.next_change(&"best_a", &is_descendent_of).unwrap(),
 			Some(("hash_a10", 8)),
 		);
 	}
@@ -1148,21 +1096,13 @@ mod tests {
 	fn maintains_authority_list_invariants() {
 		// empty authority lists are invalid
 		assert_eq!(AuthoritySet::<(), ()>::genesis(vec![]), None);
-		assert_eq!(
-			AuthoritySet::<(), ()>::new(vec![], 0, ForkTree::new(), Vec::new()),
-			None,
-		);
+		assert_eq!(AuthoritySet::<(), ()>::new(vec![], 0, ForkTree::new(), Vec::new()), None,);
 
-		let invalid_authorities_weight = vec![
-			(AuthorityId::from_slice(&[1; 32]), 5),
-			(AuthorityId::from_slice(&[2; 32]), 0),
-		];
+		let invalid_authorities_weight =
+			vec![(AuthorityId::from_slice(&[1; 32]), 5), (AuthorityId::from_slice(&[2; 32]), 0)];
 
 		// authority weight of zero is invalid
-		assert_eq!(
-			AuthoritySet::<(), ()>::genesis(invalid_authorities_weight.clone()),
-			None
-		);
+		assert_eq!(AuthoritySet::<(), ()>::genesis(invalid_authorities_weight.clone()), None);
 		assert_eq!(
 			AuthoritySet::<(), ()>::new(
 				invalid_authorities_weight.clone(),
@@ -1198,9 +1138,7 @@ mod tests {
 			delay: 10,
 			canon_height: 5,
 			canon_hash: (),
-			delay_kind: DelayKind::Best {
-				median_last_finalized: 0,
-			},
+			delay_kind: DelayKind::Best { median_last_finalized: 0 },
 		};
 
 		// pending change contains an an authority set
@@ -1257,17 +1195,13 @@ mod tests {
 				canon_height,
 				canon_hash,
 				delay_kind: if forced {
-					DelayKind::Best {
-						median_last_finalized: 0,
-					}
+					DelayKind::Best { median_last_finalized: 0 }
 				} else {
 					DelayKind::Finalized
 				},
 			};
 
-			authorities
-				.add_pending_change(change, &is_descendent_of)
-				.unwrap();
+			authorities.add_pending_change(change, &is_descendent_of).unwrap();
 		};
 
 		add_pending_change(5, "A", false);
@@ -1280,57 +1214,36 @@ mod tests {
 
 		println!(
 			"pending_changes: {:?}",
-			authorities
-				.pending_changes()
-				.map(|c| c.canon_hash)
-				.collect::<Vec<_>>()
+			authorities.pending_changes().map(|c| c.canon_hash).collect::<Vec<_>>()
 		);
 
 		// applying the standard change at A should not prune anything
 		// other then the change that was applied
-		authorities
-			.apply_standard_changes("A", 5, &is_descendent_of, false)
-			.unwrap();
+		authorities.apply_standard_changes("A", 5, &is_descendent_of, false).unwrap();
 		println!(
 			"pending_changes: {:?}",
-			authorities
-				.pending_changes()
-				.map(|c| c.canon_hash)
-				.collect::<Vec<_>>()
+			authorities.pending_changes().map(|c| c.canon_hash).collect::<Vec<_>>()
 		);
 
 		assert_eq!(authorities.pending_changes().count(), 6);
 
 		// same for B
-		authorities
-			.apply_standard_changes("B", 10, &is_descendent_of, false)
-			.unwrap();
+		authorities.apply_standard_changes("B", 10, &is_descendent_of, false).unwrap();
 
 		assert_eq!(authorities.pending_changes().count(), 5);
 
 		let authorities2 = authorities.clone();
 
 		// finalizing C2 should clear all forced changes
-		authorities
-			.apply_standard_changes("C2", 15, &is_descendent_of, false)
-			.unwrap();
+		authorities.apply_standard_changes("C2", 15, &is_descendent_of, false).unwrap();
 
 		assert_eq!(authorities.pending_forced_changes.len(), 0);
 
 		// finalizing C0 should clear all forced changes but D
 		let mut authorities = authorities2;
-		authorities
-			.apply_standard_changes("C0", 15, &is_descendent_of, false)
-			.unwrap();
+		authorities.apply_standard_changes("C0", 15, &is_descendent_of, false).unwrap();
 
 		assert_eq!(authorities.pending_forced_changes.len(), 1);
-		assert_eq!(
-			authorities
-				.pending_forced_changes
-				.first()
-				.unwrap()
-				.canon_hash,
-			"D"
-		);
+		assert_eq!(authorities.pending_forced_changes.first().unwrap().canon_hash, "D");
 	}
 }

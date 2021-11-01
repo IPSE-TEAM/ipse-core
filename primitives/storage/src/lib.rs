@@ -20,19 +20,21 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sp_debug_derive::RuntimeDebug;
 
-use sp_std::{vec::Vec, ops::{Deref, DerefMut}};
+use codec::{Decode, Encode};
 use ref_cast::RefCast;
-use codec::{Encode, Decode};
+use sp_std::{
+	ops::{Deref, DerefMut},
+	vec::Vec,
+};
 
 /// Storage key.
 #[derive(PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash, PartialOrd, Ord, Clone))]
 pub struct StorageKey(
-	#[cfg_attr(feature = "std", serde(with="impl_serde::serialize"))]
-	pub Vec<u8>,
+	#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] pub Vec<u8>,
 );
 
 /// Storage key with read/write tracking information.
@@ -47,11 +49,7 @@ pub struct TrackedStorageKey {
 // Easily convert a key to a `TrackedStorageKey` that has been read and written to.
 impl From<Vec<u8>> for TrackedStorageKey {
 	fn from(key: Vec<u8>) -> Self {
-		Self {
-			key: key,
-			has_been_read: true,
-			has_been_written: true,
-		}
+		Self { key, has_been_read: true, has_been_written: true }
 	}
 }
 
@@ -61,8 +59,7 @@ impl From<Vec<u8>> for TrackedStorageKey {
 #[repr(transparent)]
 #[derive(RefCast)]
 pub struct PrefixedStorageKey(
-	#[cfg_attr(feature = "std", serde(with="impl_serde::serialize"))]
-	Vec<u8>,
+	#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] Vec<u8>,
 );
 
 impl Deref for PrefixedStorageKey {
@@ -104,8 +101,7 @@ impl PrefixedStorageKey {
 #[derive(PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash, PartialOrd, Ord, Clone))]
 pub struct StorageData(
-	#[cfg_attr(feature = "std", serde(with="impl_serde::serialize"))]
-	pub Vec<u8>,
+	#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] pub Vec<u8>,
 );
 
 /// Map of data to use in a storage, it is a collection of
@@ -201,9 +197,7 @@ impl ChildInfo {
 
 	/// Same as `new_default` but with `Vec<u8>` as input.
 	pub fn new_default_from_vec(storage_key: Vec<u8>) -> Self {
-		ChildInfo::ParentKeyId(ChildTrieParentKeyId {
-			data: storage_key,
-		})
+		ChildInfo::ParentKeyId(ChildTrieParentKeyId { data: storage_key })
 	}
 
 	/// Try to update with another instance, return false if both instance
@@ -228,9 +222,7 @@ impl ChildInfo {
 	/// child trie.
 	pub fn storage_key(&self) -> &[u8] {
 		match self {
-			ChildInfo::ParentKeyId(ChildTrieParentKeyId {
-				data,
-			}) => &data[..],
+			ChildInfo::ParentKeyId(ChildTrieParentKeyId { data }) => &data[..],
 		}
 	}
 
@@ -238,9 +230,8 @@ impl ChildInfo {
 	/// this trie.
 	pub fn prefixed_storage_key(&self) -> PrefixedStorageKey {
 		match self {
-			ChildInfo::ParentKeyId(ChildTrieParentKeyId {
-				data,
-			}) => ChildType::ParentKeyId.new_prefixed_key(data.as_slice()),
+			ChildInfo::ParentKeyId(ChildTrieParentKeyId { data }) =>
+				ChildType::ParentKeyId.new_prefixed_key(data.as_slice()),
 		}
 	}
 
@@ -248,9 +239,7 @@ impl ChildInfo {
 	/// this trie.
 	pub fn into_prefixed_storage_key(self) -> PrefixedStorageKey {
 		match self {
-			ChildInfo::ParentKeyId(ChildTrieParentKeyId {
-				mut data,
-			}) => {
+			ChildInfo::ParentKeyId(ChildTrieParentKeyId { mut data }) => {
 				ChildType::ParentKeyId.do_prefix_key(&mut data);
 				PrefixedStorageKey(data)
 			},

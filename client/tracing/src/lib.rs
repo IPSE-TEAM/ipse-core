@@ -29,15 +29,18 @@ use std::fmt;
 use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
-use serde::ser::{Serialize, Serializer, SerializeMap};
+use serde::ser::{Serialize, SerializeMap, Serializer};
 use tracing::{
 	event::Event,
-	field::{Visit, Field},
-	Level,
+	field::{Field, Visit},
 	span::{Attributes, Id, Record},
 	subscriber::Subscriber,
+	Level,
 };
-use tracing_subscriber::{CurrentSpan, layer::{Layer, Context}};
+use tracing_subscriber::{
+	layer::{Context, Layer},
+	CurrentSpan,
+};
 
 use sc_telemetry::{telemetry, SUBSTRATE_INFO};
 use sp_tracing::{WASM_NAME_KEY, WASM_TARGET_KEY, WASM_TRACE_IDENTIFIER};
@@ -159,9 +162,13 @@ impl Visit for Values {
 
 impl Serialize for Values {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-		where S: Serializer,
+	where
+		S: Serializer,
 	{
-		let len = self.bool_values.len() + self.i64_values.len() + self.u64_values.len() + self.string_values.len();
+		let len = self.bool_values.len() +
+			self.i64_values.len() +
+			self.u64_values.len() +
+			self.string_values.len();
 		let mut map = serializer.serialize_map(Some(len))?;
 		for (k, v) in &self.bool_values {
 			map.serialize_entry(k, v)?;
@@ -185,7 +192,12 @@ impl fmt::Display for Values {
 		let i64_iter = self.i64_values.iter().map(|(k, v)| format!("{}={}", k, v));
 		let u64_iter = self.u64_values.iter().map(|(k, v)| format!("{}={}", k, v));
 		let string_iter = self.string_values.iter().map(|(k, v)| format!("{}=\"{}\"", k, v));
-		let values = bool_iter.chain(i64_iter).chain(u64_iter).chain(string_iter).collect::<Vec<String>>().join(", ");
+		let values = bool_iter
+			.chain(i64_iter)
+			.chain(u64_iter)
+			.chain(string_iter)
+			.collect::<Vec<String>>()
+			.join(", ");
 		write!(f, "{}", values)
 	}
 }
@@ -219,10 +231,8 @@ impl ProfilingLayer {
 	pub fn new(receiver: TracingReceiver, targets: &str) -> Self {
 		match receiver {
 			TracingReceiver::Log => Self::new_with_handler(Box::new(LogTraceHandler), targets),
-			TracingReceiver::Telemetry => Self::new_with_handler(
-				Box::new(TelemetryTraceHandler),
-				targets,
-			),
+			TracingReceiver::Telemetry =>
+				Self::new_with_handler(Box::new(TelemetryTraceHandler), targets),
 		}
 	}
 
@@ -231,22 +241,20 @@ impl ProfilingLayer {
 	/// either with a level, eg: "pallet=trace"
 	/// or without: "pallet" in which case the level defaults to `trace`.
 	/// wasm_tracing indicates whether to enable wasm traces
-	pub fn new_with_handler(trace_handler: Box<dyn TraceHandler>, targets: &str)
-		-> Self
-	{
+	pub fn new_with_handler(trace_handler: Box<dyn TraceHandler>, targets: &str) -> Self {
 		let targets: Vec<_> = targets.split(',').map(|s| parse_target(s)).collect();
 		Self {
 			targets,
 			trace_handler,
 			span_data: Mutex::new(FxHashMap::default()),
-			current_span: Default::default()
+			current_span: Default::default(),
 		}
 	}
 
 	fn check_target(&self, target: &str, level: &Level) -> bool {
 		for t in &self.targets {
 			if target.starts_with(t.0.as_str()) && level <= &t.1 {
-				return true;
+				return true
 			}
 		}
 		false
@@ -265,8 +273,8 @@ fn parse_target(s: &str) -> (String, Level) {
 			} else {
 				(target, Level::TRACE)
 			}
-		}
-		None => (s.to_string(), Level::TRACE)
+		},
+		None => (s.to_string(), Level::TRACE),
 	}
 }
 
@@ -447,22 +455,15 @@ mod tests {
 		}
 	}
 
-	type TestSubscriber = tracing_subscriber::layer::Layered<
-		ProfilingLayer,
-		tracing_subscriber::fmt::Subscriber
-	>;
+	type TestSubscriber =
+		tracing_subscriber::layer::Layered<ProfilingLayer, tracing_subscriber::fmt::Subscriber>;
 
-	fn setup_subscriber() -> (TestSubscriber, Arc<Mutex<Vec<SpanDatum>>>, Arc<Mutex<Vec<TraceEvent>>>) {
+	fn setup_subscriber(
+	) -> (TestSubscriber, Arc<Mutex<Vec<SpanDatum>>>, Arc<Mutex<Vec<TraceEvent>>>) {
 		let spans = Arc::new(Mutex::new(Vec::new()));
 		let events = Arc::new(Mutex::new(Vec::new()));
-		let handler = TestTraceHandler {
-			spans: spans.clone(),
-			events: events.clone(),
-		};
-		let layer = ProfilingLayer::new_with_handler(
-			Box::new(handler),
-			"test_target"
-		);
+		let handler = TestTraceHandler { spans: spans.clone(), events: events.clone() };
+		let layer = ProfilingLayer::new_with_handler(Box::new(handler), "test_target");
 		let subscriber = tracing_subscriber::fmt().finish().with(layer);
 		(subscriber, spans, events)
 	}
@@ -540,7 +541,10 @@ mod tests {
 		let _sub_guard = tracing::subscriber::set_default(sub);
 		tracing::event!(target: "test_target", tracing::Level::INFO, "test_event");
 		let mut te1 = events.lock().remove(0);
-		assert_eq!(te1.values.string_values.remove(&"message".to_owned()).unwrap(), "test_event".to_owned());
+		assert_eq!(
+			te1.values.string_values.remove(&"message".to_owned()).unwrap(),
+			"test_event".to_owned()
+		);
 	}
 
 	#[test]
@@ -583,7 +587,7 @@ mod tests {
 			tracing::event!(target: "test_target", tracing::Level::INFO, "test_event1");
 			for msg in rx.recv() {
 				if msg == false {
-					break;
+					break
 				}
 			}
 			// gard2 and span2 dropped / exited

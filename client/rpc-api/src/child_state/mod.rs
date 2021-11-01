@@ -18,9 +18,9 @@
 
 //! Substrate state API.
 
-use jsonrpc_derive::rpc;
-use sp_core::storage::{StorageKey, PrefixedStorageKey, StorageData};
 use crate::state::error::FutureResult;
+use jsonrpc_derive::rpc;
+use sp_core::storage::{PrefixedStorageKey, StorageData, StorageKey};
 
 pub use self::gen_client::Client as ChildStateClient;
 
@@ -39,7 +39,7 @@ pub trait ChildStateApi<Hash> {
 		&self,
 		child_storage_key: PrefixedStorageKey,
 		prefix: StorageKey,
-		hash: Option<Hash>
+		hash: Option<Hash>,
 	) -> FutureResult<Vec<StorageKey>>;
 
 	/// Returns a child storage entry at a specific block's state.
@@ -48,7 +48,7 @@ pub trait ChildStateApi<Hash> {
 		&self,
 		child_storage_key: PrefixedStorageKey,
 		key: StorageKey,
-		hash: Option<Hash>
+		hash: Option<Hash>,
 	) -> FutureResult<Option<StorageData>>;
 
 	/// Returns the hash of a child storage entry at a block's state.
@@ -57,7 +57,7 @@ pub trait ChildStateApi<Hash> {
 		&self,
 		child_storage_key: PrefixedStorageKey,
 		key: StorageKey,
-		hash: Option<Hash>
+		hash: Option<Hash>,
 	) -> FutureResult<Option<Hash>>;
 
 	/// Returns the size of a child storage entry at a block's state.
@@ -66,6 +66,6 @@ pub trait ChildStateApi<Hash> {
 		&self,
 		child_storage_key: PrefixedStorageKey,
 		key: StorageKey,
-		hash: Option<Hash>
+		hash: Option<Hash>,
 	) -> FutureResult<Option<u64>>;
 }

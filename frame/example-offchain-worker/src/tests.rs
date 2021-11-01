@@ -17,25 +17,19 @@
 
 use crate::*;
 
-use codec::{Encode, Decode};
-use frame_support::{
-	assert_ok, impl_outer_origin, parameter_types,
-	weights::Weight,
-};
+use codec::{Decode, Encode};
+use frame_support::{assert_ok, impl_outer_origin, parameter_types, weights::Weight};
 use sp_core::{
-	H256,
-	offchain::{OffchainExt, TransactionPoolExt, testing},
+	offchain::{testing, OffchainExt, TransactionPoolExt},
 	sr25519::Signature,
 	testing::KeyStore,
 	traits::KeystoreExt,
+	H256,
 };
 use sp_runtime::{
-	Perbill, RuntimeAppPublic,
 	testing::{Header, TestXt},
-	traits::{
-		BlakeTwo256, IdentityLookup, Extrinsic as ExtrinsicT,
-		IdentifyAccount, Verify,
-	},
+	traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, IdentityLookup, Verify},
+	Perbill, RuntimeAppPublic,
 };
 
 impl_outer_origin! {
@@ -89,14 +83,16 @@ impl frame_system::offchain::SigningTypes for Test {
 	type Signature = Signature;
 }
 
-impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test where
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
+where
 	Call<Test>: From<LocalCall>,
 {
 	type OverarchingCall = Call<Test>;
 	type Extrinsic = Extrinsic;
 }
 
-impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test where
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Test
+where
 	Call<Test>: From<LocalCall>,
 {
 	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
@@ -188,7 +184,6 @@ fn knows_how_to_mock_several_http_calls() {
 		});
 	}
 
-
 	t.execute_with(|| {
 		let price1 = Example::fetch_price().unwrap();
 		let price2 = Example::fetch_price().unwrap();
@@ -198,21 +193,20 @@ fn knows_how_to_mock_several_http_calls() {
 		assert_eq!(price2, 200);
 		assert_eq!(price3, 300);
 	})
-
 }
 
 #[test]
 fn should_submit_signed_transaction_on_chain() {
-	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 	let keystore = KeyStore::new();
-	keystore.write().sr25519_generate_new(
-		crate::crypto::Public::ID,
-		Some(&format!("{}/hunter1", PHRASE))
-	).unwrap();
-
+	keystore
+		.write()
+		.sr25519_generate_new(crate::crypto::Public::ID, Some(&format!("{}/hunter1", PHRASE)))
+		.unwrap();
 
 	let mut t = sp_io::TestExternalities::default();
 	t.register_extension(OffchainExt::new(offchain));
@@ -235,16 +229,17 @@ fn should_submit_signed_transaction_on_chain() {
 
 #[test]
 fn should_submit_unsigned_transaction_on_chain_for_any_account() {
-	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 
 	let keystore = KeyStore::new();
 
-	keystore.write().sr25519_generate_new(
-		crate::crypto::Public::ID,
-		Some(&format!("{}/hunter1", PHRASE))
-	).unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(crate::crypto::Public::ID, Some(&format!("{}/hunter1", PHRASE)))
+		.unwrap();
 
 	let mut t = sp_io::TestExternalities::default();
 	t.register_extension(OffchainExt::new(offchain));
@@ -253,11 +248,8 @@ fn should_submit_unsigned_transaction_on_chain_for_any_account() {
 
 	price_oracle_response(&mut offchain_state.write());
 
-	let public_key = keystore.read()
-		.sr25519_public_keys(crate::crypto::Public::ID)
-		.get(0)
-		.unwrap()
-		.clone();
+	let public_key =
+		keystore.read().sr25519_public_keys(crate::crypto::Public::ID).get(0).unwrap().clone();
 
 	let price_payload = PricePayload {
 		block_number: 1,
@@ -276,10 +268,11 @@ fn should_submit_unsigned_transaction_on_chain_for_any_account() {
 		if let Call::submit_price_unsigned_with_signed_payload(body, signature) = tx.call {
 			assert_eq!(body, price_payload);
 
-			let signature_valid = <PricePayload<
-				<Test as SigningTypes>::Public,
-				<Test as frame_system::Trait>::BlockNumber
-					> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
+			let signature_valid =
+				<PricePayload<
+					<Test as SigningTypes>::Public,
+					<Test as frame_system::Trait>::BlockNumber,
+				> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
 
 			assert!(signature_valid);
 		}
@@ -288,16 +281,17 @@ fn should_submit_unsigned_transaction_on_chain_for_any_account() {
 
 #[test]
 fn should_submit_unsigned_transaction_on_chain_for_all_accounts() {
-	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	const PHRASE: &str =
+		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 
 	let keystore = KeyStore::new();
 
-	keystore.write().sr25519_generate_new(
-		crate::crypto::Public::ID,
-		Some(&format!("{}/hunter1", PHRASE))
-	).unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(crate::crypto::Public::ID, Some(&format!("{}/hunter1", PHRASE)))
+		.unwrap();
 
 	let mut t = sp_io::TestExternalities::default();
 	t.register_extension(OffchainExt::new(offchain));
@@ -306,11 +300,8 @@ fn should_submit_unsigned_transaction_on_chain_for_all_accounts() {
 
 	price_oracle_response(&mut offchain_state.write());
 
-	let public_key = keystore.read()
-		.sr25519_public_keys(crate::crypto::Public::ID)
-		.get(0)
-		.unwrap()
-		.clone();
+	let public_key =
+		keystore.read().sr25519_public_keys(crate::crypto::Public::ID).get(0).unwrap().clone();
 
 	let price_payload = PricePayload {
 		block_number: 1,
@@ -329,10 +320,11 @@ fn should_submit_unsigned_transaction_on_chain_for_all_accounts() {
 		if let Call::submit_price_unsigned_with_signed_payload(body, signature) = tx.call {
 			assert_eq!(body, price_payload);
 
-			let signature_valid = <PricePayload<
-				<Test as SigningTypes>::Public,
-				<Test as frame_system::Trait>::BlockNumber
-					> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
+			let signature_valid =
+				<PricePayload<
+					<Test as SigningTypes>::Public,
+					<Test as frame_system::Trait>::BlockNumber,
+				> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
 
 			assert!(signature_valid);
 		}

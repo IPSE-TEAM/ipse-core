@@ -32,8 +32,8 @@
 //!
 //! - One substream for each notification protocol passed as parameter to the
 //!   `NotifsHandlerProto::new` function.
-//! - One "legacy" substream used for anything non-related to gossiping, and used as a fallback
-//!   in case the notification protocol can't be opened.
+//! - One "legacy" substream used for anything non-related to gossiping, and used as a fallback in
+//!   case the notification protocol can't be opened.
 //!
 //! When the handler is in the `Enabled` state, we immediately open and try to maintain all the
 //! aforementioned substreams. When the handler is in the `Disabled` state, we immediately close
@@ -43,34 +43,48 @@
 //!
 //! The user has the choice between sending a message with `SendNotification`, to send a
 //! notification, and `SendLegacy`, to send any other kind of message.
-//!
 
 use crate::protocol::generic_proto::{
-	handler::legacy::{LegacyProtoHandler, LegacyProtoHandlerProto, LegacyProtoHandlerIn, LegacyProtoHandlerOut},
-	handler::notif_in::{NotifsInHandlerProto, NotifsInHandler, NotifsInHandlerIn, NotifsInHandlerOut},
-	handler::notif_out::{NotifsOutHandlerProto, NotifsOutHandler, NotifsOutHandlerIn, NotifsOutHandlerOut},
-	upgrade::{NotificationsIn, NotificationsOut, NotificationsHandshakeError, RegisteredProtocol, UpgradeCollec},
+	handler::legacy::{
+		LegacyProtoHandler, LegacyProtoHandlerIn, LegacyProtoHandlerOut, LegacyProtoHandlerProto,
+	},
+	handler::notif_in::{
+		NotifsInHandler, NotifsInHandlerIn, NotifsInHandlerOut, NotifsInHandlerProto,
+	},
+	handler::notif_out::{
+		NotifsOutHandler, NotifsOutHandlerIn, NotifsOutHandlerOut, NotifsOutHandlerProto,
+	},
+	upgrade::{
+		NotificationsHandshakeError, NotificationsIn, NotificationsOut, RegisteredProtocol,
+		UpgradeCollec,
+	},
 };
 
 use bytes::BytesMut;
-use libp2p::core::{either::{EitherError, EitherOutput}, ConnectedPoint, PeerId};
-use libp2p::core::upgrade::{EitherUpgrade, UpgradeError, SelectUpgrade, InboundUpgrade, OutboundUpgrade};
-use libp2p::swarm::{
-	ProtocolsHandler, ProtocolsHandlerEvent,
-	IntoProtocolsHandler,
-	KeepAlive,
-	ProtocolsHandlerUpgrErr,
-	SubstreamProtocol,
-	NegotiatedSubstream,
-};
 use futures::{
 	channel::mpsc,
 	lock::{Mutex as FuturesMutex, MutexGuard as FuturesMutexGuard},
-	prelude::*
+	prelude::*,
+};
+use libp2p::core::upgrade::{
+	EitherUpgrade, InboundUpgrade, OutboundUpgrade, SelectUpgrade, UpgradeError,
+};
+use libp2p::core::{
+	either::{EitherError, EitherOutput},
+	ConnectedPoint, PeerId,
+};
+use libp2p::swarm::{
+	IntoProtocolsHandler, KeepAlive, NegotiatedSubstream, ProtocolsHandler, ProtocolsHandlerEvent,
+	ProtocolsHandlerUpgrErr, SubstreamProtocol,
 };
 use log::{debug, error};
 use parking_lot::{Mutex, RwLock};
-use std::{borrow::Cow, error, io, str, sync::Arc, task::{Context, Poll}};
+use std::{
+	borrow::Cow,
+	error, io, str,
+	sync::Arc,
+	task::{Context, Poll},
+};
 
 /// Number of pending notifications in asynchronous contexts.
 /// See [`NotificationsSink::reserve_notification`] for context.
@@ -138,8 +152,8 @@ pub struct NotifsHandler {
 	notifications_sink_rx: Option<
 		stream::Select<
 			stream::Fuse<mpsc::Receiver<NotificationsSinkMessage>>,
-			stream::Fuse<mpsc::Receiver<NotificationsSinkMessage>>
-		>
+			stream::Fuse<mpsc::Receiver<NotificationsSinkMessage>>,
+		>,
 	>,
 }
 
@@ -153,21 +167,31 @@ enum EnabledState {
 impl IntoProtocolsHandler for NotifsHandlerProto {
 	type Handler = NotifsHandler;
 
-	fn inbound_protocol(&self) -> SelectUpgrade<UpgradeCollec<NotificationsIn>, RegisteredProtocol> {
-		let in_handlers = self.in_handlers.iter()
+	fn inbound_protocol(
+		&self,
+	) -> SelectUpgrade<UpgradeCollec<NotificationsIn>, RegisteredProtocol> {
+		let in_handlers = self
+			.in_handlers
+			.iter()
 			.map(|(h, _)| h.inbound_protocol())
 			.collect::<UpgradeCollec<_>>();
 
 		SelectUpgrade::new(in_handlers, self.legacy.inbound_protocol())
 	}
 
-	fn into_handler(self, remote_peer_id: &PeerId, connected_point: &ConnectedPoint) -> Self::Handler {
+	fn into_handler(
+		self,
+		remote_peer_id: &PeerId,
+		connected_point: &ConnectedPoint,
+	) -> Self::Handler {
 		NotifsHandler {
-			in_handlers: self.in_handlers
+			in_handlers: self
+				.in_handlers
 				.into_iter()
 				.map(|(proto, msg)| (proto.into_handler(remote_peer_id, connected_point), msg))
 				.collect(),
-			out_handlers: self.out_handlers
+			out_handlers: self
+				.out_handlers
 				.into_iter()
 				.map(|(proto, msg)| (proto.into_handler(remote_peer_id, connected_point), msg))
 				.collect(),
@@ -265,10 +289,7 @@ struct NotificationsSinkInner {
 enum NotificationsSinkMessage {
 	/// Message emitted by [`NotificationsSink::reserve_notification`] and
 	/// [`NotificationsSink::write_notification_now`].
-	Notification {
-		protocol_name: Cow<'static, str>,
-		message: Vec<u8>,
-	},
+	Notification { protocol_name: Cow<'static, str>, message: Vec<u8> },
 
 	/// Must close the connection.
 	ForceClose,
@@ -287,12 +308,12 @@ impl NotificationsSink {
 	pub fn send_sync_notification<'a>(
 		&'a self,
 		protocol_name: Cow<'static, str>,
-		message: impl Into<Vec<u8>>
+		message: impl Into<Vec<u8>>,
 	) {
 		let mut lock = self.inner.sync_channel.lock();
 		let result = lock.try_send(NotificationsSinkMessage::Notification {
 			protocol_name,
-			message: message.into()
+			message: message.into(),
 		});
 
 		if result.is_err() {
@@ -309,12 +330,15 @@ impl NotificationsSink {
 	///
 	/// The protocol name is expected to be checked ahead of calling this method. It is a logic
 	/// error to send a notification using an unknown protocol.
-	pub async fn reserve_notification<'a>(&'a self, protocol_name: Cow<'static, str>) -> Result<Ready<'a>, ()> {
+	pub async fn reserve_notification<'a>(
+		&'a self,
+		protocol_name: Cow<'static, str>,
+	) -> Result<Ready<'a>, ()> {
 		let mut lock = self.inner.async_channel.lock().await;
 
 		let poll_ready = future::poll_fn(|cx| lock.poll_ready(cx)).await;
 		if poll_ready.is_ok() {
-			Ok(Ready { protocol_name: protocol_name, lock })
+			Ok(Ready { protocol_name, lock })
 		} else {
 			Err(())
 		}
@@ -335,14 +359,13 @@ impl<'a> Ready<'a> {
 	/// Consumes this slots reservation and actually queues the notification.
 	///
 	/// Returns an error if the substream has been closed.
-	pub fn send(
-		mut self,
-		notification: impl Into<Vec<u8>>
-	) -> Result<(), ()> {
-		self.lock.start_send(NotificationsSinkMessage::Notification {
-			protocol_name: self.protocol_name,
-			message: notification.into(),
-		}).map_err(|_| ())
+	pub fn send(mut self, notification: impl Into<Vec<u8>>) -> Result<(), ()> {
+		self.lock
+			.start_send(NotificationsSinkMessage::Notification {
+				protocol_name: self.protocol_name,
+				message: notification.into(),
+			})
+			.map_err(|_| ())
 	}
 }
 
@@ -368,7 +391,6 @@ impl NotifsHandlerProto {
 	/// # Panic
 	///
 	/// - Panics if `list` is empty.
-	///
 	pub fn new(
 		legacy: RegisteredProtocol,
 		list: impl Into<Vec<(Cow<'static, str>, Arc<RwLock<Vec<u8>>>)>>,
@@ -381,9 +403,11 @@ impl NotifsHandlerProto {
 			.into_iter()
 			.map(|(proto_name, initial_message)| {
 				(NotifsOutHandlerProto::new(proto_name), initial_message)
-			}).collect();
+			})
+			.collect();
 
-		let in_handlers = list.clone()
+		let in_handlers = list
+			.clone()
 			.into_iter()
 			.map(|(proto_name, msg)| (NotifsInHandlerProto::new(proto_name), msg))
 			.collect();
@@ -407,7 +431,9 @@ impl ProtocolsHandler for NotifsHandler {
 	type InboundOpenInfo = ();
 
 	fn listen_protocol(&self) -> SubstreamProtocol<Self::InboundProtocol, ()> {
-		let in_handlers = self.in_handlers.iter()
+		let in_handlers = self
+			.in_handlers
+			.iter()
 			.map(|(h, _)| h.listen_protocol().into_upgrade().1)
 			.collect::<UpgradeCollec<_>>();
 
@@ -418,20 +444,19 @@ impl ProtocolsHandler for NotifsHandler {
 	fn inject_fully_negotiated_inbound(
 		&mut self,
 		out: <Self::InboundProtocol as InboundUpgrade<NegotiatedSubstream>>::Output,
-		(): ()
+		(): (),
 	) {
 		match out {
 			EitherOutput::First((out, num)) =>
 				self.in_handlers[num].0.inject_fully_negotiated_inbound(out, ()),
-			EitherOutput::Second(out) =>
-				self.legacy.inject_fully_negotiated_inbound(out, ()),
+			EitherOutput::Second(out) => self.legacy.inject_fully_negotiated_inbound(out, ()),
 		}
 	}
 
 	fn inject_fully_negotiated_outbound(
 		&mut self,
 		out: <Self::OutboundProtocol as OutboundUpgrade<NegotiatedSubstream>>::Output,
-		num: Self::OutboundOpenInfo
+		num: Self::OutboundOpenInfo,
 	) {
 		match (out, num) {
 			(EitherOutput::First(out), Some(num)) =>
@@ -454,15 +479,14 @@ impl ProtocolsHandler for NotifsHandler {
 					// We create `initial_message` on a separate line to be sure that the lock
 					// is released as soon as possible.
 					let initial_message = initial_message.read().clone();
-					handler.inject_event(NotifsOutHandlerIn::Enable {
-						initial_message,
-					});
+					handler.inject_event(NotifsOutHandlerIn::Enable { initial_message });
 				}
 				for num in self.pending_in.drain(..) {
 					// We create `handshake_message` on a separate line to be sure
 					// that the lock is released as soon as possible.
 					let handshake_message = self.in_handlers[num].1.read().clone();
-					self.in_handlers[num].0
+					self.in_handlers[num]
+						.0
 						.inject_event(NotifsInHandlerIn::Accept(handshake_message));
 				}
 			},
@@ -489,42 +513,40 @@ impl ProtocolsHandler for NotifsHandler {
 	fn inject_dial_upgrade_error(
 		&mut self,
 		num: Option<usize>,
-		err: ProtocolsHandlerUpgrErr<EitherError<NotificationsHandshakeError, io::Error>>
+		err: ProtocolsHandlerUpgrErr<EitherError<NotificationsHandshakeError, io::Error>>,
 	) {
 		match (err, num) {
-			(ProtocolsHandlerUpgrErr::Timeout, Some(num)) =>
-				self.out_handlers[num].0.inject_dial_upgrade_error(
-					(),
-					ProtocolsHandlerUpgrErr::Timeout
-				),
+			(ProtocolsHandlerUpgrErr::Timeout, Some(num)) => self.out_handlers[num]
+				.0
+				.inject_dial_upgrade_error((), ProtocolsHandlerUpgrErr::Timeout),
 			(ProtocolsHandlerUpgrErr::Timeout, None) =>
 				self.legacy.inject_dial_upgrade_error((), ProtocolsHandlerUpgrErr::Timeout),
-			(ProtocolsHandlerUpgrErr::Timer, Some(num)) =>
-				self.out_handlers[num].0.inject_dial_upgrade_error(
-					(),
-					ProtocolsHandlerUpgrErr::Timer
-				),
+			(ProtocolsHandlerUpgrErr::Timer, Some(num)) => self.out_handlers[num]
+				.0
+				.inject_dial_upgrade_error((), ProtocolsHandlerUpgrErr::Timer),
 			(ProtocolsHandlerUpgrErr::Timer, None) =>
 				self.legacy.inject_dial_upgrade_error((), ProtocolsHandlerUpgrErr::Timer),
 			(ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Select(err)), Some(num)) =>
 				self.out_handlers[num].0.inject_dial_upgrade_error(
 					(),
-					ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Select(err))
+					ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Select(err)),
 				),
 			(ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Select(err)), None) =>
 				self.legacy.inject_dial_upgrade_error(
 					(),
-					ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Select(err))
+					ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Select(err)),
 				),
-			(ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Apply(EitherError::A(err))), Some(num)) =>
-				self.out_handlers[num].0.inject_dial_upgrade_error(
-					(),
-					ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Apply(err))
-				),
+			(
+				ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Apply(EitherError::A(err))),
+				Some(num),
+			) => self.out_handlers[num].0.inject_dial_upgrade_error(
+				(),
+				ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Apply(err)),
+			),
 			(ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Apply(EitherError::B(err))), None) =>
 				self.legacy.inject_dial_upgrade_error(
 					(),
-					ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Apply(err))
+					ProtocolsHandlerUpgrErr::Upgrade(UpgradeError::Apply(err)),
 				),
 			_ => error!("inject_dial_upgrade_error called with bad parameters"),
 		}
@@ -535,23 +557,27 @@ impl ProtocolsHandler for NotifsHandler {
 
 		let mut ret = self.legacy.connection_keep_alive();
 		if ret.is_yes() {
-			return KeepAlive::Yes;
+			return KeepAlive::Yes
 		}
 
 		for (handler, _) in &self.in_handlers {
 			let val = handler.connection_keep_alive();
 			if val.is_yes() {
-				return KeepAlive::Yes;
+				return KeepAlive::Yes
 			}
-			if ret < val { ret = val; }
+			if ret < val {
+				ret = val;
+			}
 		}
 
 		for (handler, _) in &self.out_handlers {
 			let val = handler.connection_keep_alive();
 			if val.is_yes() {
-				return KeepAlive::Yes;
+				return KeepAlive::Yes
 			}
-			if ret < val { ret = val; }
+			if ret < val {
+				ret = val;
+			}
 		}
 
 		ret
@@ -561,7 +587,12 @@ impl ProtocolsHandler for NotifsHandler {
 		&mut self,
 		cx: &mut Context,
 	) -> Poll<
-		ProtocolsHandlerEvent<Self::OutboundProtocol, Self::OutboundOpenInfo, Self::OutEvent, Self::Error>
+		ProtocolsHandlerEvent<
+			Self::OutboundProtocol,
+			Self::OutboundOpenInfo,
+			Self::OutEvent,
+			Self::Error,
+		>,
 	> {
 		if let Some(notifications_sink_rx) = &mut self.notifications_sink_rx {
 			'poll_notifs_sink: loop {
@@ -584,10 +615,7 @@ impl ProtocolsHandler for NotifsHandler {
 				};
 
 				match message {
-					NotificationsSinkMessage::Notification {
-						protocol_name,
-						message
-					} => {
+					NotificationsSinkMessage::Notification { protocol_name, message } => {
 						let mut found_any_with_name = false;
 
 						for (handler, _) in &mut self.out_handlers {
@@ -595,7 +623,7 @@ impl ProtocolsHandler for NotifsHandler {
 								found_any_with_name = true;
 								if handler.is_open() {
 									handler.send_or_discard(message);
-									continue 'poll_notifs_sink;
+									continue 'poll_notifs_sink
 								}
 							}
 						}
@@ -616,10 +644,12 @@ impl ProtocolsHandler for NotifsHandler {
 								protocol_name
 							);
 						}
-					}
+					},
 					NotificationsSinkMessage::ForceClose => {
-						return Poll::Ready(ProtocolsHandlerEvent::Close(NotifsHandlerError::SyncNotificationsClogged));
-					}
+						return Poll::Ready(ProtocolsHandlerEvent::Close(
+							NotifsHandlerError::SyncNotificationsClogged,
+						))
+					},
 				}
 			}
 		}
@@ -634,9 +664,7 @@ impl ProtocolsHandler for NotifsHandler {
 				match ev {
 					ProtocolsHandlerEvent::OutboundSubstreamRequest { protocol } =>
 						return Poll::Ready(ProtocolsHandlerEvent::OutboundSubstreamRequest {
-							protocol: protocol
-								.map_upgrade(EitherUpgrade::B)
-								.map_info(|()| None)
+							protocol: protocol.map_upgrade(EitherUpgrade::B).map_info(|()| None),
 						}),
 					ProtocolsHandlerEvent::Custom(LegacyProtoHandlerOut::CustomProtocolOpen {
 						received_handshake,
@@ -647,28 +675,36 @@ impl ProtocolsHandler for NotifsHandler {
 							self.pending_handshake = Some(received_handshake);
 						}
 						cx.waker().wake_by_ref();
-						return Poll::Pending;
+						return Poll::Pending
 					},
-					ProtocolsHandlerEvent::Custom(LegacyProtoHandlerOut::CustomProtocolClosed { reason, .. }) => {
+					ProtocolsHandlerEvent::Custom(
+						LegacyProtoHandlerOut::CustomProtocolClosed { reason, .. },
+					) => {
 						// We consciously drop the receivers despite notifications being potentially
 						// still buffered up.
 						self.notifications_sink_rx = None;
 
 						return Poll::Ready(ProtocolsHandlerEvent::Custom(
-							NotifsHandlerOut::Closed { endpoint: self.endpoint.clone(), reason }
+							NotifsHandlerOut::Closed { endpoint: self.endpoint.clone(), reason },
 						))
 					},
-					ProtocolsHandlerEvent::Custom(LegacyProtoHandlerOut::CustomMessage { message }) => {
+					ProtocolsHandlerEvent::Custom(LegacyProtoHandlerOut::CustomMessage {
+						message,
+					}) =>
 						return Poll::Ready(ProtocolsHandlerEvent::Custom(
-							NotifsHandlerOut::CustomMessage { message }
-						))
-					},
-					ProtocolsHandlerEvent::Custom(LegacyProtoHandlerOut::ProtocolError { is_severe, error }) =>
+							NotifsHandlerOut::CustomMessage { message },
+						)),
+					ProtocolsHandlerEvent::Custom(LegacyProtoHandlerOut::ProtocolError {
+						is_severe,
+						error,
+					}) =>
 						return Poll::Ready(ProtocolsHandlerEvent::Custom(
-							NotifsHandlerOut::ProtocolError { is_severe, error }
+							NotifsHandlerOut::ProtocolError { is_severe, error },
 						)),
 					ProtocolsHandlerEvent::Close(err) =>
-						return Poll::Ready(ProtocolsHandlerEvent::Close(NotifsHandlerError::Legacy(err))),
+						return Poll::Ready(ProtocolsHandlerEvent::Close(
+							NotifsHandlerError::Legacy(err),
+						)),
 				}
 			}
 		}
@@ -690,18 +726,18 @@ impl ProtocolsHandler for NotifsHandler {
 					ProtocolsHandlerEvent::OutboundSubstreamRequest { .. } =>
 						error!("Incoming substream handler tried to open a substream"),
 					ProtocolsHandlerEvent::Close(err) => void::unreachable(err),
-					ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::OpenRequest(_)) =>
-						match self.enabled {
-							EnabledState::Initial => self.pending_in.push(handler_num),
-							EnabledState::Enabled => {
-								// We create `handshake_message` on a separate line to be sure
-								// that the lock is released as soon as possible.
-								let handshake_message = handshake_message.read().clone();
-								handler.inject_event(NotifsInHandlerIn::Accept(handshake_message))
-							},
-							EnabledState::Disabled =>
-								handler.inject_event(NotifsInHandlerIn::Refuse),
+					ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::OpenRequest(_)) => match self
+						.enabled
+					{
+						EnabledState::Initial => self.pending_in.push(handler_num),
+						EnabledState::Enabled => {
+							// We create `handshake_message` on a separate line to be sure
+							// that the lock is released as soon as possible.
+							let handshake_message = handshake_message.read().clone();
+							handler.inject_event(NotifsInHandlerIn::Accept(handshake_message))
 						},
+						EnabledState::Disabled => handler.inject_event(NotifsInHandlerIn::Refuse),
+					},
 					ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed) => {},
 					ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Notif(message)) => {
 						debug_assert!(self.pending_handshake.is_none());
@@ -710,7 +746,7 @@ impl ProtocolsHandler for NotifsHandler {
 								message,
 								protocol_name: handler.protocol_name().clone(),
 							};
-							return Poll::Ready(ProtocolsHandlerEvent::Custom(msg));
+							return Poll::Ready(ProtocolsHandlerEvent::Custom(msg))
 						}
 					},
 				}
@@ -724,7 +760,7 @@ impl ProtocolsHandler for NotifsHandler {
 						return Poll::Ready(ProtocolsHandlerEvent::OutboundSubstreamRequest {
 							protocol: protocol
 								.map_upgrade(EitherUpgrade::A)
-								.map_info(|()| Some(handler_num))
+								.map_info(|()| Some(handler_num)),
 						}),
 					ProtocolsHandlerEvent::Close(err) => void::unreachable(err),
 
@@ -732,10 +768,11 @@ impl ProtocolsHandler for NotifsHandler {
 					ProtocolsHandlerEvent::Custom(NotifsOutHandlerOut::Open { handshake })
 						if handler_num == 0 =>
 					{
-						if self.notifications_sink_rx.is_none() && self.pending_handshake.is_none() {
+						if self.notifications_sink_rx.is_none() && self.pending_handshake.is_none()
+						{
 							self.pending_handshake = Some(handshake);
 						}
-					},
+					}
 
 					// Nothing to do in response to other notification substreams being opened
 					// or closed.
@@ -760,13 +797,11 @@ impl ProtocolsHandler for NotifsHandler {
 				debug_assert!(self.notifications_sink_rx.is_none());
 				self.notifications_sink_rx = Some(stream::select(async_rx.fuse(), sync_rx.fuse()));
 
-				return Poll::Ready(ProtocolsHandlerEvent::Custom(
-					NotifsHandlerOut::Open {
-						endpoint: self.endpoint.clone(),
-						received_handshake: handshake,
-						notifications_sink
-					}
-				))
+				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsHandlerOut::Open {
+					endpoint: self.endpoint.clone(),
+					received_handshake: handshake,
+					notifications_sink,
+				}))
 			}
 		}
 

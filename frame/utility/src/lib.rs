@@ -32,9 +32,9 @@
 //!   an alternative signed origin. Each account has 2 * 2**16 possible "pseudonyms" (alternative
 //!   account IDs) and these can be stacked. This can be useful as a key management tool, where you
 //!   need multiple distinct accounts (e.g. as controllers for many staking accounts), but where
-//!   it's perfectly fine to have each of them controlled by the same underlying keypair.
-//!   Derivative accounts are, for the purposes of proxy filtering considered exactly the same as
-//!   the oigin and are thus hampered with the origin's filters.
+//!   it's perfectly fine to have each of them controlled by the same underlying keypair. Derivative
+//!   accounts are, for the purposes of proxy filtering considered exactly the same as the oigin and
+//!   are thus hampered with the origin's filters.
 //!
 //! Since proxy filters are respected in all dispatches of this module, it should never need to be
 //! filtered by any proxy.
@@ -55,24 +55,25 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use codec::{Encode, Decode};
+use codec::{Decode, Encode};
+use frame_support::{decl_event, decl_module, decl_storage, Parameter};
+use frame_support::{
+	dispatch::PostDispatchInfo,
+	traits::{Get, OriginTrait, UnfilteredDispatchable},
+	weights::{DispatchClass, GetDispatchInfo, Weight},
+};
+use frame_system::{ensure_root, ensure_signed};
 use sp_core::TypeId;
 use sp_io::hashing::blake2_256;
-use frame_support::{decl_module, decl_event, decl_storage, Parameter};
-use frame_support::{
-	traits::{OriginTrait, UnfilteredDispatchable, Get},
-	weights::{Weight, GetDispatchInfo, DispatchClass}, dispatch::PostDispatchInfo,
-};
-use frame_system::{ensure_signed, ensure_root};
-use sp_runtime::{DispatchError, DispatchResult, traits::Dispatchable};
+use sp_runtime::{traits::Dispatchable, DispatchError, DispatchResult};
+use sp_std::prelude::*;
 
-mod tests;
 mod benchmarking;
 mod default_weights;
+mod tests;
 
 pub trait WeightInfo {
-	fn batch(c: u32, ) -> Weight;
+	fn batch(c: u32) -> Weight;
 	fn as_derivative() -> Weight;
 }
 
@@ -82,9 +83,11 @@ pub trait Trait: frame_system::Trait {
 	type Event: From<Event> + Into<<Self as frame_system::Trait>::Event>;
 
 	/// The overarching call type.
-	type Call: Parameter + Dispatchable<Origin=Self::Origin, PostInfo=PostDispatchInfo>
-		+ GetDispatchInfo + From<frame_system::Call<Self>>
-		+ UnfilteredDispatchable<Origin=Self::Origin>;
+	type Call: Parameter
+		+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+		+ GetDispatchInfo
+		+ From<frame_system::Call<Self>>
+		+ UnfilteredDispatchable<Origin = Self::Origin>;
 
 	/// Weight information for extrinsics in this pallet.
 	type WeightInfo: WeightInfo;

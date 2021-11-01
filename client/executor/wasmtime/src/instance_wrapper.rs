@@ -19,17 +19,17 @@
 //! Defines data and logic needed for interaction with an WebAssembly instance of a substrate
 //! runtime module.
 
-use crate::util;
 use crate::imports::Imports;
+use crate::util;
 
-use std::{slice, marker};
+use parity_wasm::elements;
 use sc_executor_common::{
 	error::{Error, Result},
-	util::{WasmModuleInfo, DataSegmentsSnapshot},
+	util::{DataSegmentsSnapshot, WasmModuleInfo},
 };
-use sp_wasm_interface::{Pointer, WordSize, Value};
-use wasmtime::{Engine, Instance, Module, Memory, Table, Val, Func, Extern, Global, Store};
-use parity_wasm::elements;
+use sp_wasm_interface::{Pointer, Value, WordSize};
+use std::{marker, slice};
+use wasmtime::{Engine, Extern, Func, Global, Instance, Memory, Module, Store, Table, Val};
 
 mod globals_snapshot;
 
@@ -57,10 +57,7 @@ impl ModuleWrapper {
 		let data_segments_snapshot = DataSegmentsSnapshot::take(&module_info)
 			.map_err(|e| Error::from(format!("cannot take data segments snapshot: {}", e)))?;
 
-		Ok(Self {
-			module,
-			data_segments_snapshot,
-		})
+		Ok(Self { module, data_segments_snapshot })
 	}
 
 	pub fn module(&self) -> &Module {
@@ -80,8 +77,8 @@ pub struct InstanceWrapper {
 	instance: Instance,
 	// The memory instance of the `instance`.
 	//
-	// It is important to make sure that we don't make any copies of this to make it easier to proof
-	// See `memory_as_slice` and `memory_as_slice_mut`.
+	// It is important to make sure that we don't make any copies of this to make it easier to
+	// proof See `memory_as_slice` and `memory_as_slice_mut`.
 	memory: Memory,
 	table: Option<Table>,
 	// Make this struct explicitly !Send & !Sync.
@@ -94,7 +91,6 @@ fn extern_memory(extern_: &Extern) -> Option<&Memory> {
 		_ => None,
 	}
 }
-
 
 fn extern_global(extern_: &Extern) -> Option<&Global> {
 	match extern_ {
@@ -119,20 +115,23 @@ fn extern_func(extern_: &Extern) -> Option<&Func> {
 
 impl InstanceWrapper {
 	/// Create a new instance wrapper from the given wasm module.
-	pub fn new(store: &Store, module_wrapper: &ModuleWrapper, imports: &Imports, heap_pages: u32) -> Result<Self> {
+	pub fn new(
+		store: &Store,
+		module_wrapper: &ModuleWrapper,
+		imports: &Imports,
+		heap_pages: u32,
+	) -> Result<Self> {
 		let instance = Instance::new(store, &module_wrapper.module, &imports.externs)
 			.map_err(|e| Error::from(format!("cannot instantiate: {}", e)))?;
 
 		let memory = match imports.memory_import_index {
-			Some(memory_idx) => {
-				extern_memory(&imports.externs[memory_idx])
-					.expect("only memory can be at the `memory_idx`; qed")
-					.clone()
-			}
+			Some(memory_idx) => extern_memory(&imports.externs[memory_idx])
+				.expect("only memory can be at the `memory_idx`; qed")
+				.clone(),
 			None => {
 				let memory = get_linear_memory(&instance)?;
 				if !memory.grow(heap_pages).is_ok() {
-					return Err("failed top increase the linear memory size".into());
+					return Err("failed top increase the linear memory size".into())
 				}
 				memory
 			},
@@ -159,13 +158,8 @@ impl InstanceWrapper {
 		let entrypoint = extern_func(&export)
 			.ok_or_else(|| Error::from(format!("Export {} is not a function", name)))?;
 		match (entrypoint.ty().params(), entrypoint.ty().results()) {
-			(&[wasmtime::ValType::I32, wasmtime::ValType::I32], &[wasmtime::ValType::I64]) => {}
-			_ => {
-				return Err(Error::from(format!(
-					"method {} have an unsupported signature",
-					name
-				)))
-			}
+			(&[wasmtime::ValType::I32, wasmtime::ValType::I32], &[wasmtime::ValType::I64]) => {},
+			_ => return Err(Error::from(format!("method {} have an unsupported signature", name))),
 		}
 		Ok(entrypoint.clone())
 	}
@@ -192,10 +186,8 @@ impl InstanceWrapper {
 		let heap_base_global = extern_global(&heap_base_export)
 			.ok_or_else(|| Error::from("__heap_base is not a global"))?;
 
-		let heap_base = heap_base_global
-			.get()
-			.i32()
-			.ok_or_else(|| Error::from("__heap_base is not a i32"))?;
+		let heap_base =
+			heap_base_global.get().i32().ok_or_else(|| Error::from("__heap_base is not a i32"))?;
 
 		Ok(heap_base as u32)
 	}
@@ -234,11 +226,7 @@ fn get_linear_memory(instance: &Instance) -> Result<Memory> {
 
 /// Extract the table from the given instance if any.
 fn get_table(instance: &Instance) -> Option<Table> {
-	instance
-		.get_export("__indirect_function_table")
-		.as_ref()
-		.and_then(extern_table)
-		.cloned()
+	instance.get_export("__indirect_function_table").as_ref().and_then(extern_table).cloned()
 }
 
 /// Functions realted to memory.

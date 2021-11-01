@@ -30,8 +30,8 @@
 //!
 //! # Usage
 //!
-//! - Implement the `Network` trait, representing the low-level networking primitives. It is
-//!   already implemented on `sc_network::NetworkService`.
+//! - Implement the `Network` trait, representing the low-level networking primitives. It is already
+//!   implemented on `sc_network::NetworkService`.
 //! - Implement the `Validator` trait. See the section below.
 //! - Decide on a `ConsensusEngineId`. Each gossiping protocol should have a different one.
 //! - Build a `GossipEngine` using these three elements.
@@ -56,7 +56,9 @@
 
 pub use self::bridge::GossipEngine;
 pub use self::state_machine::TopicNotification;
-pub use self::validator::{DiscardAll, MessageIntent, Validator, ValidatorContext, ValidationResult};
+pub use self::validator::{
+	DiscardAll, MessageIntent, ValidationResult, Validator, ValidatorContext,
+};
 
 use futures::prelude::*;
 use sc_network::{Event, ExHashT, NetworkService, PeerId, ReputationChange};
@@ -83,7 +85,8 @@ pub trait Network<B: BlockT> {
 
 	/// Registers a notifications protocol.
 	///
-	/// See the documentation of [`NetworkService:register_notifications_protocol`] for more information.
+	/// See the documentation of [`NetworkService:register_notifications_protocol`] for more
+	/// information.
 	fn register_notifications_protocol(
 		&self,
 		engine_id: ConsensusEngineId,

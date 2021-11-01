@@ -17,18 +17,18 @@
 
 //! `decl_storage` input definition and expansion.
 
-mod storage_struct;
-mod parse;
-mod store_trait;
-mod getters;
-mod metadata;
-mod instance_trait;
 mod genesis_config;
+mod getters;
+mod instance_trait;
+mod metadata;
+mod parse;
+mod storage_struct;
+mod store_trait;
 
-use quote::quote;
 use frame_support_procedural_tools::{
-	generate_crate_access, generate_hidden_includes, syn_ext as ext
+	generate_crate_access, generate_hidden_includes, syn_ext as ext,
 };
+use quote::quote;
 
 /// All information contained in input of decl_storage
 pub struct DeclStorageDef {
@@ -106,27 +106,25 @@ pub struct DeclStorageDefExt {
 impl From<DeclStorageDef> for DeclStorageDefExt {
 	fn from(mut def: DeclStorageDef) -> Self {
 		let storage_lines = def.storage_lines.drain(..).collect::<Vec<_>>();
-		let storage_lines = storage_lines.into_iter()
-			.map(|line| StorageLineDefExt::from_def(line, &def))
-			.collect();
+		let storage_lines =
+			storage_lines.into_iter().map(|line| StorageLineDefExt::from_def(line, &def)).collect();
 
-		let (
-			optional_instance,
-			optional_instance_bound,
-			optional_instance_bound_optional_default,
-		) = if let Some(instance) = def.module_instance.as_ref() {
-			let instance_generic = &instance.instance_generic;
-			let instance_trait= &instance.instance_trait;
-			let optional_equal_instance_default = instance.instance_default.as_ref()
-				.map(|d| quote!( = #d ));
-			(
-				Some(quote!(#instance_generic)),
-				Some(quote!(#instance_generic: #instance_trait)),
-				Some(quote!(#instance_generic: #instance_trait #optional_equal_instance_default)),
-			)
-		} else {
-			(None, None, None)
-		};
+		let (optional_instance, optional_instance_bound, optional_instance_bound_optional_default) =
+			if let Some(instance) = def.module_instance.as_ref() {
+				let instance_generic = &instance.instance_generic;
+				let instance_trait = &instance.instance_trait;
+				let optional_equal_instance_default =
+					instance.instance_default.as_ref().map(|d| quote!( = #d ));
+				(
+					Some(quote!(#instance_generic)),
+					Some(quote!(#instance_generic: #instance_trait)),
+					Some(
+						quote!(#instance_generic: #instance_trait #optional_equal_instance_default),
+					),
+				)
+			} else {
+				(None, None, None)
+			};
 
 		let module_runtime_generic = &def.module_runtime_generic;
 		let module_runtime_trait = &def.module_runtime_trait;
@@ -229,18 +227,15 @@ pub struct StorageLineDefExt {
 impl StorageLineDefExt {
 	fn from_def(storage_def: StorageLineDef, def: &DeclStorageDef) -> Self {
 		let is_generic = match &storage_def.storage_type {
-			StorageLineTypeDef::Simple(value) => {
-				ext::type_contains_ident(&value, &def.module_runtime_generic)
-			},
-			StorageLineTypeDef::Map(map) => {
-				ext::type_contains_ident(&map.key, &def.module_runtime_generic)
-					|| ext::type_contains_ident(&map.value, &def.module_runtime_generic)
-			}
-			StorageLineTypeDef::DoubleMap(map) => {
-				ext::type_contains_ident(&map.key1, &def.module_runtime_generic)
-					|| ext::type_contains_ident(&map.key2, &def.module_runtime_generic)
-					|| ext::type_contains_ident(&map.value, &def.module_runtime_generic)
-			}
+			StorageLineTypeDef::Simple(value) =>
+				ext::type_contains_ident(&value, &def.module_runtime_generic),
+			StorageLineTypeDef::Map(map) =>
+				ext::type_contains_ident(&map.key, &def.module_runtime_generic) ||
+					ext::type_contains_ident(&map.value, &def.module_runtime_generic),
+			StorageLineTypeDef::DoubleMap(map) =>
+				ext::type_contains_ident(&map.key1, &def.module_runtime_generic) ||
+					ext::type_contains_ident(&map.key2, &def.module_runtime_generic) ||
+					ext::type_contains_ident(&map.value, &def.module_runtime_generic),
 		};
 
 		let query_type = match &storage_def.storage_type {
@@ -249,15 +244,13 @@ impl StorageLineDefExt {
 			StorageLineTypeDef::DoubleMap(map) => map.value.clone(),
 		};
 		let is_option = ext::extract_type_option(&query_type).is_some();
-		let value_type = ext::extract_type_option(&query_type).unwrap_or_else(|| query_type.clone());
+		let value_type =
+			ext::extract_type_option(&query_type).unwrap_or_else(|| query_type.clone());
 
 		let module_runtime_generic = &def.module_runtime_generic;
 		let module_runtime_trait = &def.module_runtime_trait;
-		let optional_storage_runtime_comma = if is_generic {
-			Some(quote!( #module_runtime_generic, ))
-		} else {
-			None
-		};
+		let optional_storage_runtime_comma =
+			if is_generic { Some(quote!( #module_runtime_generic, )) } else { None };
 		let optional_storage_runtime_bound_comma = if is_generic {
 			Some(quote!( #module_runtime_generic: #module_runtime_trait, ))
 		} else {
@@ -273,16 +266,11 @@ impl StorageLineDefExt {
 			#storage_name<#optional_storage_runtime_comma #optional_instance_generic>
 		);
 
-		let optional_storage_where_clause = if is_generic {
-			def.where_clause.as_ref().map(|w| quote!( #w ))
-		} else {
-			None
-		};
+		let optional_storage_where_clause =
+			if is_generic { def.where_clause.as_ref().map(|w| quote!( #w )) } else { None };
 
 		let storage_trait_truncated = match &storage_def.storage_type {
-			StorageLineTypeDef::Simple(_) => {
-				quote!( StorageValue<#value_type> )
-			},
+			StorageLineTypeDef::Simple(_) => quote!( StorageValue<#value_type> ),
 			StorageLineTypeDef::Map(map) => {
 				let key = &map.key;
 				quote!( StorageMap<#key, #value_type> )
@@ -297,7 +285,9 @@ impl StorageLineDefExt {
 		let storage_trait = quote!( storage::#storage_trait_truncated );
 		let storage_generator_trait = quote!( storage::generator::#storage_trait_truncated );
 
-		let doc_attrs = storage_def.attrs.iter()
+		let doc_attrs = storage_def
+			.attrs
+			.iter()
 			.filter_map(|a| a.parse_meta().ok())
 			.filter(|m| m.path().is_ident("doc"))
 			.collect();
@@ -369,25 +359,25 @@ pub enum HasherKind {
 impl HasherKind {
 	fn to_storage_hasher_struct(&self) -> proc_macro2::TokenStream {
 		match self {
-			HasherKind::Blake2_256 => quote!( Blake2_256 ),
-			HasherKind::Blake2_128 => quote!( Blake2_128 ),
-			HasherKind::Blake2_128Concat => quote!( Blake2_128Concat ),
-			HasherKind::Twox256 => quote!( Twox256 ),
-			HasherKind::Twox128 => quote!( Twox128 ),
-			HasherKind::Twox64Concat => quote!( Twox64Concat ),
-			HasherKind::Identity => quote!( Identity ),
+			HasherKind::Blake2_256 => quote!(Blake2_256),
+			HasherKind::Blake2_128 => quote!(Blake2_128),
+			HasherKind::Blake2_128Concat => quote!(Blake2_128Concat),
+			HasherKind::Twox256 => quote!(Twox256),
+			HasherKind::Twox128 => quote!(Twox128),
+			HasherKind::Twox64Concat => quote!(Twox64Concat),
+			HasherKind::Identity => quote!(Identity),
 		}
 	}
 
 	fn into_metadata(&self) -> proc_macro2::TokenStream {
 		match self {
-			HasherKind::Blake2_256 => quote!( StorageHasher::Blake2_256 ),
-			HasherKind::Blake2_128 => quote!( StorageHasher::Blake2_128 ),
-			HasherKind::Blake2_128Concat => quote!( StorageHasher::Blake2_128Concat ),
-			HasherKind::Twox256 => quote!( StorageHasher::Twox256 ),
-			HasherKind::Twox128 => quote!( StorageHasher::Twox128 ),
-			HasherKind::Twox64Concat => quote!( StorageHasher::Twox64Concat ),
-			HasherKind::Identity => quote!( StorageHasher::Identity ),
+			HasherKind::Blake2_256 => quote!(StorageHasher::Blake2_256),
+			HasherKind::Blake2_128 => quote!(StorageHasher::Blake2_128),
+			HasherKind::Blake2_128Concat => quote!(StorageHasher::Blake2_128Concat),
+			HasherKind::Twox256 => quote!(StorageHasher::Twox256),
+			HasherKind::Twox128 => quote!(StorageHasher::Twox128),
+			HasherKind::Twox64Concat => quote!(StorageHasher::Twox64Concat),
+			HasherKind::Identity => quote!(StorageHasher::Identity),
 		}
 	}
 }
@@ -397,7 +387,10 @@ pub fn decl_storage_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 	let def = syn::parse_macro_input!(input as DeclStorageDef);
 	let def_ext = DeclStorageDefExt::from(def);
 
-	let hidden_crate_name = def_ext.hidden_crate.as_ref().map(|i| i.to_string())
+	let hidden_crate_name = def_ext
+		.hidden_crate
+		.as_ref()
+		.map(|i| i.to_string())
 		.unwrap_or_else(|| "decl_storage".to_string());
 
 	let scrate = generate_crate_access(&hidden_crate_name, "frame-support");
@@ -427,5 +420,6 @@ pub fn decl_storage_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 		#instance_trait
 		#genesis_config
 		#storage_struct
-	).into()
+	)
+	.into()
 }

@@ -22,48 +22,37 @@
 
 #![allow(unused)]
 
+use crate::{chain::FinalityProofProvider, config::ProtocolId, protocol::message, schema};
 use bytes::Bytes;
-use codec::{Encode, Decode};
-use crate::{
-	chain::FinalityProofProvider,
-	config::ProtocolId,
-	protocol::message,
-	schema,
-};
+use codec::{Decode, Encode};
 use futures::{future::BoxFuture, prelude::*, stream::FuturesUnordered};
 use libp2p::{
 	core::{
-		ConnectedPoint,
-		Multiaddr,
-		PeerId,
 		connection::ConnectionId,
-		upgrade::{InboundUpgrade, OutboundUpgrade, ReadOneError, UpgradeInfo, Negotiated},
-		upgrade::{DeniedUpgrade, read_one, write_one}
+		upgrade::{read_one, write_one, DeniedUpgrade},
+		upgrade::{InboundUpgrade, Negotiated, OutboundUpgrade, ReadOneError, UpgradeInfo},
+		ConnectedPoint, Multiaddr, PeerId,
 	},
 	swarm::{
-		NegotiatedSubstream,
-		NetworkBehaviour,
-		NetworkBehaviourAction,
-		NotifyHandler,
-		OneShotHandler,
-		OneShotHandlerConfig,
-		PollParameters,
-		SubstreamProtocol
-	}
+		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler,
+		OneShotHandler, OneShotHandlerConfig, PollParameters, SubstreamProtocol,
+	},
 };
 use prost::Message;
-use sp_runtime::{generic::BlockId, traits::{Block, Header, One, Zero}};
+use sp_runtime::{
+	generic::BlockId,
+	traits::{Block, Header, One, Zero},
+};
 use std::{
 	cmp::min,
 	collections::VecDeque,
-	io,
-	iter,
+	io, iter,
 	marker::PhantomData,
 	sync::Arc,
+	task::{Context, Poll},
 	time::Duration,
-	task::{Context, Poll}
 };
-use void::{Void, unreachable};
+use void::{unreachable, Void};
 
 // Type alias for convenience.
 pub type Error = Box<dyn std::error::Error + 'static>;
@@ -156,7 +145,10 @@ where
 	///
 	/// If the proof provider is `None`, then the behaviour will not support the finality proof
 	/// requests protocol.
-	pub fn new(cfg: Config, finality_proof_provider: Option<Arc<dyn FinalityProofProvider<B>>>) -> Self {
+	pub fn new(
+		cfg: Config,
+		finality_proof_provider: Option<Arc<dyn FinalityProofProvider<B>>>,
+	) -> Self {
 		FinalityProofRequests {
 			config: cfg,
 			finality_proof_provider,
@@ -170,15 +162,13 @@ where
 	/// If the response doesn't arrive in time, or if the remote answers improperly, the target
 	/// will be disconnected.
 	pub fn send_request(&mut self, target: &PeerId, block_hash: B::Hash, request: Vec<u8>) {
-		let protobuf_rq = schema::v1::finality::FinalityProofRequest {
-			block_hash: block_hash.encode(),
-			request,
-		};
+		let protobuf_rq =
+			schema::v1::finality::FinalityProofRequest { block_hash: block_hash.encode(), request };
 
 		let mut buf = Vec::with_capacity(protobuf_rq.encoded_len());
 		if let Err(err) = protobuf_rq.encode(&mut buf) {
 			log::warn!("failed to encode finality proof request {:?}: {:?}", protobuf_rq, err);
-			return;
+			return
 		}
 
 		log::trace!("enqueueing finality proof request to {:?}: {:?}", target, protobuf_rq);
@@ -195,18 +185,18 @@ where
 	}
 
 	/// Callback, invoked when a new finality request has been received from remote.
-	fn on_finality_request(&mut self, peer: &PeerId, request: &schema::v1::finality::FinalityProofRequest)
-		-> Result<schema::v1::finality::FinalityProofResponse, Error>
-	{
+	fn on_finality_request(
+		&mut self,
+		peer: &PeerId,
+		request: &schema::v1::finality::FinalityProofRequest,
+	) -> Result<schema::v1::finality::FinalityProofResponse, Error> {
 		let block_hash = Decode::decode(&mut request.block_hash.as_ref())?;
 
 		log::trace!(target: "sync", "Finality proof request from {} for {}", peer, block_hash);
 
 		// Note that an empty Vec is sent if no proof is available.
 		let finality_proof = if let Some(provider) = &self.finality_proof_provider {
-			provider
-				.prove_finality(block_hash, &request.request)?
-				.unwrap_or_default()
+			provider.prove_finality(block_hash, &request.request)?.unwrap_or_default()
 		} else {
 			log::error!("Answering a finality proof request while finality provider is empty");
 			return Err(From::from("Empty finality proof provider".to_string()))
@@ -218,9 +208,10 @@ where
 
 impl<B> NetworkBehaviour for FinalityProofRequests<B>
 where
-	B: Block
+	B: Block,
 {
-	type ProtocolsHandler = OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
+	type ProtocolsHandler =
+		OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
 	type OutEvent = Event<B>;
 
 	fn new_handler(&mut self) -> Self::ProtocolsHandler {
@@ -242,17 +233,15 @@ where
 		Vec::new()
 	}
 
-	fn inject_connected(&mut self, _peer: &PeerId) {
-	}
+	fn inject_connected(&mut self, _peer: &PeerId) {}
 
-	fn inject_disconnected(&mut self, _peer: &PeerId) {
-	}
+	fn inject_disconnected(&mut self, _peer: &PeerId) {}
 
 	fn inject_event(
 		&mut self,
 		peer: PeerId,
 		connection: ConnectionId,
-		event: NodeEvent<B, NegotiatedSubstream>
+		event: NodeEvent<B, NegotiatedSubstream>,
 	) {
 		match event {
 			NodeEvent::Request(request, mut stream) => {
@@ -270,26 +259,25 @@ where
 							};
 							self.outgoing.push(future.boxed())
 						}
-					}
-					Err(e) => log::debug!("error handling finality request from peer {}: {}", peer, e)
+					},
+					Err(e) =>
+						log::debug!("error handling finality request from peer {}: {}", peer, e),
 				}
-			}
+			},
 			NodeEvent::Response(response, block_hash) => {
-				let ev = Event::Response {
-					peer,
-					block_hash,
-					proof: response.proof,
-				};
+				let ev = Event::Response { peer, block_hash, proof: response.proof };
 				self.pending_events.push_back(NetworkBehaviourAction::GenerateEvent(ev));
-			}
+			},
 		}
 	}
 
-	fn poll(&mut self, cx: &mut Context, _: &mut impl PollParameters)
-		-> Poll<NetworkBehaviourAction<OutboundProtocol<B>, Event<B>>>
-	{
+	fn poll(
+		&mut self,
+		cx: &mut Context,
+		_: &mut impl PollParameters,
+	) -> Poll<NetworkBehaviourAction<OutboundProtocol<B>, Event<B>>> {
 		if let Some(ev) = self.pending_events.pop_front() {
-			return Poll::Ready(ev);
+			return Poll::Ready(ev)
 		}
 
 		while let Poll::Ready(Some(_)) = self.outgoing.poll_next_unpin(cx) {}
@@ -337,7 +325,7 @@ impl<B: Block> UpgradeInfo for InboundProtocol<B> {
 impl<B, T> InboundUpgrade<T> for InboundProtocol<B>
 where
 	B: Block,
-	T: AsyncRead + AsyncWrite + Unpin + Send + 'static
+	T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
 	type Output = NodeEvent<B, T>;
 	type Error = ReadOneError;
@@ -349,9 +337,10 @@ where
 			let vec = read_one(&mut s, len).await?;
 			match schema::v1::finality::FinalityProofRequest::decode(&vec[..]) {
 				Ok(r) => Ok(NodeEvent::Request(r, s)),
-				Err(e) => Err(ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e)))
+				Err(e) => Err(ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e))),
 			}
-		}.boxed()
+		}
+		.boxed()
 	}
 }
 
@@ -382,7 +371,7 @@ impl<B: Block> UpgradeInfo for OutboundProtocol<B> {
 impl<B, T> OutboundUpgrade<T> for OutboundProtocol<B>
 where
 	B: Block,
-	T: AsyncRead + AsyncWrite + Unpin + Send + 'static
+	T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
 	type Output = NodeEvent<B, T>;
 	type Error = ReadOneError;
@@ -395,9 +384,8 @@ where
 
 			schema::v1::finality::FinalityProofResponse::decode(&vec[..])
 				.map(|r| NodeEvent::Response(r, self.block_hash))
-				.map_err(|e| {
-					ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e))
-				})
-		}.boxed()
+				.map_err(|e| ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e)))
+		}
+		.boxed()
 	}
 }

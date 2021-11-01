@@ -33,14 +33,10 @@ type TestNetworkService = NetworkService<
 ///
 /// > **Note**: We return the events stream in order to not possibly lose events between the
 /// >			construction of the service and the moment the events stream is grabbed.
-fn build_test_full_node(config: config::NetworkConfiguration)
-	-> (Arc<TestNetworkService>, impl Stream<Item = Event>)
-{
-	let client = Arc::new(
-		TestClientBuilder::with_default_backend()
-			.build_with_longest_chain()
-			.0,
-	);
+fn build_test_full_node(
+	config: config::NetworkConfiguration,
+) -> (Arc<TestNetworkService>, impl Stream<Item = Event>) {
+	let client = Arc::new(TestClientBuilder::with_default_backend().build_with_longest_chain().0);
 
 	#[derive(Clone)]
 	struct PassThroughVerifier(bool);
@@ -63,14 +59,13 @@ fn build_test_full_node(config: config::NetworkConfiguration)
 				.log(|l| {
 					l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"aura"))
 						.or_else(|| {
-							l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"babe"))
+							l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(
+								b"babe",
+							))
 						})
 				})
 				.map(|blob| {
-					vec![(
-						sp_blockchain::well_known_cache_keys::AUTHORITIES,
-						blob.to_vec(),
-					)]
+					vec![(sp_blockchain::well_known_cache_keys::AUTHORITIES, blob.to_vec())]
 				});
 
 			let mut import = sp_consensus::BlockImportParams::new(origin, header);
@@ -124,16 +119,19 @@ const ENGINE_ID: sp_runtime::ConsensusEngineId = *b"foo\0";
 
 /// Builds two nodes and their associated events stream.
 /// The nodes are connected together and have the `ENGINE_ID` protocol registered.
-fn build_nodes_one_proto()
-	-> (Arc<TestNetworkService>, impl Stream<Item = Event>, Arc<TestNetworkService>, impl Stream<Item = Event>)
-{
+fn build_nodes_one_proto() -> (
+	Arc<TestNetworkService>,
+	impl Stream<Item = Event>,
+	Arc<TestNetworkService>,
+	impl Stream<Item = Event>,
+) {
 	let listen_addr = config::build_multiaddr![Memory(rand::random::<u64>())];
 
 	let (node1, events_stream1) = build_test_full_node(config::NetworkConfiguration {
 		notifications_protocols: vec![(ENGINE_ID, From::from("/foo"))],
 		listen_addresses: vec![listen_addr.clone()],
 		transport: config::TransportConfig::MemoryOnly,
-		.. config::NetworkConfiguration::new_local()
+		..config::NetworkConfiguration::new_local()
 	});
 
 	let (node2, events_stream2) = build_test_full_node(config::NetworkConfiguration {
@@ -144,7 +142,7 @@ fn build_nodes_one_proto()
 			peer_id: node1.local_peer_id().clone(),
 		}],
 		transport: config::TransportConfig::MemoryOnly,
-		.. config::NetworkConfiguration::new_local()
+		..config::NetworkConfiguration::new_local()
 	});
 
 	(node1, events_stream1, node2, events_stream2)
@@ -163,14 +161,13 @@ fn basic_works() {
 		while received_notifications < NUM_NOTIFS {
 			match events_stream2.next().await.unwrap() {
 				Event::NotificationStreamClosed { .. } => panic!(),
-				Event::NotificationsReceived { messages, .. } => {
+				Event::NotificationsReceived { messages, .. } =>
 					for message in messages {
 						assert_eq!(message.0, ENGINE_ID);
 						assert_eq!(message.1, &b"message"[..]);
 						received_notifications += 1;
-					}
-				}
-				_ => {}
+					},
+				_ => {},
 			};
 
 			if rand::random::<u8>() < 2 {
@@ -188,7 +185,7 @@ fn basic_works() {
 		loop {
 			match events_stream1.next().await.unwrap() {
 				Event::NotificationStreamOpened { .. } => break,
-				_ => {}
+				_ => {},
 			};
 		}
 

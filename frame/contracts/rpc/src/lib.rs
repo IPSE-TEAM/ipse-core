@@ -106,15 +106,8 @@ pub enum RpcContractExecResult {
 impl From<ContractExecResult> for RpcContractExecResult {
 	fn from(r: ContractExecResult) -> Self {
 		match r {
-			ContractExecResult::Success {
-				flags,
-				data,
-				gas_consumed
-			} => RpcContractExecResult::Success {
-				flags,
-				data: data.into(),
-				gas_consumed,
-			},
+			ContractExecResult::Success { flags, data, gas_consumed } =>
+				RpcContractExecResult::Success { flags, data: data.into(), gas_consumed },
 			ContractExecResult::Error => RpcContractExecResult::Error(()),
 		}
 	}
@@ -169,10 +162,7 @@ pub struct Contracts<C, B> {
 impl<C, B> Contracts<C, B> {
 	/// Create new `Contracts` with the given reference to the client.
 	pub fn new(client: Arc<C>) -> Self {
-		Contracts {
-			client,
-			_marker: Default::default(),
-		}
+		Contracts { client, _marker: Default::default() }
 	}
 }
 impl<C, Block, AccountId, Balance>
@@ -204,13 +194,7 @@ where
 			// If the block hash is not supplied assume the best block.
 			self.client.info().best_hash));
 
-		let CallRequest {
-			origin,
-			dest,
-			value,
-			gas_limit,
-			input_data,
-		} = call_request;
+		let CallRequest { origin, dest, value, gas_limit, input_data } = call_request;
 
 		// Make sure that gas_limit fits into 64 bits.
 		let gas_limit: u64 = gas_limit.try_into().map_err(|_| Error {
@@ -228,7 +212,7 @@ where
 					gas_limit, max_gas_limit
 				),
 				data: None,
-			});
+			})
 		}
 
 		let exec_result = api
@@ -297,7 +281,8 @@ mod tests {
 	#[test]
 	fn call_request_should_serialize_deserialize_properly() {
 		type Req = CallRequest<String, u128>;
-		let req: Req = serde_json::from_str(r#"
+		let req: Req = serde_json::from_str(
+			r#"
 		{
 			"origin": "5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL",
 			"dest": "5DRakbLVnjVrW6niwLfHGW24EeCEvDAFGEXrtaYS5M4ynoom",
@@ -305,7 +290,9 @@ mod tests {
 			"gasLimit": 1000000000000,
 			"inputData": "0x8c97db39"
 		}
-		"#).unwrap();
+		"#,
+		)
+		.unwrap();
 		assert_eq!(req.gas_limit.into_u256(), U256::from(0xe8d4a51000u64));
 	}
 

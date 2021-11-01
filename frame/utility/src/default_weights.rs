@@ -20,12 +20,11 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::weights::{Weight, constants::RocksDbWeight as DbWeight};
+use frame_support::weights::{constants::RocksDbWeight as DbWeight, Weight};
 
 impl crate::WeightInfo for () {
-	fn batch(c: u32, ) -> Weight {
-		(16461000 as Weight)
-			.saturating_add((1982000 as Weight).saturating_mul(c as Weight))
+	fn batch(c: u32) -> Weight {
+		(16461000 as Weight).saturating_add((1982000 as Weight).saturating_mul(c as Weight))
 	}
 	// WARNING! Some components were not used: ["u"]
 	fn as_derivative() -> Weight {

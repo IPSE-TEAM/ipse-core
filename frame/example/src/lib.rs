@@ -25,8 +25,8 @@
 //!
 //! ### Documentation Guidelines:
 //!
-//! <!-- Original author of paragraph: Various. Based on collation of review comments to PRs addressing issues with -->
-//! <!-- label 'S3-FRAME' in https://github.com/paritytech/substrate-developer-hub/issues -->
+//! <!-- Original author of paragraph: Various. Based on collation of review comments to PRs
+//! addressing issues with --> <!-- label 'S3-FRAME' in https://github.com/paritytech/substrate-developer-hub/issues -->
 //! <ul>
 //!     <li>Documentation comments (i.e. <code>/// comment</code>) - should
 //!         accompany pallet functions and be restricted to the pallet interface,
@@ -36,13 +36,13 @@
 //!         Capitalize the first word of each documentation comment and end it with
 //!         a full stop. See
 //!         <a href="https://github.com/paritytech/substrate#72-contributing-to-documentation-for-substrate-packages"
-//!         target="_blank"> Generic example of annotating source code with documentation comments</a></li>
-//!     <li>Self-documenting code - Try to refactor code to be self-documenting.</li>
-//!     <li>Code comments - Supplement complex code with a brief explanation, not every line of code.</li>
-//!     <li>Identifiers - surround by backticks (i.e. <code>INHERENT_IDENTIFIER</code>, <code>InherentType</code>,
-//!         <code>u64</code>)</li>
-//!     <li>Usage scenarios - should be simple doctests. The compiler should ensure they stay valid.</li>
-//!     <li>Extended tutorials - should be moved to external files and refer to.</li>
+//!         target="_blank"> Generic example of annotating source code with documentation
+//! comments</a></li>     <li>Self-documenting code - Try to refactor code to be
+//! self-documenting.</li>     <li>Code comments - Supplement complex code with a brief explanation,
+//! not every line of code.</li>     <li>Identifiers - surround by backticks (i.e.
+//! <code>INHERENT_IDENTIFIER</code>, <code>InherentType</code>,         <code>u64</code>)</li>
+//!     <li>Usage scenarios - should be simple doctests. The compiler should ensure they stay
+//! valid.</li>     <li>Extended tutorials - should be moved to external files and refer to.</li>
 //!     <!-- Original author of paragraph: @AmarRSingh -->
 //!     <li>Mandatory - include all of the sections/subsections where <b>MUST</b> is specified.</li>
 //!     <li>Optional - optionally include sections/subsections where <b>CAN</b> is specified.</li>
@@ -83,12 +83,13 @@
 //!
 //! \## Terminology
 //!
-//! // Add terminology used in the custom pallet. Include concepts, storage items, or actions that you think
-//! // deserve to be noted to give context to the rest of the documentation or pallet usage. The author needs to
-//! // use some judgment about what is included. We don't want a list of every storage item nor types - the user
-//! // can go to the code for that. For example, "transfer fee" is obvious and should not be included, but
-//! // "free balance" and "reserved balance" should be noted to give context to the pallet.
-//! // Please do not link to outside resources. The reference docs should be the ultimate source of truth.
+//! // Add terminology used in the custom pallet. Include concepts, storage items, or actions that
+//! you think // deserve to be noted to give context to the rest of the documentation or pallet
+//! usage. The author needs to // use some judgment about what is included. We don't want a list of
+//! every storage item nor types - the user // can go to the code for that. For example, "transfer
+//! fee" is obvious and should not be included, but // "free balance" and "reserved balance" should
+//! be noted to give context to the pallet. // Please do not link to outside resources. The
+//! reference docs should be the ultimate source of truth.
 //!
 //! <!-- Original author of heading: @Kianenigma in PR https://github.com/paritytech/substrate/pull/1951 -->
 //!
@@ -105,7 +106,8 @@
 //! \#### <INSERT_SCENARIO_NAME>
 //!
 //! // Describe requirements prior to interacting with the custom pallet.
-//! // Describe the process of interacting with the custom pallet for this scenario and public API functions used.
+//! // Describe the process of interacting with the custom pallet for this scenario and public API
+//! functions used.
 //!
 //! \## Interface
 //!
@@ -129,14 +131,15 @@
 //!
 //! <!-- Original author of paragraph: ??? -->
 //!
-//! // Reference documentation of aspects such as `storageItems` and `dispatchable` functions should only be
-//! // included in the https://docs.rs Rustdocs for Substrate and not repeated in the README file.
+//! // Reference documentation of aspects such as `storageItems` and `dispatchable` functions should
+//! only be // included in the https://docs.rs Rustdocs for Substrate and not repeated in the README file.
 //!
 //! \### Dispatchable Functions
 //!
 //! <!-- Original author of paragraph: @AmarRSingh & @joepetrowski -->
 //!
-//! // A brief description of dispatchable functions and a link to the rustdoc with their actual documentation.
+//! // A brief description of dispatchable functions and a link to the rustdoc with their actual
+//! documentation.
 //!
 //! // <b>MUST</b> have link to Call enum
 //! // <b>MUST</b> have origin information included in function doc
@@ -153,7 +156,8 @@
 //!
 //! <!-- Original author of paragraph: @AmarRSingh -->
 //!
-//! // It is up to the writer of the respective pallet (with respect to how much information to provide).
+//! // It is up to the writer of the respective pallet (with respect to how much information to
+//! provide).
 //!
 //! \#### Public Inspection functions - Immutable (getters)
 //!
@@ -216,7 +220,8 @@
 //!
 //! \### Simple Code Snippet
 //!
-//! // Show a simple example (e.g. how to query a public getter function of <INSERT_CUSTOM_PALLET_NAME>)
+//! // Show a simple example (e.g. how to query a public getter function of
+//! <INSERT_CUSTOM_PALLET_NAME>)
 //!
 //! \### Example from FRAME
 //!
@@ -254,22 +259,21 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::marker::PhantomData;
+use codec::{Decode, Encode};
 use frame_support::{
-	dispatch::{DispatchResult, IsSubType}, decl_module, decl_storage, decl_event,
-	weights::{DispatchClass, ClassifyDispatch, WeighData, Weight, PaysFee, Pays},
+	decl_event, decl_module, decl_storage,
+	dispatch::{DispatchResult, IsSubType},
+	weights::{ClassifyDispatch, DispatchClass, Pays, PaysFee, WeighData, Weight},
 };
-use sp_std::prelude::*;
-use frame_system::{ensure_signed, ensure_root};
-use codec::{Encode, Decode};
+use frame_system::{ensure_root, ensure_signed};
 use sp_runtime::{
-	traits::{
-		SignedExtension, Bounded, SaturatedConversion, DispatchInfoOf,
-	},
+	traits::{Bounded, DispatchInfoOf, SaturatedConversion, SignedExtension},
 	transaction_validity::{
-		ValidTransaction, TransactionValidityError, InvalidTransaction, TransactionValidity,
+		InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
 	},
 };
+use sp_std::marker::PhantomData;
+use sp_std::prelude::*;
 
 // A custom weight calculator tailored for the dispatch call `set_dummy()`. This actually examines
 // the arguments and makes a decision based upon them.
@@ -287,8 +291,7 @@ use sp_runtime::{
 // - assigns a dispatch class `operational` if the argument of the call is more than 1000.
 struct WeightForSetDummy<T: pallet_balances::Trait>(BalanceOf<T>);
 
-impl<T: pallet_balances::Trait> WeighData<(&BalanceOf<T>,)> for WeightForSetDummy<T>
-{
+impl<T: pallet_balances::Trait> WeighData<(&BalanceOf<T>,)> for WeightForSetDummy<T> {
 	fn weigh_data(&self, target: (&BalanceOf<T>,)) -> Weight {
 		let multiplier = self.0;
 		(*target.0 * multiplier).saturated_into::<Weight>()
@@ -370,7 +373,10 @@ decl_event!(
 	/// Events are a simple means of reporting specific conditions and
 	/// circumstances that have happened that users, Dapps and/or chain explorers would find
 	/// interesting and otherwise difficult to detect.
-	pub enum Event<T> where B = <T as pallet_balances::Trait>::Balance {
+	pub enum Event<T>
+	where
+		B = <T as pallet_balances::Trait>::Balance,
+	{
 		// Just a normal `enum`, here's a dummy event to ensure it compiles.
 		/// Dummy event, just here so there's a generic type that's used.
 		Dummy(B),
@@ -389,10 +395,10 @@ decl_event!(
 // - Public calls that are signed by an external account.
 // - Root calls that are allowed to be made only by the governance system.
 // - Unsigned calls that can be of two kinds:
-//   * "Inherent extrinsics" that are opinions generally held by the block
-//     authors that build child blocks.
-//   * Unsigned Transactions that are of intrinsic recognizable utility to the
-//     network, and are validated by the runtime.
+//   * "Inherent extrinsics" that are opinions generally held by the block authors that build child
+//     blocks.
+//   * Unsigned Transactions that are of intrinsic recognizable utility to the network, and are
+//     validated by the runtime.
 //
 // Information about where this dispatch initiated from is provided as the first argument
 // "origin". As such functions must always look like:
@@ -554,7 +560,8 @@ impl<T: Trait> Module<T> {
 		let _sender = ensure_signed(origin)?;
 
 		let prev = <Foo<T>>::get();
-		// Because Foo has 'default', the type of 'foo' in closure is the raw type instead of an Option<> type.
+		// Because Foo has 'default', the type of 'foo' in closure is the raw type instead of an
+		// Option<> type.
 		let result = <Foo<T>>::mutate(|foo| {
 			*foo = *foo + increase_by;
 			*foo
@@ -619,7 +626,9 @@ where
 	type AdditionalSigned = ();
 	type Pre = ();
 
-	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> { Ok(()) }
+	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
+		Ok(())
+	}
 
 	fn validate(
 		&self,
@@ -641,7 +650,7 @@ where
 				let mut valid_tx = ValidTransaction::default();
 				valid_tx.priority = Bounded::max_value();
 				Ok(valid_tx)
-			}
+			},
 			_ => Ok(Default::default()),
 		}
 	}
@@ -650,10 +659,10 @@ where
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking {
 	use super::*;
-	use frame_benchmarking::{benchmarks, account};
+	use frame_benchmarking::{account, benchmarks};
 	use frame_system::RawOrigin;
 
-	benchmarks!{
+	benchmarks! {
 		_ {
 			// Define a common range for `b`.
 			let b in 1 .. 1000 => ();
@@ -710,16 +719,17 @@ mod tests {
 	use super::*;
 
 	use frame_support::{
-		assert_ok, impl_outer_origin, parameter_types, impl_outer_dispatch,
-		weights::{DispatchInfo, GetDispatchInfo}, traits::{OnInitialize, OnFinalize}
+		assert_ok, impl_outer_dispatch, impl_outer_origin, parameter_types,
+		traits::{OnFinalize, OnInitialize},
+		weights::{DispatchInfo, GetDispatchInfo},
 	};
 	use sp_core::H256;
 	// The testing primitives are very useful for avoiding having to work with signatures
 	// or public keys. `u64` is used as the `AccountId` and no `Signature`s are required.
 	use sp_runtime::{
-		Perbill,
 		testing::Header,
 		traits::{BlakeTwo256, IdentityLookup},
+		Perbill,
 	};
 
 	impl_outer_origin! {
@@ -794,12 +804,14 @@ mod tests {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		// We use default for brevity, but you can configure as desired if needed.
 		pallet_balances::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
-		GenesisConfig::<Test>{
+		GenesisConfig::<Test> {
 			dummy: 42,
 			// we configure the map with (key, value) pairs.
 			bar: vec![(1, 2), (2, 3)],
 			foo: 24,
-		}.assimilate_storage(&mut t).unwrap();
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 		t.into()
 	}
 
@@ -840,9 +852,7 @@ mod tests {
 			let info = DispatchInfo::default();
 
 			assert_eq!(
-				WatchDummy::<Test>(PhantomData).validate(&1, &call, &info, 150)
-					.unwrap()
-					.priority,
+				WatchDummy::<Test>(PhantomData).validate(&1, &call, &info, 150).unwrap().priority,
 				u64::max_value(),
 			);
 			assert_eq!(

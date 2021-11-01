@@ -25,10 +25,11 @@
 //! ## Overview
 //!
 //! The System module defines the core data types used in a Substrate runtime.
-//! It also provides several utility functions (see [`Module`](./struct.Module.html)) for other FRAME pallets.
+//! It also provides several utility functions (see [`Module`](./struct.Module.html)) for other
+//! FRAME pallets.
 //!
-//! In addition, it manages the storage items for extrinsics data, indexes, event records, and digest items,
-//! among other things that support the execution of the current block.
+//! In addition, it manages the storage items for extrinsics data, indexes, event records, and
+//! digest items, among other things that support the execution of the current block.
 //!
 //! It also handles low-level tasks like depositing logs, basic set up and take down of
 //! temporary storage entries, and access to previous block hashes.
@@ -54,10 +55,10 @@
 //!   - [`CheckEra`]: Checks the era of the transaction. Contains a single payload of type `Era`.
 //!   - [`CheckGenesis`]: Checks the provided genesis hash of the transaction. Must be a part of the
 //!     signed payload of the transaction.
-//!   - [`CheckSpecVersion`]: Checks that the runtime version is the same as the one used to sign the
-//!     transaction.
-//!   - [`CheckTxVersion`]: Checks that the transaction version is the same as the one used to sign the
-//!     transaction.
+//!   - [`CheckSpecVersion`]: Checks that the runtime version is the same as the one used to sign
+//!     the transaction.
+//!   - [`CheckTxVersion`]: Checks that the transaction version is the same as the one used to sign
+//!     the transaction.
 //!
 //! Lookup the runtime aggregator file (e.g. `node/runtime`) to see the full list of signed
 //! extensions included in a chain.
@@ -94,55 +95,53 @@
 
 #[cfg(feature = "std")]
 use serde::Serialize;
-use sp_std::prelude::*;
+use sp_runtime::{
+	generic,
+	offchain::storage_lock::BlockNumberProvider,
+	traits::{
+		self, AtLeast32Bit, AtLeast32BitUnsigned, BadOrigin, Bounded, CheckEqual, Dispatchable,
+		Hash, Lookup, LookupError, MaybeDisplay, MaybeMallocSizeOf, MaybeSerialize,
+		MaybeSerializeDeserialize, Member, One, SimpleBitOps, StaticLookup, Zero,
+	},
+	DispatchError, Either, Perbill, RuntimeDebug,
+};
+use sp_std::convert::Infallible;
+use sp_std::fmt::Debug;
 #[cfg(any(feature = "std", test))]
 use sp_std::map;
-use sp_std::convert::Infallible;
 use sp_std::marker::PhantomData;
-use sp_std::fmt::Debug;
+use sp_std::prelude::*;
 use sp_version::RuntimeVersion;
-use sp_runtime::{
-	RuntimeDebug, Perbill, DispatchError, Either, generic,
-	traits::{
-		self, CheckEqual, AtLeast32Bit, Zero, Lookup, LookupError,
-		SimpleBitOps, Hash, Member, MaybeDisplay, BadOrigin,
-		MaybeSerialize, MaybeSerializeDeserialize, MaybeMallocSizeOf, StaticLookup, One, Bounded,
-		Dispatchable, AtLeast32BitUnsigned
-	},
-	offchain::storage_lock::BlockNumberProvider,
-};
 
-use sp_core::{ChangesTrieConfiguration, storage::well_known_keys};
+use codec::{Decode, Encode, EncodeLike, FullCodec};
 use frame_support::{
-	decl_module, decl_event, decl_storage, decl_error, Parameter, ensure, debug,
-	storage,
-	traits::{
-		Contains, Get, PalletInfo, OnNewAccount, OnKilledAccount, IsDeadAccount, Happened,
-		StoredMap, EnsureOrigin, OriginTrait, Filter,
-	},
-	weights::{
-		Weight, RuntimeDbWeight, DispatchInfo, DispatchClass,
-		extract_actual_weight,
-	},
+	debug, decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResultWithPostInfo,
+	ensure, storage,
+	traits::{
+		Contains, EnsureOrigin, Filter, Get, Happened, IsDeadAccount, OnKilledAccount,
+		OnNewAccount, OriginTrait, PalletInfo, StoredMap,
+	},
+	weights::{extract_actual_weight, DispatchClass, DispatchInfo, RuntimeDbWeight, Weight},
+	Parameter,
 };
-use codec::{Encode, Decode, FullCodec, EncodeLike};
+use sp_core::{storage::well_known_keys, ChangesTrieConfiguration};
 
 #[cfg(any(feature = "std", test))]
 use sp_io::TestExternalities;
 
-pub mod offchain;
 #[cfg(test)]
 pub(crate) mod mock;
+pub mod offchain;
 
+mod default_weights;
 mod extensions;
-mod weights;
 #[cfg(test)]
 mod tests;
-mod default_weights;
+mod weights;
 
 pub use extensions::{
-	check_mortality::CheckMortality, check_genesis::CheckGenesis, check_nonce::CheckNonce,
+	check_genesis::CheckGenesis, check_mortality::CheckMortality, check_nonce::CheckNonce,
 	check_spec_version::CheckSpecVersion, check_tx_version::CheckTxVersion,
 	check_weight::CheckWeight,
 };
@@ -163,9 +162,9 @@ pub trait WeightInfo {
 	fn remark() -> Weight;
 	fn set_heap_pages() -> Weight;
 	fn set_changes_trie_config() -> Weight;
-	fn set_storage(i: u32, ) -> Weight;
-	fn kill_storage(i: u32, ) -> Weight;
-	fn kill_prefix(p: u32, ) -> Weight;
+	fn set_storage(i: u32) -> Weight;
+	fn kill_storage(i: u32) -> Weight;
+	fn kill_prefix(p: u32) -> Weight;
 	fn suicide() -> Weight;
 }
 
@@ -175,8 +174,7 @@ pub trait Trait: 'static + Eq + Clone {
 	type BaseCallFilter: Filter<Self::Call>;
 
 	/// The `Origin` type used by dispatchable calls.
-	type Origin:
-		Into<Result<RawOrigin<Self::AccountId>, Self::Origin>>
+	type Origin: Into<Result<RawOrigin<Self::AccountId>, Self::Origin>>
 		+ From<RawOrigin<Self::AccountId>>
 		+ Clone
 		+ OriginTrait<Call = Self::Call>;
@@ -186,26 +184,55 @@ pub trait Trait: 'static + Eq + Clone {
 
 	/// Account index (aka nonce) type. This stores the number of previous transactions associated
 	/// with a sender account.
-	type Index:
-		Parameter + Member + MaybeSerialize + Debug + Default + MaybeDisplay + AtLeast32Bit
+	type Index: Parameter
+		+ Member
+		+ MaybeSerialize
+		+ Debug
+		+ Default
+		+ MaybeDisplay
+		+ AtLeast32Bit
 		+ Copy;
 
 	/// The block number type used by the runtime.
-	type BlockNumber:
-		Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay +
-		AtLeast32BitUnsigned + Default + Bounded + Copy + sp_std::hash::Hash +
-		sp_std::str::FromStr + MaybeMallocSizeOf;
+	type BlockNumber: Parameter
+		+ Member
+		+ MaybeSerializeDeserialize
+		+ Debug
+		+ MaybeDisplay
+		+ AtLeast32BitUnsigned
+		+ Default
+		+ Bounded
+		+ Copy
+		+ sp_std::hash::Hash
+		+ sp_std::str::FromStr
+		+ MaybeMallocSizeOf;
 
 	/// The output of the `Hashing` function.
-	type Hash:
-		Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay + SimpleBitOps + Ord
-		+ Default + Copy + CheckEqual + sp_std::hash::Hash + AsRef<[u8]> + AsMut<[u8]> + MaybeMallocSizeOf;
+	type Hash: Parameter
+		+ Member
+		+ MaybeSerializeDeserialize
+		+ Debug
+		+ MaybeDisplay
+		+ SimpleBitOps
+		+ Ord
+		+ Default
+		+ Copy
+		+ CheckEqual
+		+ sp_std::hash::Hash
+		+ AsRef<[u8]>
+		+ AsMut<[u8]>
+		+ MaybeMallocSizeOf;
 
 	/// The hashing system (algorithm) being used in the runtime (e.g. Blake2).
 	type Hashing: Hash<Output = Self::Hash>;
 
 	/// The user account identifier type for the runtime.
-	type AccountId: Parameter + Member + MaybeSerializeDeserialize + Debug + MaybeDisplay + Ord
+	type AccountId: Parameter
+		+ Member
+		+ MaybeSerializeDeserialize
+		+ Debug
+		+ MaybeDisplay
+		+ Ord
 		+ Default;
 
 	/// Converting trait to take a source type and convert to `AccountId`.
@@ -217,10 +244,7 @@ pub trait Trait: 'static + Eq + Clone {
 	type Lookup: StaticLookup<Target = Self::AccountId>;
 
 	/// The block header.
-	type Header: Parameter + traits::Header<
-		Number = Self::BlockNumber,
-		Hash = Self::Hash,
-	>;
+	type Header: Parameter + traits::Header<Number = Self::BlockNumber, Hash = Self::Hash>;
 
 	/// The aggregated event type of the runtime.
 	type Event: Parameter + Member + From<Event<Self>> + Debug;
@@ -237,7 +261,8 @@ pub trait Trait: 'static + Eq + Clone {
 	/// The base weight of executing a block, independent of the transactions in the block.
 	type BlockExecutionWeight: Get<Weight>;
 
-	/// The base weight of an Extrinsic in the block, independent of the of extrinsic being executed.
+	/// The base weight of an Extrinsic in the block, independent of the of extrinsic being
+	/// executed.
 	type ExtrinsicBaseWeight: Get<Weight>;
 
 	/// The maximal weight of a single Extrinsic. This should be set to at most
@@ -391,10 +416,7 @@ impl LastRuntimeUpgradeInfo {
 
 impl From<sp_version::RuntimeVersion> for LastRuntimeUpgradeInfo {
 	fn from(version: sp_version::RuntimeVersion) -> Self {
-		Self {
-			spec_version: version.spec_version.into(),
-			spec_name: version.spec_name,
-		}
+		Self { spec_version: version.spec_version.into(), spec_name: version.spec_name }
 	}
 }
 
@@ -487,7 +509,10 @@ decl_storage! {
 
 decl_event!(
 	/// Event for the System module.
-	pub enum Event<T> where AccountId = <T as Trait>::AccountId {
+	pub enum Event<T>
+	where
+		AccountId = <T as Trait>::AccountId,
+	{
 		/// An extrinsic completed successfully. \[info\]
 		ExtrinsicSuccess(DispatchInfo),
 		/// An extrinsic failed. \[error, info\]
@@ -730,10 +755,9 @@ decl_module! {
 }
 
 pub struct EnsureRoot<AccountId>(sp_std::marker::PhantomData<AccountId>);
-impl<
-	O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>,
-	AccountId,
-> EnsureOrigin<O> for EnsureRoot<AccountId> {
+impl<O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>, AccountId>
+	EnsureOrigin<O> for EnsureRoot<AccountId>
+{
 	type Success = ();
 	fn try_origin(o: O) -> Result<Self::Success, O> {
 		o.into().and_then(|o| match o {
@@ -749,10 +773,9 @@ impl<
 }
 
 pub struct EnsureSigned<AccountId>(sp_std::marker::PhantomData<AccountId>);
-impl<
-	O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>,
-	AccountId: Default,
-> EnsureOrigin<O> for EnsureSigned<AccountId> {
+impl<O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>, AccountId: Default>
+	EnsureOrigin<O> for EnsureSigned<AccountId>
+{
 	type Success = AccountId;
 	fn try_origin(o: O) -> Result<Self::Success, O> {
 		o.into().and_then(|o| match o {
@@ -769,10 +792,11 @@ impl<
 
 pub struct EnsureSignedBy<Who, AccountId>(sp_std::marker::PhantomData<(Who, AccountId)>);
 impl<
-	O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>,
-	Who: Contains<AccountId>,
-	AccountId: PartialEq + Clone + Ord + Default,
-> EnsureOrigin<O> for EnsureSignedBy<Who, AccountId> {
+		O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>,
+		Who: Contains<AccountId>,
+		AccountId: PartialEq + Clone + Ord + Default,
+	> EnsureOrigin<O> for EnsureSignedBy<Who, AccountId>
+{
 	type Success = AccountId;
 	fn try_origin(o: O) -> Result<Self::Success, O> {
 		o.into().and_then(|o| match o {
@@ -793,10 +817,9 @@ impl<
 }
 
 pub struct EnsureNone<AccountId>(sp_std::marker::PhantomData<AccountId>);
-impl<
-	O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>,
-	AccountId,
-> EnsureOrigin<O> for EnsureNone<AccountId> {
+impl<O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>, AccountId>
+	EnsureOrigin<O> for EnsureNone<AccountId>
+{
 	type Success = ();
 	fn try_origin(o: O) -> Result<Self::Success, O> {
 		o.into().and_then(|o| match o {
@@ -829,17 +852,16 @@ impl<O, T> EnsureOrigin<O> for EnsureNever<T> {
 /// Origin check will pass if `L` or `R` origin check passes. `L` is tested first.
 pub struct EnsureOneOf<AccountId, L, R>(sp_std::marker::PhantomData<(AccountId, L, R)>);
 impl<
-	AccountId,
-	O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>,
-	L: EnsureOrigin<O>,
-	R: EnsureOrigin<O>,
-> EnsureOrigin<O> for EnsureOneOf<AccountId, L, R> {
+		AccountId,
+		O: Into<Result<RawOrigin<AccountId>, O>> + From<RawOrigin<AccountId>>,
+		L: EnsureOrigin<O>,
+		R: EnsureOrigin<O>,
+	> EnsureOrigin<O> for EnsureOneOf<AccountId, L, R>
+{
 	type Success = Either<L::Success, R::Success>;
 	fn try_origin(o: O) -> Result<Self::Success, O> {
-		L::try_origin(o).map_or_else(
-			|o| R::try_origin(o).map(|o| Either::Right(o)),
-			|o| Ok(Either::Left(o)),
-		)
+		L::try_origin(o)
+			.map_or_else(|o| R::try_origin(o).map(|o| Either::Right(o)), |o| Ok(Either::Left(o)))
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -851,7 +873,8 @@ impl<
 /// Ensure that the origin `o` represents a signed extrinsic (i.e. transaction).
 /// Returns `Ok` with the account that signed the extrinsic or an `Err` otherwise.
 pub fn ensure_signed<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<AccountId, BadOrigin>
-	where OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>
+where
+	OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>,
 {
 	match o.into() {
 		Ok(RawOrigin::Signed(t)) => Ok(t),
@@ -861,7 +884,8 @@ pub fn ensure_signed<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<AccountId
 
 /// Ensure that the origin `o` represents the root. Returns `Ok` or an `Err` otherwise.
 pub fn ensure_root<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<(), BadOrigin>
-	where OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>
+where
+	OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>,
 {
 	match o.into() {
 		Ok(RawOrigin::Root) => Ok(()),
@@ -871,7 +895,8 @@ pub fn ensure_root<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<(), BadOrig
 
 /// Ensure that the origin `o` represents an unsigned extrinsic. Returns `Ok` or an `Err` otherwise.
 pub fn ensure_none<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<(), BadOrigin>
-	where OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>
+where
+	OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>,
 {
 	match o.into() {
 		Ok(RawOrigin::None) => Ok(()),
@@ -941,14 +966,13 @@ impl<T: Trait> Module<T> {
 	pub fn deposit_event_indexed(topics: &[T::Hash], event: T::Event) {
 		let block_number = Self::block_number();
 		// Don't populate events on genesis.
-		if block_number.is_zero() { return }
+		if block_number.is_zero() {
+			return
+		}
 
 		let phase = ExecutionPhase::get().unwrap_or_default();
-		let event = EventRecord {
-			phase,
-			event,
-			topics: topics.iter().cloned().collect::<Vec<_>>(),
-		};
+		let event =
+			EventRecord { phase, event, topics: topics.iter().cloned().collect::<Vec<_>>() };
 
 		// Index of the to be added event.
 		let event_idx = {
@@ -1039,7 +1063,7 @@ impl<T: Trait> Module<T> {
 		ExtrinsicCount::kill();
 		AllExtrinsicsLen::kill();
 
-// 		let number = <BlockNumber<T>>::take();
+		// 		let number = <BlockNumber<T>>::take();
 		let number = <BlockNumber<T>>::get();
 		let parent_hash = <ParentHash<T>>::take();
 		let mut digest = <Digest<T>>::take();
@@ -1065,7 +1089,7 @@ impl<T: Trait> Module<T> {
 		if let Some(storage_changes_root) = storage_changes_root {
 			let item = generic::DigestItem::ChangesTrieRoot(
 				T::Hash::decode(&mut &storage_changes_root[..])
-					.expect("Node is configured to use the same hash; qed")
+					.expect("Node is configured to use the same hash; qed"),
 			);
 			digest.push(item);
 		}
@@ -1078,7 +1102,13 @@ impl<T: Trait> Module<T> {
 		//
 		// stay to be inspected by the client and will be cleared by `Self::initialize`.
 
-		<T::Header as traits::Header>::new(number, extrinsics_root, storage_root, parent_hash, digest)
+		<T::Header as traits::Header>::new(
+			number,
+			extrinsics_root,
+			storage_root,
+			parent_hash,
+			digest,
+		)
 	}
 
 	/// Deposits a log and ensures it matches the block's log data.
@@ -1127,9 +1157,7 @@ impl<T: Trait> Module<T> {
 	/// Set the current block weight. This should only be used in some integration tests.
 	#[cfg(any(feature = "std", test))]
 	pub fn set_block_limits(weight: Weight, len: usize) {
-		BlockWeight::mutate(|current_weight| {
-			current_weight.put(weight, DispatchClass::Normal)
-		});
+		BlockWeight::mutate(|current_weight| current_weight.put(weight, DispatchClass::Normal));
 		AllExtrinsicsLen::put(len as u32);
 	}
 
@@ -1143,7 +1171,9 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Return the chain's current runtime version.
-	pub fn runtime_version() -> RuntimeVersion { T::Version::get() }
+	pub fn runtime_version() -> RuntimeVersion {
+		T::Version::get()
+	}
 
 	/// Retrieve the account transaction counter from storage.
 	pub fn account_nonce(who: impl EncodeLike<T::AccountId>) -> T::Index {
@@ -1168,15 +1198,13 @@ impl<T: Trait> Module<T> {
 	/// To be called immediately after an extrinsic has been applied.
 	pub fn note_applied_extrinsic(r: &DispatchResultWithPostInfo, mut info: DispatchInfo) {
 		info.weight = extract_actual_weight(r, &info);
-		Self::deposit_event(
-			match r {
-				Ok(_) => RawEvent::ExtrinsicSuccess(info),
-				Err(err) => {
-					sp_runtime::print(err);
-					RawEvent::ExtrinsicFailed(err.error, info)
-				},
-			}
-		);
+		Self::deposit_event(match r {
+			Ok(_) => RawEvent::ExtrinsicSuccess(info),
+			Err(err) => {
+				sp_runtime::print(err);
+				RawEvent::ExtrinsicFailed(err.error, info)
+			},
+		});
 
 		let next_extrinsic_index = Self::extrinsic_index().unwrap_or_default() + 1u32;
 
@@ -1187,8 +1215,8 @@ impl<T: Trait> Module<T> {
 	/// To be called immediately after `note_applied_extrinsic` of the last extrinsic of the block
 	/// has been called.
 	pub fn note_finished_extrinsics() {
-		let extrinsic_index: u32 = storage::unhashed::take(well_known_keys::EXTRINSIC_INDEX)
-			.unwrap_or_default();
+		let extrinsic_index: u32 =
+			storage::unhashed::take(well_known_keys::EXTRINSIC_INDEX).unwrap_or_default();
 		ExtrinsicCount::put(extrinsic_index);
 		ExecutionPhase::put(Phase::Finalization);
 	}
@@ -1201,8 +1229,8 @@ impl<T: Trait> Module<T> {
 
 	/// Remove all extrinsic data and save the extrinsics trie root.
 	pub fn derive_extrinsics() {
-		let extrinsics = (0..ExtrinsicCount::get().unwrap_or_default())
-			.map(ExtrinsicData::take).collect();
+		let extrinsics =
+			(0..ExtrinsicCount::get().unwrap_or_default()).map(ExtrinsicData::take).collect();
 		let xts_root = extrinsics_data_root::<T::Hashing>(extrinsics);
 		<ExtrinsicsRoot<T>>::put(xts_root);
 	}
@@ -1276,8 +1304,7 @@ impl<T: Trait> Happened<T::AccountId> for CallKillAccount<T> {
 	}
 }
 
-impl<T: Trait> BlockNumberProvider for Module<T>
-{
+impl<T: Trait> BlockNumberProvider for Module<T> {
 	type BlockNumber = <T as Trait>::BlockNumber;
 
 	fn current_block_number() -> Self::BlockNumber {
@@ -1314,15 +1341,18 @@ impl<T: Trait> StoredMap<T::AccountId, T::AccountData> for Module<T> {
 		r
 	}
 	fn mutate_exists<R>(k: &T::AccountId, f: impl FnOnce(&mut Option<T::AccountData>) -> R) -> R {
-		Self::try_mutate_exists(k, |x| -> Result<R, Infallible> { Ok(f(x)) }).expect("Infallible; qed")
+		Self::try_mutate_exists(k, |x| -> Result<R, Infallible> { Ok(f(x)) })
+			.expect("Infallible; qed")
 	}
-	fn try_mutate_exists<R, E>(k: &T::AccountId, f: impl FnOnce(&mut Option<T::AccountData>) -> Result<R, E>) -> Result<R, E> {
+	fn try_mutate_exists<R, E>(
+		k: &T::AccountId,
+		f: impl FnOnce(&mut Option<T::AccountData>) -> Result<R, E>,
+	) -> Result<R, E> {
 		Account::<T>::try_mutate_exists(k, |maybe_value| {
 			let existed = maybe_value.is_some();
-			let (maybe_prefix, mut maybe_data) = split_inner(
-				maybe_value.take(),
-				|account| ((account.nonce, account.refcount), account.data)
-			);
+			let (maybe_prefix, mut maybe_data) = split_inner(maybe_value.take(), |account| {
+				((account.nonce, account.refcount), account.data)
+			});
 			f(&mut maybe_data).map(|result| {
 				*maybe_value = maybe_data.map(|data| {
 					let (nonce, refcount) = maybe_prefix.unwrap_or_default();
@@ -1330,7 +1360,8 @@ impl<T: Trait> StoredMap<T::AccountId, T::AccountData> for Module<T> {
 				});
 				(existed, maybe_value.is_some(), result)
 			})
-		}).map(|(existed, exists, v)| {
+		})
+		.map(|(existed, exists, v)| {
 			if !existed && exists {
 				Self::on_created_account(k.clone());
 			} else if existed && !exists {
@@ -1342,18 +1373,18 @@ impl<T: Trait> StoredMap<T::AccountId, T::AccountData> for Module<T> {
 }
 
 /// Split an `option` into two constituent options, as defined by a `splitter` function.
-pub fn split_inner<T, R, S>(option: Option<T>, splitter: impl FnOnce(T) -> (R, S))
-	-> (Option<R>, Option<S>)
-{
+pub fn split_inner<T, R, S>(
+	option: Option<T>,
+	splitter: impl FnOnce(T) -> (R, S),
+) -> (Option<R>, Option<S>) {
 	match option {
 		Some(inner) => {
 			let (r, s) = splitter(inner);
 			(Some(r), Some(s))
-		}
+		},
 		None => (None, None),
 	}
 }
-
 
 impl<T: Trait> IsDeadAccount<T::AccountId> for Module<T> {
 	fn is_dead_account(who: &T::AccountId) -> bool {

@@ -33,12 +33,12 @@
 //!
 //! The recovery process for each recoverable account can be configured by the account owner.
 //! They are able to choose:
-//! * `friends` - The list of friends that the account owner trusts to protect the
-//!   recovery process for their account.
-//! * `threshold` - The number of friends that need to approve a recovery process for
-//!   the account to be successfully recovered.
-//! * `delay_period` - The minimum number of blocks after the beginning of the recovery
-//!   process that need to pass before the account can be successfully recovered.
+//! * `friends` - The list of friends that the account owner trusts to protect the recovery process
+//!   for their account.
+//! * `threshold` - The number of friends that need to approve a recovery process for the account to
+//!   be successfully recovered.
+//! * `delay_period` - The minimum number of blocks after the beginning of the recovery process that
+//!   need to pass before the account can be successfully recovered.
 //!
 //! There is a configurable deposit that all users need to pay to create a recovery
 //! configuration. This deposit is composed of a base deposit plus a multiplier for
@@ -101,25 +101,23 @@
 //! security of an account if used incorrectly. Some recommended practices for users
 //! of this pallet are:
 //!
-//! * Configure a significant `delay_period` for your recovery process: As long as you
-//!   have access to your recoverable account, you need only check the blockchain once
-//!   every `delay_period` blocks to ensure that no recovery attempt is successful
-//!   against your account. Using off-chain notification systems can help with this,
-//!   but ultimately, setting a large `delay_period` means that even the most skilled
-//!   attacker will need to wait this long before they can access your account.
-//! * Use a high threshold of approvals: Setting a value of 1 for the threshold means
-//!   that any of your friends would be able to recover your account. They would
-//!   simply need to start a recovery process and approve their own process. Similarly,
-//!   a threshold of 2 would mean that any 2 friends could work together to gain
-//!   access to your account. The only way to prevent against these kinds of attacks
-//!   is to choose a high threshold of approvals and select from a diverse friend
-//!   group that would not be able to reasonably coordinate with one another.
-//! * Reset your configuration over time: Since the entire deposit of creating a
-//!   recovery configuration is returned to the user, the only cost of updating
-//!   your recovery configuration is the transaction fees for the calls. Thus,
-//!   it is strongly encouraged to regularly update your recovery configuration
-//!   as your life changes and your relationship with new and existing friends
-//!   change as well.
+//! * Configure a significant `delay_period` for your recovery process: As long as you have access
+//!   to your recoverable account, you need only check the blockchain once every `delay_period`
+//!   blocks to ensure that no recovery attempt is successful against your account. Using off-chain
+//!   notification systems can help with this, but ultimately, setting a large `delay_period` means
+//!   that even the most skilled attacker will need to wait this long before they can access your
+//!   account.
+//! * Use a high threshold of approvals: Setting a value of 1 for the threshold means that any of
+//!   your friends would be able to recover your account. They would simply need to start a recovery
+//!   process and approve their own process. Similarly, a threshold of 2 would mean that any 2
+//!   friends could work together to gain access to your account. The only way to prevent against
+//!   these kinds of attacks is to choose a high threshold of approvals and select from a diverse
+//!   friend group that would not be able to reasonably coordinate with one another.
+//! * Reset your configuration over time: Since the entire deposit of creating a recovery
+//!   configuration is returned to the user, the only cost of updating your recovery configuration
+//!   is the transaction fees for the calls. Thus, it is strongly encouraged to regularly update
+//!   your recovery configuration as your life changes and your relationship with new and existing
+//!   friends change as well.
 //!
 //! ## Interface
 //!
@@ -131,40 +129,47 @@
 //! * `initiate_recovery` - Start the recovery process for a recoverable account.
 //!
 //! #### For Friends of a Recoverable Account
-//! * `vouch_recovery` - As a `friend` of a recoverable account, vouch for a recovery attempt on the account.
+//! * `vouch_recovery` - As a `friend` of a recoverable account, vouch for a recovery attempt on the
+//!   account.
 //!
 //! #### For a User Who Successfully Recovered an Account
 //!
-//! * `claim_recovery` - Claim access to the account that you have successfully completed the recovery process for.
-//! * `as_recovered` - Send a transaction as an account that you have recovered. See other functions below.
+//! * `claim_recovery` - Claim access to the account that you have successfully completed the
+//!   recovery process for.
+//! * `as_recovered` - Send a transaction as an account that you have recovered. See other functions
+//!   below.
 //!
 //! #### For the Recoverable Account
 //!
-//! * `close_recovery` - Close an active recovery process for your account and reclaim the recovery deposit.
-//! * `remove_recovery` - Remove the recovery configuration from the account, making it un-recoverable.
+//! * `close_recovery` - Close an active recovery process for your account and reclaim the recovery
+//!   deposit.
+//! * `remove_recovery` - Remove the recovery configuration from the account, making it
+//!   un-recoverable.
 //!
 //! #### For Super Users
 //!
-//! * `set_recovered` - The ROOT origin is able to skip the recovery process and directly allow
-//!   one account to access another.
+//! * `set_recovered` - The ROOT origin is able to skip the recovery process and directly allow one
+//!   account to access another.
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
+use codec::{Decode, Encode};
 use sp_runtime::{
-	traits::{Dispatchable, SaturatedConversion, CheckedAdd, CheckedMul},
-	DispatchResult
+	traits::{CheckedAdd, CheckedMul, Dispatchable, SaturatedConversion},
+	DispatchResult,
 };
-use codec::{Encode, Decode};
+use sp_std::prelude::*;
 
 use frame_support::{
-	decl_module, decl_event, decl_storage, decl_error, ensure,
-	Parameter, RuntimeDebug, weights::GetDispatchInfo,
-	traits::{Currency, ReservableCurrency, Get, BalanceStatus},
+	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::PostDispatchInfo,
+	ensure,
+	traits::{BalanceStatus, Currency, Get, ReservableCurrency},
+	weights::GetDispatchInfo,
+	Parameter, RuntimeDebug,
 };
-use frame_system::{self as system, ensure_signed, ensure_root};
+use frame_system::{self as system, ensure_root, ensure_signed};
 
 #[cfg(test)]
 mod mock;
@@ -180,7 +185,9 @@ pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
 	/// The overarching call type.
-	type Call: Parameter + Dispatchable<Origin=Self::Origin, PostInfo=PostDispatchInfo> + GetDispatchInfo;
+	type Call: Parameter
+		+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+		+ GetDispatchInfo;
 
 	/// The currency mechanism.
 	type Currency: ReservableCurrency<Self::AccountId>;

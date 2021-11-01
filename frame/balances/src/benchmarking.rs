@@ -21,8 +21,8 @@
 
 use super::*;
 
+use frame_benchmarking::{account, benchmarks, whitelisted_caller};
 use frame_system::RawOrigin;
-use frame_benchmarking::{benchmarks, account, whitelisted_caller};
 use sp_runtime::traits::Bounded;
 
 use crate::Module as Balances;
@@ -30,7 +30,6 @@ use crate::Module as Balances;
 const SEED: u32 = 0;
 // existential deposit multiplier
 const ED_MULTIPLIER: u32 = 10;
-
 
 benchmarks! {
 	_ { }

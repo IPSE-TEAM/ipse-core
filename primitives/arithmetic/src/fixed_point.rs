@@ -16,22 +16,38 @@
 
 //! Decimal Fixed Point implementations for Substrate runtime.
 
-use sp_std::{ops::{self, Add, Sub, Mul, Div}, fmt::Debug, prelude::*, convert::{TryInto, TryFrom}};
-use codec::{Encode, Decode};
 use crate::{
-	helpers_128bit::multiply_by_rational, PerThing,
+	helpers_128bit::multiply_by_rational,
 	traits::{
-		SaturatedConversion, CheckedSub, CheckedAdd, CheckedMul, CheckedDiv, CheckedNeg,
-		Bounded, Saturating, UniqueSaturatedInto, Zero, One
+		Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, One,
+		SaturatedConversion, Saturating, UniqueSaturatedInto, Zero,
 	},
+	PerThing,
+};
+use codec::{Decode, Encode};
+use sp_std::{
+	convert::{TryFrom, TryInto},
+	fmt::Debug,
+	ops::{self, Add, Div, Mul, Sub},
+	prelude::*,
 };
 
 #[cfg(feature = "std")]
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Integer types that can be used to interact with `FixedPointNumber` implementations.
-pub trait FixedPointOperand: Copy + Clone + Bounded + Zero + Saturating
-	+ PartialOrd + UniqueSaturatedInto<u128> + TryFrom<u128> + CheckedNeg {}
+pub trait FixedPointOperand:
+	Copy
+	+ Clone
+	+ Bounded
+	+ Zero
+	+ Saturating
+	+ PartialOrd
+	+ UniqueSaturatedInto<u128>
+	+ TryFrom<u128>
+	+ CheckedNeg
+{
+}
 
 impl FixedPointOperand for i128 {}
 impl FixedPointOperand for u128 {}
@@ -52,11 +68,24 @@ impl FixedPointOperand for u8 {}
 /// to `Self::Inner::max_value() / Self::DIV`.
 /// This is also referred to as the _accuracy_ of the type in the documentation.
 pub trait FixedPointNumber:
-	Sized + Copy + Default + Debug
-	+ Saturating + Bounded
-	+ Eq + PartialEq + Ord + PartialOrd
-	+ CheckedSub + CheckedAdd + CheckedMul + CheckedDiv
-	+ Add + Sub + Div + Mul
+	Sized
+	+ Copy
+	+ Default
+	+ Debug
+	+ Saturating
+	+ Bounded
+	+ Eq
+	+ PartialEq
+	+ Ord
+	+ PartialOrd
+	+ CheckedSub
+	+ CheckedAdd
+	+ CheckedMul
+	+ CheckedDiv
+	+ Add
+	+ Sub
+	+ Div
+	+ Mul
 {
 	/// The underlying data type used for this fixed point number.
 	type Inner: Debug + One + CheckedMul + CheckedDiv + FixedPointOperand;
@@ -107,7 +136,10 @@ pub trait FixedPointNumber:
 	/// Creates `self` from a rational number. Equal to `n / d`.
 	///
 	/// Returns `None` if `d == 0` or `n / d` exceeds accuracy.
-	fn checked_from_rational<N: FixedPointOperand, D: FixedPointOperand>(n: N, d: D) -> Option<Self> {
+	fn checked_from_rational<N: FixedPointOperand, D: FixedPointOperand>(
+		n: N,
+		d: D,
+	) -> Option<Self> {
 		if d == D::zero() {
 			return None
 		}
@@ -116,7 +148,8 @@ pub trait FixedPointNumber:
 		let d: I129 = d.into();
 		let negative = n.negative != d.negative;
 
-		multiply_by_rational(n.value, Self::DIV.unique_saturated_into(), d.value).ok()
+		multiply_by_rational(n.value, Self::DIV.unique_saturated_into(), d.value)
+			.ok()
 			.and_then(|value| from_i129(I129 { value, negative }))
 			.map(|inner| Self::from_inner(inner))
 	}
@@ -129,7 +162,8 @@ pub trait FixedPointNumber:
 		let rhs: I129 = n.into();
 		let negative = lhs.negative != rhs.negative;
 
-		multiply_by_rational(lhs.value, rhs.value, Self::DIV.unique_saturated_into()).ok()
+		multiply_by_rational(lhs.value, rhs.value, Self::DIV.unique_saturated_into())
+			.ok()
 			.and_then(|value| from_i129(I129 { value, negative }))
 	}
 
@@ -148,7 +182,8 @@ pub trait FixedPointNumber:
 		let rhs: I129 = d.into();
 		let negative = lhs.negative != rhs.negative;
 
-		lhs.value.checked_div(rhs.value)
+		lhs.value
+			.checked_div(rhs.value)
 			.and_then(|n| n.checked_div(Self::DIV.unique_saturated_into()))
 			.and_then(|value| from_i129(I129 { value, negative }))
 	}
@@ -226,7 +261,8 @@ pub trait FixedPointNumber:
 
 	/// Returns the integer part.
 	fn trunc(self) -> Self {
-		self.into_inner().checked_div(&Self::DIV)
+		self.into_inner()
+			.checked_div(&Self::DIV)
 			.expect("panics only if DIV is zero, DIV is not zero; qed")
 			.checked_mul(&Self::DIV)
 			.map(|inner| Self::from_inner(inner))
@@ -299,7 +335,8 @@ struct I129 {
 impl<N: FixedPointOperand> From<N> for I129 {
 	fn from(n: N) -> I129 {
 		if n < N::zero() {
-			let value: u128 = n.checked_neg()
+			let value: u128 = n
+				.checked_neg()
 				.map(|n| n.unique_saturated_into())
 				.unwrap_or_else(|| N::max_value().unique_saturated_into().saturating_add(1));
 			I129 { value, negative: true }

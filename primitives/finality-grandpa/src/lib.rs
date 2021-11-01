@@ -25,12 +25,12 @@ extern crate alloc;
 #[cfg(feature = "std")]
 use serde::Serialize;
 
-use codec::{Encode, Decode, Input, Codec};
-use sp_runtime::{ConsensusEngineId, RuntimeDebug, traits::NumberFor};
-use sp_std::borrow::Cow;
-use sp_std::vec::Vec;
+use codec::{Codec, Decode, Encode, Input};
 #[cfg(feature = "std")]
 use sp_core::traits::BareCryptoStorePtr;
+use sp_runtime::{traits::NumberFor, ConsensusEngineId, RuntimeDebug};
+use sp_std::borrow::Cow;
+use sp_std::vec::Vec;
 
 #[cfg(feature = "std")]
 use log::debug;
@@ -39,7 +39,7 @@ use log::debug;
 pub const KEY_TYPE: sp_core::crypto::KeyTypeId = sp_application_crypto::key_types::GRANDPA;
 
 mod app {
-	use sp_application_crypto::{app_crypto, key_types::GRANDPA, ed25519};
+	use sp_application_crypto::{app_crypto, ed25519, key_types::GRANDPA};
 	app_crypto!(ed25519, GRANDPA);
 }
 
@@ -181,10 +181,7 @@ impl<H, N> EquivocationProof<H, N> {
 	/// Create a new `EquivocationProof` for the given set id and using the
 	/// given equivocation as proof.
 	pub fn new(set_id: SetId, equivocation: Equivocation<H, N>) -> Self {
-		EquivocationProof {
-			set_id,
-			equivocation,
-		}
+		EquivocationProof { set_id, equivocation }
 	}
 
 	/// Returns the set id at which the equivocation occurred.
@@ -268,9 +265,9 @@ where
 			// if both votes have the same target the equivocation is invalid.
 			if $equivocation.first.0.target_hash == $equivocation.second.0.target_hash &&
 				$equivocation.first.0.target_number == $equivocation.second.0.target_number
-			{
-				return false;
-			}
+				{
+				return false
+				}
 
 			// check signatures on both votes are valid
 			let valid_first = check_message_signature(
@@ -279,7 +276,7 @@ where
 				&$equivocation.first.1,
 				$equivocation.round_number,
 				report.set_id,
-			);
+				);
 
 			let valid_second = check_message_signature(
 				&$message($equivocation.second.0),
@@ -287,19 +284,19 @@ where
 				&$equivocation.second.1,
 				$equivocation.round_number,
 				report.set_id,
-			);
+				);
 
-			return valid_first && valid_second;
+			return valid_first && valid_second
 		};
 	}
 
 	match report.equivocation {
 		Equivocation::Prevote(equivocation) => {
 			check!(equivocation, grandpa::Message::Prevote);
-		}
+		},
 		Equivocation::Precommit(equivocation) => {
 			check!(equivocation, grandpa::Message::Precommit);
-		}
+		},
 	}
 }
 
@@ -382,22 +379,19 @@ where
 	H: Encode,
 	N: Encode,
 {
-	use sp_core::crypto::Public;
 	use sp_application_crypto::AppKey;
+	use sp_core::crypto::Public;
 	use sp_std::convert::TryInto;
 
 	let encoded = localized_payload(round, set_id, &message);
-	let signature = keystore.read()
+	let signature = keystore
+		.read()
 		.sign_with(AuthorityId::ID, &public.to_public_crypto_pair(), &encoded[..])
 		.ok()?
 		.try_into()
 		.ok()?;
 
-	Some(grandpa::SignedMessage {
-		message,
-		signature,
-		id: public,
-	})
+	Some(grandpa::SignedMessage { message, signature, id: public })
 }
 
 /// WASM function call to check for pending changes.
@@ -448,7 +442,7 @@ impl<'a> Decode for VersionedAuthorityList<'a> {
 	fn decode<I: Input>(value: &mut I) -> Result<Self, codec::Error> {
 		let (version, authorities): (u8, AuthorityList) = Decode::decode(value)?;
 		if version != AUTHORITIES_VERSION {
-			return Err("unknown Grandpa authorities version".into());
+			return Err("unknown Grandpa authorities version".into())
 		}
 		Ok(authorities.into())
 	}

@@ -21,13 +21,17 @@
 
 use super::*;
 
+use crate as utility;
 use frame_support::{
-	assert_ok, assert_noop, impl_outer_origin, parameter_types, impl_outer_dispatch,
-	weights::Weight, impl_outer_event, dispatch::DispatchError, traits::Filter, storage,
+	assert_noop, assert_ok, dispatch::DispatchError, impl_outer_dispatch, impl_outer_event,
+	impl_outer_origin, parameter_types, storage, traits::Filter, weights::Weight,
 };
 use sp_core::H256;
-use sp_runtime::{Perbill, traits::{BlakeTwo256, IdentityLookup}, testing::Header};
-use crate as utility;
+use sp_runtime::{
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
+	Perbill,
+};
 
 impl_outer_origin! {
 	pub enum Origin for Test where system = frame_system {}
@@ -130,7 +134,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![(1, 10), (2, 10), (3, 10), (4, 10), (5, 2)],
-	}.assimilate_storage(&mut t).unwrap();
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
 	ext
@@ -149,11 +155,14 @@ fn as_derivative_works() {
 	new_test_ext().execute_with(|| {
 		let sub_1_0 = Utility::derivative_account_id(1, 0);
 		assert_ok!(Balances::transfer(Origin::signed(1), sub_1_0, 5));
-		assert_noop!(Utility::as_derivative(
-			Origin::signed(1),
-			1,
-			Box::new(Call::Balances(BalancesCall::transfer(6, 3))),
-		), BalancesError::<Test, _>::InsufficientBalance);
+		assert_noop!(
+			Utility::as_derivative(
+				Origin::signed(1),
+				1,
+				Box::new(Call::Balances(BalancesCall::transfer(6, 3))),
+			),
+			BalancesError::<Test, _>::InsufficientBalance
+		);
 		assert_ok!(Utility::as_derivative(
 			Origin::signed(1),
 			0,
@@ -167,11 +176,14 @@ fn as_derivative_works() {
 #[test]
 fn as_derivative_filters() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(Utility::as_derivative(
-			Origin::signed(1),
-			1,
-			Box::new(Call::System(frame_system::Call::suicide())),
-		), DispatchError::BadOrigin);
+		assert_noop!(
+			Utility::as_derivative(
+				Origin::signed(1),
+				1,
+				Box::new(Call::System(frame_system::Call::suicide())),
+			),
+			DispatchError::BadOrigin
+		);
 	});
 }
 
@@ -183,11 +195,14 @@ fn batch_with_root_works() {
 		assert!(!TestBaseCallFilter::filter(&call));
 		assert_eq!(Balances::free_balance(1), 10);
 		assert_eq!(Balances::free_balance(2), 10);
-		assert_ok!(Utility::batch(Origin::root(), vec![
-			Call::Balances(BalancesCall::force_transfer(1, 2, 5)),
-			Call::Balances(BalancesCall::force_transfer(1, 2, 5)),
-			call, // Check filters are correctly bypassed
-		]));
+		assert_ok!(Utility::batch(
+			Origin::root(),
+			vec![
+				Call::Balances(BalancesCall::force_transfer(1, 2, 5)),
+				Call::Balances(BalancesCall::force_transfer(1, 2, 5)),
+				call, // Check filters are correctly bypassed
+			]
+		));
 		assert_eq!(Balances::free_balance(1), 0);
 		assert_eq!(Balances::free_balance(2), 20);
 		assert_eq!(storage::unhashed::get_raw(&k), Some(k));
@@ -199,12 +214,13 @@ fn batch_with_signed_works() {
 	new_test_ext().execute_with(|| {
 		assert_eq!(Balances::free_balance(1), 10);
 		assert_eq!(Balances::free_balance(2), 10);
-		assert_ok!(
-			Utility::batch(Origin::signed(1), vec![
+		assert_ok!(Utility::batch(
+			Origin::signed(1),
+			vec![
 				Call::Balances(BalancesCall::transfer(2, 5)),
 				Call::Balances(BalancesCall::transfer(2, 5))
-			]),
-		);
+			]
+		),);
 		assert_eq!(Balances::free_balance(1), 0);
 		assert_eq!(Balances::free_balance(2), 20);
 	});
@@ -213,11 +229,10 @@ fn batch_with_signed_works() {
 #[test]
 fn batch_with_signed_filters() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(
-			Utility::batch(Origin::signed(1), vec![
-				Call::System(frame_system::Call::suicide())
-			]),
-		);
+		assert_ok!(Utility::batch(
+			Origin::signed(1),
+			vec![Call::System(frame_system::Call::suicide())]
+		),);
 		expect_event(Event::BatchInterrupted(0, DispatchError::BadOrigin));
 	});
 }
@@ -227,13 +242,14 @@ fn batch_early_exit_works() {
 	new_test_ext().execute_with(|| {
 		assert_eq!(Balances::free_balance(1), 10);
 		assert_eq!(Balances::free_balance(2), 10);
-		assert_ok!(
-			Utility::batch(Origin::signed(1), vec![
+		assert_ok!(Utility::batch(
+			Origin::signed(1),
+			vec![
 				Call::Balances(BalancesCall::transfer(2, 5)),
 				Call::Balances(BalancesCall::transfer(2, 10)),
 				Call::Balances(BalancesCall::transfer(2, 5)),
-			]),
-		);
+			]
+		),);
 		assert_eq!(Balances::free_balance(1), 5);
 		assert_eq!(Balances::free_balance(2), 15);
 	});

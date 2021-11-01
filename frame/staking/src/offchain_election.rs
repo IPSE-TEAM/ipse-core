@@ -81,17 +81,16 @@ pub(crate) fn set_check_offchain_execution_status<T: Trait>(
 		storage.mutate::<_, &'static str, _>(|maybe_head: Option<Option<T::BlockNumber>>| {
 			match maybe_head {
 				Some(Some(head)) if now < head => Err("fork."),
-				Some(Some(head)) if now >= head && now <= head + threshold => {
-					Err("recently executed.")
-				}
+				Some(Some(head)) if now >= head && now <= head + threshold =>
+					Err("recently executed."),
 				Some(Some(head)) if now > head + threshold => {
 					// we can run again now. Write the new head.
 					Ok(now)
-				}
+				},
 				_ => {
 					// value doesn't exists. Probably this node just booted up. Write, and run
 					Ok(now)
-				}
+				},
 			}
 		});
 
@@ -111,19 +110,13 @@ pub(crate) fn set_check_offchain_execution_status<T: Trait>(
 pub(crate) fn compute_offchain_election<T: Trait>() -> Result<(), OffchainElectionError> {
 	let iters = get_balancing_iters::<T>();
 	// compute raw solution. Note that we use `OffchainAccuracy`.
-	let ElectionResult {
-		winners,
-		assignments,
-	} = <Module<T>>::do_phragmen::<OffchainAccuracy>(iters)
-		.ok_or(OffchainElectionError::ElectionFailed)?;
+	let ElectionResult { winners, assignments } =
+		<Module<T>>::do_phragmen::<OffchainAccuracy>(iters)
+			.ok_or(OffchainElectionError::ElectionFailed)?;
 
 	// process and prepare it for submission.
-	let (winners, compact, score, size) = prepare_submission::<T>(
-		assignments,
-		winners,
-		true,
-		T::OffchainSolutionWeightLimit::get(),
-	)?;
+	let (winners, compact, score, size) =
+		prepare_submission::<T>(assignments, winners, true, T::OffchainSolutionWeightLimit::get())?;
 
 	crate::log!(
 		info,
@@ -136,13 +129,8 @@ pub(crate) fn compute_offchain_election<T: Trait>() -> Result<(), OffchainElecti
 	let current_era = <Module<T>>::current_era().unwrap_or_default();
 
 	// send it.
-	let call = Call::submit_election_solution_unsigned(
-		winners,
-		compact,
-		score,
-		current_era,
-		size,
-	).into();
+	let call =
+		Call::submit_election_solution_unsigned(winners, compact, score, current_era, size).into();
 
 	SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call)
 		.map_err(|_| OffchainElectionError::PoolSubmissionFailed)
@@ -157,9 +145,10 @@ pub fn get_balancing_iters<T: Trait>() -> usize {
 		max @ _ => {
 			let seed = sp_io::offchain::random_seed();
 			let random = <u32>::decode(&mut TrailingZeroInput::new(seed.as_ref()))
-				.expect("input is padded with zeroes; qed") % max.saturating_add(1);
+				.expect("input is padded with zeroes; qed") %
+				max.saturating_add(1);
 			random as usize
-		}
+		},
 	}
 }
 
@@ -174,7 +163,7 @@ pub fn maximum_compact_len<W: crate::WeightInfo>(
 	use sp_std::cmp::Ordering;
 
 	if size.nominators < 1 {
-		return size.nominators;
+		return size.nominators
 	}
 
 	let max_voters = size.nominators.max(1);
@@ -215,15 +204,14 @@ pub fn maximum_compact_len<W: crate::WeightInfo>(
 			},
 			// we are out of bounds, break out of the loop.
 			Err(()) => {
-				break;
+				break
 			},
 			// we found the right value - early exit the function.
-			Ok(next) => return next
+			Ok(next) => return next,
 		}
 		step = step / 2;
 		current_weight = weight_with(voters);
 	}
-
 
 	// Time to finish.
 	// We might have reduced less than expected due to rounding error. Increase one last time if we
@@ -237,7 +225,9 @@ pub fn maximum_compact_len<W: crate::WeightInfo>(
 
 	debug_assert!(
 		weight_with(voters.min(size.nominators)) <= max_weight,
-		"weight_with({}) <= {}", voters.min(size.nominators), max_weight,
+		"weight_with({}) <= {}",
+		voters.min(size.nominators),
+		max_weight,
 	);
 	voters.min(size.nominators)
 }
@@ -269,20 +259,14 @@ where
 		Some(to_remove) if to_remove > 0 => {
 			// grab all voters and sort them by least stake.
 			let mut voters_sorted = <Nominators<T>>::iter()
-				.map(|(who, _)| {
-					(
-						who.clone(),
-						<Module<T>>::slashable_balance_of_vote_weight(&who),
-					)
-				})
+				.map(|(who, _)| (who.clone(), <Module<T>>::slashable_balance_of_vote_weight(&who)))
 				.collect::<Vec<_>>();
 			voters_sorted.sort_by_key(|(_, y)| *y);
 
 			// start removing from the least stake. Iterate until we know enough have been removed.
 			let mut removed = 0;
-			for (maybe_index, _stake) in voters_sorted
-				.iter()
-				.map(|(who, stake)| (nominator_index(&who), stake))
+			for (maybe_index, _stake) in
+				voters_sorted.iter().map(|(who, stake)| (nominator_index(&who), stake))
 			{
 				let index = maybe_index.ok_or(OffchainElectionError::NominatorSnapshotCorrupt)?;
 				if compact.remove_voter(index) {
@@ -296,7 +280,7 @@ where
 				}
 
 				if removed >= to_remove {
-					break;
+					break
 				}
 			}
 
@@ -307,7 +291,7 @@ where
 					compact.len() + removed,
 				);
 			Ok(compact)
-		}
+		},
 		_ => {
 			// nada, return as-is
 			crate::log!(
@@ -315,7 +299,7 @@ where
 				"💸 Compact solution did not get trimmed due to block weight limits.",
 			);
 			Ok(compact)
-		}
+		},
 	}
 }
 
@@ -328,12 +312,7 @@ pub fn prepare_submission<T: Trait>(
 	do_reduce: bool,
 	maximum_weight: Weight,
 ) -> Result<
-	(
-		Vec<ValidatorIndex>,
-		CompactAssignments,
-		ElectionScore,
-		ElectionSize,
-	),
+	(Vec<ValidatorIndex>, CompactAssignments, ElectionScore, ElectionSize),
 	OffchainElectionError,
 >
 where
@@ -436,12 +415,11 @@ where
 	let mut winners_indexed: Vec<ValidatorIndex> = Vec::with_capacity(winners.len());
 	for w in winners {
 		if let Some(idx) = snapshot_validators.iter().position(|v| *v == w) {
-			let compact_index: ValidatorIndex = idx
-				.try_into()
-				.map_err(|_| OffchainElectionError::InvalidWinner)?;
+			let compact_index: ValidatorIndex =
+				idx.try_into().map_err(|_| OffchainElectionError::InvalidWinner)?;
 			winners_indexed.push(compact_index);
 		} else {
-			return Err(OffchainElectionError::InvalidWinner);
+			return Err(OffchainElectionError::InvalidWinner)
 		}
 	}
 
@@ -533,10 +511,7 @@ mod test {
 
 	#[test]
 	fn find_max_voter_binary_search_works() {
-		let size = ElectionSize {
-			validators: 0,
-			nominators: 10,
-		};
+		let size = ElectionSize { validators: 0, nominators: 10 };
 
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 0), 0);
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 1), 0);
@@ -560,10 +535,7 @@ mod test {
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 11_000), 10);
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 22_000), 10);
 
-		let size = ElectionSize {
-			validators: 0,
-			nominators: 1,
-		};
+		let size = ElectionSize { validators: 0, nominators: 1 };
 
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 0), 0);
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 1), 0);
@@ -577,10 +549,7 @@ mod test {
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 2010), 1);
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 3333), 1);
 
-		let size = ElectionSize {
-			validators: 0,
-			nominators: 2,
-		};
+		let size = ElectionSize { validators: 0, nominators: 2 };
 
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 0), 0);
 		assert_eq!(maximum_compact_len::<Staking>(0, size, 1), 0);

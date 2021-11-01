@@ -32,10 +32,7 @@ struct Observed {
 impl Observed {
 	fn new() -> Observed {
 		let now = Instant::now();
-		Observed {
-			last_round_end: now,
-			offline_since: now,
-		}
+		Observed { last_round_end: now, offline_since: now }
 	}
 
 	fn note_round_end(&mut self, was_online: bool) {
@@ -49,7 +46,9 @@ impl Observed {
 
 	fn is_active(&self) -> bool {
 		// can happen if clocks are not monotonic
-		if self.offline_since > self.last_round_end { return true }
+		if self.offline_since > self.last_round_end {
+			return true
+		}
 		self.last_round_end.duration_since(self.offline_since) < REPORT_TIME
 	}
 }
@@ -75,20 +74,15 @@ impl<AuthorityId: Eq + Clone + std::hash::Hash> OfflineTracker<AuthorityId> {
 
 	/// Note that a round has ended.
 	pub fn note_round_end(&mut self, validator: AuthorityId, was_online: bool) {
-		self.observed.entry(validator)
-			.or_insert_with(Observed::new)
-			.note_round_end(was_online);
+		self.observed.entry(validator).or_insert_with(Observed::new).note_round_end(was_online);
 	}
 
 	/// Generate a vector of indices for offline account IDs.
 	pub fn reports(&self, validators: &[AuthorityId]) -> Vec<u32> {
-		validators.iter()
+		validators
+			.iter()
 			.enumerate()
-			.filter_map(|(i, v)| if self.is_online(v) {
-				None
-			} else {
-				Some(i as u32)
-			})
+			.filter_map(|(i, v)| if self.is_online(v) { None } else { Some(i as u32) })
 			.collect()
 	}
 

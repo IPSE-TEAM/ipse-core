@@ -21,22 +21,18 @@
 
 use super::*;
 use crate::mock::*;
-use sp_core::OpaquePeerId;
+use frame_support::{assert_noop, dispatch};
 use sp_core::offchain::{
-	OffchainExt,
-	TransactionPoolExt,
 	testing::{TestOffchainExt, TestTransactionPoolExt},
+	OffchainExt, TransactionPoolExt,
 };
-use frame_support::{dispatch, assert_noop};
+use sp_core::OpaquePeerId;
 use sp_runtime::{testing::UintAuthorityId, transaction_validity::TransactionValidityError};
 
 #[test]
 fn test_unresponsiveness_slash_fraction() {
 	// A single case of unresponsiveness is not slashed.
-	assert_eq!(
-		UnresponsivenessOffence::<()>::slash_fraction(1, 50),
-		Perbill::zero(),
-	);
+	assert_eq!(UnresponsivenessOffence::<()>::slash_fraction(1, 50), Perbill::zero(),);
 
 	assert_eq!(
 		UnresponsivenessOffence::<()>::slash_fraction(5, 50),
@@ -74,17 +70,17 @@ fn should_report_offline_validators() {
 
 		// then
 		let offences = OFFENCES.with(|l| l.replace(vec![]));
-		assert_eq!(offences, vec![
-			(vec![], UnresponsivenessOffence {
-				session_index: 2,
-				validator_set_count: 3,
-				offenders: vec![
-					(1, 1),
-					(2, 2),
-					(3, 3),
-				],
-			})
-		]);
+		assert_eq!(
+			offences,
+			vec![(
+				vec![],
+				UnresponsivenessOffence {
+					session_index: 2,
+					validator_set_count: 3,
+					offenders: vec![(1, 1), (2, 2), (3, 3),],
+				}
+			)]
+		);
 
 		// should not report when heartbeat is sent
 		for (idx, v) in validators.into_iter().take(4).enumerate() {
@@ -94,16 +90,17 @@ fn should_report_offline_validators() {
 
 		// then
 		let offences = OFFENCES.with(|l| l.replace(vec![]));
-		assert_eq!(offences, vec![
-			(vec![], UnresponsivenessOffence {
-				session_index: 3,
-				validator_set_count: 6,
-				offenders: vec![
-					(5, 5),
-					(6, 6),
-				],
-			})
-		]);
+		assert_eq!(
+			offences,
+			vec![(
+				vec![],
+				UnresponsivenessOffence {
+					session_index: 3,
+					validator_set_count: 6,
+					offenders: vec![(5, 5), (6, 6),],
+				}
+			)]
+		);
 	});
 }
 
@@ -128,17 +125,15 @@ fn heartbeat(
 	};
 	let signature = id.sign(&heartbeat.encode()).unwrap();
 
-	ImOnline::pre_dispatch(&crate::Call::heartbeat(heartbeat.clone(), signature.clone()))
-		.map_err(|e| match e {
-			TransactionValidityError::Invalid(InvalidTransaction::Custom(INVALID_VALIDATORS_LEN)) =>
-				"invalid validators len",
+	ImOnline::pre_dispatch(&crate::Call::heartbeat(heartbeat.clone(), signature.clone())).map_err(
+		|e| match e {
+			TransactionValidityError::Invalid(InvalidTransaction::Custom(
+				INVALID_VALIDATORS_LEN,
+			)) => "invalid validators len",
 			e @ _ => <&'static str>::from(e),
-		})?;
-	ImOnline::heartbeat(
-		Origin::none(),
-		heartbeat,
-		signature,
-	)
+		},
+	)?;
+	ImOnline::heartbeat(Origin::none(), heartbeat, signature)
 }
 
 #[test]
@@ -190,8 +185,14 @@ fn late_heartbeat_and_invalid_keys_len_should_fail() {
 		assert_eq!(Session::validators(), vec![1, 2, 3]);
 
 		// when
-		assert_noop!(heartbeat(1, 3, 0, 1.into(), Session::validators()), "Transaction is outdated");
-		assert_noop!(heartbeat(1, 1, 0, 1.into(), Session::validators()), "Transaction is outdated");
+		assert_noop!(
+			heartbeat(1, 3, 0, 1.into(), Session::validators()),
+			"Transaction is outdated"
+		);
+		assert_noop!(
+			heartbeat(1, 1, 0, 1.into(), Session::validators()),
+			"Transaction is outdated"
+		);
 
 		// invalid validators_len
 		assert_noop!(heartbeat(1, 2, 0, 1.into(), vec![]), "invalid validators len");
@@ -234,13 +235,16 @@ fn should_generate_heartbeats() {
 			e => panic!("Unexpected call: {:?}", e),
 		};
 
-		assert_eq!(heartbeat, Heartbeat {
-			block_number: block,
-			network_state: sp_io::offchain::network_state().unwrap(),
-			session_index: 2,
-			authority_index: 2,
-			validators_len: 3,
-		});
+		assert_eq!(
+			heartbeat,
+			Heartbeat {
+				block_number: block,
+				network_state: sp_io::offchain::network_state().unwrap(),
+				session_index: 2,
+				authority_index: 2,
+				validators_len: 3,
+			}
+		);
 	});
 }
 
@@ -345,12 +349,15 @@ fn should_not_send_a_report_if_already_online() {
 			e => panic!("Unexpected call: {:?}", e),
 		};
 
-		assert_eq!(heartbeat, Heartbeat {
-			block_number: 4,
-			network_state: sp_io::offchain::network_state().unwrap(),
-			session_index: 2,
-			authority_index: 0,
-			validators_len: 3,
-		});
+		assert_eq!(
+			heartbeat,
+			Heartbeat {
+				block_number: 4,
+				network_state: sp_io::offchain::network_state().unwrap(),
+				session_index: 2,
+				authority_index: 0,
+				validators_len: 3,
+			}
+		);
 	});
 }

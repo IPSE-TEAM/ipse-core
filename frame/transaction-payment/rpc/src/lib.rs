@@ -17,26 +17,25 @@
 
 //! RPC interface for the transaction payment module.
 
-use std::sync::Arc;
+pub use self::gen_client::Client as TransactionPaymentClient;
 use codec::{Codec, Decode};
-use sp_blockchain::HeaderBackend;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-use sp_runtime::{generic::BlockId, traits::{Block as BlockT, MaybeDisplay, MaybeFromStr}};
-use sp_api::ProvideRuntimeApi;
-use sp_core::Bytes;
 use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 pub use pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi as TransactionPaymentRuntimeApi;
-pub use self::gen_client::Client as TransactionPaymentClient;
+use sp_api::ProvideRuntimeApi;
+use sp_blockchain::HeaderBackend;
+use sp_core::Bytes;
+use sp_runtime::{
+	generic::BlockId,
+	traits::{Block as BlockT, MaybeDisplay, MaybeFromStr},
+};
+use std::sync::Arc;
 
 #[rpc]
 pub trait TransactionPaymentApi<BlockHash, ResponseType> {
 	#[rpc(name = "payment_queryInfo")]
-	fn query_info(
-		&self,
-		encoded_xt: Bytes,
-		at: Option<BlockHash>
-	) -> Result<ResponseType>;
+	fn query_info(&self, encoded_xt: Bytes, at: Option<BlockHash>) -> Result<ResponseType>;
 }
 
 /// A struct that implements the [`TransactionPaymentApi`].
@@ -80,13 +79,12 @@ where
 	fn query_info(
 		&self,
 		encoded_xt: Bytes,
-		at: Option<<Block as BlockT>::Hash>
+		at: Option<<Block as BlockT>::Hash>,
 	) -> Result<RuntimeDispatchInfo<Balance>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.
-			self.client.info().best_hash
-		));
+			self.client.info().best_hash));
 
 		let encoded_len = encoded_xt.len() as u32;
 

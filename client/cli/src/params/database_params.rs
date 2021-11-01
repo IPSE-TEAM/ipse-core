@@ -23,12 +23,7 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 pub struct DatabaseParams {
 	/// Select database backend to use.
-	#[structopt(
-		long,
-		alias = "db",
-		value_name = "DB",
-		case_insensitive = true,
-	)]
+	#[structopt(long, alias = "db", value_name = "DB", case_insensitive = true)]
 	pub database: Option<Database>,
 
 	/// Limit the memory the database cache can use.

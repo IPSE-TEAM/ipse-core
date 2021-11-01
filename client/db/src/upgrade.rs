@@ -17,11 +17,11 @@
 //! Database upgrade logic.
 
 use std::fs;
-use std::io::{Read, Write, ErrorKind};
+use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
-use sp_runtime::traits::Block as BlockT;
 use crate::utils::DatabaseType;
+use sp_runtime::traits::Block as BlockT;
 
 /// Version file name.
 const VERSION_FILE_NAME: &'static str = "db_version";
@@ -30,20 +30,28 @@ const VERSION_FILE_NAME: &'static str = "db_version";
 const CURRENT_VERSION: u32 = 1;
 
 /// Upgrade database to current version.
-pub fn upgrade_db<Block: BlockT>(db_path: &Path, _db_type: DatabaseType) -> sp_blockchain::Result<()> {
+pub fn upgrade_db<Block: BlockT>(
+	db_path: &Path,
+	_db_type: DatabaseType,
+) -> sp_blockchain::Result<()> {
 	let is_empty = db_path.read_dir().map_or(true, |mut d| d.next().is_none());
 	if !is_empty {
 		let db_version = current_version(db_path)?;
 		match db_version {
-			0 => Err(sp_blockchain::Error::Backend(format!("Unsupported database version: {}", db_version)))?,
+			0 => Err(sp_blockchain::Error::Backend(format!(
+				"Unsupported database version: {}",
+				db_version
+			)))?,
 			1 => (),
-			_ => Err(sp_blockchain::Error::Backend(format!("Future database version: {}", db_version)))?,
+			_ => Err(sp_blockchain::Error::Backend(format!(
+				"Future database version: {}",
+				db_version
+			)))?,
 		}
 	}
 
 	update_version(db_path)
 }
-
 
 /// Reads current database version from the file at given path.
 /// If the file does not exist returns 0.
@@ -84,10 +92,10 @@ fn version_file_path(path: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-	use sc_state_db::PruningMode;
-	use crate::{DatabaseSettings, DatabaseSettingsSrc};
-	use crate::tests::Block;
 	use super::*;
+	use crate::tests::Block;
+	use crate::{DatabaseSettings, DatabaseSettingsSrc};
+	use sc_state_db::PruningMode;
 
 	fn create_db(db_path: &Path, version: Option<u32>) {
 		if let Some(version) = version {
@@ -98,12 +106,16 @@ mod tests {
 	}
 
 	fn open_database(db_path: &Path) -> sp_blockchain::Result<()> {
-		crate::utils::open_database::<Block>(&DatabaseSettings {
-			state_cache_size: 0,
-			state_cache_child_ratio: None,
-			pruning: PruningMode::ArchiveAll,
-			source: DatabaseSettingsSrc::RocksDb { path: db_path.to_owned(), cache_size: 128 },
-		}, DatabaseType::Full).map(|_| ())
+		crate::utils::open_database::<Block>(
+			&DatabaseSettings {
+				state_cache_size: 0,
+				state_cache_child_ratio: None,
+				pruning: PruningMode::ArchiveAll,
+				source: DatabaseSettingsSrc::RocksDb { path: db_path.to_owned(), cache_size: 128 },
+			},
+			DatabaseType::Full,
+		)
+		.map(|_| ())
 	}
 
 	#[test]

@@ -19,14 +19,14 @@
 //! The primary means of accessing the runtimes is through a cache which saves the reusable
 //! components of the runtime that are expensive to initialize.
 
-use std::sync::Arc;
 use crate::error::{Error, WasmError};
-use parking_lot::Mutex;
 use codec::Decode;
-use sp_core::traits::{Externalities, RuntimeCode, FetchRuntimeCode};
+use parking_lot::Mutex;
+use sc_executor_common::wasm_runtime::{WasmInstance, WasmModule};
+use sp_core::traits::{Externalities, FetchRuntimeCode, RuntimeCode};
 use sp_version::RuntimeVersion;
 use std::panic::AssertUnwindSafe;
-use sc_executor_common::wasm_runtime::{WasmModule, WasmInstance};
+use std::sync::Arc;
 
 use sp_wasm_interface::Function;
 
@@ -64,26 +64,25 @@ struct VersionedRuntime {
 
 impl VersionedRuntime {
 	/// Run the given closure `f` with an instance of this runtime.
-	fn with_instance<'c, R, F>(
-		&self,
-		ext: &mut dyn Externalities,
-		f: F,
-	) -> Result<R, Error>
-		where F: FnOnce(
+	fn with_instance<'c, R, F>(&self, ext: &mut dyn Externalities, f: F) -> Result<R, Error>
+	where
+		F: FnOnce(
 			&dyn WasmInstance,
 			Option<&RuntimeVersion>,
-			&mut dyn Externalities)
-		-> Result<R, Error>,
+			&mut dyn Externalities,
+		) -> Result<R, Error>,
 	{
 		// Find a free instance
-		let instance = self.instances
+		let instance = self
+			.instances
 			.iter()
 			.enumerate()
 			.find_map(|(index, i)| i.try_lock().map(|i| (index, i)));
 
 		match instance {
 			Some((index, mut locked)) => {
-				let (instance, new_inst) = locked.take()
+				let (instance, new_inst) = locked
+					.take()
 					.map(|r| Ok((r, false)))
 					.unwrap_or_else(|| self.module.new_instance().map(|i| (i, true)))?;
 
@@ -124,7 +123,7 @@ impl VersionedRuntime {
 				let instance = self.module.new_instance()?;
 
 				f(&*instance, self.version.as_ref(), ext)
-			}
+			},
 		}
 	}
 }
@@ -154,10 +153,7 @@ pub struct RuntimeCache {
 impl RuntimeCache {
 	/// Creates a new instance of a runtimes cache.
 	pub fn new(max_runtime_instances: usize) -> RuntimeCache {
-		RuntimeCache {
-			runtimes: Default::default(),
-			max_runtime_instances,
-		}
+		RuntimeCache { runtimes: Default::default(), max_runtime_instances }
 	}
 
 	/// Prepares a WASM module instance and executes given function for it.
@@ -198,28 +194,30 @@ impl RuntimeCache {
 		allow_missing_func_imports: bool,
 		f: F,
 	) -> Result<Result<R, Error>, Error>
-		where F: FnOnce(
+	where
+		F: FnOnce(
 			&dyn WasmInstance,
 			Option<&RuntimeVersion>,
-			&mut dyn Externalities)
-		-> Result<R, Error>,
+			&mut dyn Externalities,
+		) -> Result<R, Error>,
 	{
 		let code_hash = &runtime_code.hash;
 		let heap_pages = runtime_code.heap_pages.unwrap_or(default_heap_pages);
 
 		let mut runtimes = self.runtimes.lock(); // this must be released prior to calling f
-		let pos = runtimes.iter().position(|r| r.as_ref().map_or(
-			false,
-			|r| r.wasm_method == wasm_method &&
-				r.code_hash == *code_hash &&
-				r.heap_pages == heap_pages
-		));
+		let pos = runtimes.iter().position(|r| {
+			r.as_ref().map_or(false, |r| {
+				r.wasm_method == wasm_method &&
+					r.code_hash == *code_hash &&
+					r.heap_pages == heap_pages
+			})
+		});
 
 		let runtime = match pos {
 			Some(n) => runtimes[n]
 				.clone()
 				.expect("`position` only returns `Some` for entries that are `Some`"),
-			None =>  {
+			None => {
 				let code = runtime_code.fetch_runtime_code().ok_or(WasmError::CodeNotFound)?;
 
 				let result = create_versioned_wasm_runtime(
@@ -236,23 +234,22 @@ impl RuntimeCache {
 					log::warn!(target: "wasm-runtime", "Cannot create a runtime: {:?}", err);
 				}
 				Arc::new(result?)
-			}
+			},
 		};
 
 		// Rearrange runtimes by last recently used.
 		match pos {
 			Some(0) => {},
-			Some(n) => {
-				for i in (1 .. n + 1).rev() {
+			Some(n) =>
+				for i in (1..n + 1).rev() {
 					runtimes.swap(i, i - 1);
-				}
-			}
+				},
 			None => {
-				runtimes[MAX_RUNTIMES-1] = Some(runtime.clone());
-				for i in (1 .. MAX_RUNTIMES).rev() {
+				runtimes[MAX_RUNTIMES - 1] = Some(runtime.clone());
+				for i in (1..MAX_RUNTIMES).rev() {
 					runtimes.swap(i, i - 1);
 				}
-			}
+			},
 		}
 		drop(runtimes);
 
@@ -269,38 +266,38 @@ pub fn create_wasm_runtime_with_code(
 	allow_missing_func_imports: bool,
 ) -> Result<Box<dyn WasmModule>, WasmError> {
 	match wasm_method {
-		WasmExecutionMethod::Interpreted =>
-			sc_executor_wasmi::create_runtime(
-				code,
-				heap_pages,
-				host_functions,
-				allow_missing_func_imports
-			).map(|runtime| -> Box<dyn WasmModule> { Box::new(runtime) }),
+		WasmExecutionMethod::Interpreted => sc_executor_wasmi::create_runtime(
+			code,
+			heap_pages,
+			host_functions,
+			allow_missing_func_imports,
+		)
+		.map(|runtime| -> Box<dyn WasmModule> { Box::new(runtime) }),
 		#[cfg(feature = "wasmtime")]
-		WasmExecutionMethod::Compiled =>
-			sc_executor_wasmtime::create_runtime(
-				code,
-				heap_pages,
-				host_functions,
-				allow_missing_func_imports
-			).map(|runtime| -> Box<dyn WasmModule> { Box::new(runtime) }),
+		WasmExecutionMethod::Compiled => sc_executor_wasmtime::create_runtime(
+			code,
+			heap_pages,
+			host_functions,
+			allow_missing_func_imports,
+		)
+		.map(|runtime| -> Box<dyn WasmModule> { Box::new(runtime) }),
 	}
 }
 
 fn decode_version(version: &[u8]) -> Result<RuntimeVersion, WasmError> {
 	let v: RuntimeVersion = sp_api::OldRuntimeVersion::decode(&mut &version[..])
-		.map_err(|_|
-				 WasmError::Instantiation(
-					 "failed to decode \"Core_version\" result using old runtime version".into(),
-				 )
-		)?.into();
+		.map_err(|_| {
+			WasmError::Instantiation(
+				"failed to decode \"Core_version\" result using old runtime version".into(),
+			)
+		})?
+		.into();
 
 	let core_api_id = sp_core::hashing::blake2_64(b"Core");
 	if v.has_api_with(&core_api_id, |v| v >= 3) {
-		sp_api::RuntimeVersion::decode(&mut &version[..])
-			.map_err(|_|
-				WasmError::Instantiation("failed to decode \"Core_version\" result".into())
-			)
+		sp_api::RuntimeVersion::decode(&mut &version[..]).map_err(|_| {
+			WasmError::Instantiation("failed to decode \"Core_version\" result".into())
+		})
 	} else {
 		Ok(v)
 	}
@@ -334,10 +331,10 @@ fn create_versioned_wasm_runtime(
 		// The following unwind safety assertion is OK because if the method call panics, the
 		// runtime will be dropped.
 		let runtime = AssertUnwindSafe(runtime.as_mut());
-		crate::native_executor::with_externalities_safe(
-			&mut **ext,
-			move || runtime.new_instance()?.call("Core_version", &[])
-		).map_err(|_| WasmError::Instantiation("panic in call to get runtime version".into()))?
+		crate::native_executor::with_externalities_safe(&mut **ext, move || {
+			runtime.new_instance()?.call("Core_version", &[])
+		})
+		.map_err(|_| WasmError::Instantiation("panic in call to get runtime version".into()))?
 	};
 	let version = match version_result {
 		Ok(version) => Some(decode_version(&version)?),
@@ -354,23 +351,16 @@ fn create_versioned_wasm_runtime(
 	let mut instances = Vec::with_capacity(max_instances);
 	instances.resize_with(max_instances, || Mutex::new(None));
 
-	Ok(VersionedRuntime {
-		code_hash,
-		module: runtime,
-		version,
-		heap_pages,
-		wasm_method,
-		instances,
-	})
+	Ok(VersionedRuntime { code_hash, module: runtime, version, heap_pages, wasm_method, instances })
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sp_wasm_interface::HostFunctions;
-	use sp_api::{Core, RuntimeApiInfo};
-	use substrate_test_runtime::Block;
 	use codec::Encode;
+	use sp_api::{Core, RuntimeApiInfo};
+	use sp_wasm_interface::HostFunctions;
+	use substrate_test_runtime::Block;
 
 	#[test]
 	fn host_functions_are_equal() {

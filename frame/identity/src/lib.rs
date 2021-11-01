@@ -72,45 +72,48 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use sp_std::{fmt::Debug, ops::Add, iter::once};
+use codec::{Decode, Encode};
 use enumflags2::BitFlags;
-use codec::{Encode, Decode};
-use sp_runtime::{DispatchError, RuntimeDebug, DispatchResult};
-use sp_runtime::traits::{StaticLookup, Zero, AppendZerosInput, Saturating};
 use frame_support::{
-	decl_module, decl_event, decl_storage, ensure, decl_error,
+	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResultWithPostInfo,
-	traits::{Currency, ReservableCurrency, OnUnbalanced, Get, BalanceStatus, EnsureOrigin},
+	ensure,
+	traits::{BalanceStatus, Currency, EnsureOrigin, Get, OnUnbalanced, ReservableCurrency},
 	weights::Weight,
 };
 use frame_system::ensure_signed;
+use sp_runtime::traits::{AppendZerosInput, Saturating, StaticLookup, Zero};
+use sp_runtime::{DispatchError, DispatchResult, RuntimeDebug};
+use sp_std::prelude::*;
+use sp_std::{fmt::Debug, iter::once, ops::Add};
 
-#[cfg(test)]
-mod tests;
 mod benchmarking;
 mod default_weights;
+#[cfg(test)]
+mod tests;
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
+type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait WeightInfo {
-	fn add_registrar(r: u32, ) -> Weight;
-	fn set_identity(r: u32, x: u32, ) -> Weight;
-	fn set_subs_new(s: u32, ) -> Weight;
-	fn set_subs_old(p: u32, ) -> Weight;
-	fn add_sub(p: u32, ) -> Weight;
-	fn rename_sub(p: u32, ) -> Weight;
-	fn remove_sub(p: u32, ) -> Weight;
-	fn quit_sub(p: u32, ) -> Weight;
-	fn clear_identity(r: u32, s: u32, x: u32, ) -> Weight;
-	fn request_judgement(r: u32, x: u32, ) -> Weight;
-	fn cancel_request(r: u32, x: u32, ) -> Weight;
-	fn set_fee(r: u32, ) -> Weight;
-	fn set_account_id(r: u32, ) -> Weight;
-	fn set_fields(r: u32, ) -> Weight;
-	fn provide_judgement(r: u32, x: u32, ) -> Weight;
-	fn kill_identity(r: u32, s: u32, x: u32, ) -> Weight;
+	fn add_registrar(r: u32) -> Weight;
+	fn set_identity(r: u32, x: u32) -> Weight;
+	fn set_subs_new(s: u32) -> Weight;
+	fn set_subs_old(p: u32) -> Weight;
+	fn add_sub(p: u32) -> Weight;
+	fn rename_sub(p: u32) -> Weight;
+	fn remove_sub(p: u32) -> Weight;
+	fn quit_sub(p: u32) -> Weight;
+	fn clear_identity(r: u32, s: u32, x: u32) -> Weight;
+	fn request_judgement(r: u32, x: u32) -> Weight;
+	fn cancel_request(r: u32, x: u32) -> Weight;
+	fn set_fee(r: u32) -> Weight;
+	fn set_account_id(r: u32) -> Weight;
+	fn set_fields(r: u32) -> Weight;
+	fn provide_judgement(r: u32, x: u32) -> Weight;
+	fn kill_identity(r: u32, s: u32, x: u32) -> Weight;
 }
 
 pub trait Trait: frame_system::Trait {
@@ -184,11 +187,11 @@ impl Decode for Data {
 		let b = input.read_byte()?;
 		Ok(match b {
 			0 => Data::None,
-			n @ 1 ..= 33 => {
+			n @ 1..=33 => {
 				let mut r = vec![0u8; n as usize - 1];
 				input.read(&mut r[..])?;
 				Data::Raw(r)
-			}
+			},
 			34 => Data::BlakeTwo256(<[u8; 32]>::decode(input)?),
 			35 => Data::Sha256(<[u8; 32]>::decode(input)?),
 			36 => Data::Keccak256(<[u8; 32]>::decode(input)?),
@@ -207,7 +210,7 @@ impl Encode for Data {
 				let mut r = vec![l as u8 + 1; l + 1];
 				&mut r[1..].copy_from_slice(&x[..l as usize]);
 				r
-			}
+			},
 			Data::BlakeTwo256(ref h) => once(34u8).chain(h.iter().cloned()).collect(),
 			Data::Sha256(ref h) => once(35u8).chain(h.iter().cloned()).collect(),
 			Data::Keccak256(ref h) => once(36u8).chain(h.iter().cloned()).collect(),
@@ -231,9 +234,7 @@ pub type RegistrarIndex = u32;
 /// NOTE: Registrars may pay little attention to some fields. Registrars may want to make clear
 /// which fields their attestation is relevant for by off-chain means.
 #[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug)]
-pub enum Judgement<
-	Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq
-> {
+pub enum Judgement<Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq> {
 	/// The default value; no opinion is held.
 	Unknown,
 	/// No judgement is yet in place, but a deposit is reserved as payment for providing one.
@@ -255,9 +256,7 @@ pub enum Judgement<
 	Erroneous,
 }
 
-impl<
-	Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq
-> Judgement<Balance> {
+impl<Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq> Judgement<Balance> {
 	/// Returns `true` if this judgement is indicative of a deposit being currently held. This means
 	/// it should not be cleared or replaced except by an operation which utilizes the deposit.
 	fn has_deposit(&self) -> bool {
@@ -283,14 +282,14 @@ impl<
 #[repr(u64)]
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, BitFlags, RuntimeDebug)]
 pub enum IdentityField {
-	Display        = 0b0000000000000000000000000000000000000000000000000000000000000001,
-	Legal          = 0b0000000000000000000000000000000000000000000000000000000000000010,
-	Web            = 0b0000000000000000000000000000000000000000000000000000000000000100,
-	Riot           = 0b0000000000000000000000000000000000000000000000000000000000001000,
-	Email          = 0b0000000000000000000000000000000000000000000000000000000000010000,
+	Display = 0b0000000000000000000000000000000000000000000000000000000000000001,
+	Legal = 0b0000000000000000000000000000000000000000000000000000000000000010,
+	Web = 0b0000000000000000000000000000000000000000000000000000000000000100,
+	Riot = 0b0000000000000000000000000000000000000000000000000000000000001000,
+	Email = 0b0000000000000000000000000000000000000000000000000000000000010000,
 	PgpFingerprint = 0b0000000000000000000000000000000000000000000000000000000000100000,
-	Image          = 0b0000000000000000000000000000000000000000000000000000000001000000,
-	Twitter        = 0b0000000000000000000000000000000000000000000000000000000010000000,
+	Image = 0b0000000000000000000000000000000000000000000000000000000001000000,
+	Twitter = 0b0000000000000000000000000000000000000000000000000000000010000000,
 }
 
 /// Wrapper type for `BitFlags<IdentityField>` that implements `Codec`.
@@ -367,9 +366,7 @@ pub struct IdentityInfo {
 /// NOTE: This is stored separately primarily to facilitate the addition of extra fields in a
 /// backwards compatible way through a specialized `Decode` impl.
 #[derive(Clone, Encode, Eq, PartialEq, RuntimeDebug)]
-pub struct Registration<
-	Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq
-> {
+pub struct Registration<Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq> {
 	/// Judgements from the registrars on this identity. Stored ordered by `RegistrarIndex`. There
 	/// may be only a single judgement from each registrar.
 	pub judgements: Vec<(RegistrarIndex, Judgement<Balance>)>,
@@ -381,19 +378,21 @@ pub struct Registration<
 	pub info: IdentityInfo,
 }
 
-impl <
-	Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq + Zero + Add,
-> Registration<Balance> {
+impl<Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq + Zero + Add>
+	Registration<Balance>
+{
 	fn total_deposit(&self) -> Balance {
-		self.deposit + self.judgements.iter()
-			.map(|(_, ref j)| if let Judgement::FeePaid(fee) = j { *fee } else { Zero::zero() })
-			.fold(Zero::zero(), |a, i| a + i)
+		self.deposit +
+			self.judgements
+				.iter()
+				.map(|(_, ref j)| if let Judgement::FeePaid(fee) = j { *fee } else { Zero::zero() })
+				.fold(Zero::zero(), |a, i| a + i)
 	}
 }
 
-impl<
-	Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq,
-> Decode for Registration<Balance> {
+impl<Balance: Encode + Decode + Copy + Clone + Debug + Eq + PartialEq> Decode
+	for Registration<Balance>
+{
 	fn decode<I: codec::Input>(input: &mut I) -> sp_std::result::Result<Self, codec::Error> {
 		let (judgements, deposit, info) = Decode::decode(&mut AppendZerosInput::new(input))?;
 		Ok(Self { judgements, deposit, info })
@@ -404,7 +403,7 @@ impl<
 #[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug)]
 pub struct RegistrarInfo<
 	Balance: Encode + Decode + Clone + Debug + Eq + PartialEq,
-	AccountId: Encode + Decode + Clone + Debug + Eq + PartialEq
+	AccountId: Encode + Decode + Clone + Debug + Eq + PartialEq,
 > {
 	/// The account of the registrar.
 	pub account: AccountId,
@@ -447,7 +446,11 @@ decl_storage! {
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId, Balance = BalanceOf<T> {
+	pub enum Event<T>
+	where
+		AccountId = <T as frame_system::Trait>::AccountId,
+		Balance = BalanceOf<T>,
+	{
 		/// A name was set or reset (which will remove all judgements). \[who\]
 		IdentitySet(AccountId),
 		/// A name was cleared, and the given balance returned. \[who, deposit\]
@@ -1147,7 +1150,8 @@ decl_module! {
 impl<T: Trait> Module<T> {
 	/// Get the subs of an account.
 	pub fn subs(who: &T::AccountId) -> Vec<(T::AccountId, Data)> {
-		SubsOf::<T>::get(who).1
+		SubsOf::<T>::get(who)
+			.1
 			.into_iter()
 			.filter_map(|a| SuperOf::<T>::get(&a).map(|x| (a, x.1)))
 			.collect()

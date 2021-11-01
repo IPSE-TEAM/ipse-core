@@ -21,15 +21,16 @@
 
 use super::*;
 
-use frame_system::{RawOrigin, Module as System};
-use frame_benchmarking::{benchmarks, account, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks, whitelisted_caller};
+use frame_system::{Module as System, RawOrigin};
 use sp_runtime::traits::Bounded;
 
 use crate::Module as Vesting;
 
 const SEED: u32 = 0;
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 fn add_locks<T: Trait>(who: &T::AccountId, n: u8) {
 	for id in 0..n {

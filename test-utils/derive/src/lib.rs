@@ -44,22 +44,22 @@ fn parse_knobs(
 
 	if sig.inputs.len() != 1 {
 		let msg = "the test function accepts only one argument of type sc_service::TaskExecutor";
-		return Err(syn::Error::new_spanned(&sig, msg));
+		return Err(syn::Error::new_spanned(&sig, msg))
 	}
 	let (task_executor_name, task_executor_type) = match sig.inputs.pop().map(|x| x.into_value()) {
 		Some(syn::FnArg::Typed(x)) => (x.pat, x.ty),
 		_ => {
 			let msg =
 				"the test function accepts only one argument of type sc_service::TaskExecutor";
-			return Err(syn::Error::new_spanned(&sig, msg));
-		}
+			return Err(syn::Error::new_spanned(&sig, msg))
+		},
 	};
 
 	let crate_name = if env::var("CARGO_PKG_NAME").unwrap() == "substrate-test-utils" {
 		syn::Ident::new("substrate_test_utils", Span::call_site().into())
 	} else {
-		let crate_name = crate_name("substrate-test-utils")
-			.map_err(|e| syn::Error::new_spanned(&sig, e))?;
+		let crate_name =
+			crate_name("substrate-test-utils").map_err(|e| syn::Error::new_spanned(&sig, e))?;
 
 		syn::Ident::new(&crate_name, Span::call_site().into())
 	};

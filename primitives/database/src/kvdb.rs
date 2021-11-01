@@ -16,19 +16,18 @@
 // limitations under the License.
 
 /// A wrapper around `kvdb::Database` that implements `sp_database::Database` trait
-
 use ::kvdb::{DBTransaction, KeyValueDB};
 
-use crate::{Database, Change, ColumnId, Transaction, error};
+use crate::{error, Change, ColumnId, Database, Transaction};
 
 struct DbAdapter<D: KeyValueDB + 'static>(D);
 
 fn handle_err<T>(result: std::io::Result<T>) -> T {
 	match result {
 		Ok(r) => r,
-		Err(e) =>  {
+		Err(e) => {
 			panic!("Critical database eror: {:?}", e);
-		}
+		},
 	}
 }
 

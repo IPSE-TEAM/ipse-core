@@ -16,8 +16,7 @@
 // limitations under the License.
 
 /// Contains the inherents for the AURA module
-
-use sp_inherents::{InherentIdentifier, InherentData, Error};
+use sp_inherents::{Error, InherentData, InherentIdentifier};
 
 #[cfg(feature = "std")]
 use sp_inherents::{InherentDataProviders, ProvideInherentData};
@@ -31,13 +30,13 @@ pub type InherentType = u64;
 /// Auxiliary trait to extract Aura inherent data.
 pub trait AuraInherentData {
 	/// Get aura inherent data.
-	fn aura_inherent_data(&self) ->Result<InherentType, Error>;
+	fn aura_inherent_data(&self) -> Result<InherentType, Error>;
 	/// Replace aura inherent data.
 	fn aura_replace_inherent_data(&mut self, new: InherentType);
 }
 
 impl AuraInherentData for InherentData {
-	fn aura_inherent_data(&self) ->Result<InherentType, Error> {
+	fn aura_inherent_data(&self) -> Result<InherentType, Error> {
 		self.get_data(&INHERENT_IDENTIFIER)
 			.and_then(|r| r.ok_or_else(|| "Aura inherent data not found".into()))
 	}
@@ -56,18 +55,13 @@ pub struct InherentDataProvider {
 #[cfg(feature = "std")]
 impl InherentDataProvider {
 	pub fn new(slot_duration: u64) -> Self {
-		Self {
-			slot_duration
-		}
+		Self { slot_duration }
 	}
 }
 
 #[cfg(feature = "std")]
 impl ProvideInherentData for InherentDataProvider {
-	fn on_register(
-		&self,
-		providers: &InherentDataProviders,
-	) ->Result<(), Error> {
+	fn on_register(&self, providers: &InherentDataProviders) -> Result<(), Error> {
 		if !providers.has_provider(&sp_timestamp::INHERENT_IDENTIFIER) {
 			// Add the timestamp inherent data provider, as we require it.
 			providers.register_provider(sp_timestamp::InherentDataProvider)
@@ -80,10 +74,7 @@ impl ProvideInherentData for InherentDataProvider {
 		&INHERENT_IDENTIFIER
 	}
 
-	fn provide_inherent_data(
-		&self,
-		inherent_data: &mut InherentData,
-	) ->Result<(), Error> {
+	fn provide_inherent_data(&self, inherent_data: &mut InherentData) -> Result<(), Error> {
 		use sp_timestamp::TimestampInherentData;
 
 		let timestamp = inherent_data.timestamp_inherent_data()?;

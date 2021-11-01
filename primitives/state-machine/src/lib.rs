@@ -22,23 +22,23 @@
 
 pub mod backend;
 #[cfg(feature = "std")]
-mod in_memory_backend;
+mod basic;
 #[cfg(feature = "std")]
 mod changes_trie;
 mod error;
 mod ext;
 #[cfg(feature = "std")]
-mod testing;
-#[cfg(feature = "std")]
-mod basic;
+mod in_memory_backend;
 pub(crate) mod overlayed_changes;
 #[cfg(feature = "std")]
 mod proving_backend;
-mod trie_backend;
-mod trie_backend_essence;
-mod stats;
 #[cfg(feature = "std")]
 mod read_only;
+mod stats;
+#[cfg(feature = "std")]
+mod testing;
+mod trie_backend;
+mod trie_backend_essence;
 
 #[cfg(feature = "std")]
 pub use std_reexport::*;
@@ -46,19 +46,19 @@ pub use std_reexport::*;
 #[cfg(feature = "std")]
 pub use execution::*;
 #[cfg(feature = "std")]
-pub use log::{debug, warn, trace, error as log_error};
+pub use log::{debug, error as log_error, trace, warn};
 
 /// In no_std we skip logs for state_machine, this macro
 /// is a noops.
 #[cfg(not(feature = "std"))]
 #[macro_export]
 macro_rules! warn {
-	(target: $target:expr, $($arg:tt)+) => (
-		()
-	);
-	($($arg:tt)+) => (
-		()
-	);
+	(target: $target:expr, $($arg:tt)+) => {
+			()
+	};
+	($($arg:tt)+) => {
+			()
+	};
 }
 
 /// In no_std we skip logs for state_machine, this macro
@@ -66,12 +66,12 @@ macro_rules! warn {
 #[cfg(not(feature = "std"))]
 #[macro_export]
 macro_rules! debug {
-	(target: $target:expr, $($arg:tt)+) => (
-		()
-	);
-	($($arg:tt)+) => (
-		()
-	);
+	(target: $target:expr, $($arg:tt)+) => {
+			()
+	};
+	($($arg:tt)+) => {
+			()
+	};
 }
 
 /// In no_std we skip logs for state_machine, this macro
@@ -79,12 +79,12 @@ macro_rules! debug {
 #[cfg(not(feature = "std"))]
 #[macro_export]
 macro_rules! trace {
-	(target: $target:expr, $($arg:tt)+) => (
-		()
-	);
-	($($arg:tt)+) => (
-		()
-	);
+	(target: $target:expr, $($arg:tt)+) => {
+			()
+	};
+	($($arg:tt)+) => {
+			()
+	};
 }
 
 /// In no_std we skip logs for state_machine, this macro
@@ -92,12 +92,12 @@ macro_rules! trace {
 #[cfg(not(feature = "std"))]
 #[macro_export]
 macro_rules! log_error {
-	(target: $target:expr, $($arg:tt)+) => (
-		()
-	);
-	($($arg:tt)+) => (
-		()
-	);
+	(target: $target:expr, $($arg:tt)+) => {
+			()
+	};
+	($($arg:tt)+) => {
+			()
+	};
 }
 
 /// Default error type to use with state machine trie backend.
@@ -115,17 +115,16 @@ impl sp_std::fmt::Display for DefaultError {
 	}
 }
 
-pub use crate::overlayed_changes::{
-	OverlayedChanges, StorageKey, StorageValue,
-	StorageCollection, ChildStorageCollection,
-	StorageChanges, StorageTransactionCache,
-};
 pub use crate::backend::Backend;
-pub use crate::trie_backend_essence::{TrieBackendStorage, Storage};
-pub use crate::trie_backend::TrieBackend;
-pub use crate::stats::{UsageInfo, UsageUnit, StateMachineStats};
-pub use error::{Error, ExecutionError};
 pub use crate::ext::Ext;
+pub use crate::overlayed_changes::{
+	ChildStorageCollection, OverlayedChanges, StorageChanges, StorageCollection, StorageKey,
+	StorageTransactionCache, StorageValue,
+};
+pub use crate::stats::{StateMachineStats, UsageInfo, UsageUnit};
+pub use crate::trie_backend::TrieBackend;
+pub use crate::trie_backend_essence::{Storage, TrieBackendStorage};
+pub use error::{Error, ExecutionError};
 
 #[cfg(not(feature = "std"))]
 mod changes_trie {
@@ -138,46 +137,44 @@ mod changes_trie {
 
 #[cfg(feature = "std")]
 mod std_reexport {
-	pub use sp_trie::{trie_types::{Layout, TrieDBMut}, StorageProof, TrieMut, DBValue, MemoryDB};
-	pub use crate::testing::TestExternalities;
 	pub use crate::basic::BasicExternalities;
-	pub use crate::read_only::{ReadOnlyExternalities, InspectState};
 	pub use crate::changes_trie::{
-		AnchorBlockId as ChangesTrieAnchorBlockId,
-		State as ChangesTrieState,
-		Storage as ChangesTrieStorage,
-		RootsStorage as ChangesTrieRootsStorage,
-		InMemoryStorage as InMemoryChangesTrieStorage,
-		BuildCache as ChangesTrieBuildCache,
-		CacheAction as ChangesTrieCacheAction,
+		disabled_state as disabled_changes_trie_state, key_changes, key_changes_proof,
+		key_changes_proof_check, key_changes_proof_check_with_db, prune as prune_changes_tries,
+		AnchorBlockId as ChangesTrieAnchorBlockId, BlockNumber as ChangesTrieBlockNumber,
+		BuildCache as ChangesTrieBuildCache, CacheAction as ChangesTrieCacheAction,
 		ConfigurationRange as ChangesTrieConfigurationRange,
-		key_changes, key_changes_proof,
-		key_changes_proof_check, key_changes_proof_check_with_db,
-		prune as prune_changes_tries,
-		disabled_state as disabled_changes_trie_state,
-		BlockNumber as ChangesTrieBlockNumber,
-	};
-	pub use crate::proving_backend::{
-		create_proof_check_backend, ProofRecorder, ProvingBackend, ProvingBackendRecorder,
+		InMemoryStorage as InMemoryChangesTrieStorage, RootsStorage as ChangesTrieRootsStorage,
+		State as ChangesTrieState, Storage as ChangesTrieStorage,
 	};
 	pub use crate::error::{Error, ExecutionError};
 	pub use crate::in_memory_backend::new_in_mem;
+	pub use crate::proving_backend::{
+		create_proof_check_backend, ProofRecorder, ProvingBackend, ProvingBackendRecorder,
+	};
+	pub use crate::read_only::{InspectState, ReadOnlyExternalities};
+	pub use crate::testing::TestExternalities;
+	pub use sp_trie::{
+		trie_types::{Layout, TrieDBMut},
+		DBValue, MemoryDB, StorageProof, TrieMut,
+	};
 }
 
 #[cfg(feature = "std")]
 mod execution {
 	use super::*;
-	use std::{fmt, result, collections::HashMap, panic::UnwindSafe};
-	use log::{warn, trace};
+	use codec::{Codec, Decode, Encode};
 	use hash_db::Hasher;
-	use codec::{Decode, Encode, Codec};
+	use log::{trace, warn};
 	use sp_core::{
+		hexdisplay::HexDisplay,
 		offchain::storage::OffchainOverlayedChanges,
-		storage::ChildInfo, NativeOrEncoded, NeverNativeValue, hexdisplay::HexDisplay,
-		traits::{CodeExecutor, CallInWasmExt, RuntimeCode, SpawnNamed},
+		storage::ChildInfo,
+		traits::{CallInWasmExt, CodeExecutor, RuntimeCode, SpawnNamed},
+		NativeOrEncoded, NeverNativeValue,
 	};
 	use sp_externalities::Extensions;
-
+	use std::{collections::HashMap, fmt, panic::UnwindSafe, result};
 
 	const PROOF_CLOSE_TRANSACTION: &str = "\
 		Closing a transaction that was started in this function. Client initiated transactions
@@ -189,10 +186,8 @@ mod execution {
 	pub type DefaultHandler<R, E> = fn(CallResult<R, E>, CallResult<R, E>) -> CallResult<R, E>;
 
 	/// Type of changes trie transaction.
-	pub type ChangesTrieTransaction<H, N> = (
-		MemoryDB<H>,
-		ChangesTrieCacheAction<<H as Hasher>::Out, N>,
-	);
+	pub type ChangesTrieTransaction<H, N> =
+		(MemoryDB<H>, ChangesTrieCacheAction<<H as Hasher>::Out, N>);
 
 	/// Trie backend with in-memory storage.
 	pub type InMemoryBackend<H> = TrieBackend<MemoryDB<H>, H>;
@@ -205,7 +200,8 @@ mod execution {
 		NativeWhenPossible,
 		/// Use the given wasm module.
 		AlwaysWasm,
-		/// Run with both the wasm and the native variant (if compatible). Report any discrepancy as an error.
+		/// Run with both the wasm and the native variant (if compatible). Report any discrepancy
+		/// as an error.
 		Both,
 		/// First native, then if that fails or is not possible, wasm.
 		NativeElseWasm,
@@ -229,10 +225,12 @@ mod execution {
 		/// otherwise fall back to the wasm.
 		NativeWhenPossible,
 		/// Use the given wasm module. The backend on which code is executed code could be
-		/// trusted to provide all storage or not (i.e. the light client cannot be trusted to provide
-		/// for all storage queries since the storage entries it has come from an external node).
+		/// trusted to provide all storage or not (i.e. the light client cannot be trusted to
+		/// provide for all storage queries since the storage entries it has come from an external
+		/// node).
 		AlwaysWasm(BackendTrustLevel),
-		/// Run with both the wasm and the native variant (if compatible). Call `F` in the case of any discrepancy.
+		/// Run with both the wasm and the native variant (if compatible). Call `F` in the case of
+		/// any discrepancy.
 		Both(F),
 		/// First native, then if that fails or is not possible, wasm.
 		NativeElseWasm,
@@ -255,14 +253,14 @@ mod execution {
 			self,
 		) -> ExecutionManager<DefaultHandler<R, E>> {
 			match self {
-				ExecutionStrategy::AlwaysWasm => ExecutionManager::AlwaysWasm(BackendTrustLevel::Trusted),
+				ExecutionStrategy::AlwaysWasm =>
+					ExecutionManager::AlwaysWasm(BackendTrustLevel::Trusted),
 				ExecutionStrategy::NativeWhenPossible => ExecutionManager::NativeWhenPossible,
 				ExecutionStrategy::NativeElseWasm => ExecutionManager::NativeElseWasm,
 				ExecutionStrategy::Both => ExecutionManager::Both(|wasm_result, native_result| {
 					warn!(
 						"Consensus error between wasm {:?} and native {:?}. Using wasm.",
-						wasm_result,
-						native_result,
+						wasm_result, native_result,
 					);
 					warn!("   Native result {:?}", native_result);
 					warn!("   Wasm result {:?}", wasm_result);
@@ -277,22 +275,24 @@ mod execution {
 		ExecutionManager::NativeElseWasm
 	}
 
-	/// Evaluate to ExecutionManager::AlwaysWasm with trusted backend, without having to figure out the type.
+	/// Evaluate to ExecutionManager::AlwaysWasm with trusted backend, without having to figure out
+	/// the type.
 	fn always_wasm<E, R: Decode>() -> ExecutionManager<DefaultHandler<R, E>> {
 		ExecutionManager::AlwaysWasm(BackendTrustLevel::Trusted)
 	}
 
-	/// Evaluate ExecutionManager::AlwaysWasm with untrusted backend, without having to figure out the type.
+	/// Evaluate ExecutionManager::AlwaysWasm with untrusted backend, without having to figure out
+	/// the type.
 	fn always_untrusted_wasm<E, R: Decode>() -> ExecutionManager<DefaultHandler<R, E>> {
 		ExecutionManager::AlwaysWasm(BackendTrustLevel::Untrusted)
 	}
 
 	/// The substrate state machine.
 	pub struct StateMachine<'a, B, H, N, Exec>
-		where
-			H: Hasher,
-			B: Backend<H>,
-			N: ChangesTrieBlockNumber,
+	where
+		H: Hasher,
+		B: Backend<H>,
+		N: ChangesTrieBlockNumber,
 	{
 		backend: &'a B,
 		exec: &'a Exec,
@@ -307,7 +307,8 @@ mod execution {
 		stats: StateMachineStats,
 	}
 
-	impl<'a, B, H, N, Exec> Drop for StateMachine<'a, B, H, N, Exec> where
+	impl<'a, B, H, N, Exec> Drop for StateMachine<'a, B, H, N, Exec>
+	where
 		H: Hasher,
 		B: Backend<H>,
 		N: ChangesTrieBlockNumber,
@@ -317,7 +318,8 @@ mod execution {
 		}
 	}
 
-	impl<'a, B, H, N, Exec> StateMachine<'a, B, H, N, Exec> where
+	impl<'a, B, H, N, Exec> StateMachine<'a, B, H, N, Exec>
+	where
 		H: Hasher,
 		H::Out: Ord + 'static + codec::Codec,
 		Exec: CodeExecutor + Clone + 'static,
@@ -377,22 +379,21 @@ mod execution {
 		///
 		/// Returns the SCALE encoded result of the executed function.
 		pub fn execute(&mut self, strategy: ExecutionStrategy) -> Result<Vec<u8>, Box<dyn Error>> {
-			// We are not giving a native call and thus we are sure that the result can never be a native
-			// value.
+			// We are not giving a native call and thus we are sure that the result can never be a
+			// native value.
 			self.execute_using_consensus_failure_handler::<_, NeverNativeValue, fn() -> _>(
 				strategy.get_manager(),
 				None,
-			).map(NativeOrEncoded::into_encoded)
+			)
+			.map(NativeOrEncoded::into_encoded)
 		}
 
 		fn execute_aux<R, NC>(
 			&mut self,
 			use_native: bool,
 			native_call: Option<NC>,
-		) -> (
-			CallResult<R, Exec::Error>,
-			bool,
-		) where
+		) -> (CallResult<R, Exec::Error>, bool)
+		where
 			R: Decode + Encode + PartialEq,
 			NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
 		{
@@ -403,7 +404,9 @@ mod execution {
 				None => &mut cache,
 			};
 
-			self.overlay.enter_runtime().expect("StateMachine is never called from the runtime; qed");
+			self.overlay
+				.enter_runtime()
+				.expect("StateMachine is never called from the runtime; qed");
 
 			let mut ext = Ext::new(
 				self.overlay,
@@ -432,7 +435,8 @@ mod execution {
 				native_call,
 			);
 
-			self.overlay.exit_runtime()
+			self.overlay
+				.exit_runtime()
 				.expect("Runtime is not able to call this function in the overlay; qed");
 
 			trace!(
@@ -450,27 +454,24 @@ mod execution {
 			mut native_call: Option<NC>,
 			on_consensus_failure: Handler,
 		) -> CallResult<R, Exec::Error>
-			where
-				R: Decode + Encode + PartialEq,
-				NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
-				Handler: FnOnce(
-					CallResult<R, Exec::Error>,
-					CallResult<R, Exec::Error>,
-				) -> CallResult<R, Exec::Error>
+		where
+			R: Decode + Encode + PartialEq,
+			NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
+			Handler: FnOnce(
+				CallResult<R, Exec::Error>,
+				CallResult<R, Exec::Error>,
+			) -> CallResult<R, Exec::Error>,
 		{
 			self.overlay.start_transaction();
 			let (result, was_native) = self.execute_aux(true, native_call.take());
 
 			if was_native {
 				self.overlay.rollback_transaction().expect(PROOF_CLOSE_TRANSACTION);
-				let (wasm_result, _) = self.execute_aux(
-					false,
-					native_call,
-				);
+				let (wasm_result, _) = self.execute_aux(false, native_call);
 
-				if (result.is_ok() && wasm_result.is_ok()
-					&& result.as_ref().ok() == wasm_result.as_ref().ok())
-					|| result.is_err() && wasm_result.is_err()
+				if (result.is_ok() &&
+					wasm_result.is_ok() && result.as_ref().ok() == wasm_result.as_ref().ok()) ||
+					result.is_err() && wasm_result.is_err()
 				{
 					result
 				} else {
@@ -486,25 +487,19 @@ mod execution {
 			&mut self,
 			mut native_call: Option<NC>,
 		) -> CallResult<R, Exec::Error>
-			where
-				R: Decode + Encode + PartialEq,
-				NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
+		where
+			R: Decode + Encode + PartialEq,
+			NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
 		{
 			self.overlay.start_transaction();
-			let (result, was_native) = self.execute_aux(
-				true,
-				native_call.take(),
-			);
+			let (result, was_native) = self.execute_aux(true, native_call.take());
 
 			if !was_native || result.is_ok() {
 				self.overlay.commit_transaction().expect(PROOF_CLOSE_TRANSACTION);
 				result
 			} else {
 				self.overlay.rollback_transaction().expect(PROOF_CLOSE_TRANSACTION);
-				let (wasm_result, _) = self.execute_aux(
-					false,
-					native_call,
-				);
+				let (wasm_result, _) = self.execute_aux(false, native_call);
 				wasm_result
 			}
 		}
@@ -523,40 +518,32 @@ mod execution {
 			manager: ExecutionManager<Handler>,
 			mut native_call: Option<NC>,
 		) -> Result<NativeOrEncoded<R>, Box<dyn Error>>
-			where
-				R: Decode + Encode + PartialEq,
-				NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
-				Handler: FnOnce(
-					CallResult<R, Exec::Error>,
-					CallResult<R, Exec::Error>,
-				) -> CallResult<R, Exec::Error>
+		where
+			R: Decode + Encode + PartialEq,
+			NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
+			Handler: FnOnce(
+				CallResult<R, Exec::Error>,
+				CallResult<R, Exec::Error>,
+			) -> CallResult<R, Exec::Error>,
 		{
 			let changes_tries_enabled = self.changes_trie_state.is_some();
 			self.overlay.set_collect_extrinsics(changes_tries_enabled);
 
 			let result = {
 				match manager {
-					ExecutionManager::Both(on_consensus_failure) => {
-						self.execute_call_with_both_strategy(
-							native_call.take(),
-							on_consensus_failure,
-						)
-					},
-					ExecutionManager::NativeElseWasm => {
-						self.execute_call_with_native_else_wasm_strategy(
-							native_call.take(),
-						)
-					},
+					ExecutionManager::Both(on_consensus_failure) => self
+						.execute_call_with_both_strategy(native_call.take(), on_consensus_failure),
+					ExecutionManager::NativeElseWasm =>
+						self.execute_call_with_native_else_wasm_strategy(native_call.take()),
 					ExecutionManager::AlwaysWasm(trust_level) => {
 						let _abort_guard = match trust_level {
 							BackendTrustLevel::Trusted => None,
-							BackendTrustLevel::Untrusted => Some(sp_panic_handler::AbortGuard::never_abort()),
+							BackendTrustLevel::Untrusted =>
+								Some(sp_panic_handler::AbortGuard::never_abort()),
 						};
 						self.execute_aux(false, native_call).0
 					},
-					ExecutionManager::NativeWhenPossible => {
-						self.execute_aux(true, native_call).0
-					},
+					ExecutionManager::NativeWhenPossible => self.execute_aux(true, native_call).0,
 				}
 			};
 
@@ -582,7 +569,8 @@ mod execution {
 		N: crate::changes_trie::BlockNumber,
 		Spawn: SpawnNamed + Send + 'static,
 	{
-		let trie_backend = backend.as_trie_backend()
+		let trie_backend = backend
+			.as_trie_backend()
 			.ok_or_else(|| Box::new(ExecutionError::UnableToGenerateProof) as Box<dyn Error>)?;
 		prove_execution_on_trie_backend::<_, _, N, _, _>(
 			trie_backend,
@@ -708,14 +696,12 @@ mod execution {
 		sm.execute_using_consensus_failure_handler::<_, NeverNativeValue, fn() -> _>(
 			always_untrusted_wasm(),
 			None,
-		).map(NativeOrEncoded::into_encoded)
+		)
+		.map(NativeOrEncoded::into_encoded)
 	}
 
 	/// Generate storage read proof.
-	pub fn prove_read<B, H, I>(
-		mut backend: B,
-		keys: I,
-	) -> Result<StorageProof, Box<dyn Error>>
+	pub fn prove_read<B, H, I>(mut backend: B, keys: I) -> Result<StorageProof, Box<dyn Error>>
 	where
 		B: Backend<H>,
 		H: Hasher,
@@ -723,10 +709,9 @@ mod execution {
 		I: IntoIterator,
 		I::Item: AsRef<[u8]>,
 	{
-		let trie_backend = backend.as_trie_backend()
-			.ok_or_else(
-				|| Box::new(ExecutionError::UnableToGenerateProof) as Box<dyn Error>
-			)?;
+		let trie_backend = backend
+			.as_trie_backend()
+			.ok_or_else(|| Box::new(ExecutionError::UnableToGenerateProof) as Box<dyn Error>)?;
 		prove_read_on_trie_backend(trie_backend, keys)
 	}
 
@@ -743,7 +728,8 @@ mod execution {
 		I: IntoIterator,
 		I::Item: AsRef<[u8]>,
 	{
-		let trie_backend = backend.as_trie_backend()
+		let trie_backend = backend
+			.as_trie_backend()
 			.ok_or_else(|| Box::new(ExecutionError::UnableToGenerateProof) as Box<dyn Error>)?;
 		prove_child_read_on_trie_backend(trie_backend, child_info, keys)
 	}
@@ -762,9 +748,7 @@ mod execution {
 	{
 		let proving_backend = proving_backend::ProvingBackend::<_, H>::new(trie_backend);
 		for key in keys.into_iter() {
-			proving_backend
-				.storage(key.as_ref())
-				.map_err(|e| Box::new(e) as Box<dyn Error>)?;
+			proving_backend.storage(key.as_ref()).map_err(|e| Box::new(e) as Box<dyn Error>)?;
 		}
 		Ok(proving_backend.extract_proof())
 	}
@@ -860,31 +844,30 @@ mod execution {
 		H: Hasher,
 		H::Out: Ord + Codec,
 	{
-		proving_backend.child_storage(child_info, key)
-			.map_err(|e| Box::new(e) as Box<dyn Error>)
+		proving_backend.child_storage(child_info, key).map_err(|e| Box::new(e) as Box<dyn Error>)
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use std::collections::BTreeMap;
-	use codec::Encode;
-	use super::*;
-	use super::ext::Ext;
 	use super::changes_trie::Configuration as ChangesTrieConfig;
+	use super::ext::Ext;
+	use super::*;
+	use crate::execution::CallResult;
+	use codec::Decode;
+	use codec::Encode;
 	use sp_core::{
-		map, traits::{Externalities, RuntimeCode}, testing::TaskExecutor,
+		map,
+		testing::TaskExecutor,
+		traits::{Externalities, RuntimeCode},
+	};
+	use sp_core::{
+		offchain::storage::OffchainOverlayedChanges, storage::ChildInfo, traits::CodeExecutor,
+		NativeOrEncoded, NeverNativeValue,
 	};
 	use sp_runtime::traits::BlakeTwo256;
-	use std::{result, collections::HashMap};
-	use codec::Decode;
-	use sp_core::{
-		offchain::storage::OffchainOverlayedChanges,
-		storage::ChildInfo, NativeOrEncoded, NeverNativeValue,
-		traits::CodeExecutor,
-	};
-	use crate::execution::CallResult;
-
+	use std::collections::BTreeMap;
+	use std::{collections::HashMap, result};
 
 	#[derive(Clone)]
 	struct DummyCodeExecutor {
@@ -897,10 +880,7 @@ mod tests {
 	impl CodeExecutor for DummyCodeExecutor {
 		type Error = u8;
 
-		fn call<
-			R: Encode + Decode + PartialEq,
-			NC: FnOnce() -> result::Result<R, String>,
-		>(
+		fn call<R: Encode + Decode + PartialEq, NC: FnOnce() -> result::Result<R, String>>(
 			&self,
 			ext: &mut dyn Externalities,
 			_: &RuntimeCode,
@@ -912,12 +892,7 @@ mod tests {
 			if self.change_changes_trie_config {
 				ext.place_storage(
 					sp_core::storage::well_known_keys::CHANGES_TRIE_CONFIG.to_vec(),
-					Some(
-						ChangesTrieConfig {
-							digest_interval: 777,
-							digest_levels: 333,
-						}.encode()
-					)
+					Some(ChangesTrieConfig { digest_interval: 777, digest_levels: 333 }.encode()),
 				);
 			}
 
@@ -925,24 +900,14 @@ mod tests {
 			match (using_native, self.native_succeeds, self.fallback_succeeds, native_call) {
 				(true, true, _, Some(call)) => {
 					let res = sp_externalities::set_and_run_with_externalities(ext, || call());
-					(
-						res.map(NativeOrEncoded::Native).map_err(|_| 0),
-						true
-					)
+					(res.map(NativeOrEncoded::Native).map_err(|_| 0), true)
 				},
-				(true, true, _, None) | (false, _, true, None) => {
-					(
-						Ok(
-							NativeOrEncoded::Encoded(
-								vec![
-									ext.storage(b"value1").unwrap()[0] +
-									ext.storage(b"value2").unwrap()[0]
-								]
-							)
-						),
-						using_native
-					)
-				},
+				(true, true, _, None) | (false, _, true, None) => (
+					Ok(NativeOrEncoded::Encoded(vec![
+						ext.storage(b"value1").unwrap()[0] + ext.storage(b"value2").unwrap()[0],
+					])),
+					using_native,
+				),
 				_ => (Err(0), using_native),
 			}
 		}
@@ -987,12 +952,8 @@ mod tests {
 			TaskExecutor::new(),
 		);
 
-		assert_eq!(
-			state_machine.execute(ExecutionStrategy::NativeWhenPossible).unwrap(),
-			vec![66],
-		);
+		assert_eq!(state_machine.execute(ExecutionStrategy::NativeWhenPossible).unwrap(), vec![66],);
 	}
-
 
 	#[test]
 	fn execute_works_with_native_else_wasm() {
@@ -1048,15 +1009,15 @@ mod tests {
 			TaskExecutor::new(),
 		);
 
-		assert!(
-			state_machine.execute_using_consensus_failure_handler::<_, NeverNativeValue, fn() -> _>(
+		assert!(state_machine
+			.execute_using_consensus_failure_handler::<_, NeverNativeValue, fn() -> _>(
 				ExecutionManager::Both(|we, _ne| {
 					consensus_failed = true;
 					we
 				}),
 				None,
-			).is_err()
-		);
+			)
+			.is_err());
 		assert!(consensus_failed);
 	}
 
@@ -1080,7 +1041,8 @@ mod tests {
 			"test",
 			&[],
 			&RuntimeCode::empty(),
-		).unwrap();
+		)
+		.unwrap();
 
 		// check proof locally
 		let local_result = execution_proof_check::<BlakeTwo256, u64, _, _>(
@@ -1092,7 +1054,8 @@ mod tests {
 			"test",
 			&[],
 			&RuntimeCode::empty(),
-		).unwrap();
+		)
+		.unwrap();
 
 		// check that both results are correct
 		assert_eq!(remote_result, vec![66]);
@@ -1133,7 +1096,9 @@ mod tests {
 		overlay.commit_transaction().unwrap();
 
 		assert_eq!(
-			overlay.changes().map(|(k, v)| (k.clone(), v.value().cloned()))
+			overlay
+				.changes()
+				.map(|(k, v)| (k.clone(), v.value().cloned()))
 				.collect::<HashMap<_, _>>(),
 			map![
 				b"abc".to_vec() => None.into(),
@@ -1165,38 +1130,15 @@ mod tests {
 			None,
 		);
 
-		ext.set_child_storage(
-			child_info,
-			b"abc".to_vec(),
-			b"def".to_vec()
-		);
-		assert_eq!(
-			ext.child_storage(
-				child_info,
-				b"abc"
-			),
-			Some(b"def".to_vec())
-		);
-		ext.kill_child_storage(
-			child_info,
-		);
-		assert_eq!(
-			ext.child_storage(
-				child_info,
-				b"abc"
-			),
-			None
-		);
+		ext.set_child_storage(child_info, b"abc".to_vec(), b"def".to_vec());
+		assert_eq!(ext.child_storage(child_info, b"abc"), Some(b"def".to_vec()));
+		ext.kill_child_storage(child_info);
+		assert_eq!(ext.child_storage(child_info, b"abc"), None);
 	}
 
 	#[test]
 	fn append_storage_works() {
-		let reference_data = vec![
-			b"data1".to_vec(),
-			b"2".to_vec(),
-			b"D3".to_vec(),
-			b"d4".to_vec(),
-		];
+		let reference_data = vec![b"data1".to_vec(), b"2".to_vec(), b"D3".to_vec(), b"d4".to_vec()];
 		let key = b"key".to_vec();
 		let mut state = new_in_mem::<BlakeTwo256>();
 		let backend = state.as_trie_backend().unwrap();
@@ -1214,10 +1156,7 @@ mod tests {
 			);
 
 			ext.storage_append(key.clone(), reference_data[0].encode());
-			assert_eq!(
-				ext.storage(key.as_slice()),
-				Some(vec![reference_data[0].clone()].encode()),
-			);
+			assert_eq!(ext.storage(key.as_slice()), Some(vec![reference_data[0].clone()].encode()),);
 		}
 		overlay.start_transaction();
 		{
@@ -1233,10 +1172,7 @@ mod tests {
 			for i in reference_data.iter().skip(1) {
 				ext.storage_append(key.clone(), i.encode());
 			}
-			assert_eq!(
-				ext.storage(key.as_slice()),
-				Some(reference_data.encode()),
-			);
+			assert_eq!(ext.storage(key.as_slice()), Some(reference_data.encode()),);
 		}
 		overlay.rollback_transaction().unwrap();
 		{
@@ -1248,18 +1184,18 @@ mod tests {
 				changes_trie::disabled_state::<_, u64>(),
 				None,
 			);
-			assert_eq!(
-				ext.storage(key.as_slice()),
-				Some(vec![reference_data[0].clone()].encode()),
-			);
+			assert_eq!(ext.storage(key.as_slice()), Some(vec![reference_data[0].clone()].encode()),);
 		}
 	}
 
 	#[test]
 	fn remove_with_append_then_rollback_appended_then_append_again() {
-
 		#[derive(codec::Encode, codec::Decode)]
-		enum Item { InitializationItem, DiscardedItem, CommitedItem }
+		enum Item {
+			InitializationItem,
+			DiscardedItem,
+			CommitedItem,
+		}
 
 		let key = b"events".to_vec();
 		let mut cache = StorageTransactionCache::default();
@@ -1294,10 +1230,7 @@ mod tests {
 				None,
 			);
 
-			assert_eq!(
-				ext.storage(key.as_slice()),
-				Some(vec![Item::InitializationItem].encode()),
-			);
+			assert_eq!(ext.storage(key.as_slice()), Some(vec![Item::InitializationItem].encode()),);
 
 			ext.storage_append(key.clone(), Item::DiscardedItem.encode());
 
@@ -1319,10 +1252,7 @@ mod tests {
 				None,
 			);
 
-			assert_eq!(
-				ext.storage(key.as_slice()),
-				Some(vec![Item::InitializationItem].encode()),
-			);
+			assert_eq!(ext.storage(key.as_slice()), Some(vec![Item::InitializationItem].encode()),);
 
 			ext.storage_append(key.clone(), Item::CommitedItem.encode());
 
@@ -1330,7 +1260,6 @@ mod tests {
 				ext.storage(key.as_slice()),
 				Some(vec![Item::InitializationItem, Item::CommitedItem].encode()),
 			);
-
 		}
 		overlay.start_transaction();
 
@@ -1359,18 +1288,14 @@ mod tests {
 		let remote_backend = trie_backend::tests::test_trie();
 		let remote_root = remote_backend.storage_root(::std::iter::empty()).0;
 		let remote_proof = prove_read(remote_backend, &[b"value2"]).unwrap();
- 		// check proof locally
-		let local_result1 = read_proof_check::<BlakeTwo256, _>(
-			remote_root,
-			remote_proof.clone(),
-			&[b"value2"],
-		).unwrap();
-		let local_result2 = read_proof_check::<BlakeTwo256, _>(
-			remote_root,
-			remote_proof.clone(),
-			&[&[0xff]],
-		).is_ok();
- 		// check that results are correct
+		// check proof locally
+		let local_result1 =
+			read_proof_check::<BlakeTwo256, _>(remote_root, remote_proof.clone(), &[b"value2"])
+				.unwrap();
+		let local_result2 =
+			read_proof_check::<BlakeTwo256, _>(remote_root, remote_proof.clone(), &[&[0xff]])
+				.is_ok();
+		// check that results are correct
 		assert_eq!(
 			local_result1.into_iter().collect::<Vec<_>>(),
 			vec![(b"value2".to_vec(), Some(vec![24]))],
@@ -1379,36 +1304,30 @@ mod tests {
 		// on child trie
 		let remote_backend = trie_backend::tests::test_trie();
 		let remote_root = remote_backend.storage_root(::std::iter::empty()).0;
-		let remote_proof = prove_child_read(
-			remote_backend,
-			child_info,
-			&[b"value3"],
-		).unwrap();
+		let remote_proof = prove_child_read(remote_backend, child_info, &[b"value3"]).unwrap();
 		let local_result1 = read_child_proof_check::<BlakeTwo256, _>(
 			remote_root,
 			remote_proof.clone(),
 			child_info,
 			&[b"value3"],
-		).unwrap();
+		)
+		.unwrap();
 		let local_result2 = read_child_proof_check::<BlakeTwo256, _>(
 			remote_root,
 			remote_proof.clone(),
 			child_info,
 			&[b"value2"],
-		).unwrap();
+		)
+		.unwrap();
 		assert_eq!(
 			local_result1.into_iter().collect::<Vec<_>>(),
 			vec![(b"value3".to_vec(), Some(vec![142]))],
 		);
-		assert_eq!(
-			local_result2.into_iter().collect::<Vec<_>>(),
-			vec![(b"value2".to_vec(), None)],
-		);
+		assert_eq!(local_result2.into_iter().collect::<Vec<_>>(), vec![(b"value2".to_vec(), None)],);
 	}
 
 	#[test]
 	fn child_storage_uuid() {
-
 		let child_info_1 = ChildInfo::new_default(b"sub_test1");
 		let child_info_2 = ChildInfo::new_default(b"sub_test2");
 
@@ -1512,16 +1431,19 @@ mod tests {
 		);
 
 		let run_state_machine = |state_machine: &mut StateMachine<_, _, _, _>| {
-			state_machine.execute_using_consensus_failure_handler::<fn(_, _) -> _, _, _>(
-				ExecutionManager::NativeWhenPossible,
-				Some(|| {
-					sp_externalities::with_externalities(|mut ext| {
-						ext.register_extension(DummyExt(2)).unwrap();
-					}).unwrap();
+			state_machine
+				.execute_using_consensus_failure_handler::<fn(_, _) -> _, _, _>(
+					ExecutionManager::NativeWhenPossible,
+					Some(|| {
+						sp_externalities::with_externalities(|mut ext| {
+							ext.register_extension(DummyExt(2)).unwrap();
+						})
+						.unwrap();
 
-					Ok(())
-				}),
-			).unwrap();
+						Ok(())
+					}),
+				)
+				.unwrap();
 		};
 
 		run_state_machine(&mut state_machine);

@@ -14,24 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::protocol::generic_proto::upgrade::{RegisteredProtocol, RegisteredProtocolEvent, RegisteredProtocolSubstream};
+use crate::protocol::generic_proto::upgrade::{
+	RegisteredProtocol, RegisteredProtocolEvent, RegisteredProtocolSubstream,
+};
 use bytes::BytesMut;
 use futures::prelude::*;
 use futures_timer::Delay;
-use libp2p::core::{ConnectedPoint, PeerId, Endpoint};
 use libp2p::core::upgrade::{InboundUpgrade, OutboundUpgrade};
+use libp2p::core::{ConnectedPoint, Endpoint, PeerId};
 use libp2p::swarm::{
-	ProtocolsHandler, ProtocolsHandlerEvent,
-	IntoProtocolsHandler,
-	KeepAlive,
-	ProtocolsHandlerUpgrErr,
-	SubstreamProtocol,
-	NegotiatedSubstream,
+	IntoProtocolsHandler, KeepAlive, NegotiatedSubstream, ProtocolsHandler, ProtocolsHandlerEvent,
+	ProtocolsHandlerUpgrErr, SubstreamProtocol,
 };
 use log::{debug, error};
 use smallvec::{smallvec, SmallVec};
 use std::{borrow::Cow, collections::VecDeque, error, fmt, io, mem, time::Duration};
-use std::{pin::Pin, task::{Context, Poll}};
+use std::{
+	pin::Pin,
+	task::{Context, Poll},
+};
 
 /// Implements the `IntoProtocolsHandler` trait of libp2p.
 ///
@@ -86,7 +87,6 @@ use std::{pin::Pin, task::{Context, Poll}};
 ///
 /// We consider that we are now "closed" if the remote closes all the existing substreams.
 /// Re-opening it can then be performed by closing all active substream and re-opening one.
-///
 pub struct LegacyProtoHandlerProto {
 	/// Configuration for the protocol upgrade to negotiate.
 	protocol: RegisteredProtocol,
@@ -95,9 +95,7 @@ pub struct LegacyProtoHandlerProto {
 impl LegacyProtoHandlerProto {
 	/// Builds a new `LegacyProtoHandlerProto`.
 	pub fn new(protocol: RegisteredProtocol) -> Self {
-		LegacyProtoHandlerProto {
-			protocol,
-		}
+		LegacyProtoHandlerProto { protocol }
 	}
 }
 
@@ -108,14 +106,18 @@ impl IntoProtocolsHandler for LegacyProtoHandlerProto {
 		self.protocol.clone()
 	}
 
-	fn into_handler(self, remote_peer_id: &PeerId, connected_point: &ConnectedPoint) -> Self::Handler {
+	fn into_handler(
+		self,
+		remote_peer_id: &PeerId,
+		connected_point: &ConnectedPoint,
+	) -> Self::Handler {
 		LegacyProtoHandler {
 			protocol: self.protocol,
 			endpoint: connected_point.clone(),
 			remote_peer_id: remote_peer_id.clone(),
 			state: ProtocolState::Init {
 				substreams: SmallVec::new(),
-				init_deadline: Delay::new(Duration::from_secs(20))
+				init_deadline: Delay::new(Duration::from_secs(20)),
 			},
 			events_queue: VecDeque::new(),
 		}
@@ -142,7 +144,9 @@ pub struct LegacyProtoHandler {
 	///
 	/// This queue must only ever be modified to insert elements at the back, or remove the first
 	/// element.
-	events_queue: VecDeque<ProtocolsHandlerEvent<RegisteredProtocol, (), LegacyProtoHandlerOut, ConnectionKillError>>,
+	events_queue: VecDeque<
+		ProtocolsHandlerEvent<RegisteredProtocol, (), LegacyProtoHandlerOut, ConnectionKillError>,
+	>,
 }
 
 /// State of the handler.
@@ -247,18 +251,18 @@ impl LegacyProtoHandler {
 				error!(target: "sub-libp2p", "Handler with {:?} is in poisoned state",
 					self.remote_peer_id);
 				ProtocolState::Poisoned
-			}
+			},
 
-			ProtocolState::Init { substreams: mut incoming, .. } => {
+			ProtocolState::Init { substreams: mut incoming, .. } =>
 				if incoming.is_empty() {
 					if let ConnectedPoint::Dialer { .. } = self.endpoint {
-						self.events_queue.push_back(ProtocolsHandlerEvent::OutboundSubstreamRequest {
-							protocol: SubstreamProtocol::new(self.protocol.clone(), ()),
-						});
+						self.events_queue.push_back(
+							ProtocolsHandlerEvent::OutboundSubstreamRequest {
+								protocol: SubstreamProtocol::new(self.protocol.clone(), ()),
+							},
+						);
 					}
-					ProtocolState::Opening {
-						deadline: Delay::new(Duration::from_secs(60))
-					}
+					ProtocolState::Opening { deadline: Delay::new(Duration::from_secs(60)) }
 				} else {
 					let event = LegacyProtoHandlerOut::CustomProtocolOpen {
 						version: incoming[0].0.protocol_version(),
@@ -267,17 +271,15 @@ impl LegacyProtoHandler {
 					self.events_queue.push_back(ProtocolsHandlerEvent::Custom(event));
 					ProtocolState::Normal {
 						substreams: incoming.into_iter().map(|(s, _)| s).collect(),
-						shutdown: SmallVec::new()
+						shutdown: SmallVec::new(),
 					}
-				}
-			}
+				},
 
 			st @ ProtocolState::KillAsap => st,
 			st @ ProtocolState::Opening { .. } => st,
 			st @ ProtocolState::Normal { .. } => st,
-			ProtocolState::Disabled { shutdown, .. } => {
-				ProtocolState::Disabled { shutdown, reenable: true }
-			}
+			ProtocolState::Disabled { shutdown, .. } =>
+				ProtocolState::Disabled { shutdown, reenable: true },
 		}
 	}
 
@@ -288,22 +290,23 @@ impl LegacyProtoHandler {
 				error!(target: "sub-libp2p", "Handler with {:?} is in poisoned state",
 					self.remote_peer_id);
 				ProtocolState::Poisoned
-			}
+			},
 
 			ProtocolState::Init { substreams: shutdown, .. } => {
-				let mut shutdown = shutdown.into_iter().map(|(s, _)| s).collect::<SmallVec<[_; 6]>>();
+				let mut shutdown =
+					shutdown.into_iter().map(|(s, _)| s).collect::<SmallVec<[_; 6]>>();
 				for s in &mut shutdown {
 					s.shutdown();
 				}
 				ProtocolState::Disabled { shutdown, reenable: false }
-			}
+			},
 
 			ProtocolState::Opening { .. } | ProtocolState::Normal { .. } =>
-				// At the moment, if we get disabled while things were working, we kill the entire
-				// connection in order to force a reset of the state.
-				// This is obviously an extremely shameful way to do things, but at the time of
-				// the writing of this comment, the networking works very poorly and a solution
-				// needs to be found.
+			// At the moment, if we get disabled while things were working, we kill the entire
+			// connection in order to force a reset of the state.
+			// This is obviously an extremely shameful way to do things, but at the time of
+			// the writing of this comment, the networking works very poorly and a solution
+			// needs to be found.
 				ProtocolState::KillAsap,
 
 			ProtocolState::Disabled { shutdown, .. } =>
@@ -315,15 +318,19 @@ impl LegacyProtoHandler {
 
 	/// Polls the state for events. Optionally returns an event to produce.
 	#[must_use]
-	fn poll_state(&mut self, cx: &mut Context)
-		-> Option<ProtocolsHandlerEvent<RegisteredProtocol, (), LegacyProtoHandlerOut, ConnectionKillError>> {
+	fn poll_state(
+		&mut self,
+		cx: &mut Context,
+	) -> Option<
+		ProtocolsHandlerEvent<RegisteredProtocol, (), LegacyProtoHandlerOut, ConnectionKillError>,
+	> {
 		match mem::replace(&mut self.state, ProtocolState::Poisoned) {
 			ProtocolState::Poisoned => {
 				error!(target: "sub-libp2p", "Handler with {:?} is in poisoned state",
 					self.remote_peer_id);
 				self.state = ProtocolState::Poisoned;
 				None
-			}
+			},
 
 			ProtocolState::Init { substreams, mut init_deadline } => {
 				match Pin::new(&mut init_deadline).poll(cx) {
@@ -334,28 +341,26 @@ impl LegacyProtoHandler {
 					},
 					Poll::Pending => {
 						self.state = ProtocolState::Init { substreams, init_deadline };
-					}
+					},
 				}
 
 				None
-			}
+			},
 
-			ProtocolState::Opening { mut deadline } => {
-				match Pin::new(&mut deadline).poll(cx) {
-					Poll::Ready(()) => {
-						let event = LegacyProtoHandlerOut::ProtocolError {
-							is_severe: true,
-							error: "Timeout when opening protocol".to_string().into(),
-						};
-						self.state = ProtocolState::KillAsap;
-						Some(ProtocolsHandlerEvent::Custom(event))
-					},
-					Poll::Pending => {
-						self.state = ProtocolState::Opening { deadline };
-						None
-					},
-				}
-			}
+			ProtocolState::Opening { mut deadline } => match Pin::new(&mut deadline).poll(cx) {
+				Poll::Ready(()) => {
+					let event = LegacyProtoHandlerOut::ProtocolError {
+						is_severe: true,
+						error: "Timeout when opening protocol".to_string().into(),
+					};
+					self.state = ProtocolState::KillAsap;
+					Some(ProtocolsHandlerEvent::Custom(event))
+				},
+				Poll::Pending => {
+					self.state = ProtocolState::Opening { deadline };
+					None
+				},
+			},
 
 			ProtocolState::Normal { mut substreams, mut shutdown } => {
 				for n in (0..substreams.len()).rev() {
@@ -363,12 +368,10 @@ impl LegacyProtoHandler {
 					match Pin::new(&mut substream).poll_next(cx) {
 						Poll::Pending => substreams.push(substream),
 						Poll::Ready(Some(Ok(RegisteredProtocolEvent::Message(message)))) => {
-							let event = LegacyProtoHandlerOut::CustomMessage {
-								message
-							};
+							let event = LegacyProtoHandlerOut::CustomMessage { message };
 							substreams.push(substream);
 							self.state = ProtocolState::Normal { substreams, shutdown };
-							return Some(ProtocolsHandlerEvent::Custom(event));
+							return Some(ProtocolsHandlerEvent::Custom(event))
 						},
 						Poll::Ready(Some(Ok(RegisteredProtocolEvent::Clogged))) => {
 							shutdown.push(substream);
@@ -378,11 +381,11 @@ impl LegacyProtoHandler {
 								};
 								self.state = ProtocolState::Disabled {
 									shutdown: shutdown.into_iter().collect(),
-									reenable: true
+									reenable: true,
 								};
-								return Some(ProtocolsHandlerEvent::Custom(event));
+								return Some(ProtocolsHandlerEvent::Custom(event))
 							}
-						}
+						},
 						Poll::Ready(None) => {
 							shutdown.push(substream);
 							if substreams.is_empty() {
@@ -391,41 +394,41 @@ impl LegacyProtoHandler {
 								};
 								self.state = ProtocolState::Disabled {
 									shutdown: shutdown.into_iter().collect(),
-									reenable: true
+									reenable: true,
 								};
-								return Some(ProtocolsHandlerEvent::Custom(event));
+								return Some(ProtocolsHandlerEvent::Custom(event))
 							}
-						}
-						Poll::Ready(Some(Err(err))) => {
+						},
+						Poll::Ready(Some(Err(err))) =>
 							if substreams.is_empty() {
 								let event = LegacyProtoHandlerOut::CustomProtocolClosed {
-									reason: format!("Error on the last substream: {:?}", err).into(),
+									reason: format!("Error on the last substream: {:?}", err)
+										.into(),
 								};
 								self.state = ProtocolState::Disabled {
 									shutdown: shutdown.into_iter().collect(),
-									reenable: true
+									reenable: true,
 								};
-								return Some(ProtocolsHandlerEvent::Custom(event));
+								return Some(ProtocolsHandlerEvent::Custom(event))
 							} else {
 								debug!(target: "sub-libp2p", "Error on extra substream: {:?}", err);
-							}
-						}
+							},
 					}
 				}
 
-				// This code is reached is none if and only if none of the substreams are in a ready state.
+				// This code is reached is none if and only if none of the substreams are in a ready
+				// state.
 				self.state = ProtocolState::Normal { substreams, shutdown };
 				None
-			}
+			},
 
 			ProtocolState::Disabled { mut shutdown, reenable } => {
 				shutdown_list(&mut shutdown, cx);
 				// If `reenable` is `true`, that means we should open the substreams system again
 				// after all the substreams are closed.
 				if reenable && shutdown.is_empty() {
-					self.state = ProtocolState::Opening {
-						deadline: Delay::new(Duration::from_secs(60))
-					};
+					self.state =
+						ProtocolState::Opening { deadline: Delay::new(Duration::from_secs(60)) };
 					Some(ProtocolsHandlerEvent::OutboundSubstreamRequest {
 						protocol: SubstreamProtocol::new(self.protocol.clone(), ()),
 					})
@@ -433,7 +436,7 @@ impl LegacyProtoHandler {
 					self.state = ProtocolState::Disabled { shutdown, reenable };
 					None
 				}
-			}
+			},
 
 			ProtocolState::KillAsap => None,
 		}
@@ -450,7 +453,7 @@ impl LegacyProtoHandler {
 				error!(target: "sub-libp2p", "Handler with {:?} is in poisoned state",
 					self.remote_peer_id);
 				ProtocolState::Poisoned
-			}
+			},
 
 			ProtocolState::Init { mut substreams, init_deadline } => {
 				if substream.endpoint() == Endpoint::Dialer {
@@ -459,7 +462,7 @@ impl LegacyProtoHandler {
 				}
 				substreams.push((substream, received_handshake));
 				ProtocolState::Init { substreams, init_deadline }
-			}
+			},
 
 			ProtocolState::Opening { .. } => {
 				let event = LegacyProtoHandlerOut::CustomProtocolOpen {
@@ -469,20 +472,20 @@ impl LegacyProtoHandler {
 				self.events_queue.push_back(ProtocolsHandlerEvent::Custom(event));
 				ProtocolState::Normal {
 					substreams: smallvec![substream],
-					shutdown: SmallVec::new()
+					shutdown: SmallVec::new(),
 				}
-			}
+			},
 
 			ProtocolState::Normal { substreams: mut existing, shutdown } => {
 				existing.push(substream);
 				ProtocolState::Normal { substreams: existing, shutdown }
-			}
+			},
 
 			ProtocolState::Disabled { mut shutdown, .. } => {
 				substream.shutdown();
 				shutdown.push(substream);
 				ProtocolState::Disabled { shutdown, reenable: false }
-			}
+			},
 
 			ProtocolState::KillAsap => ProtocolState::KillAsap,
 		};
@@ -505,7 +508,7 @@ impl ProtocolsHandler for LegacyProtoHandler {
 	fn inject_fully_negotiated_inbound(
 		&mut self,
 		(substream, handshake): <Self::InboundProtocol as InboundUpgrade<NegotiatedSubstream>>::Output,
-		(): ()
+		(): (),
 	) {
 		self.inject_fully_negotiated(substream, handshake);
 	}
@@ -513,7 +516,7 @@ impl ProtocolsHandler for LegacyProtoHandler {
 	fn inject_fully_negotiated_outbound(
 		&mut self,
 		(substream, handshake): <Self::OutboundProtocol as OutboundUpgrade<NegotiatedSubstream>>::Output,
-		_: Self::OutboundOpenInfo
+		_: Self::OutboundOpenInfo,
 	) {
 		self.inject_fully_negotiated(substream, handshake);
 	}
@@ -531,18 +534,18 @@ impl ProtocolsHandler for LegacyProtoHandler {
 			_ => false,
 		};
 
-		self.events_queue.push_back(ProtocolsHandlerEvent::Custom(LegacyProtoHandlerOut::ProtocolError {
-			is_severe,
-			error: Box::new(err),
-		}));
+		self.events_queue.push_back(ProtocolsHandlerEvent::Custom(
+			LegacyProtoHandlerOut::ProtocolError { is_severe, error: Box::new(err) },
+		));
 	}
 
 	fn connection_keep_alive(&self) -> KeepAlive {
 		match self.state {
-			ProtocolState::Init { .. } | ProtocolState::Opening { .. } |
+			ProtocolState::Init { .. } |
+			ProtocolState::Opening { .. } |
 			ProtocolState::Normal { .. } => KeepAlive::Yes,
-			ProtocolState::Disabled { .. } | ProtocolState::Poisoned |
-	  		ProtocolState::KillAsap => KeepAlive::No,
+			ProtocolState::Disabled { .. } | ProtocolState::Poisoned | ProtocolState::KillAsap =>
+				KeepAlive::No,
 		}
 	}
 
@@ -550,7 +553,12 @@ impl ProtocolsHandler for LegacyProtoHandler {
 		&mut self,
 		cx: &mut Context,
 	) -> Poll<
-		ProtocolsHandlerEvent<Self::OutboundProtocol, Self::OutboundOpenInfo, Self::OutEvent, Self::Error>
+		ProtocolsHandlerEvent<
+			Self::OutboundProtocol,
+			Self::OutboundOpenInfo,
+			Self::OutEvent,
+			Self::Error,
+		>,
 	> {
 		// Flush the events queue if necessary.
 		if let Some(event) = self.events_queue.pop_front() {
@@ -559,7 +567,7 @@ impl ProtocolsHandler for LegacyProtoHandler {
 
 		// Kill the connection if needed.
 		if let ProtocolState::KillAsap = self.state {
-			return Poll::Ready(ProtocolsHandlerEvent::Close(ConnectionKillError));
+			return Poll::Ready(ProtocolsHandlerEvent::Close(ConnectionKillError))
 		}
 
 		// Process all the substreams.
@@ -573,22 +581,23 @@ impl ProtocolsHandler for LegacyProtoHandler {
 
 impl fmt::Debug for LegacyProtoHandler {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		f.debug_struct("LegacyProtoHandler")
-			.finish()
+		f.debug_struct("LegacyProtoHandler").finish()
 	}
 }
 
 /// Given a list of substreams, tries to shut them down. The substreams that have been successfully
 /// shut down are removed from the list.
-fn shutdown_list
-	(list: &mut SmallVec<impl smallvec::Array<Item = RegisteredProtocolSubstream<NegotiatedSubstream>>>,
-	cx: &mut Context)
-{
+fn shutdown_list(
+	list: &mut SmallVec<
+		impl smallvec::Array<Item = RegisteredProtocolSubstream<NegotiatedSubstream>>,
+	>,
+	cx: &mut Context,
+) {
 	'outer: for n in (0..list.len()).rev() {
 		let mut substream = list.swap_remove(n);
 		loop {
 			match substream.poll_next_unpin(cx) {
-				Poll::Ready(Some(Ok(_))) => {}
+				Poll::Ready(Some(Ok(_))) => {},
 				Poll::Pending => break,
 				Poll::Ready(Some(Err(_))) | Poll::Ready(None) => continue 'outer,
 			}
@@ -601,8 +610,7 @@ fn shutdown_list
 #[derive(Debug)]
 pub struct ConnectionKillError;
 
-impl error::Error for ConnectionKillError {
-}
+impl error::Error for ConnectionKillError {}
 
 impl fmt::Display for ConnectionKillError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

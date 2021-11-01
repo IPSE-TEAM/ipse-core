@@ -91,19 +91,17 @@ mod mock;
 mod tests;
 
 use codec::FullCodec;
-use sp_std::{
-	fmt::Debug,
-	prelude::*,
-};
 use frame_support::{
-	decl_module, decl_storage, decl_event, ensure, decl_error,
-	traits::{EnsureOrigin, ChangeMembers, InitializeMembers, Currency, Get, ReservableCurrency},
+	decl_error, decl_event, decl_module, decl_storage, ensure,
+	traits::{ChangeMembers, Currency, EnsureOrigin, Get, InitializeMembers, ReservableCurrency},
 	weights::Weight,
 };
 use frame_system::{ensure_root, ensure_signed};
-use sp_runtime::traits::{AtLeast32Bit, MaybeSerializeDeserialize, Zero, StaticLookup};
+use sp_runtime::traits::{AtLeast32Bit, MaybeSerializeDeserialize, StaticLookup, Zero};
+use sp_std::{fmt::Debug, prelude::*};
 
-type BalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T, I> =
+	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 type PoolT<T, I> = Vec<(<T as frame_system::Trait>::AccountId, Option<<T as Trait<I>>::Score>)>;
 
 /// The enum is supplied when refreshing the members set.
@@ -116,13 +114,18 @@ enum ChangeReceiver {
 	MembershipChanged,
 }
 
-pub trait Trait<I=DefaultInstance>: frame_system::Trait {
+pub trait Trait<I = DefaultInstance>: frame_system::Trait {
 	/// The currency used for deposits.
 	type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 	/// The score attributed to a member or candidate.
-	type Score:
-		AtLeast32Bit + Clone + Copy + Default + FullCodec + MaybeSerializeDeserialize + Debug;
+	type Score: AtLeast32Bit
+		+ Clone
+		+ Copy
+		+ Default
+		+ FullCodec
+		+ MaybeSerializeDeserialize
+		+ Debug;
 
 	/// The overarching event type.
 	type Event: From<Event<Self, I>> + Into<<Self as frame_system::Trait>::Event>;
@@ -383,16 +386,12 @@ decl_module! {
 }
 
 impl<T: Trait<I>, I: Instance> Module<T, I> {
-
 	/// Fetches the `MemberCount` highest scoring members from
 	/// `Pool` and puts them into `Members`.
 	///
 	/// The `notify` parameter is used to deduct which associated
 	/// type function to invoke at the end of the method.
-	fn refresh_members(
-		pool: PoolT<T, I>,
-		notify: ChangeReceiver
-	) {
+	fn refresh_members(pool: PoolT<T, I>, notify: ChangeReceiver) {
 		let count = <MemberCount<I>>::get();
 
 		let mut new_members: Vec<T::AccountId> = pool
@@ -410,10 +409,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 			ChangeReceiver::MembershipInitialized =>
 				T::MembershipInitialized::initialize_members(&new_members),
 			ChangeReceiver::MembershipChanged =>
-				T::MembershipChanged::set_members_sorted(
-					&new_members[..],
-					&old_members[..],
-				),
+				T::MembershipChanged::set_members_sorted(&new_members[..], &old_members[..]),
 		}
 	}
 
@@ -424,7 +420,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 	fn remove_member(
 		mut pool: PoolT<T, I>,
 		remove: T::AccountId,
-		index: u32
+		index: u32,
 	) -> Result<(), Error<T, I>> {
 		// all callers of this function in this module also check
 		// the index for validity before calling this function.
@@ -451,11 +447,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 
 	/// Checks if `index` is a valid number and if the element found
 	/// at `index` in `Pool` is equal to `who`.
-	fn ensure_index(
-		pool: &PoolT<T, I>,
-		who: &T::AccountId,
-		index: u32
-	) -> Result<(), Error<T, I>> {
+	fn ensure_index(pool: &PoolT<T, I>, who: &T::AccountId, index: u32) -> Result<(), Error<T, I>> {
 		ensure!(index < pool.len() as u32, Error::<T, I>::InvalidIndex);
 
 		let (index_who, _index_score) = &pool[index as usize];

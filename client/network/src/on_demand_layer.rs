@@ -23,12 +23,13 @@ use crate::light_client_handler;
 use futures::{channel::oneshot, prelude::*};
 use parking_lot::Mutex;
 use sc_client_api::{
-	FetchChecker, Fetcher, RemoteBodyRequest, RemoteCallRequest, RemoteChangesRequest,
-	RemoteHeaderRequest, RemoteReadChildRequest, RemoteReadRequest, StorageProof, ChangesProof,
+	ChangesProof, FetchChecker, Fetcher, RemoteBodyRequest, RemoteCallRequest,
+	RemoteChangesRequest, RemoteHeaderRequest, RemoteReadChildRequest, RemoteReadRequest,
+	StorageProof,
 };
-use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use sp_blockchain::Error as ClientError;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
+use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{collections::HashMap, pin::Pin, sync::Arc, task::Context, task::Poll};
 
 /// Implements the `Fetcher` trait of the client. Makes it possible for the light client to perform
@@ -72,7 +73,7 @@ impl<Block: BlockT> FetchChecker<Block> for AlwaysBadChecker {
 		&self,
 		_request: &RemoteReadRequest<Block::Header>,
 		_remote_proof: StorageProof,
-	) -> Result<HashMap<Vec<u8>,Option<Vec<u8>>>, ClientError> {
+	) -> Result<HashMap<Vec<u8>, Option<Vec<u8>>>, ClientError> {
 		Err(ClientError::Msg("AlwaysBadChecker".into()))
 	}
 
@@ -95,7 +96,7 @@ impl<Block: BlockT> FetchChecker<Block> for AlwaysBadChecker {
 	fn check_changes_proof(
 		&self,
 		_request: &RemoteChangesRequest<Block::Header>,
-		_remote_proof: ChangesProof<Block::Header>
+		_remote_proof: ChangesProof<Block::Header>,
 	) -> Result<Vec<(NumberFor<Block>, u32)>, ClientError> {
 		Err(ClientError::Msg("AlwaysBadChecker".into()))
 	}
@@ -103,7 +104,7 @@ impl<Block: BlockT> FetchChecker<Block> for AlwaysBadChecker {
 	fn check_body_proof(
 		&self,
 		_request: &RemoteBodyRequest<Block::Header>,
-		_body: Vec<Block::Extrinsic>
+		_body: Vec<Block::Extrinsic>,
 	) -> Result<Vec<Block::Extrinsic>, ClientError> {
 		Err(ClientError::Msg("AlwaysBadChecker".into()))
 	}
@@ -118,11 +119,7 @@ where
 		let (requests_send, requests_queue) = tracing_unbounded("mpsc_ondemand");
 		let requests_queue = Mutex::new(Some(requests_queue));
 
-		OnDemand {
-			checker,
-			requests_queue,
-			requests_send,
-		}
+		OnDemand { checker, requests_queue, requests_send }
 	}
 
 	/// Get checker reference.
@@ -137,9 +134,9 @@ where
 	///
 	/// If this function returns `None`, that means that the receiver has already been extracted in
 	/// the past, and therefore that something already handles the requests.
-	pub(crate) fn extract_receiver(&self)
-		-> Option<TracingUnboundedReceiver<light_client_handler::Request<B>>>
-	{
+	pub(crate) fn extract_receiver(
+		&self,
+	) -> Option<TracingUnboundedReceiver<light_client_handler::Request<B>>> {
 		self.requests_queue.lock().take()
 	}
 }

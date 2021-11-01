@@ -17,16 +17,16 @@
 
 //! Block import helpers.
 
-use sp_runtime::traits::{Block as BlockT, DigestItemFor, Header as HeaderT, NumberFor, HashFor};
+use serde::{Deserialize, Serialize};
+use sp_runtime::traits::{Block as BlockT, DigestItemFor, HashFor, Header as HeaderT, NumberFor};
 use sp_runtime::Justification;
-use serde::{Serialize, Deserialize};
+use std::any::Any;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::any::Any;
 
+use crate::import_queue::{CacheKeyId, Verifier};
 use crate::Error;
-use crate::import_queue::{Verifier, CacheKeyId};
 
 /// Block import result.
 #[derive(Debug, PartialEq, Eq)]
@@ -139,9 +139,8 @@ pub struct BlockImportParams<Block: BlockT, Transaction> {
 	pub body: Option<Vec<Block::Extrinsic>>,
 	/// The changes to the storage to create the state for the block. If this is `Some(_)`,
 	/// the block import will not need to re-execute the block for importing it.
-	pub storage_changes: Option<
-		sp_state_machine::StorageChanges<Transaction, HashFor<Block>, NumberFor<Block>>
-	>,
+	pub storage_changes:
+		Option<sp_state_machine::StorageChanges<Transaction, HashFor<Block>, NumberFor<Block>>>,
 	/// Is this block finalized already?
 	/// `true` implies instant finality.
 	pub finalized: bool,
@@ -170,12 +169,10 @@ pub struct BlockImportParams<Block: BlockT, Transaction> {
 
 impl<Block: BlockT, Transaction> BlockImportParams<Block, Transaction> {
 	/// Create a new block import params.
-	pub fn new(
-		origin: BlockOrigin,
-		header: Block::Header,
-	) -> Self {
+	pub fn new(origin: BlockOrigin, header: Block::Header) -> Self {
 		Self {
-			origin, header,
+			origin,
+			header,
 			justification: None,
 			post_digests: Vec::new(),
 			body: None,
@@ -245,7 +242,8 @@ impl<Block: BlockT, Transaction> BlockImportParams<Block, Transaction> {
 
 	/// Get a reference to a given intermediate.
 	pub fn intermediate<T: 'static>(&self, key: &[u8]) -> Result<&T, Error> {
-		self.intermediates.get(key)
+		self.intermediates
+			.get(key)
 			.ok_or(Error::NoIntermediate)?
 			.downcast_ref::<T>()
 			.ok_or(Error::InvalidIntermediate)
@@ -253,7 +251,8 @@ impl<Block: BlockT, Transaction> BlockImportParams<Block, Transaction> {
 
 	/// Get a mutable reference to a given intermediate.
 	pub fn intermediate_mut<T: 'static>(&mut self, key: &[u8]) -> Result<&mut T, Error> {
-		self.intermediates.get_mut(key)
+		self.intermediates
+			.get_mut(key)
 			.ok_or(Error::NoIntermediate)?
 			.downcast_mut::<T>()
 			.ok_or(Error::InvalidIntermediate)
@@ -268,10 +267,7 @@ pub trait BlockImport<B: BlockT> {
 	type Transaction;
 
 	/// Check block preconditions.
-	fn check_block(
-		&mut self,
-		block: BlockCheckParams<B>,
-	) -> Result<ImportResult, Self::Error>;
+	fn check_block(&mut self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error>;
 
 	/// Import a block.
 	///
@@ -283,15 +279,14 @@ pub trait BlockImport<B: BlockT> {
 	) -> Result<ImportResult, Self::Error>;
 }
 
-impl<B: BlockT, Transaction> BlockImport<B> for crate::import_queue::BoxBlockImport<B, Transaction> {
+impl<B: BlockT, Transaction> BlockImport<B>
+	for crate::import_queue::BoxBlockImport<B, Transaction>
+{
 	type Error = crate::error::Error;
 	type Transaction = Transaction;
 
 	/// Check block preconditions.
-	fn check_block(
-		&mut self,
-		block: BlockCheckParams<B>,
-	) -> Result<ImportResult, Self::Error> {
+	fn check_block(&mut self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
 		(**self).check_block(block)
 	}
 
@@ -308,15 +303,13 @@ impl<B: BlockT, Transaction> BlockImport<B> for crate::import_queue::BoxBlockImp
 }
 
 impl<B: BlockT, T, E: std::error::Error + Send + 'static, Transaction> BlockImport<B> for Arc<T>
-	where for<'r> &'r T: BlockImport<B, Error = E, Transaction = Transaction>
+where
+	for<'r> &'r T: BlockImport<B, Error = E, Transaction = Transaction>,
 {
 	type Error = E;
 	type Transaction = Transaction;
 
-	fn check_block(
-		&mut self,
-		block: BlockCheckParams<B>,
-	) -> Result<ImportResult, Self::Error> {
+	fn check_block(&mut self, block: BlockCheckParams<B>) -> Result<ImportResult, Self::Error> {
 		(&**self).check_block(block)
 	}
 
@@ -335,7 +328,9 @@ pub trait JustificationImport<B: BlockT> {
 
 	/// Called by the import queue when it is started. Returns a list of justifications to request
 	/// from the network.
-	fn on_start(&mut self) -> Vec<(B::Hash, NumberFor<B>)> { Vec::new() }
+	fn on_start(&mut self) -> Vec<(B::Hash, NumberFor<B>)> {
+		Vec::new()
+	}
 
 	/// Import a Block justification and finalize the given block.
 	fn import_justification(
@@ -352,7 +347,9 @@ pub trait FinalityProofImport<B: BlockT> {
 
 	/// Called by the import queue when it is started. Returns a list of finality proofs to request
 	/// from the network.
-	fn on_start(&mut self) -> Vec<(B::Hash, NumberFor<B>)> { Vec::new() }
+	fn on_start(&mut self) -> Vec<(B::Hash, NumberFor<B>)> {
+		Vec::new()
+	}
 
 	/// Import a Block justification and finalize the given block. Returns finalized block or error.
 	fn import_finality_proof(

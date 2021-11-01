@@ -23,7 +23,10 @@
 use libp2p::{core::ConnectedPoint, Multiaddr};
 use serde::{Deserialize, Serialize};
 use slog_derive::SerdeValue;
-use std::{collections::{HashMap, HashSet}, time::Duration};
+use std::{
+	collections::{HashMap, HashSet},
+	time::Duration,
+};
 
 /// Returns general information about the networking.
 ///
@@ -97,13 +100,9 @@ pub enum PeerEndpoint {
 impl From<ConnectedPoint> for PeerEndpoint {
 	fn from(endpoint: ConnectedPoint) -> Self {
 		match endpoint {
-			ConnectedPoint::Dialer { address } =>
-				PeerEndpoint::Dialing(address),
+			ConnectedPoint::Dialer { address } => PeerEndpoint::Dialing(address),
 			ConnectedPoint::Listener { local_addr, send_back_addr } =>
-				PeerEndpoint::Listening {
-					local_addr,
-					send_back_addr
-				}
+				PeerEndpoint::Listening { local_addr, send_back_addr },
 		}
 	}
 }

@@ -18,10 +18,8 @@
 
 use crate::transport::BandwidthSinks;
 use prometheus_endpoint::{
-	self as prometheus,
-	Counter, CounterVec, Gauge, GaugeVec, HistogramOpts,
-	PrometheusError, Registry, U64, Opts,
-	SourcedCounter, SourcedGauge, MetricSource,
+	self as prometheus, Counter, CounterVec, Gauge, GaugeVec, HistogramOpts, MetricSource, Opts,
+	PrometheusError, Registry, SourcedCounter, SourcedGauge, U64,
 };
 use std::{
 	str,
@@ -86,187 +84,277 @@ impl Metrics {
 	fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
 			// This list is ordered alphabetically
-			connections_closed_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_connections_closed_total",
-					"Total number of connections closed, by direction and reason"
-				),
-				&["direction", "reason"]
-			)?, registry)?,
-			connections_opened_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_connections_opened_total",
-					"Total number of connections opened by direction"
-				),
-				&["direction"]
-			)?, registry)?,
-			distinct_peers_connections_closed_total: prometheus::register(Counter::new(
+			connections_closed_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_connections_closed_total",
+						"Total number of connections closed, by direction and reason",
+					),
+					&["direction", "reason"],
+				)?,
+				registry,
+			)?,
+			connections_opened_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_connections_opened_total",
+						"Total number of connections opened by direction",
+					),
+					&["direction"],
+				)?,
+				registry,
+			)?,
+			distinct_peers_connections_closed_total: prometheus::register(
+				Counter::new(
 					"sub_libp2p_distinct_peers_connections_closed_total",
-					"Total number of connections closed with distinct peers"
-			)?, registry)?,
-			distinct_peers_connections_opened_total: prometheus::register(Counter::new(
+					"Total number of connections closed with distinct peers",
+				)?,
+				registry,
+			)?,
+			distinct_peers_connections_opened_total: prometheus::register(
+				Counter::new(
 					"sub_libp2p_distinct_peers_connections_opened_total",
-					"Total number of connections opened with distinct peers"
-			)?, registry)?,
-			import_queue_blocks_submitted: prometheus::register(Counter::new(
-				"import_queue_blocks_submitted",
-				"Number of blocks submitted to the import queue.",
-			)?, registry)?,
-			import_queue_finality_proofs_submitted: prometheus::register(Counter::new(
-				"import_queue_finality_proofs_submitted",
-				"Number of finality proofs submitted to the import queue.",
-			)?, registry)?,
-			import_queue_justifications_submitted: prometheus::register(Counter::new(
-				"import_queue_justifications_submitted",
-				"Number of justifications submitted to the import queue.",
-			)?, registry)?,
-			incoming_connections_errors_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_incoming_connections_handshake_errors_total",
-					"Total number of incoming connections that have failed during the \
-					initial handshake"
-				),
-				&["reason"]
-			)?, registry)?,
-			incoming_connections_total: prometheus::register(Counter::new(
-				"sub_libp2p_incoming_connections_total",
-				"Total number of incoming connections on the listening sockets"
-			)?, registry)?,
-			issued_light_requests: prometheus::register(Counter::new(
-				"issued_light_requests",
-				"Number of light client requests that our node has issued.",
-			)?, registry)?,
-			kademlia_query_duration: prometheus::register(HistogramVec::new(
-				HistogramOpts {
-					common_opts: Opts::new(
-						"sub_libp2p_kademlia_query_duration",
-						"Duration of Kademlia queries per query type"
+					"Total number of connections opened with distinct peers",
+				)?,
+				registry,
+			)?,
+			import_queue_blocks_submitted: prometheus::register(
+				Counter::new(
+					"import_queue_blocks_submitted",
+					"Number of blocks submitted to the import queue.",
+				)?,
+				registry,
+			)?,
+			import_queue_finality_proofs_submitted: prometheus::register(
+				Counter::new(
+					"import_queue_finality_proofs_submitted",
+					"Number of finality proofs submitted to the import queue.",
+				)?,
+				registry,
+			)?,
+			import_queue_justifications_submitted: prometheus::register(
+				Counter::new(
+					"import_queue_justifications_submitted",
+					"Number of justifications submitted to the import queue.",
+				)?,
+				registry,
+			)?,
+			incoming_connections_errors_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_incoming_connections_handshake_errors_total",
+						"Total number of incoming connections that have failed during the \
+					initial handshake",
 					),
-					buckets: prometheus::exponential_buckets(0.5, 2.0, 10)
-						.expect("parameters are always valid values; qed"),
-				},
-				&["type"]
-			)?, registry)?,
-			kademlia_random_queries_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_kademlia_random_queries_total",
-					"Number of random Kademlia queries started"
-				),
-				&["protocol"]
-			)?, registry)?,
-			kademlia_records_count: prometheus::register(GaugeVec::new(
-				Opts::new(
-					"sub_libp2p_kademlia_records_count",
-					"Number of records in the Kademlia records store"
-				),
-				&["protocol"]
-			)?, registry)?,
-			kademlia_records_sizes_total: prometheus::register(GaugeVec::new(
-				Opts::new(
-					"sub_libp2p_kademlia_records_sizes_total",
-					"Total size of all the records in the Kademlia records store"
-				),
-				&["protocol"]
-			)?, registry)?,
-			kbuckets_num_nodes: prometheus::register(GaugeVec::new(
-				Opts::new(
-					"sub_libp2p_kbuckets_num_nodes",
-					"Number of nodes per kbucket per Kademlia instance"
-				),
-				&["protocol", "lower_ilog2_bucket_bound"]
-			)?, registry)?,
-			listeners_local_addresses: prometheus::register(Gauge::new(
-				"sub_libp2p_listeners_local_addresses", "Number of local addresses we're listening on"
-			)?, registry)?,
-			listeners_errors_total: prometheus::register(Counter::new(
-				"sub_libp2p_listeners_errors_total",
-				"Total number of non-fatal errors reported by a listener"
-			)?, registry)?,
-			notifications_sizes: prometheus::register(HistogramVec::new(
-				HistogramOpts {
-					common_opts: Opts::new(
-						"sub_libp2p_notifications_sizes",
-						"Sizes of the notifications send to and received from all nodes"
+					&["reason"],
+				)?,
+				registry,
+			)?,
+			incoming_connections_total: prometheus::register(
+				Counter::new(
+					"sub_libp2p_incoming_connections_total",
+					"Total number of incoming connections on the listening sockets",
+				)?,
+				registry,
+			)?,
+			issued_light_requests: prometheus::register(
+				Counter::new(
+					"issued_light_requests",
+					"Number of light client requests that our node has issued.",
+				)?,
+				registry,
+			)?,
+			kademlia_query_duration: prometheus::register(
+				HistogramVec::new(
+					HistogramOpts {
+						common_opts: Opts::new(
+							"sub_libp2p_kademlia_query_duration",
+							"Duration of Kademlia queries per query type",
+						),
+						buckets: prometheus::exponential_buckets(0.5, 2.0, 10)
+							.expect("parameters are always valid values; qed"),
+					},
+					&["type"],
+				)?,
+				registry,
+			)?,
+			kademlia_random_queries_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_kademlia_random_queries_total",
+						"Number of random Kademlia queries started",
 					),
-					buckets: prometheus::exponential_buckets(64.0, 4.0, 8)
-						.expect("parameters are always valid values; qed"),
-				},
-				&["direction", "protocol"]
-			)?, registry)?,
-			notifications_streams_closed_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_notifications_streams_closed_total",
-					"Total number of notification substreams that have been closed"
-				),
-				&["protocol"]
-			)?, registry)?,
-			notifications_streams_opened_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_notifications_streams_opened_total",
-					"Total number of notification substreams that have been opened"
-				),
-				&["protocol"]
-			)?, registry)?,
-			peerset_num_discovered: prometheus::register(Gauge::new(
-				"sub_libp2p_peerset_num_discovered", "Number of nodes stored in the peerset manager",
-			)?, registry)?,
-			peerset_num_requested: prometheus::register(Gauge::new(
-				"sub_libp2p_peerset_num_requested", "Number of nodes that the peerset manager wants us to be connected to",
-			)?, registry)?,
-			pending_connections: prometheus::register(Gauge::new(
-				"sub_libp2p_pending_connections",
-				"Number of connections in the process of being established",
-			)?, registry)?,
-			pending_connections_errors_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_pending_connections_errors_total",
-					"Total number of pending connection errors"
-				),
-				&["reason"]
-			)?, registry)?,
-			requests_in_failure_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_requests_in_failure_total",
-					"Total number of incoming requests that the node has failed to answer"
-				),
-				&["protocol", "reason"]
-			)?, registry)?,
-			requests_in_success_total: prometheus::register(HistogramVec::new(
-				HistogramOpts {
-					common_opts: Opts::new(
-						"sub_libp2p_requests_in_success_total",
-						"Total number of requests received and answered"
+					&["protocol"],
+				)?,
+				registry,
+			)?,
+			kademlia_records_count: prometheus::register(
+				GaugeVec::new(
+					Opts::new(
+						"sub_libp2p_kademlia_records_count",
+						"Number of records in the Kademlia records store",
 					),
-					buckets: prometheus::exponential_buckets(0.001, 2.0, 16)
-						.expect("parameters are always valid values; qed"),
-				},
-				&["protocol"]
-			)?, registry)?,
-			requests_out_failure_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_requests_out_failure_total",
-					"Total number of requests that have failed"
-				),
-				&["protocol", "reason"]
-			)?, registry)?,
-			requests_out_success_total: prometheus::register(HistogramVec::new(
-				HistogramOpts {
-					common_opts: Opts::new(
-						"sub_libp2p_requests_out_success_total",
-						"For successful requests, time between a request's start and finish"
+					&["protocol"],
+				)?,
+				registry,
+			)?,
+			kademlia_records_sizes_total: prometheus::register(
+				GaugeVec::new(
+					Opts::new(
+						"sub_libp2p_kademlia_records_sizes_total",
+						"Total size of all the records in the Kademlia records store",
 					),
-					buckets: prometheus::exponential_buckets(0.001, 2.0, 16)
-						.expect("parameters are always valid values; qed"),
-				},
-				&["protocol"]
-			)?, registry)?,
-			requests_out_started_total: prometheus::register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_requests_out_started_total",
-					"Total number of requests emitted"
-				),
-				&["protocol"]
-			)?, registry)?,
+					&["protocol"],
+				)?,
+				registry,
+			)?,
+			kbuckets_num_nodes: prometheus::register(
+				GaugeVec::new(
+					Opts::new(
+						"sub_libp2p_kbuckets_num_nodes",
+						"Number of nodes per kbucket per Kademlia instance",
+					),
+					&["protocol", "lower_ilog2_bucket_bound"],
+				)?,
+				registry,
+			)?,
+			listeners_local_addresses: prometheus::register(
+				Gauge::new(
+					"sub_libp2p_listeners_local_addresses",
+					"Number of local addresses we're listening on",
+				)?,
+				registry,
+			)?,
+			listeners_errors_total: prometheus::register(
+				Counter::new(
+					"sub_libp2p_listeners_errors_total",
+					"Total number of non-fatal errors reported by a listener",
+				)?,
+				registry,
+			)?,
+			notifications_sizes: prometheus::register(
+				HistogramVec::new(
+					HistogramOpts {
+						common_opts: Opts::new(
+							"sub_libp2p_notifications_sizes",
+							"Sizes of the notifications send to and received from all nodes",
+						),
+						buckets: prometheus::exponential_buckets(64.0, 4.0, 8)
+							.expect("parameters are always valid values; qed"),
+					},
+					&["direction", "protocol"],
+				)?,
+				registry,
+			)?,
+			notifications_streams_closed_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_notifications_streams_closed_total",
+						"Total number of notification substreams that have been closed",
+					),
+					&["protocol"],
+				)?,
+				registry,
+			)?,
+			notifications_streams_opened_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_notifications_streams_opened_total",
+						"Total number of notification substreams that have been opened",
+					),
+					&["protocol"],
+				)?,
+				registry,
+			)?,
+			peerset_num_discovered: prometheus::register(
+				Gauge::new(
+					"sub_libp2p_peerset_num_discovered",
+					"Number of nodes stored in the peerset manager",
+				)?,
+				registry,
+			)?,
+			peerset_num_requested: prometheus::register(
+				Gauge::new(
+					"sub_libp2p_peerset_num_requested",
+					"Number of nodes that the peerset manager wants us to be connected to",
+				)?,
+				registry,
+			)?,
+			pending_connections: prometheus::register(
+				Gauge::new(
+					"sub_libp2p_pending_connections",
+					"Number of connections in the process of being established",
+				)?,
+				registry,
+			)?,
+			pending_connections_errors_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_pending_connections_errors_total",
+						"Total number of pending connection errors",
+					),
+					&["reason"],
+				)?,
+				registry,
+			)?,
+			requests_in_failure_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_requests_in_failure_total",
+						"Total number of incoming requests that the node has failed to answer",
+					),
+					&["protocol", "reason"],
+				)?,
+				registry,
+			)?,
+			requests_in_success_total: prometheus::register(
+				HistogramVec::new(
+					HistogramOpts {
+						common_opts: Opts::new(
+							"sub_libp2p_requests_in_success_total",
+							"Total number of requests received and answered",
+						),
+						buckets: prometheus::exponential_buckets(0.001, 2.0, 16)
+							.expect("parameters are always valid values; qed"),
+					},
+					&["protocol"],
+				)?,
+				registry,
+			)?,
+			requests_out_failure_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_requests_out_failure_total",
+						"Total number of requests that have failed",
+					),
+					&["protocol", "reason"],
+				)?,
+				registry,
+			)?,
+			requests_out_success_total: prometheus::register(
+				HistogramVec::new(
+					HistogramOpts {
+						common_opts: Opts::new(
+							"sub_libp2p_requests_out_success_total",
+							"For successful requests, time between a request's start and finish",
+						),
+						buckets: prometheus::exponential_buckets(0.001, 2.0, 16)
+							.expect("parameters are always valid values; qed"),
+					},
+					&["protocol"],
+				)?,
+				registry,
+			)?,
+			requests_out_started_total: prometheus::register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_requests_out_started_total",
+						"Total number of requests emitted",
+					),
+					&["protocol"],
+				)?,
+				registry,
+			)?,
 		})
 	}
 }
@@ -279,13 +367,14 @@ impl BandwidthCounters {
 	/// Registers the `BandwidthCounters` metric whose values are
 	/// obtained from the given sinks.
 	fn register(registry: &Registry, sinks: Arc<BandwidthSinks>) -> Result<(), PrometheusError> {
-		prometheus::register(SourcedCounter::new(
-			&Opts::new(
-				"sub_libp2p_network_bytes_total",
-				"Total bandwidth usage"
-			).variable_label("direction"),
-			BandwidthCounters(sinks),
-		)?, registry)?;
+		prometheus::register(
+			SourcedCounter::new(
+				&Opts::new("sub_libp2p_network_bytes_total", "Total bandwidth usage")
+					.variable_label("direction"),
+				BandwidthCounters(sinks),
+			)?,
+			registry,
+		)?;
 
 		Ok(())
 	}
@@ -308,13 +397,16 @@ impl MajorSyncingGauge {
 	/// Registers the `MajorSyncGauge` metric whose value is
 	/// obtained from the given `AtomicBool`.
 	fn register(registry: &Registry, value: Arc<AtomicBool>) -> Result<(), PrometheusError> {
-		prometheus::register(SourcedGauge::new(
-			&Opts::new(
-				"sub_libp2p_is_major_syncing",
-				"Whether the node is performing a major sync or not.",
-			),
-			MajorSyncingGauge(value),
-		)?, registry)?;
+		prometheus::register(
+			SourcedGauge::new(
+				&Opts::new(
+					"sub_libp2p_is_major_syncing",
+					"Whether the node is performing a major sync or not.",
+				),
+				MajorSyncingGauge(value),
+			)?,
+			registry,
+		)?;
 
 		Ok(())
 	}
@@ -336,13 +428,13 @@ impl NumConnectedGauge {
 	/// Registers the `MajorSyncingGauge` metric whose value is
 	/// obtained from the given `AtomicUsize`.
 	fn register(registry: &Registry, value: Arc<AtomicUsize>) -> Result<(), PrometheusError> {
-		prometheus::register(SourcedGauge::new(
-			&Opts::new(
-				"sub_libp2p_peers_count",
-				"Number of connected peers",
-			),
-			NumConnectedGauge(value),
-		)?, registry)?;
+		prometheus::register(
+			SourcedGauge::new(
+				&Opts::new("sub_libp2p_peers_count", "Number of connected peers"),
+				NumConnectedGauge(value),
+			)?,
+			registry,
+		)?;
 
 		Ok(())
 	}

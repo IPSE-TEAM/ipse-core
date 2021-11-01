@@ -16,14 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::error;
 use crate::error::Result;
 use sc_service::config::KeystoreConfig;
+use sp_core::crypto::{SecretString, Zeroize};
 use std::fs;
 use std::path::PathBuf;
-use structopt::StructOpt;
-use crate::error;
-use sp_core::crypto::{SecretString, Zeroize};
 use std::str::FromStr;
+use structopt::StructOpt;
 
 /// default sub directory for the key store
 const DEFAULT_KEYSTORE_CONFIG_PATH: &'static str = "keystore";
@@ -62,8 +62,7 @@ pub struct KeystoreParams {
 
 /// Parse a sercret string, returning a displayable error.
 pub fn secret_string_from_str(s: &str) -> std::result::Result<SecretString, String> {
-	Ok(std::str::FromStr::from_str(s)
-		.map_err(|_e| "Could not get SecretString".to_string())?)
+	Ok(std::str::FromStr::from_str(s).map_err(|_e| "Could not get SecretString".to_string())?)
 }
 
 impl KeystoreParams {
@@ -81,8 +80,7 @@ impl KeystoreParams {
 			#[cfg(target_os = "unknown")]
 			None
 		} else if let Some(ref file) = self.password_filename {
-			let mut password = fs::read_to_string(file)
-				.map_err(|e| format!("{}", e))?;
+			let mut password = fs::read_to_string(file).map_err(|e| format!("{}", e))?;
 			let secret = std::str::FromStr::from_str(password.as_str())
 				.map_err(|()| "Error reading password")?;
 			password.zeroize();

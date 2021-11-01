@@ -18,10 +18,10 @@
 
 //! Errors that can occur during the service operation.
 
-use sc_network;
 use sc_keystore;
-use sp_consensus;
+use sc_network;
 use sp_blockchain;
+use sp_consensus;
 
 /// Service Result typedef.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -40,10 +40,10 @@ pub enum Error {
 	/// Keystore error.
 	Keystore(sc_keystore::Error),
 	/// Best chain selection strategy is missing.
-	#[display(fmt="Best chain selection strategy (SelectChain) is not provided.")]
+	#[display(fmt = "Best chain selection strategy (SelectChain) is not provided.")]
 	SelectChainRequired,
 	/// Tasks executor is missing.
-	#[display(fmt="Tasks executor hasn't been provided.")]
+	#[display(fmt = "Tasks executor hasn't been provided.")]
 	TaskExecutorRequired,
 	/// Other error.
 	Other(String),

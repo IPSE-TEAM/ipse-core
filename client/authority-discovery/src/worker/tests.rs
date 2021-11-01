@@ -18,19 +18,22 @@
 
 use crate::worker::schema;
 
-use std::{iter::FromIterator, sync::{Arc, Mutex}};
+use std::{
+	iter::FromIterator,
+	sync::{Arc, Mutex},
+};
 
 use futures::channel::mpsc::channel;
 use futures::executor::{block_on, LocalPool};
 use futures::future::{poll_fn, FutureExt};
+use futures::poll;
 use futures::sink::SinkExt;
 use futures::task::LocalSpawn;
-use futures::poll;
-use libp2p::{kad, core::multiaddr, PeerId};
+use libp2p::{core::multiaddr, kad, PeerId};
 
-use sp_api::{ProvideRuntimeApi, ApiRef};
+use sp_api::{ApiRef, ProvideRuntimeApi};
 use sp_core::{crypto::Public, testing::KeyStore};
-use sp_runtime::traits::{Zero, Block as BlockT, NumberFor};
+use sp_runtime::traits::{Block as BlockT, NumberFor, Zero};
 use substrate_test_runtime_client::runtime::Block;
 
 use super::*;
@@ -39,10 +42,7 @@ use super::*;
 fn interval_at_with_start_now() {
 	let start = Instant::now();
 
-	let mut interval = interval_at(
-		std::time::Instant::now(),
-		std::time::Duration::from_secs(10),
-	);
+	let mut interval = interval_at(std::time::Instant::now(), std::time::Duration::from_secs(10));
 
 	futures::executor::block_on(async {
 		interval.next().await;
@@ -104,9 +104,7 @@ impl ProvideRuntimeApi<Block> for TestApi {
 	type Api = RuntimeApi;
 
 	fn runtime_api<'a>(&'a self) -> ApiRef<'a, Self::Api> {
-		RuntimeApi {
-			authorities: self.authorities.clone(),
-		}.into()
+		RuntimeApi { authorities: self.authorities.clone() }.into()
 	}
 }
 
@@ -180,10 +178,7 @@ impl Default for TestNetwork {
 	fn default() -> Self {
 		TestNetwork {
 			peer_id: PeerId::random(),
-			external_addresses: vec![
-				"/ip6/2001:db8::/tcp/30333"
-					.parse().unwrap(),
-			],
+			external_addresses: vec!["/ip6/2001:db8::/tcp/30333".parse().unwrap()],
 			put_value_call: Default::default(),
 			get_value_call: Default::default(),
 			set_priority_group_call: Default::default(),
@@ -197,10 +192,7 @@ impl NetworkProvider for TestNetwork {
 		group_id: String,
 		peers: HashSet<Multiaddr>,
 	) -> std::result::Result<(), String> {
-		self.set_priority_group_call
-			.lock()
-			.unwrap()
-			.push((group_id, peers));
+		self.set_priority_group_call.lock().unwrap().push((group_id, peers));
 		Ok(())
 	}
 	fn put_value(&self, key: kad::record::Key, value: Vec<u8>) {
@@ -227,13 +219,13 @@ fn build_dht_event(
 	key_store: &BareCryptoStorePtr,
 ) -> (libp2p::kad::record::Key, Vec<u8>) {
 	let mut serialized_addresses = vec![];
-	schema::AuthorityAddresses {
-		addresses: addresses.into_iter().map(|a| a.to_vec()).collect()
-	}.encode(&mut serialized_addresses)
+	schema::AuthorityAddresses { addresses: addresses.into_iter().map(|a| a.to_vec()).collect() }
+		.encode(&mut serialized_addresses)
 		.map_err(Error::EncodingProto)
 		.unwrap();
 
-	let signature = key_store.read()
+	let signature = key_store
+		.read()
 		.sign_with(
 			key_types::AUTHORITY_DISCOVERY,
 			&public_key.clone().into(),
@@ -243,11 +235,8 @@ fn build_dht_event(
 		.unwrap();
 
 	let mut signed_addresses = vec![];
-	schema::SignedAuthorityAddresses {
-		addresses: serialized_addresses.clone(),
-		signature,
-	}
-	.encode(&mut signed_addresses)
+	schema::SignedAuthorityAddresses { addresses: serialized_addresses.clone(), signature }
+		.encode(&mut signed_addresses)
 		.map_err(Error::EncodingProto)
 		.unwrap();
 
@@ -261,9 +250,7 @@ fn new_registers_metrics() {
 	let (_dht_event_tx, dht_event_rx) = channel(1000);
 	let network: Arc<TestNetwork> = Arc::new(Default::default());
 	let key_store = KeyStore::new();
-	let test_api = Arc::new(TestApi {
-		authorities: vec![],
-	});
+	let test_api = Arc::new(TestApi { authorities: vec![] });
 
 	let registry = prometheus_endpoint::Registry::new();
 
@@ -332,19 +319,13 @@ fn publish_discover_cycle() {
 		let peer_id = network.local_peer_id();
 		let address = network.external_addresses().pop().unwrap();
 
-		address.with(multiaddr::Protocol::P2p(
-			peer_id.into(),
-		))
+		address.with(multiaddr::Protocol::P2p(peer_id.into()))
 	};
 
 	let key_store = KeyStore::new();
-	let node_a_public = key_store
-		.write()
-		.sr25519_generate_new(key_types::AUTHORITY_DISCOVERY, None)
-		.unwrap();
-	let test_api = Arc::new(TestApi {
-		authorities: vec![node_a_public.into()],
-	});
+	let node_a_public =
+		key_store.write().sr25519_generate_new(key_types::AUTHORITY_DISCOVERY, None).unwrap();
+	let test_api = Arc::new(TestApi { authorities: vec![node_a_public.into()] });
 
 	let (_to_worker, from_service) = mpsc::channel(0);
 	let mut worker = Worker::new(
@@ -422,9 +403,7 @@ fn terminate_when_event_stream_terminates() {
 	let (dht_event_tx, dht_event_rx) = channel(1000);
 	let network: Arc<TestNetwork> = Arc::new(Default::default());
 	let key_store = KeyStore::new();
-	let test_api = Arc::new(TestApi {
-		authorities: vec![],
-	});
+	let test_api = Arc::new(TestApi { authorities: vec![] });
 
 	let (_to_worker, from_service) = mpsc::channel(0);
 	let mut worker = Worker::new(
@@ -445,7 +424,8 @@ fn terminate_when_event_stream_terminates() {
 		drop(dht_event_tx);
 
 		assert_eq!(
-			Poll::Ready(()), poll!(&mut worker),
+			Poll::Ready(()),
+			poll!(&mut worker),
 			"Expect the authority discovery module to terminate once the sending side of the dht \
 			event channel is terminated.",
 		);
@@ -457,9 +437,7 @@ fn continue_operating_when_service_channel_is_dropped() {
 	let (_dht_event_tx, dht_event_rx) = channel(0);
 	let network: Arc<TestNetwork> = Arc::new(Default::default());
 	let key_store = KeyStore::new();
-	let test_api = Arc::new(TestApi {
-		authorities: vec![],
-	});
+	let test_api = Arc::new(TestApi { authorities: vec![] });
 
 	let (to_worker, from_service) = mpsc::channel(0);
 	let mut worker = Worker::new(
@@ -479,7 +457,8 @@ fn continue_operating_when_service_channel_is_dropped() {
 
 		for _ in 0..100 {
 			assert_eq!(
-				Poll::Pending, poll!(&mut worker),
+				Poll::Pending,
+				poll!(&mut worker),
 				"Expect authority discovery `Worker` not to panic when service channel is dropped.",
 			);
 		}
@@ -498,9 +477,7 @@ fn dont_stop_polling_when_error_is_returned() {
 	let (mut discovery_update_tx, mut discovery_update_rx) = channel(1000);
 	let network: Arc<TestNetwork> = Arc::new(Default::default());
 	let key_store = KeyStore::new();
-	let test_api = Arc::new(TestApi {
-		authorities: vec![],
-	});
+	let test_api = Arc::new(TestApi { authorities: vec![] });
 	let mut pool = LocalPool::new();
 
 	let (_to_worker, from_service) = mpsc::channel(0);
@@ -518,19 +495,23 @@ fn dont_stop_polling_when_error_is_returned() {
 	//
 	// As this is a local pool, only one future at a time will have the CPU and
 	// can make progress until the future returns `Pending`.
-	pool.spawner().spawn_local_obj(
-		futures::future::poll_fn(move |ctx| {
-			match std::pin::Pin::new(&mut worker).poll(ctx) {
-				Poll::Ready(()) => {},
-				Poll::Pending => {
-					discovery_update_tx.send(Event::Processed).now_or_never();
-					return Poll::Pending;
-				},
-			}
-			let _ = discovery_update_tx.send(Event::End).now_or_never().unwrap();
-			Poll::Ready(())
-		}).boxed_local().into(),
-	).expect("Spawns authority discovery");
+	pool.spawner()
+		.spawn_local_obj(
+			futures::future::poll_fn(move |ctx| {
+				match std::pin::Pin::new(&mut worker).poll(ctx) {
+					Poll::Ready(()) => {},
+					Poll::Pending => {
+						discovery_update_tx.send(Event::Processed).now_or_never();
+						return Poll::Pending
+					},
+				}
+				let _ = discovery_update_tx.send(Event::End).now_or_never().unwrap();
+				Poll::Ready(())
+			})
+			.boxed_local()
+			.into(),
+		)
+		.expect("Spawns authority discovery");
 
 	pool.run_until(
 		// The future that drives the event stream
@@ -549,13 +530,14 @@ fn dont_stop_polling_when_error_is_returned() {
 			drop(dht_event_tx);
 
 			assert!(
-				discovery_update_rx.collect::<Vec<Event>>()
+				discovery_update_rx
+					.collect::<Vec<Event>>()
 					.await
 					.into_iter()
 					.any(|evt| evt == Event::End),
 				"The authority discovery should have ended",
 			);
-		}
+		},
 	);
 }
 
@@ -584,9 +566,7 @@ fn never_add_own_address_to_priority_group() {
 		let peer_id = PeerId::random();
 		let address: Multiaddr = "/ip6/2001:db8:0:0:0:0:0:1/tcp/30333".parse().unwrap();
 
-		address.with(multiaddr::Protocol::P2p(
-			peer_id.into(),
-		))
+		address.with(multiaddr::Protocol::P2p(peer_id.into()))
 	};
 
 	let dht_event = build_dht_event(
@@ -619,7 +599,8 @@ fn never_add_own_address_to_priority_group() {
 	sentry_worker.set_priority_group().unwrap();
 
 	assert_eq!(
-		sentry_network.set_priority_group_call.lock().unwrap().len(), 1,
+		sentry_network.set_priority_group_call.lock().unwrap().len(),
+		1,
 		"Expect authority discovery to set the priority set.",
 	);
 
@@ -641,19 +622,15 @@ fn limit_number_of_addresses_added_to_cache_per_authority() {
 		.sr25519_generate_new(key_types::AUTHORITY_DISCOVERY, None)
 		.unwrap();
 
-	let addresses = (0..100).map(|_| {
-		let peer_id = PeerId::random();
-		let address: Multiaddr = "/ip6/2001:db8:0:0:0:0:0:1/tcp/30333".parse().unwrap();
-		address.with(multiaddr::Protocol::P2p(
-			peer_id.into(),
-		))
-	}).collect();
+	let addresses = (0..100)
+		.map(|_| {
+			let peer_id = PeerId::random();
+			let address: Multiaddr = "/ip6/2001:db8:0:0:0:0:0:1/tcp/30333".parse().unwrap();
+			address.with(multiaddr::Protocol::P2p(peer_id.into()))
+		})
+		.collect();
 
-	let dht_event = build_dht_event(
-		addresses,
-		remote_public.into(),
-		&remote_key_store,
-	);
+	let dht_event = build_dht_event(addresses, remote_public.into(), &remote_key_store);
 
 	let (_dht_event_tx, dht_event_rx) = channel(1);
 
@@ -693,13 +670,11 @@ fn do_not_cache_addresses_without_peer_id() {
 		address.with(multiaddr::Protocol::P2p(peer_id.into()))
 	};
 
-	let multiaddr_without_peer_id: Multiaddr = "/ip6/2001:db8:0:0:0:0:0:1/tcp/30333".parse().unwrap();
+	let multiaddr_without_peer_id: Multiaddr =
+		"/ip6/2001:db8:0:0:0:0:0:1/tcp/30333".parse().unwrap();
 
 	let dht_event = build_dht_event(
-		vec![
-			multiaddr_with_peer_id.clone(),
-			multiaddr_without_peer_id,
-		],
+		vec![multiaddr_with_peer_id.clone(), multiaddr_without_peer_id],
 		remote_public.into(),
 		&remote_key_store,
 	);
@@ -748,9 +723,7 @@ fn addresses_to_publish_adds_p2p() {
 	let (_to_worker, from_service) = mpsc::channel(0);
 	let worker = Worker::new(
 		from_service,
-		Arc::new(TestApi {
-			authorities: vec![],
-		}),
+		Arc::new(TestApi { authorities: vec![] }),
 		network.clone(),
 		vec![],
 		dht_event_rx.boxed(),
@@ -775,17 +748,16 @@ fn addresses_to_publish_respects_existing_p2p_protocol() {
 	let network: Arc<TestNetwork> = Arc::new(TestNetwork {
 		external_addresses: vec![
 			"/ip6/2001:db8::/tcp/30333/p2p/QmcgpsyWgH8Y8ajJz1Cu72KnS5uo2Aa2LpzU7kinSupNKC"
-				.parse().unwrap(),
+				.parse()
+				.unwrap(),
 		],
-		.. Default::default()
+		..Default::default()
 	});
 
 	let (_to_worker, from_service) = mpsc::channel(0);
 	let worker = Worker::new(
 		from_service,
-		Arc::new(TestApi {
-			authorities: vec![],
-		}),
+		Arc::new(TestApi { authorities: vec![] }),
 		network.clone(),
 		vec![],
 		dht_event_rx.boxed(),
@@ -794,7 +766,8 @@ fn addresses_to_publish_respects_existing_p2p_protocol() {
 	);
 
 	assert_eq!(
-		network.external_addresses, worker.addresses_to_publish().collect::<Vec<_>>(),
+		network.external_addresses,
+		worker.addresses_to_publish().collect::<Vec<_>>(),
 		"Expected Multiaddr from `TestNetwork` to not be altered.",
 	);
 }
@@ -805,21 +778,22 @@ fn lookup_throttling() {
 		let peer_id = PeerId::random();
 		let address: Multiaddr = "/ip6/2001:db8:0:0:0:0:0:1/tcp/30333".parse().unwrap();
 
-		address.with(multiaddr::Protocol::P2p(
-			peer_id.into(),
-		))
+		address.with(multiaddr::Protocol::P2p(peer_id.into()))
 	};
 	let remote_key_store = KeyStore::new();
-	let remote_public_keys: Vec<AuthorityId> = (0..20).map(|_| {
-		remote_key_store
-			.write()
-			.sr25519_generate_new(key_types::AUTHORITY_DISCOVERY, None)
-			.unwrap().into()
-	}).collect();
-	let remote_hash_to_key = remote_public_keys.iter()
+	let remote_public_keys: Vec<AuthorityId> = (0..20)
+		.map(|_| {
+			remote_key_store
+				.write()
+				.sr25519_generate_new(key_types::AUTHORITY_DISCOVERY, None)
+				.unwrap()
+				.into()
+		})
+		.collect();
+	let remote_hash_to_key = remote_public_keys
+		.iter()
 		.map(|k| (hash_authority_id(k.as_ref()), k.clone()))
 		.collect::<HashMap<_, _>>();
-
 
 	let (mut dht_event_tx, dht_event_rx) = channel(1);
 	let (_to_worker, from_service) = mpsc::channel(0);
@@ -847,14 +821,18 @@ fn lookup_throttling() {
 		let remote_hash = network.get_value_call.lock().unwrap().pop().unwrap();
 		let remote_key: AuthorityId = remote_hash_to_key.get(&remote_hash).unwrap().clone();
 		let dht_event = {
-			let (key, value) = build_dht_event(vec![remote_multiaddr.clone()], remote_key, &remote_key_store);
+			let (key, value) =
+				build_dht_event(vec![remote_multiaddr.clone()], remote_key, &remote_key_store);
 			sc_network::DhtEvent::ValueFound(vec![(key, value)])
 		};
 		dht_event_tx.try_send(dht_event).expect("Channel has capacity of 1.");
 
 		// Assert worker to trigger another lookup.
 		assert_eq!(Poll::Pending, worker.poll_unpin(cx));
-		assert_eq!(worker.pending_lookups.len(), remote_public_keys.len() - MAX_IN_FLIGHT_LOOKUPS - 1);
+		assert_eq!(
+			worker.pending_lookups.len(),
+			remote_public_keys.len() - MAX_IN_FLIGHT_LOOKUPS - 1
+		);
 		assert_eq!(worker.in_flight_lookups.len(), MAX_IN_FLIGHT_LOOKUPS);
 		assert_eq!(network.get_value_call.lock().unwrap().len(), MAX_IN_FLIGHT_LOOKUPS);
 
@@ -865,7 +843,10 @@ fn lookup_throttling() {
 
 		// Assert worker to trigger another lookup.
 		assert_eq!(Poll::Pending, worker.poll_unpin(cx));
-		assert_eq!(worker.pending_lookups.len(), remote_public_keys.len() - MAX_IN_FLIGHT_LOOKUPS - 2);
+		assert_eq!(
+			worker.pending_lookups.len(),
+			remote_public_keys.len() - MAX_IN_FLIGHT_LOOKUPS - 2
+		);
 		assert_eq!(worker.in_flight_lookups.len(), MAX_IN_FLIGHT_LOOKUPS);
 		assert_eq!(network.get_value_call.lock().unwrap().len(), MAX_IN_FLIGHT_LOOKUPS);
 

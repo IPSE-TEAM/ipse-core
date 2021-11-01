@@ -26,11 +26,10 @@
 //!   temporarily unreachable.
 //! - You must appropriately poll the worker with `TelemetryWorker::poll`. Polling will/may produce
 //!   events indicating what happened since the latest polling.
-//!
 
 use futures::{prelude::*, ready};
-use libp2p::{core::transport::OptionalTransport, Multiaddr, Transport, wasm_ext};
-use log::{trace, warn, error};
+use libp2p::{core::transport::OptionalTransport, wasm_ext, Multiaddr, Transport};
+use log::{error, trace, warn};
 use slog::Drain;
 use std::{io, pin::Pin, task::Context, task::Poll, time};
 
@@ -59,12 +58,12 @@ trait StreamAndSink<I>: Stream + Sink<I> {}
 impl<T: ?Sized + Stream + Sink<I>, I> StreamAndSink<I> for T {}
 
 type WsTrans = libp2p::core::transport::boxed::Boxed<
-	Pin<Box<dyn StreamAndSink<
-		Vec<u8>,
-		Item = Result<Vec<u8>, io::Error>,
-		Error = io::Error
-	> + Send>>,
-	io::Error
+	Pin<
+		Box<
+			dyn StreamAndSink<Vec<u8>, Item = Result<Vec<u8>, io::Error>, Error = io::Error> + Send,
+		>,
+	>,
+	io::Error,
 >;
 
 impl TelemetryWorker {
@@ -75,12 +74,13 @@ impl TelemetryWorker {
 	/// message will receive it.
 	pub fn new(
 		endpoints: impl IntoIterator<Item = (Multiaddr, u8)>,
-		wasm_external_transport: impl Into<Option<wasm_ext::ExtTransport>>
+		wasm_external_transport: impl Into<Option<wasm_ext::ExtTransport>>,
 	) -> Result<Self, io::Error> {
 		let transport = match wasm_external_transport.into() {
 			Some(t) => OptionalTransport::some(t),
-			None => OptionalTransport::none()
-		}.map((|inner, _| StreamSink::from(inner)) as fn(_, _) -> _);
+			None => OptionalTransport::none(),
+		}
+		.map((|inner, _| StreamSink::from(inner)) as fn(_, _) -> _);
 
 		// The main transport is the `wasm_external_transport`, but if we're on desktop we add
 		// support for TCP+WebSocket+DNS as a fallback. In practice, you're not expected to pass
@@ -88,17 +88,16 @@ impl TelemetryWorker {
 		#[cfg(not(target_os = "unknown"))]
 		let transport = transport.or_transport({
 			let inner = libp2p::dns::DnsConfig::new(libp2p::tcp::TcpConfig::new())?;
-			libp2p::websocket::framed::WsConfig::new(inner)
-				.and_then(|connec, _| {
-					let connec = connec
-						.with(|item| {
-							let item = libp2p::websocket::framed::OutgoingData::Binary(item);
-							future::ready(Ok::<_, io::Error>(item))
-						})
-						.try_filter(|item| future::ready(item.is_data()))
-						.map_ok(|data| data.into_bytes());
-					future::ready(Ok::<_, io::Error>(connec))
-				})
+			libp2p::websocket::framed::WsConfig::new(inner).and_then(|connec, _| {
+				let connec = connec
+					.with(|item| {
+						let item = libp2p::websocket::framed::OutgoingData::Binary(item);
+						future::ready(Ok::<_, io::Error>(item))
+					})
+					.try_filter(|item| future::ready(item.is_data()))
+					.map_ok(|data| data.into_bytes());
+				future::ready(Ok::<_, io::Error>(connec))
+			})
 		});
 
 		let transport = transport
@@ -113,10 +112,13 @@ impl TelemetryWorker {
 			.boxed();
 
 		Ok(TelemetryWorker {
-			nodes: endpoints.into_iter().map(|(addr, verbosity)| {
-				let node = node::Node::new(transport.clone(), addr);
-				(node, verbosity)
-			}).collect()
+			nodes: endpoints
+				.into_iter()
+				.map(|(addr, verbosity)| {
+					let node = node::Node::new(transport.clone(), addr);
+					(node, verbosity)
+				})
+				.collect(),
 		})
 	}
 
@@ -136,7 +138,8 @@ impl TelemetryWorker {
 		Poll::Pending
 	}
 
-	/// Equivalent to `slog::Drain::log`, but takes `self` by `&mut` instead, which is more convenient.
+	/// Equivalent to `slog::Drain::log`, but takes `self` by `&mut` instead, which is more
+	/// convenient.
 	///
 	/// Keep in mind that you should call `TelemetryWorker::poll` in order to process the messages.
 	/// You should call this function right after calling `slog::Drain::log`.
@@ -147,7 +150,7 @@ impl TelemetryWorker {
 				warn!(target: "telemetry", "Failed to parse telemetry tag {:?}: {:?}",
 					record.tag(), err);
 				return Err(())
-			}
+			},
 		};
 
 		// None of the nodes want that verbosity, so just return without doing any serialization.
@@ -171,7 +174,7 @@ impl TelemetryWorker {
 			if msg_verbosity > *node_max_verbosity {
 				trace!(target: "telemetry", "Skipping {:?} for log entry with verbosity {:?}",
 					node.addr(), msg_verbosity);
-				continue;
+				continue
 			}
 
 			// `send_message` returns an error if we're not connected, which we silently ignore.
@@ -222,7 +225,7 @@ impl<T: AsyncWrite> StreamSink<T> {
 				error!(target: "telemetry",
 					"Detected some internal buffering happening in the telemetry");
 				let err = io::Error::new(io::ErrorKind::Other, "Internal buffering detected");
-				return Poll::Ready(Err(err));
+				return Poll::Ready(Err(err))
 			}
 		}
 

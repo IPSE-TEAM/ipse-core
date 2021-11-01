@@ -21,23 +21,24 @@
 //!
 //! > **Note**: Each instance corresponds to a single protocol. In order to support multiple
 //! >			protocols, you need to create multiple instances and group them.
-//!
 
 use crate::protocol::generic_proto::upgrade::{NotificationsIn, NotificationsInSubstream};
 use bytes::BytesMut;
 use futures::prelude::*;
-use libp2p::core::{ConnectedPoint, PeerId};
 use libp2p::core::upgrade::{DeniedUpgrade, InboundUpgrade, OutboundUpgrade};
+use libp2p::core::{ConnectedPoint, PeerId};
 use libp2p::swarm::{
-	ProtocolsHandler, ProtocolsHandlerEvent,
-	IntoProtocolsHandler,
-	KeepAlive,
-	ProtocolsHandlerUpgrErr,
-	SubstreamProtocol,
-	NegotiatedSubstream,
+	IntoProtocolsHandler, KeepAlive, NegotiatedSubstream, ProtocolsHandler, ProtocolsHandlerEvent,
+	ProtocolsHandlerUpgrErr, SubstreamProtocol,
 };
 use log::{error, warn};
-use std::{borrow::Cow, collections::VecDeque, fmt, pin::Pin, task::{Context, Poll}};
+use std::{
+	borrow::Cow,
+	collections::VecDeque,
+	fmt,
+	pin::Pin,
+	task::{Context, Poll},
+};
 
 /// Implements the `IntoProtocolsHandler` trait of libp2p.
 ///
@@ -69,7 +70,8 @@ pub struct NotifsInHandler {
 	///
 	/// This queue is only ever modified to insert elements at the back, or remove the first
 	/// element.
-	events_queue: VecDeque<ProtocolsHandlerEvent<DeniedUpgrade, (), NotifsInHandlerOut, void::Void>>,
+	events_queue:
+		VecDeque<ProtocolsHandlerEvent<DeniedUpgrade, (), NotifsInHandlerOut, void::Void>>,
 }
 
 /// Event that can be received by a `NotifsInHandler`.
@@ -108,12 +110,8 @@ pub enum NotifsInHandlerOut {
 
 impl NotifsInHandlerProto {
 	/// Builds a new `NotifsInHandlerProto`.
-	pub fn new(
-		protocol_name: impl Into<Cow<'static, str>>
-	) -> Self {
-		NotifsInHandlerProto {
-			in_protocol: NotificationsIn::new(protocol_name),
-		}
+	pub fn new(protocol_name: impl Into<Cow<'static, str>>) -> Self {
+		NotifsInHandlerProto { in_protocol: NotificationsIn::new(protocol_name) }
 	}
 }
 
@@ -147,20 +145,22 @@ impl NotifsInHandler {
 	/// necessary to drive any potential incoming handshake or request.
 	pub fn poll_process(
 		&mut self,
-		cx: &mut Context
-	) -> Poll<
-		ProtocolsHandlerEvent<DeniedUpgrade, (), NotifsInHandlerOut, void::Void>
-	> {
+		cx: &mut Context,
+	) -> Poll<ProtocolsHandlerEvent<DeniedUpgrade, (), NotifsInHandlerOut, void::Void>> {
 		if let Some(event) = self.events_queue.pop_front() {
 			return Poll::Ready(event)
 		}
 
-		match self.substream.as_mut().map(|s| NotificationsInSubstream::poll_process(Pin::new(s), cx)) {
+		match self
+			.substream
+			.as_mut()
+			.map(|s| NotificationsInSubstream::poll_process(Pin::new(s), cx))
+		{
 			None | Some(Poll::Pending) => {},
 			Some(Poll::Ready(Ok(v))) => match v {},
 			Some(Poll::Ready(Err(_))) => {
 				self.substream = None;
-				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed));
+				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed))
 			},
 		}
 
@@ -184,7 +184,7 @@ impl ProtocolsHandler for NotifsInHandler {
 	fn inject_fully_negotiated_inbound(
 		&mut self,
 		(msg, proto): <Self::InboundProtocol as InboundUpgrade<NegotiatedSubstream>>::Output,
-		(): ()
+		(): (),
 	) {
 		// If a substream already exists, we drop it and replace it with the new incoming one.
 		if self.substream.is_some() {
@@ -197,10 +197,10 @@ impl ProtocolsHandler for NotifsInHandler {
 		// multiple such substreams, and therefore sending a "RST" is not an incorrect thing to do.
 		self.substream = Some(proto);
 
-		self.events_queue.push_back(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::OpenRequest(msg)));
-		self.pending_accept_refuses = self.pending_accept_refuses
-			.checked_add(1)
-			.unwrap_or_else(|| {
+		self.events_queue
+			.push_back(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::OpenRequest(msg)));
+		self.pending_accept_refuses =
+			self.pending_accept_refuses.checked_add(1).unwrap_or_else(|| {
 				error!(target: "sub-libp2p", "Overflow in pending_accept_refuses");
 				usize::max_value()
 			});
@@ -209,7 +209,7 @@ impl ProtocolsHandler for NotifsInHandler {
 	fn inject_fully_negotiated_outbound(
 		&mut self,
 		out: <Self::OutboundProtocol as OutboundUpgrade<NegotiatedSubstream>>::Output,
-		_: Self::OutboundOpenInfo
+		_: Self::OutboundOpenInfo,
 	) {
 		// We never emit any outgoing substream.
 		void::unreachable(out)
@@ -223,14 +223,14 @@ impl ProtocolsHandler for NotifsInHandler {
 					target: "sub-libp2p",
 					"Inconsistent state: received Accept/Refuse when no pending request exists"
 				);
-				return;
-			}
+				return
+			},
 		};
 
 		// If we send multiple `OpenRequest`s in a row, we will receive back multiple
 		// `Accept`/`Refuse` messages. All of them are obsolete except the last one.
 		if self.pending_accept_refuses != 0 {
-			return;
+			return
 		}
 
 		match (message, self.substream.as_mut()) {
@@ -256,7 +256,12 @@ impl ProtocolsHandler for NotifsInHandler {
 		&mut self,
 		cx: &mut Context,
 	) -> Poll<
-		ProtocolsHandlerEvent<Self::OutboundProtocol, Self::OutboundOpenInfo, Self::OutEvent, Self::Error>
+		ProtocolsHandlerEvent<
+			Self::OutboundProtocol,
+			Self::OutboundOpenInfo,
+			Self::OutEvent,
+			Self::Error,
+		>,
 	> {
 		// Flush the events queue if necessary.
 		if let Some(event) = self.events_queue.pop_front() {
@@ -276,7 +281,7 @@ impl ProtocolsHandler for NotifsInHandler {
 			},
 			Some(Poll::Ready(None)) | Some(Poll::Ready(Some(Err(_)))) => {
 				self.substream = None;
-				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed));
+				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed))
 			},
 		}
 

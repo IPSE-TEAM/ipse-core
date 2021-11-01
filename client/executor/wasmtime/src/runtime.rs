@@ -17,19 +17,19 @@
 //! Defines the compiled Wasm runtime that uses Wasmtime internally.
 
 use crate::host::HostState;
-use crate::imports::{Imports, resolve_imports};
-use crate::instance_wrapper::{ModuleWrapper, InstanceWrapper, GlobalsSnapshot};
+use crate::imports::{resolve_imports, Imports};
+use crate::instance_wrapper::{GlobalsSnapshot, InstanceWrapper, ModuleWrapper};
 use crate::state_holder;
 
-use std::rc::Rc;
-use std::sync::Arc;
 use sc_executor_common::{
 	error::{Error, Result, WasmError},
-	wasm_runtime::{WasmModule, WasmInstance},
+	wasm_runtime::{WasmInstance, WasmModule},
 };
 use sp_allocator::FreeingBumpHeapAllocator;
 use sp_runtime_interface::unpack_ptr_and_len;
-use sp_wasm_interface::{Function, Pointer, WordSize, Value};
+use sp_wasm_interface::{Function, Pointer, Value, WordSize};
+use std::rc::Rc;
+use std::sync::Arc;
 use wasmtime::{Config, Engine, Store};
 
 /// A `WasmModule` implementation using wasmtime to compile the runtime module to machine code
@@ -94,25 +94,22 @@ impl WasmInstance for WasmtimeInstance {
 		let entrypoint = self.instance_wrapper.resolve_entrypoint(method)?;
 		let allocator = FreeingBumpHeapAllocator::new(self.heap_base);
 
-		self.module_wrapper
-			.data_segments_snapshot()
-			.apply(|offset, contents| {
-				self.instance_wrapper
-					.write_memory_from(Pointer::new(offset), contents)
-			})?;
+		self.module_wrapper.data_segments_snapshot().apply(|offset, contents| {
+			self.instance_wrapper.write_memory_from(Pointer::new(offset), contents)
+		})?;
 
 		self.globals_snapshot.apply(&*self.instance_wrapper)?;
 
-		perform_call(
-			data,
-			Rc::clone(&self.instance_wrapper),
-			entrypoint,
-			allocator,
-		)
+		perform_call(data, Rc::clone(&self.instance_wrapper), entrypoint, allocator)
 	}
 
 	fn get_global_const(&self, name: &str) -> Result<Option<Value>> {
-		let instance = InstanceWrapper::new(&self.store, &self.module_wrapper, &self.imports, self.heap_pages)?;
+		let instance = InstanceWrapper::new(
+			&self.store,
+			&self.module_wrapper,
+			&self.imports,
+			self.heap_pages,
+		)?;
 		instance.get_global_val(name)
 	}
 }
@@ -160,13 +157,10 @@ fn perform_call(
 			Ok(results) => {
 				let retval = results[0].unwrap_i64() as u64;
 				Ok(unpack_ptr_and_len(retval))
-			}
+			},
 			Err(trap) => {
-				return Err(Error::from(format!(
-					"Wasm execution trapped: {}",
-					trap
-				)));
-			}
+				return Err(Error::from(format!("Wasm execution trapped: {}", trap)))
+			},
 		}
 	});
 	let (output_ptr, output_len) = ret?;

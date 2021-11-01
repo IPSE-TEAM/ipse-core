@@ -18,9 +18,9 @@
 //! Implementation of the trait instance and the instance structures implementing it.
 //! (For not instantiable traits there is still the inherent instance implemented).
 
-use proc_macro2::{TokenStream, Span};
-use quote::quote;
 use super::DeclStorageDefExt;
+use proc_macro2::{Span, TokenStream};
+use quote::quote;
 
 const NUMBER_OF_INSTANCE: usize = 16;
 pub(crate) const INHERENT_INSTANCE_NAME: &str = "__InherentHiddenInstance";
@@ -48,13 +48,11 @@ pub fn decl_and_impl(scrate: &TokenStream, def: &DeclStorageDefExt) -> TokenStre
 					doc: quote!(#[doc=r"Module instance"]),
 				}
 			})
-			.chain(
-				module_instance.instance_default.as_ref().map(|ident| InstanceDef {
-					prefix: String::new(),
-					instance_struct: ident.clone(),
-					doc: quote!(#[doc=r"Default module instance"]),
-				})
-			);
+			.chain(module_instance.instance_default.as_ref().map(|ident| InstanceDef {
+				prefix: String::new(),
+				instance_struct: ident.clone(),
+				doc: quote!(#[doc=r"Default module instance"]),
+			}));
 
 		for instance_def in instance_defs {
 			impls.extend(create_and_impl_instance_struct(scrate, &instance_def, def));
@@ -65,8 +63,8 @@ pub fn decl_and_impl(scrate: &TokenStream, def: &DeclStorageDefExt) -> TokenStre
 	let inherent_instance = syn::Ident::new(INHERENT_INSTANCE_NAME, Span::call_site());
 
 	// Implementation of inherent instance.
-	if let Some(default_instance) = def.module_instance.as_ref()
-		.and_then(|i| i.instance_default.as_ref())
+	if let Some(default_instance) =
+		def.module_instance.as_ref().and_then(|i| i.instance_default.as_ref())
 	{
 		impls.extend(quote! {
 			/// Hidden instance generated to be internally used when module is used without
@@ -90,10 +88,7 @@ pub fn decl_and_impl(scrate: &TokenStream, def: &DeclStorageDefExt) -> TokenStre
 	impls
 }
 
-fn reexport_instance_trait(
-	scrate: &TokenStream,
-	def: &DeclStorageDefExt,
-) -> TokenStream {
+fn reexport_instance_trait(scrate: &TokenStream, def: &DeclStorageDefExt) -> TokenStream {
 	if let Some(i) = def.module_instance.as_ref() {
 		let instance_trait = &i.instance_trait;
 		quote!(

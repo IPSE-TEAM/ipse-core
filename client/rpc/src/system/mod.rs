@@ -21,23 +21,23 @@
 #[cfg(test)]
 mod tests;
 
-use futures::{future::BoxFuture, FutureExt, TryFutureExt};
 use futures::{channel::oneshot, compat::Compat};
+use futures::{future::BoxFuture, FutureExt, TryFutureExt};
 use sc_rpc_api::{DenyUnsafe, Receiver};
-use sp_utils::mpsc::TracingUnboundedSender;
 use sp_runtime::traits::{self, Header as HeaderT};
+use sp_utils::mpsc::TracingUnboundedSender;
 
 use self::error::Result;
 
-pub use sc_rpc_api::system::*;
-pub use self::helpers::{SystemInfo, Health, PeerInfo, NodeRole};
 pub use self::gen_client::Client as SystemClient;
+pub use self::helpers::{Health, NodeRole, PeerInfo, SystemInfo};
+pub use sc_rpc_api::system::*;
 
 macro_rules! bail_if_unsafe {
 	($value: expr) => {
 		if let Err(err) = $value.check_if_safe() {
-			return async move { Err(err.into()) }.boxed().compat();
-		}
+			return async move { Err(err.into()) }.boxed().compat()
+			}
 	};
 }
 
@@ -66,7 +66,7 @@ pub enum Request<B: traits::Block> {
 	/// Must return any potential parse error.
 	NetworkRemoveReservedPeer(String, oneshot::Sender<Result<()>>),
 	/// Must return the node role.
-	NodeRoles(oneshot::Sender<Vec<NodeRole>>)
+	NodeRoles(oneshot::Sender<Vec<NodeRole>>),
 }
 
 impl<B: traits::Block> System<B> {
@@ -79,11 +79,7 @@ impl<B: traits::Block> System<B> {
 		send_back: TracingUnboundedSender<Request<B>>,
 		deny_unsafe: DenyUnsafe,
 	) -> Self {
-		System {
-			info,
-			send_back,
-			deny_unsafe,
-		}
+		System { info, send_back, deny_unsafe }
 	}
 }
 
@@ -126,35 +122,32 @@ impl<B: traits::Block> SystemApi<B::Hash, <B::Header as HeaderT>::Number> for Sy
 		Receiver(Compat::new(rx))
 	}
 
-	fn system_peers(&self)
-		-> Compat<BoxFuture<'static, rpc::Result<Vec<PeerInfo<B::Hash, <B::Header as HeaderT>::Number>>>>>
-	{
+	fn system_peers(
+		&self,
+	) -> Compat<
+		BoxFuture<'static, rpc::Result<Vec<PeerInfo<B::Hash, <B::Header as HeaderT>::Number>>>>,
+	> {
 		bail_if_unsafe!(self.deny_unsafe);
 
 		let (tx, rx) = oneshot::channel();
 		let _ = self.send_back.unbounded_send(Request::Peers(tx));
 
-		async move {
-			rx.await.map_err(|_| rpc::Error::internal_error())
-		}.boxed().compat()
+		async move { rx.await.map_err(|_| rpc::Error::internal_error()) }.boxed().compat()
 	}
 
-	fn system_network_state(&self)
-		-> Compat<BoxFuture<'static, rpc::Result<rpc::Value>>>
-	{
+	fn system_network_state(&self) -> Compat<BoxFuture<'static, rpc::Result<rpc::Value>>> {
 		bail_if_unsafe!(self.deny_unsafe);
 
 		let (tx, rx) = oneshot::channel();
 		let _ = self.send_back.unbounded_send(Request::NetworkState(tx));
 
-		async move {
-			rx.await.map_err(|_| rpc::Error::internal_error())
-		}.boxed().compat()
+		async move { rx.await.map_err(|_| rpc::Error::internal_error()) }.boxed().compat()
 	}
 
-	fn system_add_reserved_peer(&self, peer: String)
-		-> Compat<BoxFuture<'static, std::result::Result<(), rpc::Error>>>
-	{
+	fn system_add_reserved_peer(
+		&self,
+		peer: String,
+	) -> Compat<BoxFuture<'static, std::result::Result<(), rpc::Error>>> {
 		bail_if_unsafe!(self.deny_unsafe);
 
 		let (tx, rx) = oneshot::channel();
@@ -165,12 +158,15 @@ impl<B: traits::Block> SystemApi<B::Hash, <B::Header as HeaderT>::Number> for Sy
 				Ok(Err(e)) => Err(rpc::Error::from(e)),
 				Err(_) => Err(rpc::Error::internal_error()),
 			}
-		}.boxed().compat()
+		}
+		.boxed()
+		.compat()
 	}
 
-	fn system_remove_reserved_peer(&self, peer: String)
-		-> Compat<BoxFuture<'static, std::result::Result<(), rpc::Error>>>
-	{
+	fn system_remove_reserved_peer(
+		&self,
+		peer: String,
+	) -> Compat<BoxFuture<'static, std::result::Result<(), rpc::Error>>> {
 		bail_if_unsafe!(self.deny_unsafe);
 
 		let (tx, rx) = oneshot::channel();
@@ -181,7 +177,9 @@ impl<B: traits::Block> SystemApi<B::Hash, <B::Header as HeaderT>::Number> for Sy
 				Ok(Err(e)) => Err(rpc::Error::from(e)),
 				Err(_) => Err(rpc::Error::internal_error()),
 			}
-		}.boxed().compat()
+		}
+		.boxed()
+		.compat()
 	}
 
 	fn system_node_roles(&self) -> Receiver<Vec<NodeRole>> {

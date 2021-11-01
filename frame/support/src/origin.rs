@@ -368,8 +368,8 @@ macro_rules! impl_outer_origin {
 
 #[cfg(test)]
 mod tests {
-	use codec::{Encode, Decode};
 	use crate::traits::{Filter, OriginTrait};
+	use codec::{Decode, Encode};
 	mod frame_system {
 		use super::*;
 
@@ -410,7 +410,7 @@ mod tests {
 
 		#[derive(Clone, PartialEq, Eq, Debug, Encode, Decode)]
 		pub struct Origin<T> {
-			t: T
+			t: T,
 		}
 	}
 
@@ -491,7 +491,10 @@ mod tests {
 		assert_eq!(origin.filter_call(&1), false);
 
 		origin.set_caller_from(OriginWithSystem::root());
-		assert!(matches!(origin.caller, OriginWithSystemCaller::system(frame_system::RawOrigin::Root)));
+		assert!(matches!(
+			origin.caller,
+			OriginWithSystemCaller::system(frame_system::RawOrigin::Root)
+		));
 		assert_eq!(origin.filter_call(&0), false);
 		assert_eq!(origin.filter_call(&1), false);
 
@@ -504,15 +507,13 @@ mod tests {
 	fn test_codec() {
 		use codec::Encode;
 		assert_eq!(OriginIndices::root().caller.encode()[0], 11);
-		let without_generic_variant = OriginIndicesCaller::origin_without_generic(
-			origin_without_generic::Origin
-		);
+		let without_generic_variant =
+			OriginIndicesCaller::origin_without_generic(origin_without_generic::Origin);
 		assert_eq!(without_generic_variant.encode()[0], 10);
 
 		assert_eq!(OriginWithoutSystem::root().caller.encode()[0], 0);
-		let without_generic_variant = OriginWithoutSystemCaller::origin_without_generic(
-			origin_without_generic::Origin
-		);
+		let without_generic_variant =
+			OriginWithoutSystemCaller::origin_without_generic(origin_without_generic::Origin);
 		assert_eq!(without_generic_variant.encode()[0], 1);
 	}
 }

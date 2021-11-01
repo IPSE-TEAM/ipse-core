@@ -15,26 +15,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use node_runtime::{
-	Executive, Indices, Runtime, UncheckedExtrinsic,
-};
+use codec::Decode;
+use frame_system::offchain::{SendSignedTransaction, Signer, SubmitTransaction};
+use node_runtime::{Executive, Indices, Runtime, UncheckedExtrinsic};
 use sp_application_crypto::AppKey;
 use sp_core::testing::KeyStore;
 use sp_core::{
-	offchain::{
-		TransactionPoolExt,
-		testing::TestTransactionPoolExt,
-	},
+	offchain::{testing::TestTransactionPoolExt, TransactionPoolExt},
 	traits::KeystoreExt,
 };
-use frame_system::{
-	offchain::{
-		Signer,
-		SubmitTransaction,
-		SendSignedTransaction,
-	}
-};
-use codec::Decode;
 
 pub mod common;
 use self::common::*;
@@ -56,8 +45,10 @@ fn should_submit_unsigned_transaction() {
 		};
 
 		let call = pallet_im_online::Call::heartbeat(heartbeat_data, signature);
-		SubmitTransaction::<Runtime, pallet_im_online::Call<Runtime>>::submit_unsigned_transaction(call.into())
-			.unwrap();
+		SubmitTransaction::<Runtime, pallet_im_online::Call<Runtime>>::submit_unsigned_transaction(
+			call.into(),
+		)
+		.unwrap();
 
 		assert_eq!(state.read().transactions.len(), 1)
 	});
@@ -72,14 +63,23 @@ fn should_submit_signed_transaction() {
 	t.register_extension(TransactionPoolExt::new(pool));
 
 	let keystore = KeyStore::new();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE))).unwrap();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter2", PHRASE))).unwrap();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter3", PHRASE))).unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE)))
+		.unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter2", PHRASE)))
+		.unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter3", PHRASE)))
+		.unwrap();
 	t.register_extension(KeystoreExt(keystore));
 
 	t.execute_with(|| {
-		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
-			.send_signed_transaction(|_| {
+		let results =
+			Signer::<Runtime, TestAuthorityId>::all_accounts().send_signed_transaction(|_| {
 				pallet_balances::Call::transfer(Default::default(), Default::default())
 			});
 
@@ -97,13 +97,19 @@ fn should_submit_signed_twice_from_the_same_account() {
 	t.register_extension(TransactionPoolExt::new(pool));
 
 	let keystore = KeyStore::new();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE))).unwrap();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter2", PHRASE))).unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE)))
+		.unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter2", PHRASE)))
+		.unwrap();
 	t.register_extension(KeystoreExt(keystore));
 
 	t.execute_with(|| {
-		let result = Signer::<Runtime, TestAuthorityId>::any_account()
-			.send_signed_transaction(|_| {
+		let result =
+			Signer::<Runtime, TestAuthorityId>::any_account().send_signed_transaction(|_| {
 				pallet_balances::Call::transfer(Default::default(), Default::default())
 			});
 
@@ -111,8 +117,8 @@ fn should_submit_signed_twice_from_the_same_account() {
 		assert_eq!(state.read().transactions.len(), 1);
 
 		// submit another one from the same account. The nonce should be incremented.
-		let result = Signer::<Runtime, TestAuthorityId>::any_account()
-			.send_signed_transaction(|_| {
+		let result =
+			Signer::<Runtime, TestAuthorityId>::any_account().send_signed_transaction(|_| {
 				pallet_balances::Call::transfer(Default::default(), Default::default())
 			});
 
@@ -127,10 +133,7 @@ fn should_submit_signed_twice_from_the_same_account() {
 		}
 		let nonce1 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[0]).unwrap());
 		let nonce2 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[1]).unwrap());
-		assert!(
-			nonce1 != nonce2,
-			"Transactions should have different nonces. Got: {:?}", nonce1
-		);
+		assert!(nonce1 != nonce2, "Transactions should have different nonces. Got: {:?}", nonce1);
 	});
 }
 
@@ -141,8 +144,14 @@ fn should_submit_signed_twice_from_all_accounts() {
 	t.register_extension(TransactionPoolExt::new(pool));
 
 	let keystore = KeyStore::new();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE))).unwrap();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter2", PHRASE))).unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE)))
+		.unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter2", PHRASE)))
+		.unwrap();
 	t.register_extension(KeystoreExt(keystore));
 
 	t.execute_with(|| {
@@ -192,20 +201,23 @@ fn should_submit_signed_twice_from_all_accounts() {
 fn submitted_transaction_should_be_valid() {
 	use codec::Encode;
 	use frame_support::storage::StorageMap;
-	use sp_runtime::transaction_validity::{TransactionSource, TransactionTag};
 	use sp_runtime::traits::StaticLookup;
+	use sp_runtime::transaction_validity::{TransactionSource, TransactionTag};
 
 	let mut t = new_test_ext(compact_code_unwrap(), false);
 	let (pool, state) = TestTransactionPoolExt::new();
 	t.register_extension(TransactionPoolExt::new(pool));
 
 	let keystore = KeyStore::new();
-	keystore.write().sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE))).unwrap();
+	keystore
+		.write()
+		.sr25519_generate_new(sr25519::AuthorityId::ID, Some(&format!("{}/hunter1", PHRASE)))
+		.unwrap();
 	t.register_extension(KeystoreExt(keystore));
 
 	t.execute_with(|| {
-		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
-			.send_signed_transaction(|_| {
+		let results =
+			Signer::<Runtime, TestAuthorityId>::all_accounts().send_signed_transaction(|_| {
 				pallet_balances::Call::transfer(Default::default(), Default::default())
 			});
 		let len = results.len();

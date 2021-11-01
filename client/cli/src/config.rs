@@ -175,12 +175,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 				default_listen_port,
 			)
 		} else {
-			NetworkConfiguration::new(
-				node_name,
-				client_id,
-				node_key,
-				Some(net_config_dir),
-			)
+			NetworkConfiguration::new(node_name, client_id, node_key, Some(net_config_dir))
 		})
 	}
 
@@ -198,9 +193,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	///
 	/// By default this is retrieved from `DatabaseParams` if it is available. Otherwise its `None`.
 	fn database_cache_size(&self) -> Result<Option<usize>> {
-		Ok(self.database_params()
-			.map(|x| x.database_cache_size())
-			.unwrap_or_default())
+		Ok(self.database_params().map(|x| x.database_cache_size()).unwrap_or_default())
 	}
 
 	/// Get the database backend variant.
@@ -218,13 +211,8 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 		database: Database,
 	) -> Result<DatabaseConfig> {
 		Ok(match database {
-			Database::RocksDb => DatabaseConfig::RocksDb {
-				path: base_path.join("db"),
-				cache_size,
-			},
-			Database::ParityDb => DatabaseConfig::ParityDb {
-				path: base_path.join("paritydb"),
-			},
+			Database::RocksDb => DatabaseConfig::RocksDb { path: base_path.join("db"), cache_size },
+			Database::ParityDb => DatabaseConfig::ParityDb { path: base_path.join("paritydb") },
 		})
 	}
 
@@ -232,9 +220,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	///
 	/// By default this is retrieved from `ImportParams` if it is available. Otherwise its `0`.
 	fn state_cache_size(&self) -> Result<usize> {
-		Ok(self.import_params()
-			.map(|x| x.state_cache_size())
-			.unwrap_or_default())
+		Ok(self.import_params().map(|x| x.state_cache_size()).unwrap_or_default())
 	}
 
 	/// Get the state cache child ratio (if any).
@@ -273,9 +259,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	/// By default this is retrieved from `ImportParams` if it is available. Otherwise its
 	/// `WasmExecutionMethod::default()`.
 	fn wasm_method(&self) -> Result<WasmExecutionMethod> {
-		Ok(self.import_params()
-			.map(|x| x.wasm_method())
-			.unwrap_or_default())
+		Ok(self.import_params().map(|x| x.wasm_method()).unwrap_or_default())
 	}
 
 	/// Get the execution strategies.
@@ -402,9 +386,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	/// By default this is retrieved from `ImportParams` if it is available. Otherwise its
 	/// `None`.
 	fn tracing_targets(&self) -> Result<Option<String>> {
-		Ok(self.import_params()
-			.map(|x| x.tracing_targets())
-			.unwrap_or_else(|| Default::default()))
+		Ok(self.import_params().map(|x| x.tracing_targets()).unwrap_or_else(|| Default::default()))
 	}
 
 	/// Get the TracingReceiver value from the current object
@@ -412,9 +394,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	/// By default this is retrieved from `ImportParams` if it is available. Otherwise its
 	/// `TracingReceiver::default()`.
 	fn tracing_receiver(&self) -> Result<TracingReceiver> {
-		Ok(self.import_params()
-			.map(|x| x.tracing_receiver())
-			.unwrap_or_default())
+		Ok(self.import_params().map(|x| x.tracing_receiver()).unwrap_or_default())
 	}
 
 	/// Get the node key from the current object
@@ -453,11 +433,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 		let base_path = self
 			.base_path()?
 			.unwrap_or_else(|| BasePath::from_project("", "", &C::executable_name()));
-		let config_dir = base_path
-			.path()
-			.to_path_buf()
-			.join("chains")
-			.join(chain_spec.id());
+		let config_dir = base_path.path().to_path_buf().join("chains").join(chain_spec.id());
 		let net_config_dir = config_dir.join(DEFAULT_NETWORK_CONFIG_PATH);
 		let client_id = C::client_id();
 		let database_cache_size = self.database_cache_size()?.unwrap_or(128);
@@ -467,10 +443,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 		let max_runtime_instances = self.max_runtime_instances()?.unwrap_or(8);
 		let is_validator = role.is_network_authority();
 
-		let unsafe_pruning = self
-			.import_params()
-			.map(|p| p.unsafe_pruning)
-			.unwrap_or(false);
+		let unsafe_pruning = self.import_params().map(|p| p.unsafe_pruning).unwrap_or(false);
 
 		Ok(Configuration {
 			impl_name: C::impl_name(),
@@ -569,7 +542,7 @@ pub fn generate_node_name() -> String {
 		let count = node_name.chars().count();
 
 		if count < NODE_NAME_MAX_LENGTH {
-			return node_name;
+			return node_name
 		}
 	}
 }

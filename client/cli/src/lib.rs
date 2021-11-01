@@ -34,8 +34,8 @@ pub use config::*;
 pub use error::*;
 pub use params::*;
 pub use runner::*;
-use sc_service::{Configuration, TaskExecutor};
 pub use sc_service::{ChainSpec, Role};
+use sc_service::{Configuration, TaskExecutor};
 pub use sp_version::RuntimeVersion;
 use std::io::Write;
 pub use structopt;
@@ -68,7 +68,8 @@ pub trait SubstrateCli: Sized {
 	/// Extracts the file name from `std::env::current_exe()`.
 	/// Resorts to the env var `CARGO_PKG_NAME` in case of Error.
 	fn executable_name() -> String {
-		std::env::current_exe().ok()
+		std::env::current_exe()
+			.ok()
 			.and_then(|e| e.file_name().map(|s| s.to_os_string()))
 			.and_then(|w| w.into_string().ok())
 			.unwrap_or_else(|| env!("CARGO_PKG_NAME").into())
@@ -90,8 +91,9 @@ pub trait SubstrateCli: Sized {
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn ChainSpec>, String>;
 
 	/// Helper function used to parse the command line arguments. This is the equivalent of
-	/// `structopt`'s `from_iter()` except that it takes a `VersionInfo` argument to provide the name of
-	/// the application, author, "about" and version. It will also set `AppSettings::GlobalVersion`.
+	/// `structopt`'s `from_iter()` except that it takes a `VersionInfo` argument to provide the
+	/// name of the application, author, "about" and version. It will also set
+	/// `AppSettings::GlobalVersion`.
 	///
 	/// To allow running the node without subcommand, tt also sets a few more settings:
 	/// `AppSettings::ArgsNegateSubcommands` and `AppSettings::SubcommandsNegateReqs`.
@@ -106,8 +108,9 @@ pub trait SubstrateCli: Sized {
 	}
 
 	/// Helper function used to parse the command line arguments. This is the equivalent of
-	/// `structopt`'s `from_iter()` except that it takes a `VersionInfo` argument to provide the name of
-	/// the application, author, "about" and version. It will also set `AppSettings::GlobalVersion`.
+	/// `structopt`'s `from_iter()` except that it takes a `VersionInfo` argument to provide the
+	/// name of the application, author, "about" and version. It will also set
+	/// `AppSettings::GlobalVersion`.
 	///
 	/// To allow running the node without subcommand, it also sets a few more settings:
 	/// `AppSettings::ArgsNegateSubcommands` and `AppSettings::SubcommandsNegateReqs`.
@@ -163,8 +166,9 @@ pub trait SubstrateCli: Sized {
 	}
 
 	/// Helper function used to parse the command line arguments. This is the equivalent of
-	/// `structopt`'s `from_iter()` except that it takes a `VersionInfo` argument to provide the name of
-	/// the application, author, "about" and version. It will also set `AppSettings::GlobalVersion`.
+	/// `structopt`'s `from_iter()` except that it takes a `VersionInfo` argument to provide the
+	/// name of the application, author, "about" and version. It will also set
+	/// `AppSettings::GlobalVersion`.
 	///
 	/// To allow running the node without subcommand, it also sets a few more settings:
 	/// `AppSettings::ArgsNegateSubcommands` and `AppSettings::SubcommandsNegateReqs`.
@@ -235,16 +239,11 @@ pub fn init_logger(
 	tracing_targets: Option<String>,
 ) -> std::result::Result<(), String> {
 	fn parse_directives(dirs: impl AsRef<str>) -> Vec<Directive> {
-		dirs.as_ref()
-			.split(',')
-			.filter_map(|s| s.parse().ok())
-			.collect()
+		dirs.as_ref().split(',').filter_map(|s| s.parse().ok()).collect()
 	}
 
 	if let Err(e) = tracing_log::LogTracer::init() {
-		return Err(format!(
-			"Registering Substrate logger failed: {:}!", e
-		))
+		return Err(format!("Registering Substrate logger failed: {:}!", e))
 	}
 
 	let mut env_filter = tracing_subscriber::EnvFilter::default()
@@ -293,15 +292,11 @@ pub fn init_logger(
 		let profiling = sc_tracing::ProfilingLayer::new(tracing_receiver, &tracing_targets);
 
 		if let Err(e) = tracing::subscriber::set_global_default(subscriber.with(profiling)) {
-			return Err(format!(
-				"Registering Substrate tracing subscriber failed: {:}!", e
-			))
+			return Err(format!("Registering Substrate tracing subscriber failed: {:}!", e))
 		}
 	} else {
 		if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
-			return Err(format!(
-				"Registering Substrate tracing subscriber  failed: {:}!", e
-			))
+			return Err(format!("Registering Substrate tracing subscriber  failed: {:}!", e))
 		}
 	}
 	Ok(())

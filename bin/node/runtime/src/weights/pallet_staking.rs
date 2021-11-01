@@ -41,13 +41,13 @@ impl<T: frame_system::Trait> pallet_staking::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
-	fn withdraw_unbonded_update(s: u32, ) -> Weight {
+	fn withdraw_unbonded_update(s: u32) -> Weight {
 		(100728000 as Weight)
 			.saturating_add((63000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
-	fn withdraw_unbonded_kill(s: u32, ) -> Weight {
+	fn withdraw_unbonded_kill(s: u32) -> Weight {
 		(168879000 as Weight)
 			.saturating_add((6666000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(7 as Weight))
@@ -59,7 +59,7 @@ impl<T: frame_system::Trait> pallet_staking::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
-	fn nominate(n: u32, ) -> Weight {
+	fn nominate(n: u32) -> Weight {
 		(48596000 as Weight)
 			.saturating_add((308000 as Weight).saturating_mul(n as Weight))
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
@@ -81,73 +81,69 @@ impl<T: frame_system::Trait> pallet_staking::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
 	fn set_validator_count() -> Weight {
-		(5185000 as Weight)
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		(5185000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn force_no_eras() -> Weight {
-		(5907000 as Weight)
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		(5907000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn force_new_era() -> Weight {
-		(5917000 as Weight)
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		(5917000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn force_new_era_always() -> Weight {
-		(5952000 as Weight)
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		(5952000 as Weight).saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
-	fn set_invulnerables(v: u32, ) -> Weight {
+	fn set_invulnerables(v: u32) -> Weight {
 		(6324000 as Weight)
 			.saturating_add((9000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
-	fn force_unstake(s: u32, ) -> Weight {
+	fn force_unstake(s: u32) -> Weight {
 		(119691000 as Weight)
 			.saturating_add((6681000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(8 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(s as Weight)))
 	}
-	fn cancel_deferred_slash(s: u32, ) -> Weight {
+	fn cancel_deferred_slash(s: u32) -> Weight {
 		(5820201000 as Weight)
 			.saturating_add((34672000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
-	fn payout_stakers_dead_controller(n: u32, ) -> Weight {
+	fn payout_stakers_dead_controller(n: u32) -> Weight {
 		(0 as Weight)
 			.saturating_add((92486000 as Weight).saturating_mul(n as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((3 as Weight).saturating_mul(n as Weight)))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(n as Weight)))
 	}
-	fn payout_stakers_alive_staked(n: u32, ) -> Weight {
+	fn payout_stakers_alive_staked(n: u32) -> Weight {
 		(0 as Weight)
 			.saturating_add((117324000 as Weight).saturating_mul(n as Weight))
 			.saturating_add(T::DbWeight::get().reads((5 as Weight).saturating_mul(n as Weight)))
 			.saturating_add(T::DbWeight::get().writes((3 as Weight).saturating_mul(n as Weight)))
 	}
-	fn rebond(l: u32, ) -> Weight {
+	fn rebond(l: u32) -> Weight {
 		(71316000 as Weight)
 			.saturating_add((142000 as Weight).saturating_mul(l as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
-	fn set_history_depth(e: u32, ) -> Weight {
+	fn set_history_depth(e: u32) -> Weight {
 		(0 as Weight)
 			.saturating_add((51901000 as Weight).saturating_mul(e as Weight))
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes((7 as Weight).saturating_mul(e as Weight)))
 	}
-	fn reap_stash(s: u32, ) -> Weight {
+	fn reap_stash(s: u32) -> Weight {
 		(147166000 as Weight)
 			.saturating_add((6661000 as Weight).saturating_mul(s as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(8 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(s as Weight)))
 	}
-	fn new_era(v: u32, n: u32, ) -> Weight {
+	fn new_era(v: u32, n: u32) -> Weight {
 		(0 as Weight)
 			.saturating_add((1440459000 as Weight).saturating_mul(v as Weight))
 			.saturating_add((182580000 as Weight).saturating_mul(n as Weight))
@@ -157,7 +153,7 @@ impl<T: frame_system::Trait> pallet_staking::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().writes(8 as Weight))
 			.saturating_add(T::DbWeight::get().writes((3 as Weight).saturating_mul(v as Weight)))
 	}
-	fn submit_solution_better(v: u32, n: u32, a: u32, w: u32, ) -> Weight {
+	fn submit_solution_better(v: u32, n: u32, a: u32, w: u32) -> Weight {
 		(0 as Weight)
 			.saturating_add((964000 as Weight).saturating_mul(v as Weight))
 			.saturating_add((432000 as Weight).saturating_mul(n as Weight))

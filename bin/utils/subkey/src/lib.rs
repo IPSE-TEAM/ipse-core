@@ -16,19 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use structopt::StructOpt;
 use sc_cli::{
-	Error, VanityCmd, SignCmd, VerifyCmd, InsertCmd,
-	GenerateNodeKeyCmd, GenerateCmd, InspectKeyCmd, InspectNodeKeyCmd
+	Error, GenerateCmd, GenerateNodeKeyCmd, InsertCmd, InspectKeyCmd, InspectNodeKeyCmd, SignCmd,
+	VanityCmd, VerifyCmd,
 };
-use substrate_frame_cli::ModuleIdCmd;
 use sp_core::crypto::Ss58Codec;
+use structopt::StructOpt;
+use substrate_frame_cli::ModuleIdCmd;
 
 #[derive(Debug, StructOpt)]
 #[structopt(
 	name = "subkey",
 	author = "Parity Team <admin@parity.io>",
-	about = "Utility for generating and restoring with Substrate keys",
+	about = "Utility for generating and restoring with Substrate keys"
 )]
 pub enum Subkey {
 	/// Generate a random node libp2p key, save it to file or print it to stdout
@@ -62,9 +62,9 @@ pub enum Subkey {
 
 /// Run the subkey command, given the apropriate runtime.
 pub fn run<R>() -> Result<(), Error>
-	where
-		R: frame_system::Trait,
-		R::AccountId: Ss58Codec
+where
+	R: frame_system::Trait,
+	R::AccountId: Ss58Codec,
 {
 	match Subkey::from_args() {
 		Subkey::GenerateNodeKey(cmd) => cmd.run()?,

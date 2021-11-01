@@ -17,10 +17,10 @@
 
 //! Some configurable implementations as associated type for the substrate runtime.
 
+use crate::{Authorship, Balances, NegativeImbalance};
+use frame_support::traits::{Currency, OnUnbalanced};
 use node_primitives::Balance;
 use sp_runtime::traits::Convert;
-use frame_support::traits::{OnUnbalanced, Currency};
-use crate::{Balances, Authorship, NegativeImbalance};
 
 pub struct Author;
 impl OnUnbalanced<NegativeImbalance> for Author {
@@ -34,27 +34,33 @@ impl OnUnbalanced<NegativeImbalance> for Author {
 pub struct CurrencyToVoteHandler;
 
 impl CurrencyToVoteHandler {
-	fn factor() -> Balance { (Balances::total_issuance() / u64::max_value() as Balance).max(1) }
+	fn factor() -> Balance {
+		(Balances::total_issuance() / u64::max_value() as Balance).max(1)
+	}
 }
 
 impl Convert<Balance, u64> for CurrencyToVoteHandler {
-	fn convert(x: Balance) -> u64 { (x / Self::factor()) as u64 }
+	fn convert(x: Balance) -> u64 {
+		(x / Self::factor()) as u64
+	}
 }
 
 impl Convert<u128, Balance> for CurrencyToVoteHandler {
-	fn convert(x: u128) -> Balance { x * Self::factor() }
+	fn convert(x: u128) -> Balance {
+		x * Self::factor()
+	}
 }
 
 #[cfg(test)]
 mod multiplier_tests {
 	use super::*;
-	use sp_runtime::{assert_eq_error_rate, FixedPointNumber};
 	use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+	use sp_runtime::{assert_eq_error_rate, FixedPointNumber};
 
 	use crate::{
 		constants::{currency::*, time::*},
-		TransactionPayment, MaximumBlockWeight, AvailableBlockRatio, Runtime, TargetBlockFullness,
-		AdjustmentVariable, System, MinimumMultiplier,
+		AdjustmentVariable, AvailableBlockRatio, MaximumBlockWeight, MinimumMultiplier, Runtime,
+		System, TargetBlockFullness, TransactionPayment,
 	};
 	use frame_support::weights::{Weight, WeightToFeePolynomial};
 
@@ -81,7 +87,7 @@ mod multiplier_tests {
 	}
 
 	// update based on reference impl.
-	fn truth_value_update(block_weight: Weight, previous: Multiplier) -> Multiplier  {
+	fn truth_value_update(block_weight: Weight, previous: Multiplier) -> Multiplier {
 		let accuracy = Multiplier::accuracy() as f64;
 		let previous_float = previous.into_inner() as f64 / accuracy;
 		// bump if it is zero.
@@ -98,13 +104,16 @@ mod multiplier_tests {
 		// Current saturation in terms of weight
 		let s = block_weight;
 
-		let t1 = v * (s/m - ss/m);
-		let t2 = v.powi(2) * (s/m - ss/m).powi(2) / 2.0;
+		let t1 = v * (s / m - ss / m);
+		let t2 = v.powi(2) * (s / m - ss / m).powi(2) / 2.0;
 		let next_float = previous_float * (1.0 + t1 + t2);
 		Multiplier::from_fraction(next_float)
 	}
 
-	fn run_with_system_weight<F>(w: Weight, assertions: F) where F: Fn() -> () {
+	fn run_with_system_weight<F>(w: Weight, assertions: F)
+	where
+		F: Fn() -> (),
+	{
 		let mut t: sp_io::TestExternalities =
 			frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap().into();
 		t.execute_with(|| {
@@ -174,7 +183,9 @@ mod multiplier_tests {
 			loop {
 				let next = runtime_multiplier_update(fm);
 				fm = next;
-				if fm == min_multiplier() { break; }
+				if fm == min_multiplier() {
+					break
+				}
 				iterations += 1;
 			}
 			assert!(iterations > 533_333);
@@ -215,7 +226,9 @@ mod multiplier_tests {
 			loop {
 				let next = runtime_multiplier_update(fm);
 				// if no change, panic. This should never happen in this case.
-				if fm == next { panic!("The fee should ever increase"); }
+				if fm == next {
+					panic!("The fee should ever increase");
+				}
 				fm = next;
 				iterations += 1;
 				let fee =
@@ -242,7 +255,7 @@ mod multiplier_tests {
 			let next = runtime_multiplier_update(fm);
 			assert_eq_error_rate!(
 				next,
-				truth_value_update(target() / 4 , fm),
+				truth_value_update(target() / 4, fm),
 				Multiplier::from_inner(100),
 			);
 
@@ -254,12 +267,11 @@ mod multiplier_tests {
 			let next = runtime_multiplier_update(fm);
 			assert_eq_error_rate!(
 				next,
-				truth_value_update(target() / 2 , fm),
+				truth_value_update(target() / 2, fm),
 				Multiplier::from_inner(100),
 			);
 			// Light block. Multiplier is reduced a little.
 			assert!(next < fm);
-
 		});
 		run_with_system_weight(target(), || {
 			let next = runtime_multiplier_update(fm);
@@ -276,7 +288,7 @@ mod multiplier_tests {
 			let next = runtime_multiplier_update(fm);
 			assert_eq_error_rate!(
 				next,
-				truth_value_update(target() * 2 , fm),
+				truth_value_update(target() * 2, fm),
 				Multiplier::from_inner(100),
 			);
 
@@ -343,7 +355,9 @@ mod multiplier_tests {
 			MaximumBlockWeight::get(),
 			Weight::max_value() / 2,
 			Weight::max_value(),
-		].into_iter().for_each(|i| {
+		]
+		.into_iter()
+		.for_each(|i| {
 			run_with_system_weight(i, || {
 				let next = runtime_multiplier_update(Multiplier::one());
 				let truth = truth_value_update(i, Multiplier::one());
@@ -353,14 +367,12 @@ mod multiplier_tests {
 
 		// Some values that are all above the target and will cause an increase.
 		let t = target();
-		vec![t + 100, t * 2, t * 4]
-			.into_iter()
-			.for_each(|i| {
-				run_with_system_weight(i, || {
-					let fm = runtime_multiplier_update(max_fm);
-					// won't grow. The convert saturates everything.
-					assert_eq!(fm, max_fm);
-				})
-			});
+		vec![t + 100, t * 2, t * 4].into_iter().for_each(|i| {
+			run_with_system_weight(i, || {
+				let fm = runtime_multiplier_update(max_fm);
+				// won't grow. The convert saturates everything.
+				assert_eq!(fm, max_fm);
+			})
+		});
 	}
 }

@@ -18,14 +18,11 @@
 
 //! RocksDB-based offchain workers local storage.
 
-use std::{
-	collections::HashMap,
-	sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{columns, Database, DbHash, Transaction};
-use parking_lot::Mutex;
 use log::error;
+use parking_lot::Mutex;
 
 /// Offchain local storage
 #[derive(Clone)]
@@ -36,8 +33,7 @@ pub struct LocalStorage {
 
 impl std::fmt::Debug for LocalStorage {
 	fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-		fmt.debug_struct("LocalStorage")
-			.finish()
+		fmt.debug_struct("LocalStorage").finish()
 	}
 }
 
@@ -52,10 +48,7 @@ impl LocalStorage {
 
 	/// Create offchain local storage with given `KeyValueDB` backend.
 	pub fn new(db: Arc<dyn Database<DbHash>>) -> Self {
-		Self {
-			db,
-			locks: Default::default(),
-		}
+		Self { db, locks: Default::default() }
 	}
 }
 
@@ -152,5 +145,4 @@ mod tests {
 		assert_eq!(storage.get(prefix, key), Some(b"asd".to_vec()));
 		assert!(storage.locks.lock().is_empty(), "Locks map should be empty!");
 	}
-
 }

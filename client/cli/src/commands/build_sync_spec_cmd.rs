@@ -17,19 +17,22 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::error;
-use crate::params::{SharedParams, NetworkParams};
+use crate::params::{NetworkParams, SharedParams};
 use crate::CliConfiguration;
+use futures::future::ready;
+use futures::{FutureExt, StreamExt};
 use log::info;
 use sc_network::config::build_multiaddr;
-use sc_service::{config::{MultiaddrWithPeerId, NetworkConfiguration}, ChainSpec};
-use structopt::StructOpt;
-use std::io::Write;
-use std::sync::Arc;
-use sp_runtime::traits::Block as BlockT;
 use sc_service::chain_ops::build_light_sync_state;
 use sc_service::NetworkStatusSinks;
-use futures::{FutureExt, StreamExt};
-use futures::future::ready;
+use sc_service::{
+	config::{MultiaddrWithPeerId, NetworkConfiguration},
+	ChainSpec,
+};
+use sp_runtime::traits::Block as BlockT;
+use std::io::Write;
+use std::sync::Arc;
+use structopt::StructOpt;
 
 /// The `build-sync-spec` command used to build a chain spec that contains a light client state
 /// so that light clients can sync faster.
@@ -68,18 +71,26 @@ impl BuildSyncSpecCmd {
 		client: Arc<CL>,
 		network_status_sinks: NetworkStatusSinks<B>,
 	) -> error::Result<()>
-		where
-			B: BlockT,
-			CL: sp_blockchain::HeaderBackend<B>,
+	where
+		B: BlockT,
+		CL: sp_blockchain::HeaderBackend<B>,
 	{
-        if self.sync_first {
-            network_status_sinks.status_stream(std::time::Duration::from_secs(1)).filter(|status| {
-                ready(status.sync_state == sc_network::SyncState::Idle && status.num_sync_peers > 0)
-            }).into_future().map(drop).await;
-        }
+		if self.sync_first {
+			network_status_sinks
+				.status_stream(std::time::Duration::from_secs(1))
+				.filter(|status| {
+					ready(
+						status.sync_state == sc_network::SyncState::Idle &&
+							status.num_sync_peers > 0,
+					)
+				})
+				.into_future()
+				.map(drop)
+				.await;
+		}
 
-        let light_sync_state = build_light_sync_state(client)?;
-        spec.set_light_sync_state(light_sync_state.to_serializable());
+		let light_sync_state = build_light_sync_state(client)?;
+		spec.set_light_sync_state(light_sync_state.to_serializable());
 
 		info!("Building chain spec");
 		let raw_output = self.raw;

@@ -47,7 +47,11 @@ pub enum Validation {
 /// Type which checks incoming block announcements.
 pub trait BlockAnnounceValidator<B: Block> {
 	/// Validate the announced header and its associated data.
-	fn validate(&mut self, header: &B::Header, data: &[u8]) -> Result<Validation, Box<dyn Error + Send>>;
+	fn validate(
+		&mut self,
+		header: &B::Header,
+		data: &[u8],
+	) -> Result<Validation, Box<dyn Error + Send>>;
 }
 
 /// Default implementation of `BlockAnnounceValidator`.

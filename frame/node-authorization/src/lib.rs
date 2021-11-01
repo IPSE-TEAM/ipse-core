@@ -37,20 +37,15 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_core::OpaquePeerId as PeerId;
-use sp_std::{
-	collections::btree_set::BTreeSet,
-	iter::FromIterator,
-	prelude::*,
-};
 use codec::Decode;
 use frame_support::{
-	decl_module, decl_storage, decl_event, decl_error,
-	debug, ensure,
+	debug, decl_error, decl_event, decl_module, decl_storage, ensure,
+	traits::{EnsureOrigin, Get},
 	weights::{DispatchClass, Weight},
-	traits::{Get, EnsureOrigin},
 };
 use frame_system::ensure_signed;
+use sp_core::OpaquePeerId as PeerId;
+use sp_std::{collections::btree_set::BTreeSet, iter::FromIterator, prelude::*};
 
 pub trait WeightInfo {
 	fn add_well_known_node() -> Weight;
@@ -65,15 +60,33 @@ pub trait WeightInfo {
 }
 
 impl WeightInfo for () {
-	fn add_well_known_node() -> Weight { 50_000_000 }
-	fn remove_well_known_node() -> Weight { 50_000_000 }
-	fn swap_well_known_node() -> Weight { 50_000_000 }
-	fn reset_well_known_nodes() -> Weight { 50_000_000 }
-	fn claim_node() -> Weight { 50_000_000 }
-	fn remove_claim() -> Weight { 50_000_000 }
-	fn transfer_node() -> Weight { 50_000_000 }
-	fn add_connections() -> Weight { 50_000_000 }
-	fn remove_connections() -> Weight { 50_000_000 }
+	fn add_well_known_node() -> Weight {
+		50_000_000
+	}
+	fn remove_well_known_node() -> Weight {
+		50_000_000
+	}
+	fn swap_well_known_node() -> Weight {
+		50_000_000
+	}
+	fn reset_well_known_nodes() -> Weight {
+		50_000_000
+	}
+	fn claim_node() -> Weight {
+		50_000_000
+	}
+	fn remove_claim() -> Weight {
+		50_000_000
+	}
+	fn transfer_node() -> Weight {
+		50_000_000
+	}
+	fn add_connections() -> Weight {
+		50_000_000
+	}
+	fn remove_connections() -> Weight {
+		50_000_000
+	}
 }
 
 pub trait Trait: frame_system::Trait {
@@ -267,7 +280,7 @@ decl_module! {
 		pub fn reset_well_known_nodes(origin, nodes: Vec<(PeerId, T::AccountId)>) {
 			T::ResetOrigin::ensure_origin(origin)?;
 			ensure!(nodes.len() < T::MaxWellKnownNodes::get() as usize, Error::<T>::TooManyNodes);
-	
+
 			Self::initialize_nodes(&nodes);
 
 			Self::deposit_event(RawEvent::NodesReset(nodes));
@@ -280,7 +293,7 @@ decl_module! {
 		#[weight = T::WeightInfo::claim_node()]
 		pub fn claim_node(origin, node: PeerId) {
 			let sender = ensure_signed(origin)?;
-			
+
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
 			ensure!(!Owners::<T>::contains_key(&node),Error::<T>::AlreadyClaimed);
 
@@ -405,9 +418,7 @@ decl_module! {
 
 impl<T: Trait> Module<T> {
 	fn initialize_nodes(nodes: &Vec<(PeerId, T::AccountId)>) {
-		let peer_ids = nodes.iter()
-			.map(|item| item.0.clone())
-			.collect::<BTreeSet<PeerId>>();
+		let peer_ids = nodes.iter().map(|item| item.0.clone()).collect::<BTreeSet<PeerId>>();
 		WellKnownNodes::put(&peer_ids);
 
 		for (node, who) in nodes.iter() {
@@ -433,12 +444,16 @@ mod tests {
 	use super::*;
 
 	use frame_support::{
-		assert_ok, assert_noop, impl_outer_origin, weights::Weight,
-		parameter_types, ord_parameter_types,
+		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types,
+		weights::Weight,
 	};
 	use frame_system::EnsureSignedBy;
 	use sp_core::H256;
-	use sp_runtime::{Perbill, traits::{BlakeTwo256, IdentityLookup, BadOrigin}, testing::Header};
+	use sp_runtime::{
+		testing::Header,
+		traits::{BadOrigin, BlakeTwo256, IdentityLookup},
+		Perbill,
+	};
 
 	impl_outer_origin! {
 		pub enum Origin for Test where system = frame_system {}
@@ -512,7 +527,9 @@ mod tests {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		GenesisConfig::<Test> {
 			nodes: vec![(test_node(10), 10), (test_node(20), 20), (test_node(30), 30)],
-		}.assimilate_storage(&mut t).unwrap();
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 		t.into()
 	}
 
@@ -524,7 +541,11 @@ mod tests {
 				BadOrigin
 			);
 			assert_noop!(
-				NodeAuthorization::add_well_known_node(Origin::signed(1), PeerId(vec![1, 2, 3]), 15),
+				NodeAuthorization::add_well_known_node(
+					Origin::signed(1),
+					PeerId(vec![1, 2, 3]),
+					15
+				),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
@@ -532,12 +553,19 @@ mod tests {
 				Error::<Test>::AlreadyJoined
 			);
 
-			assert_ok!(
-				NodeAuthorization::add_well_known_node(Origin::signed(1), test_node(15), 15)
-			);
+			assert_ok!(NodeAuthorization::add_well_known_node(
+				Origin::signed(1),
+				test_node(15),
+				15
+			));
 			assert_eq!(
 				WellKnownNodes::get(),
-				BTreeSet::from_iter(vec![test_node(10), test_node(15), test_node(20), test_node(30)])
+				BTreeSet::from_iter(vec![
+					test_node(10),
+					test_node(15),
+					test_node(20),
+					test_node(30)
+				])
 			);
 			assert_eq!(Owners::<Test>::get(test_node(10)), 10);
 			assert_eq!(Owners::<Test>::get(test_node(20)), 20);
@@ -567,15 +595,10 @@ mod tests {
 				Error::<Test>::NotExist
 			);
 
-			AdditionalConnections::insert(
-				test_node(20),
-				BTreeSet::from_iter(vec![test_node(40)])
-			);
+			AdditionalConnections::insert(test_node(20), BTreeSet::from_iter(vec![test_node(40)]));
 			assert!(AdditionalConnections::contains_key(test_node(20)));
 
-			assert_ok!(
-				NodeAuthorization::remove_well_known_node(Origin::signed(2), test_node(20))
-			);
+			assert_ok!(NodeAuthorization::remove_well_known_node(Origin::signed(2), test_node(20)));
 			assert_eq!(
 				WellKnownNodes::get(),
 				BTreeSet::from_iter(vec![test_node(10), test_node(30)])
@@ -590,28 +613,34 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			assert_noop!(
 				NodeAuthorization::swap_well_known_node(
-					Origin::signed(4), test_node(20), test_node(5)
+					Origin::signed(4),
+					test_node(20),
+					test_node(5)
 				),
 				BadOrigin
 			);
 			assert_noop!(
 				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3), PeerId(vec![1, 2, 3]), test_node(20)
+					Origin::signed(3),
+					PeerId(vec![1, 2, 3]),
+					test_node(20)
 				),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
 				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3), test_node(20), PeerId(vec![1, 2, 3])
+					Origin::signed(3),
+					test_node(20),
+					PeerId(vec![1, 2, 3])
 				),
 				Error::<Test>::PeerIdTooLong
 			);
 
-			assert_ok!(
-				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3), test_node(20), test_node(20)
-				)
-			);
+			assert_ok!(NodeAuthorization::swap_well_known_node(
+				Origin::signed(3),
+				test_node(20),
+				test_node(20)
+			));
 			assert_eq!(
 				WellKnownNodes::get(),
 				BTreeSet::from_iter(vec![test_node(10), test_node(20), test_node(30)])
@@ -619,26 +648,27 @@ mod tests {
 
 			assert_noop!(
 				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3), test_node(15), test_node(5)
+					Origin::signed(3),
+					test_node(15),
+					test_node(5)
 				),
 				Error::<Test>::NotExist
 			);
 			assert_noop!(
 				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3), test_node(20), test_node(30)
+					Origin::signed(3),
+					test_node(20),
+					test_node(30)
 				),
 				Error::<Test>::AlreadyJoined
 			);
 
-			AdditionalConnections::insert(
+			AdditionalConnections::insert(test_node(20), BTreeSet::from_iter(vec![test_node(15)]));
+			assert_ok!(NodeAuthorization::swap_well_known_node(
+				Origin::signed(3),
 				test_node(20),
-				BTreeSet::from_iter(vec![test_node(15)])
-			);
-			assert_ok!(
-				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3), test_node(20), test_node(5)
-				)
-			);
+				test_node(5)
+			));
 			assert_eq!(
 				WellKnownNodes::get(),
 				BTreeSet::from_iter(vec![test_node(5), test_node(10), test_node(30)])
@@ -676,12 +706,10 @@ mod tests {
 				Error::<Test>::TooManyNodes
 			);
 
-			assert_ok!(
-				NodeAuthorization::reset_well_known_nodes(
-					Origin::signed(4),
-					vec![(test_node(15), 15), (test_node(5), 5), (test_node(20), 20)]
-				)
-			);
+			assert_ok!(NodeAuthorization::reset_well_known_nodes(
+				Origin::signed(4),
+				vec![(test_node(15), 15), (test_node(5), 5), (test_node(20), 20)]
+			));
 			assert_eq!(
 				WellKnownNodes::get(),
 				BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(20)])
@@ -732,10 +760,7 @@ mod tests {
 			);
 
 			Owners::<Test>::insert(test_node(15), 15);
-			AdditionalConnections::insert(
-				test_node(15),
-				BTreeSet::from_iter(vec![test_node(20)])
-			);
+			AdditionalConnections::insert(test_node(15), BTreeSet::from_iter(vec![test_node(20)]));
 			assert_ok!(NodeAuthorization::remove_claim(Origin::signed(15), test_node(15)));
 			assert!(!Owners::<Test>::contains_key(test_node(15)));
 			assert!(!AdditionalConnections::contains_key(test_node(15)));
@@ -769,31 +794,35 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			assert_noop!(
 				NodeAuthorization::add_connections(
-					Origin::signed(15), PeerId(vec![1, 2, 3]), vec![test_node(5)]
+					Origin::signed(15),
+					PeerId(vec![1, 2, 3]),
+					vec![test_node(5)]
 				),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
 				NodeAuthorization::add_connections(
-					Origin::signed(15), test_node(15), vec![test_node(5)]
+					Origin::signed(15),
+					test_node(15),
+					vec![test_node(5)]
 				),
 				Error::<Test>::NotClaimed
 			);
 
 			assert_noop!(
 				NodeAuthorization::add_connections(
-					Origin::signed(15), test_node(20), vec![test_node(5)]
+					Origin::signed(15),
+					test_node(20),
+					vec![test_node(5)]
 				),
 				Error::<Test>::NotOwner
 			);
 
-			assert_ok!(
-				NodeAuthorization::add_connections(
-					Origin::signed(20),
-					test_node(20),
-					vec![test_node(15), test_node(5), test_node(25), test_node(20)]
-				)
-			);
+			assert_ok!(NodeAuthorization::add_connections(
+				Origin::signed(20),
+				test_node(20),
+				vec![test_node(15), test_node(5), test_node(25), test_node(20)]
+			));
 			assert_eq!(
 				AdditionalConnections::get(test_node(20)),
 				BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)])
@@ -806,35 +835,39 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			assert_noop!(
 				NodeAuthorization::remove_connections(
-					Origin::signed(15), PeerId(vec![1, 2, 3]), vec![test_node(5)]
+					Origin::signed(15),
+					PeerId(vec![1, 2, 3]),
+					vec![test_node(5)]
 				),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
 				NodeAuthorization::remove_connections(
-					Origin::signed(15), test_node(15), vec![test_node(5)]
+					Origin::signed(15),
+					test_node(15),
+					vec![test_node(5)]
 				),
 				Error::<Test>::NotClaimed
 			);
 
 			assert_noop!(
 				NodeAuthorization::remove_connections(
-					Origin::signed(15), test_node(20), vec![test_node(5)]
+					Origin::signed(15),
+					test_node(20),
+					vec![test_node(5)]
 				),
 				Error::<Test>::NotOwner
 			);
 
 			AdditionalConnections::insert(
 				test_node(20),
-				BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)])
+				BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)]),
 			);
-			assert_ok!(
-				NodeAuthorization::remove_connections(
-					Origin::signed(20),
-					test_node(20),
-					vec![test_node(15), test_node(5)]
-				)
-			);
+			assert_ok!(NodeAuthorization::remove_connections(
+				Origin::signed(20),
+				test_node(20),
+				vec![test_node(15), test_node(5)]
+			));
 			assert_eq!(
 				AdditionalConnections::get(test_node(20)),
 				BTreeSet::from_iter(vec![test_node(25)])
@@ -847,7 +880,7 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			AdditionalConnections::insert(
 				test_node(20),
-				BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)])
+				BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)]),
 			);
 
 			let mut authorized_nodes = Module::<Test>::get_authorized_nodes(&test_node(20));

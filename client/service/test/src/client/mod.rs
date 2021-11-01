@@ -16,44 +16,41 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use parity_scale_codec::{Encode, Decode, Joiner};
+use hex_literal::hex;
+use parity_scale_codec::{Decode, Encode, Joiner};
+use sc_block_builder::BlockBuilderProvider;
+use sc_client_api::{in_mem, BlockBackend, BlockchainEvents, StorageProvider};
+use sc_client_db::{Backend, DatabaseSettings, DatabaseSettingsSrc, PruningMode};
 use sc_executor::native_executor_instance;
-use sp_state_machine::{StateMachine, OverlayedChanges, ExecutionStrategy, InMemoryBackend};
+use sc_service::client::{self, new_in_mem, Client, LocalCallExecutor};
+use sp_api::{OffchainOverlayedChanges, ProvideRuntimeApi};
+use sp_consensus::{
+	BlockCheckParams, BlockImport, BlockImportParams, BlockOrigin, BlockStatus,
+	Error as ConsensusError, ForkChoiceStrategy, ImportResult, SelectChain,
+};
+use sp_core::{blake2_256, testing::TaskExecutor, ChangesTrieConfiguration, H256};
+use sp_runtime::traits::{BlakeTwo256, Block as BlockT, Header as HeaderT};
+use sp_runtime::{generic::BlockId, DigestItem};
+use sp_state_machine::backend::Backend as _;
+use sp_state_machine::{ExecutionStrategy, InMemoryBackend, OverlayedChanges, StateMachine};
+use sp_storage::StorageKey;
+use sp_trie::{trie_types::Layout, TrieConfiguration};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use substrate_test_runtime::TestAPI;
 use substrate_test_runtime_client::{
 	prelude::*,
 	runtime::{
-		self, genesismap::{GenesisConfig, insert_genesis_block},
-		Hash, Transfer, Block, BlockNumber, Header, Digest, RuntimeApi,
+		self,
+		genesismap::{insert_genesis_block, GenesisConfig},
+		Block, BlockNumber, Digest, Hash, Header, RuntimeApi, Transfer,
 	},
-	AccountKeyring, Sr25519Keyring, TestClientBuilder, ClientBlockImportExt,
-	BlockBuilderExt, DefaultTestClientBuilderExt, TestClientBuilderExt, ClientExt,
+	AccountKeyring, BlockBuilderExt, ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt,
+	Sr25519Keyring, TestClientBuilder, TestClientBuilderExt,
 };
-use sc_client_api::{
-	StorageProvider, BlockBackend, in_mem, BlockchainEvents,
-};
-use sc_client_db::{Backend, DatabaseSettings, DatabaseSettingsSrc, PruningMode};
-use sc_block_builder::BlockBuilderProvider;
-use sc_service::client::{self, Client, LocalCallExecutor, new_in_mem};
-use sp_runtime::traits::{
-	BlakeTwo256, Block as BlockT, Header as HeaderT,
-};
-use substrate_test_runtime::TestAPI;
-use sp_state_machine::backend::Backend as _;
-use sp_api::{ProvideRuntimeApi, OffchainOverlayedChanges};
-use sp_core::{H256, ChangesTrieConfiguration, blake2_256, testing::TaskExecutor};
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use sp_consensus::{
-	BlockOrigin, SelectChain, BlockImport, Error as ConsensusError, BlockCheckParams, ImportResult,
-	BlockStatus, BlockImportParams, ForkChoiceStrategy,
-};
-use sp_storage::StorageKey;
-use sp_trie::{TrieConfiguration, trie_types::Layout};
-use sp_runtime::{generic::BlockId, DigestItem};
-use hex_literal::hex;
 
-mod light;
 mod db;
+mod light;
 
 native_executor_instance!(
 	Executor,
@@ -62,11 +59,7 @@ native_executor_instance!(
 );
 
 fn executor() -> sc_executor::NativeExecutor<Executor> {
-	sc_executor::NativeExecutor::new(
-		sc_executor::WasmExecutionMethod::Interpreted,
-		None,
-		8,
-	)
+	sc_executor::NativeExecutor::new(sc_executor::WasmExecutionMethod::Interpreted, None, 8)
 }
 
 pub fn prepare_client_with_key_changes() -> (
@@ -74,14 +67,17 @@ pub fn prepare_client_with_key_changes() -> (
 		substrate_test_runtime_client::Backend,
 		substrate_test_runtime_client::Executor,
 		Block,
-		RuntimeApi
+		RuntimeApi,
 	>,
 	Vec<H256>,
 	Vec<(u64, u64, Vec<u8>, Vec<(u64, u32)>)>,
 ) {
 	// prepare block structure
 	let blocks_transfers = vec![
-		vec![(AccountKeyring::Alice, AccountKeyring::Dave), (AccountKeyring::Bob, AccountKeyring::Dave)],
+		vec![
+			(AccountKeyring::Alice, AccountKeyring::Dave),
+			(AccountKeyring::Bob, AccountKeyring::Dave),
+		],
 		vec![(AccountKeyring::Charlie, AccountKeyring::Eve)],
 		vec![],
 		vec![(AccountKeyring::Alice, AccountKeyring::Dave)],
@@ -95,18 +91,22 @@ pub fn prepare_client_with_key_changes() -> (
 	for (i, block_transfers) in blocks_transfers.into_iter().enumerate() {
 		let mut builder = remote_client.new_block(Default::default()).unwrap();
 		for (from, to) in block_transfers {
-			builder.push_transfer(Transfer {
-				from: from.into(),
-				to: to.into(),
-				amount: 1,
-				nonce: *nonces.entry(from).and_modify(|n| { *n = *n + 1 }).or_default(),
-			}).unwrap();
+			builder
+				.push_transfer(Transfer {
+					from: from.into(),
+					to: to.into(),
+					amount: 1,
+					nonce: *nonces.entry(from).and_modify(|n| *n = *n + 1).or_default(),
+				})
+				.unwrap();
 		}
 		let block = builder.build().unwrap().block;
 		remote_client.import(BlockOrigin::Own, block).unwrap();
 
 		let header = remote_client.header(&BlockId::Number(i as u64 + 1)).unwrap().unwrap();
-		let trie_root = header.digest().log(DigestItem::as_changes_trie_root)
+		let trie_root = header
+			.digest()
+			.log(DigestItem::as_changes_trie_root)
 			.map(|root| H256::from_slice(root.as_ref()))
 			.unwrap();
 		local_roots.push(trie_root);
@@ -115,10 +115,12 @@ pub fn prepare_client_with_key_changes() -> (
 	// prepare test cases
 	let alice = blake2_256(&runtime::system::balance_of_key(AccountKeyring::Alice.into())).to_vec();
 	let bob = blake2_256(&runtime::system::balance_of_key(AccountKeyring::Bob.into())).to_vec();
-	let charlie = blake2_256(&runtime::system::balance_of_key(AccountKeyring::Charlie.into())).to_vec();
+	let charlie =
+		blake2_256(&runtime::system::balance_of_key(AccountKeyring::Charlie.into())).to_vec();
 	let dave = blake2_256(&runtime::system::balance_of_key(AccountKeyring::Dave.into())).to_vec();
 	let eve = blake2_256(&runtime::system::balance_of_key(AccountKeyring::Eve.into())).to_vec();
-	let ferdie = blake2_256(&runtime::system::balance_of_key(AccountKeyring::Ferdie.into())).to_vec();
+	let ferdie =
+		blake2_256(&runtime::system::balance_of_key(AccountKeyring::Ferdie.into())).to_vec();
 	let test_cases = vec![
 		(1, 4, alice.clone(), vec![(4, 0), (1, 0)]),
 		(1, 3, alice.clone(), vec![(1, 0)]),
@@ -177,9 +179,9 @@ fn construct_block(
 		Default::default(),
 		&runtime_code,
 		task_executor.clone() as Box<_>,
-	).execute(
-		ExecutionStrategy::NativeElseWasm,
-	).unwrap();
+	)
+	.execute(ExecutionStrategy::NativeElseWasm)
+	.unwrap();
 
 	for tx in transactions.iter() {
 		StateMachine::new(
@@ -193,9 +195,9 @@ fn construct_block(
 			Default::default(),
 			&runtime_code,
 			task_executor.clone() as Box<_>,
-		).execute(
-			ExecutionStrategy::NativeElseWasm,
-		).unwrap();
+		)
+		.execute(ExecutionStrategy::NativeElseWasm)
+		.unwrap();
 	}
 
 	let ret_data = StateMachine::new(
@@ -209,9 +211,9 @@ fn construct_block(
 		Default::default(),
 		&runtime_code,
 		task_executor.clone() as Box<_>,
-	).execute(
-		ExecutionStrategy::NativeElseWasm,
-	).unwrap();
+	)
+	.execute(ExecutionStrategy::NativeElseWasm)
+	.unwrap();
 	header = Header::decode(&mut &ret_data[..]).unwrap();
 
 	(vec![].and(&Block { header, extrinsics: transactions }), hash)
@@ -241,7 +243,8 @@ fn construct_genesis_should_work_with_native() {
 		1000,
 		None,
 		Default::default(),
-	).genesis_map();
+	)
+	.genesis_map();
 	let genesis_hash = insert_genesis_block(&mut storage);
 
 	let backend = InMemoryBackend::from(storage);
@@ -263,9 +266,9 @@ fn construct_genesis_should_work_with_native() {
 		Default::default(),
 		&runtime_code,
 		TaskExecutor::new(),
-	).execute(
-		ExecutionStrategy::NativeElseWasm,
-	).unwrap();
+	)
+	.execute(ExecutionStrategy::NativeElseWasm)
+	.unwrap();
 }
 
 #[test]
@@ -277,7 +280,8 @@ fn construct_genesis_should_work_with_wasm() {
 		1000,
 		None,
 		Default::default(),
-	).genesis_map();
+	)
+	.genesis_map();
 	let genesis_hash = insert_genesis_block(&mut storage);
 
 	let backend = InMemoryBackend::from(storage);
@@ -299,9 +303,9 @@ fn construct_genesis_should_work_with_wasm() {
 		Default::default(),
 		&runtime_code,
 		TaskExecutor::new(),
-	).execute(
-		ExecutionStrategy::AlwaysWasm,
-	).unwrap();
+	)
+	.execute(ExecutionStrategy::AlwaysWasm)
+	.unwrap();
 }
 
 #[test]
@@ -313,7 +317,8 @@ fn construct_genesis_with_bad_transaction_should_panic() {
 		68,
 		None,
 		Default::default(),
-	).genesis_map();
+	)
+	.genesis_map();
 	let genesis_hash = insert_genesis_block(&mut storage);
 
 	let backend = InMemoryBackend::from(storage);
@@ -335,29 +340,33 @@ fn construct_genesis_with_bad_transaction_should_panic() {
 		Default::default(),
 		&runtime_code,
 		TaskExecutor::new(),
-	).execute(
-		ExecutionStrategy::NativeElseWasm,
-	);
+	)
+	.execute(ExecutionStrategy::NativeElseWasm);
 	assert!(r.is_err());
 }
-
 
 #[test]
 fn client_initializes_from_genesis_ok() {
 	let client = substrate_test_runtime_client::new();
 
 	assert_eq!(
-		client.runtime_api().balance_of(
-			&BlockId::Number(client.chain_info().best_number),
-			AccountKeyring::Alice.into(),
-		).unwrap(),
+		client
+			.runtime_api()
+			.balance_of(
+				&BlockId::Number(client.chain_info().best_number),
+				AccountKeyring::Alice.into(),
+			)
+			.unwrap(),
 		1000
 	);
 	assert_eq!(
-		client.runtime_api().balance_of(
-			&BlockId::Number(client.chain_info().best_number),
-			AccountKeyring::Ferdie.into(),
-		).unwrap(),
+		client
+			.runtime_api()
+			.balance_of(
+				&BlockId::Number(client.chain_info().best_number),
+				AccountKeyring::Ferdie.into(),
+			)
+			.unwrap(),
 		0
 	);
 }
@@ -379,12 +388,14 @@ fn block_builder_works_with_transactions() {
 
 	let mut builder = client.new_block(Default::default()).unwrap();
 
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 42,
-		nonce: 0,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 42,
+			nonce: 0,
+		})
+		.unwrap();
 
 	let block = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, block).unwrap();
@@ -395,17 +406,23 @@ fn block_builder_works_with_transactions() {
 		client.state_at(&BlockId::Number(0)).unwrap().pairs()
 	);
 	assert_eq!(
-		client.runtime_api().balance_of(
-			&BlockId::Number(client.chain_info().best_number),
-			AccountKeyring::Alice.into(),
-		).unwrap(),
+		client
+			.runtime_api()
+			.balance_of(
+				&BlockId::Number(client.chain_info().best_number),
+				AccountKeyring::Alice.into(),
+			)
+			.unwrap(),
 		958
 	);
 	assert_eq!(
-		client.runtime_api().balance_of(
-			&BlockId::Number(client.chain_info().best_number),
-			AccountKeyring::Ferdie.into(),
-		).unwrap(),
+		client
+			.runtime_api()
+			.balance_of(
+				&BlockId::Number(client.chain_info().best_number),
+				AccountKeyring::Ferdie.into(),
+			)
+			.unwrap(),
 		42
 	);
 }
@@ -416,21 +433,23 @@ fn block_builder_does_not_include_invalid() {
 
 	let mut builder = client.new_block(Default::default()).unwrap();
 
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 42,
-		nonce: 0,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 42,
+			nonce: 0,
+		})
+		.unwrap();
 
-	assert!(
-		builder.push_transfer(Transfer {
+	assert!(builder
+		.push_transfer(Transfer {
 			from: AccountKeyring::Eve.into(),
 			to: AccountKeyring::Alice.into(),
 			amount: 42,
 			nonce: 0,
-		}).is_err()
-	);
+		})
+		.is_err());
 
 	let block = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, block).unwrap();
@@ -504,98 +523,101 @@ fn uncles_with_multiple_forks() {
 	client.import(BlockOrigin::Own, a1.clone()).unwrap();
 
 	// A1 -> A2
-	let a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a2.clone()).unwrap();
 
 	// A2 -> A3
-	let a3 = client.new_block_at(
-		&BlockId::Hash(a2.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a3 = client
+		.new_block_at(&BlockId::Hash(a2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a3.clone()).unwrap();
 
 	// A3 -> A4
-	let a4 = client.new_block_at(
-		&BlockId::Hash(a3.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a4 = client
+		.new_block_at(&BlockId::Hash(a3.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a4.clone()).unwrap();
 
 	// A4 -> A5
-	let a5 = client.new_block_at(
-		&BlockId::Hash(a4.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a5 = client
+		.new_block_at(&BlockId::Hash(a4.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a5.clone()).unwrap();
 
 	// A1 -> B2
-	let mut builder = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut builder =
+		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
 	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 41,
-		nonce: 0,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 41,
+			nonce: 0,
+		})
+		.unwrap();
 	let b2 = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, b2.clone()).unwrap();
 
 	// B2 -> B3
-	let b3 = client.new_block_at(
-		&BlockId::Hash(b2.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let b3 = client
+		.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, b3.clone()).unwrap();
 
 	// B3 -> B4
-	let b4 = client.new_block_at(
-		&BlockId::Hash(b3.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let b4 = client
+		.new_block_at(&BlockId::Hash(b3.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, b4.clone()).unwrap();
 
 	// // B2 -> C3
-	let mut builder = client.new_block_at(
-		&BlockId::Hash(b2.hash()),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut builder =
+		client.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false).unwrap();
 	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 1,
-		nonce: 1,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 1,
+			nonce: 1,
+		})
+		.unwrap();
 	let c3 = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, c3.clone()).unwrap();
 
 	// A1 -> D2
-	let mut builder = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut builder =
+		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
 	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 1,
-		nonce: 0,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 1,
+			nonce: 0,
+		})
+		.unwrap();
 	let d2 = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, d2.clone()).unwrap();
 
@@ -637,7 +659,10 @@ fn best_containing_on_longest_chain_with_single_chain_3_blocks() {
 
 	let genesis_hash = client.chain_info().genesis_hash;
 
-	assert_eq!(a2.hash(), longest_chain_select.finality_target(genesis_hash, None).unwrap().unwrap());
+	assert_eq!(
+		a2.hash(),
+		longest_chain_select.finality_target(genesis_hash, None).unwrap().unwrap()
+	);
 	assert_eq!(a2.hash(), longest_chain_select.finality_target(a1.hash(), None).unwrap().unwrap());
 	assert_eq!(a2.hash(), longest_chain_select.finality_target(a2.hash(), None).unwrap().unwrap());
 }
@@ -656,98 +681,101 @@ fn best_containing_on_longest_chain_with_multiple_forks() {
 	client.import(BlockOrigin::Own, a1.clone()).unwrap();
 
 	// A1 -> A2
-	let a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a2.clone()).unwrap();
 
 	// A2 -> A3
-	let a3 = client.new_block_at(
-		&BlockId::Hash(a2.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a3 = client
+		.new_block_at(&BlockId::Hash(a2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a3.clone()).unwrap();
 
 	// A3 -> A4
-	let a4 = client.new_block_at(
-		&BlockId::Hash(a3.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a4 = client
+		.new_block_at(&BlockId::Hash(a3.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a4.clone()).unwrap();
 
 	// A4 -> A5
-	let a5 = client.new_block_at(
-		&BlockId::Hash(a4.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a5 = client
+		.new_block_at(&BlockId::Hash(a4.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a5.clone()).unwrap();
 
 	// A1 -> B2
-	let mut builder = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut builder =
+		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
 	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 41,
-		nonce: 0,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 41,
+			nonce: 0,
+		})
+		.unwrap();
 	let b2 = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, b2.clone()).unwrap();
 
 	// B2 -> B3
-	let b3 = client.new_block_at(
-		&BlockId::Hash(b2.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let b3 = client
+		.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, b3.clone()).unwrap();
 
 	// B3 -> B4
-	let b4 = client.new_block_at(
-		&BlockId::Hash(b3.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let b4 = client
+		.new_block_at(&BlockId::Hash(b3.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, b4.clone()).unwrap();
 
 	// // B2 -> C3
-	let mut builder = client.new_block_at(
-		&BlockId::Hash(b2.hash()),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut builder =
+		client.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false).unwrap();
 	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 1,
-		nonce: 1,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 1,
+			nonce: 1,
+		})
+		.unwrap();
 	let c3 = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, c3.clone()).unwrap();
 
 	// A1 -> D2
-	let mut builder = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut builder =
+		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
 	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
-	builder.push_transfer(Transfer {
-		from: AccountKeyring::Alice.into(),
-		to: AccountKeyring::Ferdie.into(),
-		amount: 1,
-		nonce: 0,
-	}).unwrap();
+	builder
+		.push_transfer(Transfer {
+			from: AccountKeyring::Alice.into(),
+			to: AccountKeyring::Ferdie.into(),
+			amount: 1,
+			nonce: 0,
+		})
+		.unwrap();
 	let d2 = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, d2.clone()).unwrap();
 
@@ -764,204 +792,236 @@ fn best_containing_on_longest_chain_with_multiple_forks() {
 
 	// search without restriction
 
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		genesis_hash, None).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a1.hash(), None).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a2.hash(), None).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a3.hash(), None).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a4.hash(), None).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a5.hash(), None).unwrap().unwrap());
+	assert_eq!(
+		a5.hash(),
+		longest_chain_select.finality_target(genesis_hash, None).unwrap().unwrap()
+	);
+	assert_eq!(a5.hash(), longest_chain_select.finality_target(a1.hash(), None).unwrap().unwrap());
+	assert_eq!(a5.hash(), longest_chain_select.finality_target(a2.hash(), None).unwrap().unwrap());
+	assert_eq!(a5.hash(), longest_chain_select.finality_target(a3.hash(), None).unwrap().unwrap());
+	assert_eq!(a5.hash(), longest_chain_select.finality_target(a4.hash(), None).unwrap().unwrap());
+	assert_eq!(a5.hash(), longest_chain_select.finality_target(a5.hash(), None).unwrap().unwrap());
 
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b2.hash(), None).unwrap().unwrap());
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b3.hash(), None).unwrap().unwrap());
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b4.hash(), None).unwrap().unwrap());
+	assert_eq!(b4.hash(), longest_chain_select.finality_target(b2.hash(), None).unwrap().unwrap());
+	assert_eq!(b4.hash(), longest_chain_select.finality_target(b3.hash(), None).unwrap().unwrap());
+	assert_eq!(b4.hash(), longest_chain_select.finality_target(b4.hash(), None).unwrap().unwrap());
 
-	assert_eq!(c3.hash(), longest_chain_select.finality_target(
-		c3.hash(), None).unwrap().unwrap());
+	assert_eq!(c3.hash(), longest_chain_select.finality_target(c3.hash(), None).unwrap().unwrap());
 
-	assert_eq!(d2.hash(), longest_chain_select.finality_target(
-		d2.hash(), None).unwrap().unwrap());
-
+	assert_eq!(d2.hash(), longest_chain_select.finality_target(d2.hash(), None).unwrap().unwrap());
 
 	// search only blocks with number <= 5. equivalent to without restriction for this scenario
 
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		genesis_hash, Some(5)).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a1.hash(), Some(5)).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a2.hash(), Some(5)).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a3.hash(), Some(5)).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a4.hash(), Some(5)).unwrap().unwrap());
-	assert_eq!(a5.hash(), longest_chain_select.finality_target(
-		a5.hash(), Some(5)).unwrap().unwrap());
+	assert_eq!(
+		a5.hash(),
+		longest_chain_select.finality_target(genesis_hash, Some(5)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a5.hash(),
+		longest_chain_select.finality_target(a1.hash(), Some(5)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a5.hash(),
+		longest_chain_select.finality_target(a2.hash(), Some(5)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a5.hash(),
+		longest_chain_select.finality_target(a3.hash(), Some(5)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a5.hash(),
+		longest_chain_select.finality_target(a4.hash(), Some(5)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a5.hash(),
+		longest_chain_select.finality_target(a5.hash(), Some(5)).unwrap().unwrap()
+	);
 
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b2.hash(), Some(5)).unwrap().unwrap());
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b3.hash(), Some(5)).unwrap().unwrap());
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b4.hash(), Some(5)).unwrap().unwrap());
+	assert_eq!(
+		b4.hash(),
+		longest_chain_select.finality_target(b2.hash(), Some(5)).unwrap().unwrap()
+	);
+	assert_eq!(
+		b4.hash(),
+		longest_chain_select.finality_target(b3.hash(), Some(5)).unwrap().unwrap()
+	);
+	assert_eq!(
+		b4.hash(),
+		longest_chain_select.finality_target(b4.hash(), Some(5)).unwrap().unwrap()
+	);
 
-	assert_eq!(c3.hash(), longest_chain_select.finality_target(
-		c3.hash(), Some(5)).unwrap().unwrap());
+	assert_eq!(
+		c3.hash(),
+		longest_chain_select.finality_target(c3.hash(), Some(5)).unwrap().unwrap()
+	);
 
-	assert_eq!(d2.hash(), longest_chain_select.finality_target(
-		d2.hash(), Some(5)).unwrap().unwrap());
-
+	assert_eq!(
+		d2.hash(),
+		longest_chain_select.finality_target(d2.hash(), Some(5)).unwrap().unwrap()
+	);
 
 	// search only blocks with number <= 4
 
-	assert_eq!(a4.hash(), longest_chain_select.finality_target(
-		genesis_hash, Some(4)).unwrap().unwrap());
-	assert_eq!(a4.hash(), longest_chain_select.finality_target(
-		a1.hash(), Some(4)).unwrap().unwrap());
-	assert_eq!(a4.hash(), longest_chain_select.finality_target(
-		a2.hash(), Some(4)).unwrap().unwrap());
-	assert_eq!(a4.hash(), longest_chain_select.finality_target(
-		a3.hash(), Some(4)).unwrap().unwrap());
-	assert_eq!(a4.hash(), longest_chain_select.finality_target(
-		a4.hash(), Some(4)).unwrap().unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a5.hash(), Some(4)).unwrap());
+	assert_eq!(
+		a4.hash(),
+		longest_chain_select.finality_target(genesis_hash, Some(4)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a4.hash(),
+		longest_chain_select.finality_target(a1.hash(), Some(4)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a4.hash(),
+		longest_chain_select.finality_target(a2.hash(), Some(4)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a4.hash(),
+		longest_chain_select.finality_target(a3.hash(), Some(4)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a4.hash(),
+		longest_chain_select.finality_target(a4.hash(), Some(4)).unwrap().unwrap()
+	);
+	assert_eq!(None, longest_chain_select.finality_target(a5.hash(), Some(4)).unwrap());
 
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b2.hash(), Some(4)).unwrap().unwrap());
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b3.hash(), Some(4)).unwrap().unwrap());
-	assert_eq!(b4.hash(), longest_chain_select.finality_target(
-		b4.hash(), Some(4)).unwrap().unwrap());
+	assert_eq!(
+		b4.hash(),
+		longest_chain_select.finality_target(b2.hash(), Some(4)).unwrap().unwrap()
+	);
+	assert_eq!(
+		b4.hash(),
+		longest_chain_select.finality_target(b3.hash(), Some(4)).unwrap().unwrap()
+	);
+	assert_eq!(
+		b4.hash(),
+		longest_chain_select.finality_target(b4.hash(), Some(4)).unwrap().unwrap()
+	);
 
-	assert_eq!(c3.hash(), longest_chain_select.finality_target(
-		c3.hash(), Some(4)).unwrap().unwrap());
+	assert_eq!(
+		c3.hash(),
+		longest_chain_select.finality_target(c3.hash(), Some(4)).unwrap().unwrap()
+	);
 
-	assert_eq!(d2.hash(), longest_chain_select.finality_target(
-		d2.hash(), Some(4)).unwrap().unwrap());
-
+	assert_eq!(
+		d2.hash(),
+		longest_chain_select.finality_target(d2.hash(), Some(4)).unwrap().unwrap()
+	);
 
 	// search only blocks with number <= 3
 
-	assert_eq!(a3.hash(), longest_chain_select.finality_target(
-		genesis_hash, Some(3)).unwrap().unwrap());
-	assert_eq!(a3.hash(), longest_chain_select.finality_target(
-		a1.hash(), Some(3)).unwrap().unwrap());
-	assert_eq!(a3.hash(), longest_chain_select.finality_target(
-		a2.hash(), Some(3)).unwrap().unwrap());
-	assert_eq!(a3.hash(), longest_chain_select.finality_target(
-		a3.hash(), Some(3)).unwrap().unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a4.hash(), Some(3)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a5.hash(), Some(3)).unwrap());
+	assert_eq!(
+		a3.hash(),
+		longest_chain_select.finality_target(genesis_hash, Some(3)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a3.hash(),
+		longest_chain_select.finality_target(a1.hash(), Some(3)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a3.hash(),
+		longest_chain_select.finality_target(a2.hash(), Some(3)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a3.hash(),
+		longest_chain_select.finality_target(a3.hash(), Some(3)).unwrap().unwrap()
+	);
+	assert_eq!(None, longest_chain_select.finality_target(a4.hash(), Some(3)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a5.hash(), Some(3)).unwrap());
 
-	assert_eq!(b3.hash(), longest_chain_select.finality_target(
-		b2.hash(), Some(3)).unwrap().unwrap());
-	assert_eq!(b3.hash(), longest_chain_select.finality_target(
-		b3.hash(), Some(3)).unwrap().unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		b4.hash(), Some(3)).unwrap());
+	assert_eq!(
+		b3.hash(),
+		longest_chain_select.finality_target(b2.hash(), Some(3)).unwrap().unwrap()
+	);
+	assert_eq!(
+		b3.hash(),
+		longest_chain_select.finality_target(b3.hash(), Some(3)).unwrap().unwrap()
+	);
+	assert_eq!(None, longest_chain_select.finality_target(b4.hash(), Some(3)).unwrap());
 
-	assert_eq!(c3.hash(), longest_chain_select.finality_target(
-		c3.hash(), Some(3)).unwrap().unwrap());
+	assert_eq!(
+		c3.hash(),
+		longest_chain_select.finality_target(c3.hash(), Some(3)).unwrap().unwrap()
+	);
 
-	assert_eq!(d2.hash(), longest_chain_select.finality_target(
-		d2.hash(), Some(3)).unwrap().unwrap());
-
+	assert_eq!(
+		d2.hash(),
+		longest_chain_select.finality_target(d2.hash(), Some(3)).unwrap().unwrap()
+	);
 
 	// search only blocks with number <= 2
 
-	assert_eq!(a2.hash(), longest_chain_select.finality_target(
-		genesis_hash, Some(2)).unwrap().unwrap());
-	assert_eq!(a2.hash(), longest_chain_select.finality_target(
-		a1.hash(), Some(2)).unwrap().unwrap());
-	assert_eq!(a2.hash(), longest_chain_select.finality_target(
-		a2.hash(), Some(2)).unwrap().unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a3.hash(), Some(2)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a4.hash(), Some(2)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a5.hash(), Some(2)).unwrap());
+	assert_eq!(
+		a2.hash(),
+		longest_chain_select.finality_target(genesis_hash, Some(2)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a2.hash(),
+		longest_chain_select.finality_target(a1.hash(), Some(2)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a2.hash(),
+		longest_chain_select.finality_target(a2.hash(), Some(2)).unwrap().unwrap()
+	);
+	assert_eq!(None, longest_chain_select.finality_target(a3.hash(), Some(2)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a4.hash(), Some(2)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a5.hash(), Some(2)).unwrap());
 
-	assert_eq!(b2.hash(), longest_chain_select.finality_target(
-		b2.hash(), Some(2)).unwrap().unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		b3.hash(), Some(2)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		b4.hash(), Some(2)).unwrap());
+	assert_eq!(
+		b2.hash(),
+		longest_chain_select.finality_target(b2.hash(), Some(2)).unwrap().unwrap()
+	);
+	assert_eq!(None, longest_chain_select.finality_target(b3.hash(), Some(2)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(b4.hash(), Some(2)).unwrap());
 
-	assert_eq!(None, longest_chain_select.finality_target(
-		c3.hash(), Some(2)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(c3.hash(), Some(2)).unwrap());
 
-	assert_eq!(d2.hash(), longest_chain_select.finality_target(
-		d2.hash(), Some(2)).unwrap().unwrap());
-
+	assert_eq!(
+		d2.hash(),
+		longest_chain_select.finality_target(d2.hash(), Some(2)).unwrap().unwrap()
+	);
 
 	// search only blocks with number <= 1
 
-	assert_eq!(a1.hash(), longest_chain_select.finality_target(
-		genesis_hash, Some(1)).unwrap().unwrap());
-	assert_eq!(a1.hash(), longest_chain_select.finality_target(
-		a1.hash(), Some(1)).unwrap().unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a2.hash(), Some(1)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a3.hash(), Some(1)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a4.hash(), Some(1)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a5.hash(), Some(1)).unwrap());
+	assert_eq!(
+		a1.hash(),
+		longest_chain_select.finality_target(genesis_hash, Some(1)).unwrap().unwrap()
+	);
+	assert_eq!(
+		a1.hash(),
+		longest_chain_select.finality_target(a1.hash(), Some(1)).unwrap().unwrap()
+	);
+	assert_eq!(None, longest_chain_select.finality_target(a2.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a3.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a4.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a5.hash(), Some(1)).unwrap());
 
-	assert_eq!(None, longest_chain_select.finality_target(
-		b2.hash(), Some(1)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		b3.hash(), Some(1)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		b4.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(b2.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(b3.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(b4.hash(), Some(1)).unwrap());
 
-	assert_eq!(None, longest_chain_select.finality_target(
-		c3.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(c3.hash(), Some(1)).unwrap());
 
-	assert_eq!(None, longest_chain_select.finality_target(
-		d2.hash(), Some(1)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(d2.hash(), Some(1)).unwrap());
 
 	// search only blocks with number <= 0
 
-	assert_eq!(genesis_hash, longest_chain_select.finality_target(
-		genesis_hash, Some(0)).unwrap().unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a1.hash(), Some(0)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a2.hash(), Some(0)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a3.hash(), Some(0)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a4.hash(), Some(0)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		a5.hash(), Some(0)).unwrap());
+	assert_eq!(
+		genesis_hash,
+		longest_chain_select.finality_target(genesis_hash, Some(0)).unwrap().unwrap()
+	);
+	assert_eq!(None, longest_chain_select.finality_target(a1.hash(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a2.hash(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a3.hash(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a4.hash(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(a5.hash(), Some(0)).unwrap());
 
-	assert_eq!(None, longest_chain_select.finality_target(
-		b2.hash(), Some(0)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		b3.hash(), Some(0)).unwrap());
-	assert_eq!(None, longest_chain_select.finality_target(
-		b4.hash(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(b2.hash(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(b3.hash(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(b4.hash(), Some(0)).unwrap());
 
-	assert_eq!(None, longest_chain_select.finality_target(
-		c3.hash().clone(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(c3.hash().clone(), Some(0)).unwrap());
 
-	assert_eq!(None, longest_chain_select.finality_target(
-		d2.hash().clone(), Some(0)).unwrap());
+	assert_eq!(None, longest_chain_select.finality_target(d2.hash().clone(), Some(0)).unwrap());
 }
 
 #[test]
@@ -981,7 +1041,10 @@ fn best_containing_on_longest_chain_with_max_depth_higher_than_best() {
 
 	let genesis_hash = client.chain_info().genesis_hash;
 
-	assert_eq!(a2.hash(), longest_chain_select.finality_target(genesis_hash, Some(10)).unwrap().unwrap());
+	assert_eq!(
+		a2.hash(),
+		longest_chain_select.finality_target(genesis_hash, Some(10)).unwrap().unwrap()
+	);
 }
 
 #[test]
@@ -990,16 +1053,14 @@ fn key_changes_works() {
 
 	for (index, (begin, end, key, expected_result)) in test_cases.into_iter().enumerate() {
 		let end = client.block_hash(end).unwrap().unwrap();
-		let actual_result = client.key_changes(
-			begin,
-			BlockId::Hash(end),
-			None,
-			&StorageKey(key),
-		).unwrap();
+		let actual_result =
+			client.key_changes(begin, BlockId::Hash(end), None, &StorageKey(key)).unwrap();
 		match actual_result == expected_result {
 			true => (),
-			false => panic!(format!("Failed test {}: actual = {:?}, expected = {:?}",
-			                        index, actual_result, expected_result)),
+			false => panic!(format!(
+				"Failed test {}: actual = {:?}, expected = {:?}",
+				index, actual_result, expected_result
+			)),
 		}
 	}
 }
@@ -1013,41 +1074,31 @@ fn import_with_justification() {
 	client.import(BlockOrigin::Own, a1.clone()).unwrap();
 
 	// A1 -> A2
-	let a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a2.clone()).unwrap();
 
 	// A2 -> A3
 	let justification = vec![1, 2, 3];
-	let a3 = client.new_block_at(
-		&BlockId::Hash(a2.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a3 = client
+		.new_block_at(&BlockId::Hash(a2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import_justified(BlockOrigin::Own, a3.clone(), justification.clone()).unwrap();
 
-	assert_eq!(
-		client.chain_info().finalized_hash,
-		a3.hash(),
-	);
+	assert_eq!(client.chain_info().finalized_hash, a3.hash(),);
 
-	assert_eq!(
-		client.justification(&BlockId::Hash(a3.hash())).unwrap(),
-		Some(justification),
-	);
+	assert_eq!(client.justification(&BlockId::Hash(a3.hash())).unwrap(), Some(justification),);
 
-	assert_eq!(
-		client.justification(&BlockId::Hash(a1.hash())).unwrap(),
-		None,
-	);
+	assert_eq!(client.justification(&BlockId::Hash(a1.hash())).unwrap(), None,);
 
-	assert_eq!(
-		client.justification(&BlockId::Hash(a2.hash())).unwrap(),
-		None,
-	);
+	assert_eq!(client.justification(&BlockId::Hash(a2.hash())).unwrap(), None,);
 }
 
 #[test]
@@ -1057,54 +1108,44 @@ fn importing_diverged_finalized_block_should_trigger_reorg() {
 	// G -> A1 -> A2
 	//   \
 	//    -> B1
-	let a1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a1 = client
+		.new_block_at(&BlockId::Number(0), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a1.clone()).unwrap();
 
-	let a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a2.clone()).unwrap();
 
-	let mut b1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut b1 = client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
 	// needed to make sure B1 gets a different hash from A1
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
 		amount: 1,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	// create but don't import B1 just yet
 	let b1 = b1.build().unwrap().block;
 
 	// A2 is the current best since it's the longest chain
-	assert_eq!(
-		client.chain_info().best_hash,
-		a2.hash(),
-	);
+	assert_eq!(client.chain_info().best_hash, a2.hash(),);
 
 	// importing B1 as finalized should trigger a re-org and set it as new best
 	let justification = vec![1, 2, 3];
 	client.import_justified(BlockOrigin::Own, b1.clone(), justification).unwrap();
 
-	assert_eq!(
-		client.chain_info().best_hash,
-		b1.hash(),
-	);
+	assert_eq!(client.chain_info().best_hash, b1.hash(),);
 
-	assert_eq!(
-		client.chain_info().finalized_hash,
-		b1.hash(),
-	);
+	assert_eq!(client.chain_info().finalized_hash, b1.hash(),);
 }
 
 #[test]
@@ -1114,84 +1155,70 @@ fn finalizing_diverged_block_should_trigger_reorg() {
 	// G -> A1 -> A2
 	//   \
 	//    -> B1 -> B2
-	let a1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a1 = client
+		.new_block_at(&BlockId::Number(0), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a1.clone()).unwrap();
 
-	let a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a2.clone()).unwrap();
 
-	let mut b1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut b1 = client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
 	// needed to make sure B1 gets a different hash from A1
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
 		amount: 1,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	let b1 = b1.build().unwrap().block;
 	client.import(BlockOrigin::Own, b1.clone()).unwrap();
 
-	let b2 = client.new_block_at(
-		&BlockId::Hash(b1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let b2 = client
+		.new_block_at(&BlockId::Hash(b1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, b2.clone()).unwrap();
 
 	// A2 is the current best since it's the longest chain
-	assert_eq!(
-		client.chain_info().best_hash,
-		a2.hash(),
-	);
+	assert_eq!(client.chain_info().best_hash, a2.hash(),);
 
 	// we finalize block B1 which is on a different branch from current best
 	// which should trigger a re-org.
 	ClientExt::finalize_block(&client, BlockId::Hash(b1.hash()), None).unwrap();
 
 	// B1 should now be the latest finalized
-	assert_eq!(
-		client.chain_info().finalized_hash,
-		b1.hash(),
-	);
+	assert_eq!(client.chain_info().finalized_hash, b1.hash(),);
 
 	// and B1 should be the new best block (`finalize_block` as no way of
 	// knowing about B2)
-	assert_eq!(
-		client.chain_info().best_hash,
-		b1.hash(),
-	);
+	assert_eq!(client.chain_info().best_hash, b1.hash(),);
 
 	// `SelectChain` should report B2 as best block though
-	assert_eq!(
-		select_chain.best_chain().unwrap().hash(),
-		b2.hash(),
-	);
+	assert_eq!(select_chain.best_chain().unwrap().hash(), b2.hash(),);
 
 	// after we build B3 on top of B2 and import it
 	// it should be the new best block,
-	let b3 = client.new_block_at(
-		&BlockId::Hash(b2.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let b3 = client
+		.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, b3.clone()).unwrap();
 
-	assert_eq!(
-		client.chain_info().best_hash,
-		b3.hash(),
-	);
+	assert_eq!(client.chain_info().best_hash, b3.hash(),);
 }
 
 #[test]
@@ -1209,55 +1236,51 @@ fn state_reverted_on_reorg() {
 	sp_tracing::try_init_simple();
 	let mut client = substrate_test_runtime_client::new();
 
-	let current_balance = |client: &substrate_test_runtime_client::TestClient|
-		client.runtime_api().balance_of(
-			&BlockId::number(client.chain_info().best_number), AccountKeyring::Alice.into(),
-		).unwrap();
+	let current_balance = |client: &substrate_test_runtime_client::TestClient| {
+		client
+			.runtime_api()
+			.balance_of(
+				&BlockId::number(client.chain_info().best_number),
+				AccountKeyring::Alice.into(),
+			)
+			.unwrap()
+	};
 
 	// G -> A1 -> A2
 	//   \
 	//    -> B1
-	let mut a1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut a1 = client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
 	a1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Bob.into(),
 		amount: 10,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	let a1 = a1.build().unwrap().block;
 	client.import(BlockOrigin::Own, a1.clone()).unwrap();
 
-	let mut b1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut b1 = client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
 		amount: 50,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	let b1 = b1.build().unwrap().block;
 	// Reorg to B1
 	client.import_as_best(BlockOrigin::Own, b1.clone()).unwrap();
 
 	assert_eq!(950, current_balance(&client));
-	let mut a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut a2 = client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
 	a2.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Charlie.into(),
 		amount: 10,
 		nonce: 1,
-	}).unwrap();
+	})
+	.unwrap();
 	let a2 = a2.build().unwrap().block;
 	// Re-org to A2
 	client.import_as_best(BlockOrigin::Own, a2).unwrap();
@@ -1271,18 +1294,18 @@ fn doesnt_import_blocks_that_revert_finality() {
 
 	// we need to run with archive pruning to avoid pruning non-canonical
 	// states
-	let backend = Arc::new(Backend::new(
-		DatabaseSettings {
-			state_cache_size: 1 << 20,
-			state_cache_child_ratio: None,
-			pruning: PruningMode::ArchiveAll,
-			source: DatabaseSettingsSrc::RocksDb {
-				path: tmp.path().into(),
-				cache_size: 1024,
+	let backend = Arc::new(
+		Backend::new(
+			DatabaseSettings {
+				state_cache_size: 1 << 20,
+				state_cache_child_ratio: None,
+				pruning: PruningMode::ArchiveAll,
+				source: DatabaseSettingsSrc::RocksDb { path: tmp.path().into(), cache_size: 1024 },
 			},
-		},
-		u64::max_value(),
-	).unwrap());
+			u64::max_value(),
+		)
+		.unwrap(),
+	);
 
 	let mut client = TestClientBuilder::with_backend(backend).build();
 
@@ -1292,18 +1315,20 @@ fn doesnt_import_blocks_that_revert_finality() {
 	//   \
 	//    -> B1 -> B2 -> B3
 
-	let a1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a1 = client
+		.new_block_at(&BlockId::Number(0), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a1.clone()).unwrap();
 
-	let a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, a2.clone()).unwrap();
 
 	let mut b1 = client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
@@ -1314,32 +1339,37 @@ fn doesnt_import_blocks_that_revert_finality() {
 		to: AccountKeyring::Ferdie.into(),
 		amount: 1,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	let b1 = b1.build().unwrap().block;
 	client.import(BlockOrigin::Own, b1.clone()).unwrap();
 
-	let b2 = client.new_block_at(&BlockId::Hash(b1.hash()), Default::default(), false)
-		.unwrap().build().unwrap().block;
+	let b2 = client
+		.new_block_at(&BlockId::Hash(b1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::Own, b2.clone()).unwrap();
 
 	// prepare B3 before we finalize A2, because otherwise we won't be able to
 	// read changes trie configuration after A2 is finalized
-	let b3 = client.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
-		.unwrap().build().unwrap().block;
+	let b3 = client
+		.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 
 	// we will finalize A2 which should make it impossible to import a new
 	// B3 at the same height but that doesn't include it
 	ClientExt::finalize_block(&client, BlockId::Hash(a2.hash()), None).unwrap();
 
 	let import_err = client.import(BlockOrigin::Own, b3).err().unwrap();
-	let expected_err = ConsensusError::ClientImport(
-		sp_blockchain::Error::NotInFinalizedChain.to_string()
-	);
+	let expected_err =
+		ConsensusError::ClientImport(sp_blockchain::Error::NotInFinalizedChain.to_string());
 
-	assert_eq!(
-		import_err.to_string(),
-		expected_err.to_string(),
-	);
+	assert_eq!(import_err.to_string(), expected_err.to_string(),);
 
 	// adding a C1 block which is lower than the last finalized should also
 	// fail (with a cheaper check that doesn't require checking ancestry).
@@ -1351,20 +1381,16 @@ fn doesnt_import_blocks_that_revert_finality() {
 		to: AccountKeyring::Ferdie.into(),
 		amount: 2,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	let c1 = c1.build().unwrap().block;
 
 	let import_err = client.import(BlockOrigin::Own, c1).err().unwrap();
-	let expected_err = ConsensusError::ClientImport(
-		sp_blockchain::Error::NotInFinalizedChain.to_string()
-	);
+	let expected_err =
+		ConsensusError::ClientImport(sp_blockchain::Error::NotInFinalizedChain.to_string());
 
-	assert_eq!(
-		import_err.to_string(),
-		expected_err.to_string(),
-	);
+	assert_eq!(import_err.to_string(), expected_err.to_string(),);
 }
-
 
 #[test]
 fn respects_block_rules() {
@@ -1377,15 +1403,16 @@ fn respects_block_rules() {
 			TestClientBuilder::new().build()
 		} else {
 			TestClientBuilder::new()
-				.set_block_rules(
-					Some(fork_rules.clone()),
-					Some(known_bad.clone()),
-				)
+				.set_block_rules(Some(fork_rules.clone()), Some(known_bad.clone()))
 				.build()
 		};
 
-		let block_ok = client.new_block_at(&BlockId::Number(0), Default::default(), false)
-			.unwrap().build().unwrap().block;
+		let block_ok = client
+			.new_block_at(&BlockId::Number(0), Default::default(), false)
+			.unwrap()
+			.build()
+			.unwrap()
+			.block;
 
 		let params = BlockCheckParams {
 			hash: block_ok.hash().clone(),
@@ -1397,8 +1424,8 @@ fn respects_block_rules() {
 		assert_eq!(client.check_block(params).unwrap(), ImportResult::imported(false));
 
 		// this is 0x0d6d6612a10485370d9e085aeea7ec427fb3f34d961c6a816cdbe5cde2278864
-		let mut block_not_ok = client.new_block_at(&BlockId::Number(0), Default::default(), false)
-			.unwrap();
+		let mut block_not_ok =
+			client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
 		block_not_ok.push_storage_change(vec![0], Some(vec![1])).unwrap();
 		let block_not_ok = block_not_ok.build().unwrap().block;
 
@@ -1419,8 +1446,8 @@ fn respects_block_rules() {
 		client.import_as_final(BlockOrigin::Own, block_ok).unwrap();
 
 		// And check good fork
-		let mut block_ok = client.new_block_at(&BlockId::Number(1), Default::default(), false)
-			.unwrap();
+		let mut block_ok =
+			client.new_block_at(&BlockId::Number(1), Default::default(), false).unwrap();
 		block_ok.push_storage_change(vec![0], Some(vec![2])).unwrap();
 		let block_ok = block_ok.build().unwrap().block;
 
@@ -1437,8 +1464,8 @@ fn respects_block_rules() {
 		assert_eq!(client.check_block(params).unwrap(), ImportResult::imported(false));
 
 		// And now try bad fork
-		let mut block_not_ok = client.new_block_at(&BlockId::Number(1), Default::default(), false)
-			.unwrap();
+		let mut block_not_ok =
+			client.new_block_at(&BlockId::Number(1), Default::default(), false).unwrap();
 		block_not_ok.push_storage_change(vec![0], Some(vec![3])).unwrap();
 		let block_not_ok = block_not_ok.build().unwrap().block;
 
@@ -1472,23 +1499,27 @@ fn returns_status_for_pruned_blocks() {
 
 	// set to prune after 1 block
 	// states
-	let backend = Arc::new(Backend::new(
-		DatabaseSettings {
-			state_cache_size: 1 << 20,
-			state_cache_child_ratio: None,
-			pruning: PruningMode::keep_blocks(1),
-			source: DatabaseSettingsSrc::RocksDb {
-				path: tmp.path().into(),
-				cache_size: 1024,
+	let backend = Arc::new(
+		Backend::new(
+			DatabaseSettings {
+				state_cache_size: 1 << 20,
+				state_cache_child_ratio: None,
+				pruning: PruningMode::keep_blocks(1),
+				source: DatabaseSettingsSrc::RocksDb { path: tmp.path().into(), cache_size: 1024 },
 			},
-		},
-		u64::max_value(),
-	).unwrap());
+			u64::max_value(),
+		)
+		.unwrap(),
+	);
 
 	let mut client = TestClientBuilder::with_backend(backend).build();
 
-	let a1 = client.new_block_at(&BlockId::Number(0), Default::default(), false)
-		.unwrap().build().unwrap().block;
+	let a1 = client
+		.new_block_at(&BlockId::Number(0), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 
 	let mut b1 = client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
 
@@ -1498,7 +1529,8 @@ fn returns_status_for_pruned_blocks() {
 		to: AccountKeyring::Ferdie.into(),
 		amount: 1,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	let b1 = b1.build().unwrap().block;
 
 	let check_block_a1 = BlockCheckParams {
@@ -1510,15 +1542,25 @@ fn returns_status_for_pruned_blocks() {
 	};
 
 	assert_eq!(client.check_block(check_block_a1.clone()).unwrap(), ImportResult::imported(false));
-	assert_eq!(client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(), BlockStatus::Unknown);
+	assert_eq!(
+		client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(),
+		BlockStatus::Unknown
+	);
 
 	client.import_as_final(BlockOrigin::Own, a1.clone()).unwrap();
 
 	assert_eq!(client.check_block(check_block_a1.clone()).unwrap(), ImportResult::AlreadyInChain);
-	assert_eq!(client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(), BlockStatus::InChainWithState);
+	assert_eq!(
+		client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(),
+		BlockStatus::InChainWithState
+	);
 
-	let a2 = client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
-		.unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import_as_final(BlockOrigin::Own, a2.clone()).unwrap();
 
 	let check_block_a2 = BlockCheckParams {
@@ -1530,12 +1572,22 @@ fn returns_status_for_pruned_blocks() {
 	};
 
 	assert_eq!(client.check_block(check_block_a1.clone()).unwrap(), ImportResult::AlreadyInChain);
-	assert_eq!(client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(), BlockStatus::InChainPruned);
+	assert_eq!(
+		client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(),
+		BlockStatus::InChainPruned
+	);
 	assert_eq!(client.check_block(check_block_a2.clone()).unwrap(), ImportResult::AlreadyInChain);
-	assert_eq!(client.block_status(&BlockId::hash(check_block_a2.hash)).unwrap(), BlockStatus::InChainWithState);
+	assert_eq!(
+		client.block_status(&BlockId::hash(check_block_a2.hash)).unwrap(),
+		BlockStatus::InChainWithState
+	);
 
-	let a3 = client.new_block_at(&BlockId::Hash(a2.hash()), Default::default(), false)
-		.unwrap().build().unwrap().block;
+	let a3 = client
+		.new_block_at(&BlockId::Hash(a2.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 
 	client.import_as_final(BlockOrigin::Own, a3.clone()).unwrap();
 	let check_block_a3 = BlockCheckParams {
@@ -1548,11 +1600,20 @@ fn returns_status_for_pruned_blocks() {
 
 	// a1 and a2 are both pruned at this point
 	assert_eq!(client.check_block(check_block_a1.clone()).unwrap(), ImportResult::AlreadyInChain);
-	assert_eq!(client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(), BlockStatus::InChainPruned);
+	assert_eq!(
+		client.block_status(&BlockId::hash(check_block_a1.hash)).unwrap(),
+		BlockStatus::InChainPruned
+	);
 	assert_eq!(client.check_block(check_block_a2.clone()).unwrap(), ImportResult::AlreadyInChain);
-	assert_eq!(client.block_status(&BlockId::hash(check_block_a2.hash)).unwrap(), BlockStatus::InChainPruned);
+	assert_eq!(
+		client.block_status(&BlockId::hash(check_block_a2.hash)).unwrap(),
+		BlockStatus::InChainPruned
+	);
 	assert_eq!(client.check_block(check_block_a3.clone()).unwrap(), ImportResult::AlreadyInChain);
-	assert_eq!(client.block_status(&BlockId::hash(check_block_a3.hash)).unwrap(), BlockStatus::InChainWithState);
+	assert_eq!(
+		client.block_status(&BlockId::hash(check_block_a3.hash)).unwrap(),
+		BlockStatus::InChainWithState
+	);
 
 	let mut check_block_b1 = BlockCheckParams {
 		hash: b1.hash().clone(),
@@ -1575,7 +1636,8 @@ fn imports_blocks_with_changes_tries_config_change() {
 		.changes_trie_config(Some(ChangesTrieConfiguration {
 			digest_interval: 4,
 			digest_levels: 2,
-		})).build();
+		}))
+		.build();
 
 	// ===================================================================
 	// blocks 1,2,3,4,5,6,7,8,9,10 are empty
@@ -1587,77 +1649,107 @@ fn imports_blocks_with_changes_tries_config_change() {
 	// blocks 24,25 are changing the key
 	// block 26 is empty
 	// block 27 changes the key
-	// block 28 is the L1 digest (NOT SKEWED!!!) that covers changes AND changes configuration to 3^1
-	// ===================================================================
+	// block 28 is the L1 digest (NOT SKEWED!!!) that covers changes AND changes configuration to
+	// 3^1 ===================================================================
 	// block 29 is empty
 	// block 30 changes the key
 	// block 31 is L1 digest that covers this change
 	// ===================================================================
 	(1..11).for_each(|number| {
-		let block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
-			.unwrap().build().unwrap().block;
+		let block = client
+			.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
+			.unwrap()
+			.build()
+			.unwrap()
+			.block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(11..12).for_each(|number| {
-		let mut block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
+		let mut block =
+			client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
 		block.push_storage_change(vec![42], Some(number.to_le_bytes().to_vec())).unwrap();
 		let block = block.build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(12..23).for_each(|number| {
-		let block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
-			.unwrap().build().unwrap().block;
+		let block = client
+			.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
+			.unwrap()
+			.build()
+			.unwrap()
+			.block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(23..24).for_each(|number| {
-		let mut block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
-		block.push_changes_trie_configuration_update(Some(ChangesTrieConfiguration {
-			digest_interval: 5,
-			digest_levels: 1,
-		})).unwrap();
+		let mut block =
+			client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
+		block
+			.push_changes_trie_configuration_update(Some(ChangesTrieConfiguration {
+				digest_interval: 5,
+				digest_levels: 1,
+			}))
+			.unwrap();
 		let block = block.build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(24..26).for_each(|number| {
-		let mut block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
+		let mut block =
+			client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
 		block.push_storage_change(vec![42], Some(number.to_le_bytes().to_vec())).unwrap();
 		let block = block.build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(26..27).for_each(|number| {
-		let block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
-			.unwrap().build().unwrap().block;
+		let block = client
+			.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
+			.unwrap()
+			.build()
+			.unwrap()
+			.block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(27..28).for_each(|number| {
-		let mut block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
+		let mut block =
+			client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
 		block.push_storage_change(vec![42], Some(number.to_le_bytes().to_vec())).unwrap();
 		let block = block.build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(28..29).for_each(|number| {
-		let mut block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
-		block.push_changes_trie_configuration_update(Some(ChangesTrieConfiguration {
-			digest_interval: 3,
-			digest_levels: 1,
-		})).unwrap();
+		let mut block =
+			client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
+		block
+			.push_changes_trie_configuration_update(Some(ChangesTrieConfiguration {
+				digest_interval: 3,
+				digest_levels: 1,
+			}))
+			.unwrap();
 		let block = block.build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(29..30).for_each(|number| {
-		let block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
-			.unwrap().build().unwrap().block;
+		let block = client
+			.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
+			.unwrap()
+			.build()
+			.unwrap()
+			.block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(30..31).for_each(|number| {
-		let mut block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
+		let mut block =
+			client.new_block_at(&BlockId::Number(number - 1), Default::default(), false).unwrap();
 		block.push_storage_change(vec![42], Some(number.to_le_bytes().to_vec())).unwrap();
 		let block = block.build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 	(31..32).for_each(|number| {
-		let block = client.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
-			.unwrap().build().unwrap().block;
+		let block = client
+			.new_block_at(&BlockId::Number(number - 1), Default::default(), false)
+			.unwrap()
+			.build()
+			.unwrap()
+			.block;
 		client.import(BlockOrigin::Own, block).unwrap();
 	});
 
@@ -1674,19 +1766,30 @@ fn storage_keys_iter_prefix_and_start_key_works() {
 
 	let prefix = StorageKey(hex!("3a").to_vec());
 
-	let res: Vec<_> = client.storage_keys_iter(&BlockId::Number(0), Some(&prefix), None)
+	let res: Vec<_> = client
+		.storage_keys_iter(&BlockId::Number(0), Some(&prefix), None)
 		.unwrap()
 		.map(|x| x.0)
 		.collect();
 	assert_eq!(res, [hex!("3a636f6465").to_vec(), hex!("3a686561707061676573").to_vec()]);
 
-	let res: Vec<_> = client.storage_keys_iter(&BlockId::Number(0), Some(&prefix), Some(&StorageKey(hex!("3a636f6465").to_vec())))
+	let res: Vec<_> = client
+		.storage_keys_iter(
+			&BlockId::Number(0),
+			Some(&prefix),
+			Some(&StorageKey(hex!("3a636f6465").to_vec())),
+		)
 		.unwrap()
 		.map(|x| x.0)
 		.collect();
 	assert_eq!(res, [hex!("3a686561707061676573").to_vec()]);
 
-	let res: Vec<_> = client.storage_keys_iter(&BlockId::Number(0), Some(&prefix), Some(&StorageKey(hex!("3a686561707061676573").to_vec())))
+	let res: Vec<_> = client
+		.storage_keys_iter(
+			&BlockId::Number(0),
+			Some(&prefix),
+			Some(&StorageKey(hex!("3a686561707061676573").to_vec())),
+		)
 		.unwrap()
 		.map(|x| x.0)
 		.collect();
@@ -1699,30 +1802,52 @@ fn storage_keys_iter_works() {
 
 	let prefix = StorageKey(hex!("").to_vec());
 
-	let res: Vec<_> = client.storage_keys_iter(&BlockId::Number(0), Some(&prefix), None)
+	let res: Vec<_> = client
+		.storage_keys_iter(&BlockId::Number(0), Some(&prefix), None)
 		.unwrap()
 		.take(2)
 		.map(|x| x.0)
 		.collect();
-	assert_eq!(res, [hex!("0befda6e1ca4ef40219d588a727f1271").to_vec(), hex!("3a636f6465").to_vec()]);
+	assert_eq!(
+		res,
+		[hex!("0befda6e1ca4ef40219d588a727f1271").to_vec(), hex!("3a636f6465").to_vec()]
+	);
 
-	let res: Vec<_> = client.storage_keys_iter(&BlockId::Number(0), Some(&prefix), Some(&StorageKey(hex!("3a636f6465").to_vec())))
+	let res: Vec<_> = client
+		.storage_keys_iter(
+			&BlockId::Number(0),
+			Some(&prefix),
+			Some(&StorageKey(hex!("3a636f6465").to_vec())),
+		)
 		.unwrap()
 		.take(3)
 		.map(|x| x.0)
 		.collect();
-	assert_eq!(res, [
-		hex!("3a686561707061676573").to_vec(),
-		hex!("6644b9b8bc315888ac8e41a7968dc2b4141a5403c58acdf70b7e8f7e07bf5081").to_vec(),
-		hex!("79c07e2b1d2e2abfd4855b936617eeff5e0621c4869aa60c02be9adcc98a0d1d").to_vec(),
-	]);
+	assert_eq!(
+		res,
+		[
+			hex!("3a686561707061676573").to_vec(),
+			hex!("6644b9b8bc315888ac8e41a7968dc2b4141a5403c58acdf70b7e8f7e07bf5081").to_vec(),
+			hex!("79c07e2b1d2e2abfd4855b936617eeff5e0621c4869aa60c02be9adcc98a0d1d").to_vec(),
+		]
+	);
 
-	let res: Vec<_> = client.storage_keys_iter(&BlockId::Number(0), Some(&prefix), Some(&StorageKey(hex!("79c07e2b1d2e2abfd4855b936617eeff5e0621c4869aa60c02be9adcc98a0d1d").to_vec())))
+	let res: Vec<_> = client
+		.storage_keys_iter(
+			&BlockId::Number(0),
+			Some(&prefix),
+			Some(&StorageKey(
+				hex!("79c07e2b1d2e2abfd4855b936617eeff5e0621c4869aa60c02be9adcc98a0d1d").to_vec(),
+			)),
+		)
 		.unwrap()
 		.take(1)
 		.map(|x| x.0)
 		.collect();
-	assert_eq!(res, [hex!("cf722c0832b5231d35e29f319ff27389f5032bfc7bfc3ba5ed7839f2042fb99f").to_vec()]);
+	assert_eq!(
+		res,
+		[hex!("cf722c0832b5231d35e29f319ff27389f5032bfc7bfc3ba5ed7839f2042fb99f").to_vec()]
+	);
 }
 
 #[test]
@@ -1732,21 +1857,20 @@ fn cleans_up_closed_notification_sinks_on_block_import() {
 	// NOTE: we need to build the client here instead of using the client
 	// provided by test_runtime_client otherwise we can't access the private
 	// `import_notification_sinks` and `finality_notification_sinks` fields.
-	let mut client =
-		new_in_mem::<
-			_,
-			substrate_test_runtime_client::runtime::Block,
-			_,
-			substrate_test_runtime_client::runtime::RuntimeApi
-		>(
-			substrate_test_runtime_client::new_native_executor(),
-			&substrate_test_runtime_client::GenesisParameters::default().genesis_storage(),
-			None,
-			None,
-			Box::new(TaskExecutor::new()),
-			Default::default(),
-		)
-			.unwrap();
+	let mut client = new_in_mem::<
+		_,
+		substrate_test_runtime_client::runtime::Block,
+		_,
+		substrate_test_runtime_client::runtime::RuntimeApi,
+	>(
+		substrate_test_runtime_client::new_native_executor(),
+		&substrate_test_runtime_client::GenesisParameters::default().genesis_storage(),
+		None,
+		None,
+		Box::new(TaskExecutor::new()),
+		Default::default(),
+	)
+	.unwrap();
 
 	type TestClient = Client<
 		in_mem::Backend<Block>,
@@ -1762,12 +1886,7 @@ fn cleans_up_closed_notification_sinks_on_block_import() {
 
 	// for some reason I can't seem to use `ClientBlockImportExt`
 	let bake_and_import_block = |client: &mut TestClient, origin| {
-		let block = client
-			.new_block(Default::default())
-			.unwrap()
-			.build()
-			.unwrap()
-			.block;
+		let block = client.new_block(Default::default()).unwrap().build().unwrap().block;
 
 		let (header, extrinsics) = block.deconstruct();
 		let mut import = BlockImportParams::new(origin, header);
@@ -1807,44 +1926,43 @@ fn cleans_up_closed_notification_sinks_on_block_import() {
 fn reorg_triggers_a_notification_even_for_sources_that_should_not_trigger_notifications() {
 	let mut client = TestClientBuilder::new().build();
 
-	let mut notification_stream = futures::executor::block_on_stream(
-		client.import_notification_stream()
-	);
+	let mut notification_stream =
+		futures::executor::block_on_stream(client.import_notification_stream());
 
-	let a1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a1 = client
+		.new_block_at(&BlockId::Number(0), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::NetworkInitialSync, a1.clone()).unwrap();
 
-	let a2 = client.new_block_at(
-		&BlockId::Hash(a1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let a2 = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 	client.import(BlockOrigin::NetworkInitialSync, a2.clone()).unwrap();
 
-	let mut b1 = client.new_block_at(
-		&BlockId::Number(0),
-		Default::default(),
-		false,
-	).unwrap();
+	let mut b1 = client.new_block_at(&BlockId::Number(0), Default::default(), false).unwrap();
 	// needed to make sure B1 gets a different hash from A1
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
 		amount: 1,
 		nonce: 0,
-	}).unwrap();
+	})
+	.unwrap();
 	let b1 = b1.build().unwrap().block;
 	client.import(BlockOrigin::NetworkInitialSync, b1.clone()).unwrap();
 
-	let b2 = client.new_block_at(
-		&BlockId::Hash(b1.hash()),
-		Default::default(),
-		false,
-	).unwrap().build().unwrap().block;
+	let b2 = client
+		.new_block_at(&BlockId::Hash(b1.hash()), Default::default(), false)
+		.unwrap()
+		.build()
+		.unwrap()
+		.block;
 
 	// Should trigger a notification because we reorg
 	client.import_as_best(BlockOrigin::NetworkInitialSync, b2.clone()).unwrap();

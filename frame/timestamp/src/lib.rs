@@ -27,13 +27,14 @@
 //!
 //! The Timestamp module allows the validators to set and validate a timestamp with each block.
 //!
-//! It uses inherents for timestamp data, which is provided by the block author and validated/verified
-//! by other validators. The timestamp can be set only once per block and must be set each block.
-//! There could be a constraint on how much time must pass before setting the new timestamp.
+//! It uses inherents for timestamp data, which is provided by the block author and
+//! validated/verified by other validators. The timestamp can be set only once per block and must be
+//! set each block. There could be a constraint on how much time must pass before setting the new
+//! timestamp.
 //!
-//! **NOTE:** The Timestamp module is the recommended way to query the on-chain time instead of using
-//! an approach based on block numbers. The block number based time measurement can cause issues
-//! because of cumulative calculation errors and hence should be avoided.
+//! **NOTE:** The Timestamp module is the recommended way to query the on-chain time instead of
+//! using an approach based on block numbers. The block number based time measurement can cause
+//! issues because of cumulative calculation errors and hence should be avoided.
 //!
 //! ## Interface
 //!
@@ -52,7 +53,8 @@
 //!
 //! ## Usage
 //!
-//! The following example shows how to use the Timestamp module in your custom module to query the current timestamp.
+//! The following example shows how to use the Timestamp module in your custom module to query the
+//! current timestamp.
 //!
 //! ### Prerequisites
 //!
@@ -95,26 +97,22 @@
 mod benchmarking;
 mod default_weights;
 
-use sp_std::{result, cmp};
-use sp_inherents::{ProvideInherent, InherentData, InherentIdentifier};
 #[cfg(feature = "std")]
 use frame_support::debug;
 use frame_support::{
-	Parameter, decl_storage, decl_module,
-	traits::{Time, UnixTime, Get},
+	decl_module, decl_storage,
+	traits::{Get, Time, UnixTime},
 	weights::{DispatchClass, Weight},
-};
-use sp_runtime::{
-	RuntimeString,
-	traits::{
-		AtLeast32Bit, Zero, SaturatedConversion, Scale
-	}
+	Parameter,
 };
 use frame_system::ensure_none;
-use sp_timestamp::{
-	InherentError, INHERENT_IDENTIFIER, InherentType,
-	OnTimestampSet,
+use sp_inherents::{InherentData, InherentIdentifier, ProvideInherent};
+use sp_runtime::{
+	traits::{AtLeast32Bit, SaturatedConversion, Scale, Zero},
+	RuntimeString,
 };
+use sp_std::{cmp, result};
+use sp_timestamp::{InherentError, InherentType, OnTimestampSet, INHERENT_IDENTIFIER};
 
 pub trait WeightInfo {
 	fn set() -> Weight;
@@ -124,8 +122,11 @@ pub trait WeightInfo {
 /// The module configuration trait
 pub trait Trait: frame_system::Trait {
 	/// Type used for expressing timestamp.
-	type Moment: Parameter + Default + AtLeast32Bit
-		+ Scale<Self::BlockNumber, Output = Self::Moment> + Copy;
+	type Moment: Parameter
+		+ Default
+		+ AtLeast32Bit
+		+ Scale<Self::BlockNumber, Output = Self::Moment>
+		+ Copy;
 
 	/// Something which can be notified when the timestamp is set. Set this to `()` if not needed.
 	type OnTimestampSet: OnTimestampSet<Self::Moment>;
@@ -296,10 +297,14 @@ impl<T: Trait> UnixTime for Module<T> {
 mod tests {
 	use super::*;
 
-	use frame_support::{impl_outer_origin, assert_ok, parameter_types, weights::Weight};
-	use sp_io::TestExternalities;
+	use frame_support::{assert_ok, impl_outer_origin, parameter_types, weights::Weight};
 	use sp_core::H256;
-	use sp_runtime::{Perbill, traits::{BlakeTwo256, IdentityLookup}, testing::Header};
+	use sp_io::TestExternalities;
+	use sp_runtime::{
+		testing::Header,
+		traits::{BlakeTwo256, IdentityLookup},
+		Perbill,
+	};
 
 	pub fn new_test_ext() -> TestExternalities {
 		let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
@@ -376,7 +381,9 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic(expected = "Timestamp must increment by at least <MinimumPeriod> between sequential blocks")]
+	#[should_panic(
+		expected = "Timestamp must increment by at least <MinimumPeriod> between sequential blocks"
+	)]
 	fn block_period_minimum_enforced() {
 		new_test_ext().execute_with(|| {
 			Timestamp::set_timestamp(42);

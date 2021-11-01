@@ -5,7 +5,7 @@
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or 
+// the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
 // This program is distributed in the hope that it will be useful,
@@ -17,15 +17,19 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! subcommand utilities
-use std::{io::Read, path::PathBuf};
-use sp_core::{
-	Pair, hexdisplay::HexDisplay,
-	crypto::{Ss58Codec, Ss58AddressFormat},
+use crate::{
+	error::{self, Error},
+	OutputType,
 };
-use sp_runtime::{MultiSigner, traits::IdentifyAccount};
-use crate::{OutputType, error::{self, Error}};
 use serde_json::json;
-use sp_core::crypto::{SecretString, Zeroize, ExposeSecret};
+use sp_core::crypto::{ExposeSecret, SecretString, Zeroize};
+use sp_core::{
+	crypto::{Ss58AddressFormat, Ss58Codec},
+	hexdisplay::HexDisplay,
+	Pair,
+};
+use sp_runtime::{traits::IdentifyAccount, MultiSigner};
+use std::{io::Read, path::PathBuf};
 
 /// Public key type for Runtime
 pub type PublicFor<P> = <P as sp_core::Pair>::Public;
@@ -37,9 +41,7 @@ pub fn read_uri(uri: Option<&String>) -> error::Result<String> {
 	let uri = if let Some(uri) = uri {
 		let file = PathBuf::from(&uri);
 		if file.is_file() {
-			std::fs::read_to_string(uri)?
-				.trim_end()
-				.to_owned()
+			std::fs::read_to_string(uri)?.trim_end().to_owned()
 		} else {
 			uri.into()
 		}
@@ -56,7 +58,10 @@ pub fn print_from_uri<Pair>(
 	password: Option<SecretString>,
 	network_override: Option<Ss58AddressFormat>,
 	output: OutputType,
-) where Pair: sp_core::Pair, Pair::Public: Into<MultiSigner> {
+) where
+	Pair: sp_core::Pair,
+	Pair::Public: Into<MultiSigner>,
+{
 	let password = password.as_ref().map(|s| s.expose_secret().as_str());
 	if let Ok((pair, seed)) = Pair::from_phrase(uri, password.clone()) {
 		let public_key = pair.public();
@@ -71,7 +76,10 @@ pub fn print_from_uri<Pair>(
 					"accountId": format_account_id::<Pair>(public_key),
 					"ss58Address": pair.public().into().into_account().to_ss58check_with_version(network_override),
 				});
-				println!("{}", serde_json::to_string_pretty(&json).expect("Json pretty print failed"));
+				println!(
+					"{}",
+					serde_json::to_string_pretty(&json).expect("Json pretty print failed")
+				);
 			},
 			OutputType::Text => {
 				println!(
@@ -101,7 +109,10 @@ pub fn print_from_uri<Pair>(
 					"accountId": format_account_id::<Pair>(public_key),
 					"ss58Address": pair.public().into().into_account().to_ss58check_with_version(network_override),
 				});
-				println!("{}", serde_json::to_string_pretty(&json).expect("Json pretty print failed"));
+				println!(
+					"{}",
+					serde_json::to_string_pretty(&json).expect("Json pretty print failed")
+				);
 			},
 			OutputType::Text => {
 				println!(
@@ -130,7 +141,10 @@ pub fn print_from_uri<Pair>(
 					"accountId": format_account_id::<Pair>(public_key.clone()),
 					"ss58Address": public_key.to_ss58check_with_version(network_override),
 				});
-				println!("{}", serde_json::to_string_pretty(&json).expect("Json pretty print failed"));
+				println!(
+					"{}",
+					serde_json::to_string_pretty(&json).expect("Json pretty print failed")
+				);
 			},
 			OutputType::Text => {
 				println!(
@@ -178,8 +192,8 @@ fn format_public_key<P: sp_core::Pair>(public_key: PublicFor<P>) -> String {
 
 /// formats public key as accountId as hex
 fn format_account_id<P: sp_core::Pair>(public_key: PublicFor<P>) -> String
-	where
-		PublicFor<P>: Into<MultiSigner>,
+where
+	PublicFor<P>: Into<MultiSigner>,
 {
 	format!("0x{}", HexDisplay::from(&public_key.into().into_account().as_ref()))
 }
@@ -190,8 +204,7 @@ pub fn decode_hex<T: AsRef<[u8]>>(message: T) -> Result<Vec<u8>, Error> {
 	if message[..2] == [b'0', b'x'] {
 		message = &message[2..]
 	}
-	hex::decode(message)
-		.map_err(|e| Error::Other(format!("Invalid hex ({})", e)))
+	hex::decode(message).map_err(|e| Error::Other(format!("Invalid hex ({})", e)))
 }
 
 /// checks if message is Some, otherwise reads message from stdin and optionally decodes hex
@@ -206,11 +219,10 @@ pub fn read_message(msg: Option<&String>, should_decode: bool) -> Result<Vec<u8>
 			if should_decode {
 				message = decode_hex(&message)?;
 			}
-		}
+		},
 	}
 	Ok(message)
 }
-
 
 /// Allows for calling $method with appropriate crypto impl.
 #[macro_export]

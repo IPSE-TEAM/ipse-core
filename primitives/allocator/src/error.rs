@@ -20,13 +20,13 @@
 #[cfg_attr(feature = "std", derive(derive_more::Display))]
 pub enum Error {
 	/// Someone tried to allocate more memory than the allowed maximum per allocation.
-	#[cfg_attr(feature = "std", display(fmt="Requested allocation size is too large"))]
+	#[cfg_attr(feature = "std", display(fmt = "Requested allocation size is too large"))]
 	RequestedAllocationTooLarge,
 	/// Allocator run out of space.
-	#[cfg_attr(feature = "std", display(fmt="Allocator ran out of space"))]
+	#[cfg_attr(feature = "std", display(fmt = "Allocator ran out of space"))]
 	AllocatorOutOfSpace,
 	/// Some other error occurred.
-	Other(&'static str)
+	Other(&'static str),
 }
 
 #[cfg(feature = "std")]

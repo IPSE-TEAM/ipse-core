@@ -15,13 +15,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use frame_support::storage::unhashed;
 use codec::Encode;
-use frame_support::{StorageDoubleMap, StorageMap, StorageValue, StoragePrefixedMap};
-use sp_io::{TestExternalities, hashing::{twox_64, twox_128, blake2_128}};
+use frame_support::storage::unhashed;
+use frame_support::{StorageDoubleMap, StorageMap, StoragePrefixedMap, StorageValue};
+use sp_io::{
+	hashing::{blake2_128, twox_128, twox_64},
+	TestExternalities,
+};
 
 mod no_instance {
-	use codec::{Encode, Decode, EncodeLike};
+	use codec::{Decode, Encode, EncodeLike};
 
 	pub trait Trait {
 		type Origin;
@@ -32,7 +35,7 @@ mod no_instance {
 		pub struct Module<T: Trait> for enum Call where origin: T::Origin, system=self {}
 	}
 
-	frame_support::decl_storage!{
+	frame_support::decl_storage! {
 		trait Store for Module<T: Trait> as FinalKeysNone {
 			pub Value config(value): u32;
 
@@ -59,7 +62,7 @@ mod instance {
 			for enum Call where origin: T::Origin, system=no_instance {}
 	}
 
-	frame_support::decl_storage!{
+	frame_support::decl_storage! {
 		trait Store for Module<T: Trait<I>, I: Instance = DefaultInstance>
 			as FinalKeysSome
 		{

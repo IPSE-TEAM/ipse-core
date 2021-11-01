@@ -17,18 +17,18 @@
 
 //! Stuff to do with the runtime's storage.
 
-use sp_std::prelude::*;
-use codec::{FullCodec, FullEncode, Encode, EncodeLike, Decode};
-use crate::hash::{Twox128, StorageHasher};
+use crate::hash::{StorageHasher, Twox128};
+use codec::{Decode, Encode, EncodeLike, FullCodec, FullEncode};
 use sp_runtime::generic::{Digest, DigestItem};
 pub use sp_runtime::TransactionOutcome;
+use sp_std::prelude::*;
 
-pub mod unhashed;
-pub mod hashed;
 pub mod child;
 #[doc(hidden)]
 pub mod generator;
+pub mod hashed;
 pub mod migration;
+pub mod unhashed;
 
 /// Execute the supplied function in a new storage transaction.
 ///
@@ -37,15 +37,19 @@ pub mod migration;
 ///
 /// Transactions can be nested to any depth. Commits happen to the parent transaction.
 pub fn with_transaction<R>(f: impl FnOnce() -> TransactionOutcome<R>) -> R {
-	use sp_io::storage::{
-		start_transaction, commit_transaction, rollback_transaction,
-	};
+	use sp_io::storage::{commit_transaction, rollback_transaction, start_transaction};
 	use TransactionOutcome::*;
 
 	start_transaction();
 	match f() {
-		Commit(res) => { commit_transaction(); res },
-		Rollback(res) => { rollback_transaction(); res },
+		Commit(res) => {
+			commit_transaction();
+			res
+		},
+		Rollback(res) => {
+			rollback_transaction();
+			res
+		},
 	}
 }
 
@@ -88,8 +92,8 @@ pub trait StorageValue<T: FullCodec> {
 	/// # Usage
 	///
 	/// This would typically be called inside the module implementation of on_runtime_upgrade, while
-	/// ensuring **no usage of this storage are made before the call to `on_runtime_upgrade`**. (More
-	/// precisely prior initialized modules doesn't make use of this storage).
+	/// ensuring **no usage of this storage are made before the call to `on_runtime_upgrade`**.
+	/// (More precisely prior initialized modules doesn't make use of this storage).
 	fn translate<O: Decode, F: FnOnce(Option<O>) -> Option<T>>(f: F) -> Result<Option<T>, ()>;
 
 	/// Store a value under this key into the provided storage instance.
@@ -137,7 +141,10 @@ pub trait StorageValue<T: FullCodec> {
 	///
 	/// `None` does not mean that `get()` does not return a value. The default value is completly
 	/// ignored by this function.
-	fn decode_len() -> Option<usize> where T: StorageDecodeLength {
+	fn decode_len() -> Option<usize>
+	where
+		T: StorageDecodeLength,
+	{
 		T::decode_len(&Self::hashed_key())
 	}
 }
@@ -178,7 +185,10 @@ pub trait StorageMap<K: FullEncode, V: FullCodec> {
 	) -> Result<R, E>;
 
 	/// Mutate the value under a key. Deletes the item if mutated to a `None`.
-	fn mutate_exists<KeyArg: EncodeLike<K>, R, F: FnOnce(&mut Option<V>) -> R>(key: KeyArg, f: F) -> R;
+	fn mutate_exists<KeyArg: EncodeLike<K>, R, F: FnOnce(&mut Option<V>) -> R>(
+		key: KeyArg,
+		f: F,
+	) -> R;
 
 	/// Mutate the item, only if an `Ok` value is returned. Deletes the item if mutated to a `None`.
 	fn try_mutate_exists<KeyArg: EncodeLike<K>, R, E, F: FnOnce(&mut Option<V>) -> Result<R, E>>(
@@ -218,7 +228,8 @@ pub trait StorageMap<K: FullEncode, V: FullCodec> {
 	/// `None` does not mean that `get()` does not return a value. The default value is completly
 	/// ignored by this function.
 	fn decode_len<KeyArg: EncodeLike<K>>(key: KeyArg) -> Option<usize>
-		where V: StorageDecodeLength,
+	where
+		V: StorageDecodeLength,
 	{
 		V::decode_len(&Self::hashed_key_for(key))
 	}
@@ -257,11 +268,9 @@ pub trait IterableStorageMap<K: FullEncode, V: FullCodec>: StorageMap<K, V> {
 }
 
 /// A strongly-typed double map in storage whose secondary keys and values can be iterated over.
-pub trait IterableStorageDoubleMap<
-	K1: FullCodec,
-	K2: FullCodec,
-	V: FullCodec
->: StorageDoubleMap<K1, K2, V> {
+pub trait IterableStorageDoubleMap<K1: FullCodec, K2: FullCodec, V: FullCodec>:
+	StorageDoubleMap<K1, K2, V>
+{
 	/// The type that iterates over all `(key2, value)`.
 	type PrefixIterator: Iterator<Item = (K2, V)>;
 
@@ -350,11 +359,14 @@ pub trait StorageDoubleMap<K1: FullEncode, K2: FullEncode, V: FullCodec> {
 		KArg2: EncodeLike<K2>;
 
 	/// Remove all values under the first key.
-	fn remove_prefix<KArg1>(k1: KArg1) where KArg1: ?Sized + EncodeLike<K1>;
+	fn remove_prefix<KArg1>(k1: KArg1)
+	where
+		KArg1: ?Sized + EncodeLike<K1>;
 
 	/// Iterate over values that share the first key.
 	fn iter_prefix_values<KArg1>(k1: KArg1) -> PrefixIterator<V>
-		where KArg1: ?Sized + EncodeLike<K1>;
+	where
+		KArg1: ?Sized + EncodeLike<K1>;
 
 	/// Mutate the value under the given keys.
 	fn mutate<KArg1, KArg2, R, F>(k1: KArg1, k2: KArg2, f: F) -> R
@@ -393,11 +405,8 @@ pub trait StorageDoubleMap<K1: FullEncode, K2: FullEncode, V: FullCodec> {
 	/// If the storage item is not encoded properly, the storage will be overwritten
 	/// and set to `[item]`. Any default value set for the storage item will be ignored
 	/// on overwrite.
-	fn append<Item, EncodeLikeItem, KArg1, KArg2>(
-		k1: KArg1,
-		k2: KArg2,
-		item: EncodeLikeItem,
-	) where
+	fn append<Item, EncodeLikeItem, KArg1, KArg2>(k1: KArg1, k2: KArg2, item: EncodeLikeItem)
+	where
 		KArg1: EncodeLike<K1>,
 		KArg2: EncodeLike<K2>,
 		Item: Encode,
@@ -417,10 +426,10 @@ pub trait StorageDoubleMap<K1: FullEncode, K2: FullEncode, V: FullCodec> {
 	/// `None` does not mean that `get()` does not return a value. The default value is completly
 	/// ignored by this function.
 	fn decode_len<KArg1, KArg2>(key1: KArg1, key2: KArg2) -> Option<usize>
-		where
-			KArg1: EncodeLike<K1>,
-			KArg2: EncodeLike<K2>,
-			V: StorageDecodeLength,
+	where
+		KArg1: EncodeLike<K1>,
+		KArg2: EncodeLike<K2>,
+		V: StorageDecodeLength,
 	{
 		V::decode_len(&Self::hashed_key_for(key1, key2))
 	}
@@ -434,7 +443,10 @@ pub trait StorageDoubleMap<K1: FullEncode, K2: FullEncode, V: FullCodec> {
 		OldHasher2: StorageHasher,
 		KeyArg1: EncodeLike<K1>,
 		KeyArg2: EncodeLike<K2>,
-	>(key1: KeyArg1, key2: KeyArg2) -> Option<V>;
+	>(
+		key1: KeyArg1,
+		key2: KeyArg2,
+	) -> Option<V>;
 }
 
 /// Iterate over a prefix and decode raw_key and raw_value into `T`.
@@ -468,7 +480,7 @@ impl<T> Iterator for PrefixIterator<T> {
 								self.previous_key
 							);
 							continue
-						}
+						},
 					};
 					if self.drain {
 						unhashed::kill(&self.previous_key)
@@ -479,14 +491,15 @@ impl<T> Iterator for PrefixIterator<T> {
 						Err(e) => {
 							crate::debug::error!(
 								"(key, value) failed to decode at {:?}: {:?}",
-								self.previous_key, e
+								self.previous_key,
+								e
 							);
 							continue
-						}
+						},
 					};
 
 					Some(item)
-				}
+				},
 				None => None,
 			}
 		}
@@ -548,8 +561,8 @@ pub trait StoragePrefixedMap<Value: FullCodec> {
 	fn translate_values<OldValue: Decode, F: Fn(OldValue) -> Option<Value>>(f: F) {
 		let prefix = Self::final_prefix();
 		let mut previous_key = prefix.clone().to_vec();
-		while let Some(next) = sp_io::storage::next_key(&previous_key)
-			.filter(|n| n.starts_with(&prefix))
+		while let Some(next) =
+			sp_io::storage::next_key(&previous_key).filter(|n| n.starts_with(&prefix))
 		{
 			previous_key = next;
 			let maybe_value = unhashed::get::<OldValue>(&previous_key);
@@ -559,10 +572,7 @@ pub trait StoragePrefixedMap<Value: FullCodec> {
 					None => unhashed::kill(&previous_key),
 				},
 				None => {
-					crate::debug::error!(
-						"old key failed to decode at {:?}",
-						previous_key
-					);
+					crate::debug::error!("old key failed to decode at {:?}", previous_key);
 					continue
 				},
 			}
@@ -618,9 +628,9 @@ impl<Hash: Encode> StorageAppend<DigestItem<Hash>> for Digest<Hash> {}
 #[cfg(test)]
 mod test {
 	use super::*;
+	use generator::StorageValue as _;
 	use sp_core::hashing::twox_128;
 	use sp_io::TestExternalities;
-	use generator::StorageValue as _;
 
 	#[test]
 	fn prefixed_map_works() {

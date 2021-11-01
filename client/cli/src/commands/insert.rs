@@ -17,20 +17,17 @@
 
 //! Implementation of the `insert` subcommand
 
-use crate::{Error, KeystoreParams, CryptoSchemeFlag, SharedParams, utils, with_crypto_scheme};
-use structopt::StructOpt;
+use crate::{utils, with_crypto_scheme, CryptoSchemeFlag, Error, KeystoreParams, SharedParams};
+use sc_keystore::Store as KeyStore;
+use sc_service::config::KeystoreConfig;
+use sp_core::crypto::SecretString;
 use sp_core::{crypto::KeyTypeId, traits::BareCryptoStore};
 use std::convert::TryFrom;
-use sc_service::config::KeystoreConfig;
-use sc_keystore::Store as KeyStore;
-use sp_core::crypto::SecretString;
+use structopt::StructOpt;
 
 /// The `insert` command
 #[derive(Debug, StructOpt)]
-#[structopt(
-	name = "insert",
-	about = "Insert a key to the keystore of a node."
-)]
+#[structopt(name = "insert", about = "Insert a key to the keystore of a node.")]
 pub struct InsertCmd {
 	/// The secret key URI.
 	/// If the value is a file, the file content is used as URI.
@@ -59,7 +56,10 @@ impl InsertCmd {
 	/// Run the command
 	pub fn run(&self) -> Result<(), Error> {
 		let suri = utils::read_uri(self.suri.as_ref())?;
-		let base_path = self.shared_params.base_path.as_ref()
+		let base_path = self
+			.shared_params
+			.base_path
+			.as_ref()
 			.ok_or_else(|| Error::Other("please supply base path".into()))?;
 
 		let (keystore, public) = match self.keystore_params.keystore_config(base_path)? {
@@ -68,19 +68,20 @@ impl InsertCmd {
 					self.crypto_scheme.scheme,
 					to_vec(&suri, password.clone())
 				)?;
-				let keystore = KeyStore::open(path, password)
-					.map_err(|e| format!("{}", e))?;
+				let keystore = KeyStore::open(path, password).map_err(|e| format!("{}", e))?;
 				(keystore, public)
 			},
-			_ => unreachable!("keystore_config always returns path and password; qed")
+			_ => unreachable!("keystore_config always returns path and password; qed"),
 		};
 
-		let key_type = KeyTypeId::try_from(self.key_type.as_str())
-			.map_err(|_| {
-				Error::Other("Cannot convert argument to keytype: argument should be 4-character string".into())
-			})?;
+		let key_type = KeyTypeId::try_from(self.key_type.as_str()).map_err(|_| {
+			Error::Other(
+				"Cannot convert argument to keytype: argument should be 4-character string".into(),
+			)
+		})?;
 
-		keystore.write()
+		keystore
+			.write()
 			.insert_unknown(key_type, &suri, &public[..])
 			.map_err(|e| Error::Other(format!("{:?}", e)))?;
 

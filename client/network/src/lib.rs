@@ -121,10 +121,10 @@
 //!
 //! - **`/substrate/<protocol-id>/<version>`** (where `<protocol-id>` must be replaced with the
 //! protocol ID of the targeted chain, and `<version>` is a number between 2 and 6). For each
-//! connection we optionally keep an additional substream for all Substrate-based communications alive.
-//! This protocol is considered legacy, and is progressively being replaced with alternatives.
-//! This is designated as "The legacy Substrate substream" in this documentation. See below for
-//! more details.
+//! connection we optionally keep an additional substream for all Substrate-based communications
+//! alive. This protocol is considered legacy, and is progressively being replaced with
+//! alternatives. This is designated as "The legacy Substrate substream" in this documentation. See
+//! below for more details.
 //! - **`/<protocol-id>/sync/2`** is a request-response protocol (see below) that lets one perform
 //! requests for information about blocks. Each request is the encoding of a `BlockRequest` and
 //! each response is the encoding of a `BlockResponse`, as defined in the `api.v1.proto` file in
@@ -242,16 +242,15 @@
 //! - Calling `trigger_repropagate` when a transaction is added to the pool.
 //!
 //! More precise usage details are still being worked on and will likely change in the future.
-//!
 
 mod behaviour;
 mod block_requests;
 mod chain;
-mod peer_info;
 mod discovery;
 mod finality_requests;
 mod light_client_handler;
 mod on_demand_layer;
+mod peer_info;
 mod protocol;
 mod request_responses;
 mod schema;
@@ -266,10 +265,14 @@ pub mod network_state;
 
 #[doc(inline)]
 pub use libp2p::{multiaddr, Multiaddr, PeerId};
-pub use protocol::{event::{DhtEvent, Event, ObservedRole}, sync::SyncState, PeerInfo};
+pub use protocol::{
+	event::{DhtEvent, Event, ObservedRole},
+	sync::SyncState,
+	PeerInfo,
+};
 pub use service::{
-	NetworkService, NetworkWorker, RequestFailure, OutboundFailure, NotificationSender,
-	NotificationSenderReady,
+	NetworkService, NetworkWorker, NotificationSender, NotificationSenderReady, OutboundFailure,
+	RequestFailure,
 };
 
 pub use sc_peerset::ReputationChange;

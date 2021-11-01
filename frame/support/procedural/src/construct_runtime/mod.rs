@@ -19,12 +19,12 @@ mod parse;
 
 use frame_support_procedural_tools::syn_ext as ext;
 use frame_support_procedural_tools::{generate_crate_access, generate_hidden_includes};
-use parse::{ModuleDeclaration, RuntimeDefinition, WhereSection, ModulePart};
+use parse::{ModuleDeclaration, ModulePart, RuntimeDefinition, WhereSection};
 use proc_macro::TokenStream;
-use proc_macro2::{TokenStream as TokenStream2};
+use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{Ident, Result, TypePath};
 use std::collections::HashMap;
+use syn::{Ident, Result, TypePath};
 
 /// The fixed name of the system module.
 const SYSTEM_MODULE_NAME: &str = "System";
@@ -63,75 +63,62 @@ fn complete_modules(decl: impl Iterator<Item = ModuleDeclaration>) -> syn::Resul
 	let mut indices = HashMap::new();
 	let mut last_index: Option<u8> = None;
 
-	decl
-		.map(|module| {
-			let final_index = match module.index {
-				Some(i) => i,
-				None => last_index.map_or(Some(0), |i| i.checked_add(1))
-					.ok_or_else(|| {
-						let msg = "Module index doesn't fit into u8, index is 256";
-						syn::Error::new(module.name.span(), msg)
-					})?,
-			};
+	decl.map(|module| {
+		let final_index = match module.index {
+			Some(i) => i,
+			None => last_index.map_or(Some(0), |i| i.checked_add(1)).ok_or_else(|| {
+				let msg = "Module index doesn't fit into u8, index is 256";
+				syn::Error::new(module.name.span(), msg)
+			})?,
+		};
 
-			last_index = Some(final_index);
+		last_index = Some(final_index);
 
-			if let Some(used_module) = indices.insert(final_index, module.name.clone()) {
-				let msg = format!(
-					"Module indices are conflicting: Both modules {} and {} are at index {}",
-					used_module,
-					module.name,
-					final_index,
-				);
-				let mut err = syn::Error::new(used_module.span(), &msg);
-				err.combine(syn::Error::new(module.name.span(), msg));
-				return Err(err);
-			}
+		if let Some(used_module) = indices.insert(final_index, module.name.clone()) {
+			let msg = format!(
+				"Module indices are conflicting: Both modules {} and {} are at index {}",
+				used_module, module.name, final_index,
+			);
+			let mut err = syn::Error::new(used_module.span(), &msg);
+			err.combine(syn::Error::new(module.name.span(), msg));
+			return Err(err)
+		}
 
-			Ok(Module {
-				name: module.name,
-				index: final_index,
-				module: module.module,
-				instance: module.instance,
-				module_parts: module.module_parts,
-			})
+		Ok(Module {
+			name: module.name,
+			index: final_index,
+			module: module.module,
+			instance: module.instance,
+			module_parts: module.module_parts,
 		})
-		.collect()
+	})
+	.collect()
 }
 
 pub fn construct_runtime(input: TokenStream) -> TokenStream {
 	let definition = syn::parse_macro_input!(input as RuntimeDefinition);
-	construct_runtime_parsed(definition)
-		.unwrap_or_else(|e| e.to_compile_error())
-		.into()
+	construct_runtime_parsed(definition).unwrap_or_else(|e| e.to_compile_error()).into()
 }
 
 fn construct_runtime_parsed(definition: RuntimeDefinition) -> Result<TokenStream2> {
 	let RuntimeDefinition {
 		name,
-		where_section: WhereSection {
-			block,
-			node_block,
-			unchecked_extrinsic,
-			..
-		},
+		where_section: WhereSection { block, node_block, unchecked_extrinsic, .. },
 		modules:
-			ext::Braces {
-				content: ext::Punctuated { inner: modules, .. },
-				token: modules_token,
-			},
+			ext::Braces { content: ext::Punctuated { inner: modules, .. }, token: modules_token },
 		..
 	} = definition;
 
 	let modules = complete_modules(modules.into_iter())?;
 
-	let system_module = modules.iter()
-		.find(|decl| decl.name == SYSTEM_MODULE_NAME)
-		.ok_or_else(|| syn::Error::new(
-			modules_token.span,
-			"`System` module declaration is missing. \
+	let system_module =
+		modules.iter().find(|decl| decl.name == SYSTEM_MODULE_NAME).ok_or_else(|| {
+			syn::Error::new(
+				modules_token.span,
+				"`System` module declaration is missing. \
 			 Please add this line: `System: frame_system::{Module, Call, Storage, Config, Event<T>},`",
-		))?;
+			)
+		})?;
 
 	let hidden_crate_name = "construct_runtime";
 	let scrate = generate_crate_access(&hidden_crate_name, "frame-support");
@@ -139,30 +126,16 @@ fn construct_runtime_parsed(definition: RuntimeDefinition) -> Result<TokenStream
 
 	let all_but_system_modules = modules.iter().filter(|module| module.name != SYSTEM_MODULE_NAME);
 
-	let outer_event = decl_outer_event(
-		&name,
-		modules.iter(),
-		&scrate,
-	)?;
+	let outer_event = decl_outer_event(&name, modules.iter(), &scrate)?;
 
-	let outer_origin = decl_outer_origin(
-		&name,
-		all_but_system_modules,
-		&system_module,
-		&scrate,
-	)?;
+	let outer_origin = decl_outer_origin(&name, all_but_system_modules, &system_module, &scrate)?;
 	let all_modules = decl_all_modules(&name, modules.iter());
 	let module_to_index = decl_pallet_runtime_setup(&modules, &scrate);
 
 	let dispatch = decl_outer_dispatch(&name, modules.iter(), &scrate);
 	let metadata = decl_runtime_metadata(&name, modules.iter(), &scrate, &unchecked_extrinsic);
 	let outer_config = decl_outer_config(&name, modules.iter(), &scrate);
-	let inherent = decl_outer_inherent(
-		&block,
-		&unchecked_extrinsic,
-		modules.iter(),
-		&scrate,
-	);
+	let inherent = decl_outer_inherent(&block, &unchecked_extrinsic, modules.iter(), &scrate);
 	let validate_unsigned = decl_validate_unsigned(&name, modules.iter(), &scrate);
 	let integrity_test = decl_integrity_test(&scrate);
 
@@ -258,12 +231,8 @@ fn decl_outer_config<'a>(
 	let modules_tokens = module_declarations
 		.filter_map(|module_declaration| {
 			module_declaration.find_part("Config").map(|part| {
-				let transformed_generics: Vec<_> = part
-					.generics
-					.params
-					.iter()
-					.map(|param| quote!(<#param>))
-					.collect();
+				let transformed_generics: Vec<_> =
+					part.generics.params.iter().map(|param| quote!(<#param>)).collect();
 				(module_declaration, transformed_generics)
 			})
 		})
@@ -309,11 +278,8 @@ fn decl_runtime_metadata<'a>(
 		.map(|(module_declaration, filtered_names)| {
 			let module = &module_declaration.module;
 			let name = &module_declaration.name;
-			let instance = module_declaration
-				.instance
-				.as_ref()
-				.map(|name| quote!(<#name>))
-				.into_iter();
+			let instance =
+				module_declaration.instance.as_ref().map(|name| quote!(<#name>)).into_iter();
 
 			let index = module_declaration.index;
 
@@ -371,13 +337,13 @@ fn decl_outer_origin<'a>(
 						 be constructed: module `{}` must have generic `Origin`",
 						module_declaration.name
 					);
-					return Err(syn::Error::new(module_declaration.name.span(), msg));
+					return Err(syn::Error::new(module_declaration.name.span(), msg))
 				}
 				let index = module_declaration.index.to_string();
 				let tokens = quote!(#[codec(index = #index)] #module #instance #generics,);
 				modules_tokens.extend(tokens);
-			}
-			None => {}
+			},
+			None => {},
 		}
 	}
 
@@ -414,14 +380,14 @@ fn decl_outer_event<'a>(
 						 be constructed: module `{}` must have generic `Event`",
 						module_declaration.name,
 					);
-					return Err(syn::Error::new(module_declaration.name.span(), msg));
+					return Err(syn::Error::new(module_declaration.name.span(), msg))
 				}
 
 				let index = module_declaration.index.to_string();
 				let tokens = quote!(#[codec(index = #index)] #module #instance #generics,);
 				modules_tokens.extend(tokens);
-			}
-			None => {}
+			},
+			None => {},
 		}
 	}
 
@@ -444,12 +410,7 @@ fn decl_all_modules<'a>(
 		let type_name = &module_declaration.name;
 		let module = &module_declaration.module;
 		let mut generics = vec![quote!(#runtime)];
-		generics.extend(
-			module_declaration
-				.instance
-				.iter()
-				.map(|name| quote!(#module::#name)),
-		);
+		generics.extend(module_declaration.instance.iter().map(|name| quote!(#module::#name)));
 		let type_decl = quote!(
 			pub type #type_name = #module::Module <#(#generics),*>;
 		);
@@ -458,7 +419,8 @@ fn decl_all_modules<'a>(
 	}
 	// Make nested tuple structure like (((Babe, Consensus), Grandpa), ...)
 	// But ignore the system module.
-	let all_modules = names.iter()
+	let all_modules = names
+		.iter()
 		.filter(|n| **n != SYSTEM_MODULE_NAME)
 		.fold(TokenStream2::default(), |combined, name| quote!((#name, #combined)));
 
@@ -475,8 +437,7 @@ fn decl_pallet_runtime_setup(
 	let names = module_declarations.iter().map(|d| &d.name);
 	let names2 = module_declarations.iter().map(|d| &d.name);
 	let name_strings = module_declarations.iter().map(|d| d.name.to_string());
-	let indices = module_declarations.iter()
-		.map(|module| module.index as usize);
+	let indices = module_declarations.iter().map(|module| module.index as usize);
 
 	quote!(
 		/// Provides an implementation of `PalletInfo` to provide information

@@ -45,9 +45,7 @@ impl<'a> StorageValueRef<'a> {
 	/// if you happen to write a `get-check-set` pattern you should most likely
 	/// be using `mutate` instead.
 	pub fn set(&self, value: &impl codec::Encode) {
-		value.using_encoded(|val| {
-			sp_io::offchain::local_storage_set(self.kind, self.key, val)
-		})
+		value.using_encoded(|val| sp_io::offchain::local_storage_set(self.kind, self.key, val))
 	}
 
 	/// Remove the associated value from the storage.
@@ -75,20 +73,16 @@ impl<'a> StorageValueRef<'a> {
 	/// 2. `Ok(Err(T))` in case the value was calculated by the passed closure `f`,
 	///    but it could not be stored.
 	/// 3. `Err(_)` in case `f` returns an error.
-	pub fn mutate<T, E, F>(&self, f: F) -> Result<Result<T, T>, E> where
+	pub fn mutate<T, E, F>(&self, f: F) -> Result<Result<T, T>, E>
+	where
 		T: codec::Codec,
-		F: FnOnce(Option<Option<T>>) -> Result<T, E>
+		F: FnOnce(Option<Option<T>>) -> Result<T, E>,
 	{
 		let value = sp_io::offchain::local_storage_get(self.kind, self.key);
 		let decoded = value.as_deref().map(|mut v| T::decode(&mut v).ok());
 		let val = f(decoded)?;
 		let set = val.using_encoded(|new_val| {
-			sp_io::offchain::local_storage_compare_and_set(
-				self.kind,
-				self.key,
-				value,
-				new_val,
-			)
+			sp_io::offchain::local_storage_compare_and_set(self.kind, self.key, value, new_val)
 		});
 
 		if set {
@@ -102,12 +96,8 @@ impl<'a> StorageValueRef<'a> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use sp_core::offchain::{testing, OffchainExt, OffchainStorage};
 	use sp_io::TestExternalities;
-	use sp_core::offchain::{
-		OffchainExt,
-		OffchainStorage,
-		testing,
-	};
 
 	#[test]
 	fn should_set_and_get() {

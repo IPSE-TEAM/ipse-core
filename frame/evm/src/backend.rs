@@ -1,15 +1,18 @@
+use crate::{AccountCodes, AccountStorages, Event, Module, Trait};
+use codec::{Decode, Encode};
+use evm::backend::{Apply, ApplyBackend, Backend as BackendT};
+use frame_support::traits::Get;
+use frame_support::{
+	debug,
+	storage::{StorageDoubleMap, StorageMap},
+};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+use sha3::{Digest, Keccak256};
+use sp_core::{H160, H256, U256};
+use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::marker::PhantomData;
 use sp_std::vec::Vec;
-#[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
-use codec::{Encode, Decode};
-use sp_core::{U256, H256, H160};
-use sp_runtime::traits::UniqueSaturatedInto;
-use frame_support::traits::Get;
-use frame_support::{debug, storage::{StorageMap, StorageDoubleMap}};
-use sha3::{Keccak256, Digest};
-use evm::backend::{Backend as BackendT, ApplyBackend, Apply};
-use crate::{Trait, AccountStorages, AccountCodes, Module, Event};
 
 #[derive(Clone, Eq, PartialEq, Encode, Decode, Default)]
 #[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
@@ -57,8 +60,12 @@ impl<'vicinity, T> Backend<'vicinity, T> {
 }
 
 impl<'vicinity, T: Trait> BackendT for Backend<'vicinity, T> {
-	fn gas_price(&self) -> U256 { self.vicinity.gas_price }
-	fn origin(&self) -> H160 { self.vicinity.origin }
+	fn gas_price(&self) -> U256 {
+		self.vicinity.gas_price
+	}
+	fn origin(&self) -> H160 {
+		self.vicinity.origin
+	}
 
 	fn block_hash(&self, number: U256) -> H256 {
 		if number > U256::from(u32::max_value()) {
@@ -102,10 +109,7 @@ impl<'vicinity, T: Trait> BackendT for Backend<'vicinity, T> {
 	fn basic(&self, address: H160) -> evm::backend::Basic {
 		let account = Module::<T>::account_basic(&address);
 
-		evm::backend::Basic {
-			balance: account.balance,
-			nonce: account.nonce,
-		}
+		evm::backend::Basic { balance: account.balance, nonce: account.nonce }
 	}
 
 	fn code_size(&self, address: H160) -> usize {
@@ -126,25 +130,19 @@ impl<'vicinity, T: Trait> BackendT for Backend<'vicinity, T> {
 }
 
 impl<'vicinity, T: Trait> ApplyBackend for Backend<'vicinity, T> {
-	fn apply<A, I, L>(
-		&mut self,
-		values: A,
-		logs: L,
-		delete_empty: bool,
-	) where
-		A: IntoIterator<Item=Apply<I>>,
-		I: IntoIterator<Item=(H256, H256)>,
-		L: IntoIterator<Item=evm::backend::Log>,
+	fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
+	where
+		A: IntoIterator<Item = Apply<I>>,
+		I: IntoIterator<Item = (H256, H256)>,
+		L: IntoIterator<Item = evm::backend::Log>,
 	{
 		for apply in values {
 			match apply {
-				Apply::Modify {
-					address, basic, code, storage, reset_storage,
-				} => {
-					Module::<T>::mutate_account_basic(&address, Account {
-						nonce: basic.nonce,
-						balance: basic.balance,
-					});
+				Apply::Modify { address, basic, code, storage, reset_storage } => {
+					Module::<T>::mutate_account_basic(
+						&address,
+						Account { nonce: basic.nonce, balance: basic.balance },
+					);
 
 					if let Some(code) = code {
 						debug::debug!(

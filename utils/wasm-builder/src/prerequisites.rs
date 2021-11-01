@@ -17,8 +17,8 @@
 
 use std::fs;
 
-use tempfile::tempdir;
 use ansi_term::Color;
+use tempfile::tempdir;
 
 /// Print an error message.
 fn print_error_message(message: &str) -> String {
@@ -34,7 +34,7 @@ fn print_error_message(message: &str) -> String {
 /// # Returns
 /// Returns `None` if everything was found and `Some(ERR_MSG)` if something could not be found.
 pub fn check() -> Option<String> {
-	if !check_nightly_installed(){
+	if !check_nightly_installed() {
 		return Some(print_error_message("Rust nightly not installed, please install it!"))
 	}
 
@@ -52,7 +52,8 @@ fn check_wasm_toolchain_installed() -> Option<String> {
 	let test_file = temp.path().join("src/lib.rs");
 	let manifest_path = temp.path().join("Cargo.toml");
 
-	fs::write(&manifest_path,
+	fs::write(
+		&manifest_path,
 		r#"
 			[package]
 			name = "wasm-test"
@@ -65,16 +66,21 @@ fn check_wasm_toolchain_installed() -> Option<String> {
 
 			[workspace]
 		"#,
-	).expect("Writing wasm-test manifest does not fail; qed");
-	fs::write(&test_file, "pub fn test() {}")
-		.expect("Writing to the test file does not fail; qed");
+	)
+	.expect("Writing wasm-test manifest does not fail; qed");
+	fs::write(&test_file, "pub fn test() {}").expect("Writing to the test file does not fail; qed");
 
 	let err_msg = print_error_message("Rust WASM toolchain not installed, please install it!");
 	let manifest_path = manifest_path.display().to_string();
 
 	let mut build_cmd = crate::get_nightly_cargo().command();
 
-	build_cmd.args(&["build", "--target=wasm32-unknown-unknown", "--manifest-path", &manifest_path]);
+	build_cmd.args(&[
+		"build",
+		"--target=wasm32-unknown-unknown",
+		"--manifest-path",
+		&manifest_path,
+	]);
 
 	if super::color_output_enabled() {
 		build_cmd.arg("--color=always");
@@ -83,27 +89,24 @@ fn check_wasm_toolchain_installed() -> Option<String> {
 	build_cmd
 		.output()
 		.map_err(|_| err_msg.clone())
-		.and_then(|s|
+		.and_then(|s| {
 			if s.status.success() {
 				Ok(())
 			} else {
 				match String::from_utf8(s.stderr) {
-					Ok(ref err) if err.contains("linker `rust-lld` not found") => {
-						Err(print_error_message("`rust-lld` not found, please install it!"))
-					},
-					Ok(ref err) => Err(
-						format!(
-							"{}\n\n{}\n{}\n{}{}\n",
-							err_msg,
-							Color::Yellow.bold().paint("Further error information:"),
-							Color::Yellow.bold().paint("-".repeat(60)),
-							err,
-							Color::Yellow.bold().paint("-".repeat(60)),
-						)
-					),
+					Ok(ref err) if err.contains("linker `rust-lld` not found") =>
+						Err(print_error_message("`rust-lld` not found, please install it!")),
+					Ok(ref err) => Err(format!(
+						"{}\n\n{}\n{}\n{}{}\n",
+						err_msg,
+						Color::Yellow.bold().paint("Further error information:"),
+						Color::Yellow.bold().paint("-".repeat(60)),
+						err,
+						Color::Yellow.bold().paint("-".repeat(60)),
+					)),
 					Err(_) => Err(err_msg),
 				}
 			}
-		)
+		})
 		.err()
 }

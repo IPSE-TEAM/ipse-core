@@ -18,11 +18,11 @@
 //! The main database trait, allowing Substrate to store data persistently.
 
 pub mod error;
-mod mem;
 mod kvdb;
+mod mem;
 
-pub use mem::MemDb;
 pub use crate::kvdb::as_database;
+pub use mem::MemDb;
 
 /// An identifier for a column.
 pub type ColumnId = u32;
@@ -98,7 +98,10 @@ pub trait Database<H: Clone>: Send + Sync {
 
 	/// Commit the `transaction` to the database atomically. Any further calls to `get` or `lookup`
 	/// will reflect the new state.
-	fn commit_ref<'a>(&self, transaction: &mut dyn Iterator<Item=ChangeRef<'a, H>>) -> error::Result<()> {
+	fn commit_ref<'a>(
+		&self,
+		transaction: &mut dyn Iterator<Item = ChangeRef<'a, H>>,
+	) -> error::Result<()> {
 		let mut tx = Transaction::new();
 		for change in transaction {
 			match change {
@@ -178,9 +181,16 @@ impl<H> std::fmt::Debug for dyn Database<H> {
 /// `key` is not currently in the database.
 ///
 /// This may be faster than `get` since it doesn't allocate.
-pub fn with_get<R, H: Clone>(db: &dyn Database<H>, col: ColumnId, key: &[u8], mut f: impl FnMut(&[u8]) -> R) -> Option<R> {
+pub fn with_get<R, H: Clone>(
+	db: &dyn Database<H>,
+	col: ColumnId,
+	key: &[u8],
+	mut f: impl FnMut(&[u8]) -> R,
+) -> Option<R> {
 	let mut result: Option<R> = None;
-	let mut adapter = |k: &_| { result = Some(f(k)); };
+	let mut adapter = |k: &_| {
+		result = Some(f(k));
+	};
 	db.with_get(col, key, &mut adapter);
 	result
 }
@@ -189,9 +199,15 @@ pub fn with_get<R, H: Clone>(db: &dyn Database<H>, col: ColumnId, key: &[u8], mu
 /// is currently stored.
 ///
 /// This may be faster than `lookup` since it doesn't allocate.
-pub fn with_lookup<R, H: Clone>(db: &dyn Database<H>, hash: &H, mut f: impl FnMut(&[u8]) -> R) -> Option<R> {
+pub fn with_lookup<R, H: Clone>(
+	db: &dyn Database<H>,
+	hash: &H,
+	mut f: impl FnMut(&[u8]) -> R,
+) -> Option<R> {
 	let mut result: Option<R> = None;
-	let mut adapter = |k: &_| { result = Some(f(k)); };
+	let mut adapter = |k: &_| {
+		result = Some(f(k));
+	};
 	db.with_lookup(hash, &mut adapter);
 	result
 }

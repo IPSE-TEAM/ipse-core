@@ -16,50 +16,56 @@
 
 //! # Contract Module
 //!
-//! The Contract module provides functionality for the runtime to deploy and execute WebAssembly smart-contracts.
+//! The Contract module provides functionality for the runtime to deploy and execute WebAssembly
+//! smart-contracts.
 //!
 //! - [`contract::Trait`](./trait.Trait.html)
 //! - [`Call`](./enum.Call.html)
 //!
 //! ## Overview
 //!
-//! This module extends accounts based on the `Currency` trait to have smart-contract functionality. It can
-//! be used with other modules that implement accounts based on `Currency`. These "smart-contract accounts"
-//! have the ability to instantiate smart-contracts and make calls to other contract and non-contract accounts.
+//! This module extends accounts based on the `Currency` trait to have smart-contract functionality.
+//! It can be used with other modules that implement accounts based on `Currency`. These
+//! "smart-contract accounts" have the ability to instantiate smart-contracts and make calls to
+//! other contract and non-contract accounts.
 //!
-//! The smart-contract code is stored once in a `code_cache`, and later retrievable via its `code_hash`.
-//! This means that multiple smart-contracts can be instantiated from the same `code_cache`, without replicating
-//! the code each time.
+//! The smart-contract code is stored once in a `code_cache`, and later retrievable via its
+//! `code_hash`. This means that multiple smart-contracts can be instantiated from the same
+//! `code_cache`, without replicating the code each time.
 //!
-//! When a smart-contract is called, its associated code is retrieved via the code hash and gets executed.
-//! This call can alter the storage entries of the smart-contract account, instantiate new smart-contracts,
-//! or call other smart-contracts.
+//! When a smart-contract is called, its associated code is retrieved via the code hash and gets
+//! executed. This call can alter the storage entries of the smart-contract account, instantiate new
+//! smart-contracts, or call other smart-contracts.
 //!
-//! Finally, when an account is reaped, its associated code and storage of the smart-contract account
-//! will also be deleted.
+//! Finally, when an account is reaped, its associated code and storage of the smart-contract
+//! account will also be deleted.
 //!
 //! ### Gas
 //!
-//! Senders must specify a gas limit with every call, as all instructions invoked by the smart-contract require gas.
-//! Unused gas is refunded after the call, regardless of the execution outcome.
+//! Senders must specify a gas limit with every call, as all instructions invoked by the
+//! smart-contract require gas. Unused gas is refunded after the call, regardless of the execution
+//! outcome.
 //!
-//! If the gas limit is reached, then all calls and state changes (including balance transfers) are only
-//! reverted at the current call's contract level. For example, if contract A calls B and B runs out of gas mid-call,
-//! then all of B's calls are reverted. Assuming correct error handling by contract A, A's other calls and state
-//! changes still persist.
+//! If the gas limit is reached, then all calls and state changes (including balance transfers) are
+//! only reverted at the current call's contract level. For example, if contract A calls B and B
+//! runs out of gas mid-call, then all of B's calls are reverted. Assuming correct error handling by
+//! contract A, A's other calls and state changes still persist.
 //!
 //! ### Notable Scenarios
 //!
-//! Contract call failures are not always cascading. When failures occur in a sub-call, they do not "bubble up",
-//! and the call will only revert at the specific contract level. For example, if contract A calls contract B, and B
-//! fails, A can decide how to handle that failure, either proceeding or reverting A's changes.
+//! Contract call failures are not always cascading. When failures occur in a sub-call, they do not
+//! "bubble up", and the call will only revert at the specific contract level. For example, if
+//! contract A calls contract B, and B fails, A can decide how to handle that failure, either
+//! proceeding or reverting A's changes.
 //!
 //! ## Interface
 //!
 //! ### Dispatchable functions
 //!
-//! * `put_code` - Stores the given binary Wasm code into the chain's storage and returns its `code_hash`.
-//! * `instantiate` - Deploys a new contract from the given `code_hash`, optionally transferring some balance.
+//! * `put_code` - Stores the given binary Wasm code into the chain's storage and returns its
+//!   `code_hash`.
+//! * `instantiate` - Deploys a new contract from the given `code_hash`, optionally transferring
+//!   some balance.
 //! This instantiates a new smart contract account and calls its contract deploy handler to
 //! initialize the contract.
 //! * `call` - Makes a call to an account, optionally transferring some balance.
@@ -81,11 +87,11 @@
 
 #[macro_use]
 mod gas;
-mod storage;
-mod exec;
-mod wasm;
-mod rent;
 mod benchmarking;
+mod exec;
+mod rent;
+mod storage;
+mod wasm;
 
 #[cfg(test)]
 mod tests;
@@ -93,30 +99,29 @@ mod tests;
 use crate::exec::ExecutionContext;
 use crate::wasm::{WasmLoader, WasmVm};
 
-pub use crate::gas::{Gas, GasMeter};
 pub use crate::exec::{ExecResult, ExecReturnValue};
+pub use crate::gas::{Gas, GasMeter};
 pub use crate::wasm::ReturnCode as RuntimeReturnCode;
 
+use codec::{Codec, Decode, Encode};
+use frame_support::weights::Weight;
+use frame_support::{
+	decl_error, decl_event, decl_module, decl_storage,
+	dispatch::{DispatchResult, DispatchResultWithPostInfo},
+	ensure, parameter_types,
+	storage::child::ChildInfo,
+	traits::{Currency, Get, OnUnbalanced, Randomness, Time},
+};
+use frame_system::{ensure_root, ensure_signed};
+use pallet_contracts_primitives::{ContractAccessError, RentProjection};
 #[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sp_core::crypto::UncheckedFrom;
-use sp_std::{prelude::*, marker::PhantomData, fmt::Debug};
-use codec::{Codec, Encode, Decode};
 use sp_runtime::{
-	traits::{
-		Hash, StaticLookup, Zero, MaybeSerializeDeserialize, Member, Convert, Saturating,
-	},
+	traits::{Convert, Hash, MaybeSerializeDeserialize, Member, Saturating, StaticLookup, Zero},
 	RuntimeDebug,
 };
-use frame_support::{
-	decl_module, decl_event, decl_storage, decl_error, ensure,
-	parameter_types, storage::child::ChildInfo,
-	dispatch::{DispatchResult, DispatchResultWithPostInfo},
-	traits::{OnUnbalanced, Currency, Get, Time, Randomness},
-};
-use frame_system::{ensure_signed, ensure_root};
-use pallet_contracts_primitives::{RentProjection, ContractAccessError};
-use frame_support::weights::Weight;
+use sp_std::{fmt::Debug, marker::PhantomData, prelude::*};
 
 pub type CodeHash<T> = <T as frame_system::Trait>::Hash;
 pub type TrieId = Vec<u8>;
@@ -234,10 +239,16 @@ pub struct RawTombstoneContractInfo<H, Hasher>(H, PhantomData<Hasher>);
 
 impl<H, Hasher> RawTombstoneContractInfo<H, Hasher>
 where
-	H: Member + MaybeSerializeDeserialize+ Debug
-		+ AsRef<[u8]> + AsMut<[u8]> + Copy + Default
-		+ sp_std::hash::Hash + Codec,
-	Hasher: Hash<Output=H>,
+	H: Member
+		+ MaybeSerializeDeserialize
+		+ Debug
+		+ AsRef<[u8]>
+		+ AsMut<[u8]>
+		+ Copy
+		+ Default
+		+ sp_std::hash::Hash
+		+ Codec,
+	Hasher: Hash<Output = H>,
 {
 	fn new(storage_root: &[u8], code_hash: H) -> Self {
 		let mut buf = Vec::new();
@@ -272,7 +283,7 @@ pub struct TrieIdFromParentCounter<T: Trait>(PhantomData<T>);
 /// accountid_counter`.
 impl<T: Trait> TrieIdGenerator<T::AccountId> for TrieIdFromParentCounter<T>
 where
-	T::AccountId: AsRef<[u8]>
+	T::AccountId: AsRef<[u8]>,
 {
 	fn trie_id(account_id: &T::AccountId) -> TrieId {
 		// Note that skipping a value due to error is not an issue here.
@@ -384,9 +395,13 @@ pub trait Trait: frame_system::Trait {
 pub struct SimpleAddressDeterminer<T: Trait>(PhantomData<T>);
 impl<T: Trait> ContractAddressFor<CodeHash<T>, T::AccountId> for SimpleAddressDeterminer<T>
 where
-	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>
+	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
 {
-	fn contract_address_for(code_hash: &CodeHash<T>, data: &[u8], origin: &T::AccountId) -> T::AccountId {
+	fn contract_address_for(
+		code_hash: &CodeHash<T>,
+		data: &[u8],
+		origin: &T::AccountId,
+	) -> T::AccountId {
 		let data_hash = T::Hashing::hash(data);
 
 		let mut buf = Vec::new();
@@ -691,7 +706,7 @@ decl_event! {
 
 		/// Contract has been evicted and is now in tombstone state.
 		/// \[contract, tombstone\]
-		/// 
+		///
 		/// # Params
 		///
 		/// - `contract`: `AccountId`: The account ID of the evicted contract.
@@ -700,7 +715,7 @@ decl_event! {
 
 		/// Restoration for a contract has been successful.
 		/// \[donor, dest, code_hash, rent_allowance\]
-		/// 
+		///
 		/// # Params
 		///
 		/// - `donor`: `AccountId`: Account ID of the restoring contract
@@ -762,8 +777,8 @@ impl<T: Trait> Config<T> {
 		}
 	}
 
-	/// Subsistence threshold is the extension of the minimum balance (aka existential deposit) by the
-	/// tombstone deposit, required for leaving a tombstone.
+	/// Subsistence threshold is the extension of the minimum balance (aka existential deposit) by
+	/// the tombstone deposit, required for leaving a tombstone.
 	///
 	/// Rent or any contract initiated balance transfer mechanism cannot make the balance lower
 	/// than the subsistence threshold in order to guarantee that a tombstone is created.

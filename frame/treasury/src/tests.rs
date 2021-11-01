@@ -20,22 +20,22 @@
 #![cfg(test)]
 
 use super::*;
-use std::cell::RefCell;
 use frame_support::{
-	assert_noop, assert_ok, impl_outer_origin, impl_outer_event, parameter_types, weights::Weight,
-	traits::{Contains, OnInitialize}
+	assert_noop, assert_ok, impl_outer_event, impl_outer_origin, parameter_types,
+	traits::{Contains, OnInitialize},
+	weights::Weight,
 };
 use sp_core::H256;
 use sp_runtime::{
-	Perbill, ModuleId,
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup, BadOrigin},
+	traits::{BadOrigin, BlakeTwo256, IdentityLookup},
+	ModuleId, Perbill,
 };
+use std::cell::RefCell;
 
 impl_outer_origin! {
 	pub enum Origin for Test where system = frame_system {}
 }
-
 
 mod treasury {
 	// Re-export needed for `impl_outer_event!`.
@@ -49,7 +49,6 @@ impl_outer_event! {
 		treasury<T>,
 	}
 }
-
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Test;
@@ -104,9 +103,7 @@ thread_local! {
 pub struct TenToFourteen;
 impl Contains<u128> for TenToFourteen {
 	fn sorted_members() -> Vec<u128> {
-		TEN_TO_FOURTEEN.with(|v| {
-			v.borrow().clone()
-		})
+		TEN_TO_FOURTEEN.with(|v| v.borrow().clone())
 	}
 	#[cfg(feature = "runtime-benchmarks")]
 	fn add(new: &u128) {
@@ -121,7 +118,9 @@ impl ContainsLengthBound for TenToFourteen {
 	fn max_len() -> usize {
 		TEN_TO_FOURTEEN.with(|v| v.borrow().len())
 	}
-	fn min_len() -> usize { 0 }
+	fn min_len() -> usize {
+		0
+	}
 }
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
@@ -162,7 +161,7 @@ impl Trait for Test {
 	type BountyCuratorDeposit = BountyCuratorDeposit;
 	type BountyValueMinimum = BountyValueMinimum;
 	type MaximumReasonLength = MaximumReasonLength;
-	type BurnDestination = ();  // Just gets burned.
+	type BurnDestination = (); // Just gets burned.
 	type WeightInfo = ();
 }
 type System = frame_system::Module<Test>;
@@ -171,19 +170,21 @@ type Treasury = Module<Test>;
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	pallet_balances::GenesisConfig::<Test>{
+	pallet_balances::GenesisConfig::<Test> {
 		// Total issuance will be 200 with treasury account initialized at ED.
 		balances: vec![(0, 100), (1, 98), (2, 1)],
-	}.assimilate_storage(&mut t).unwrap();
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	GenesisConfig::default().assimilate_storage::<Test, _>(&mut t).unwrap();
 	t.into()
 }
 
 fn last_event() -> RawEvent<u64, u128, H256, DefaultInstance> {
-	System::events().into_iter().map(|r| r.event)
-		.filter_map(|e| {
-			if let Event::treasury(inner) = e { Some(inner) } else { None }
-		})
+	System::events()
+		.into_iter()
+		.map(|r| r.event)
+		.filter_map(|e| if let Event::treasury(inner) = e { Some(inner) } else { None })
 		.last()
 		.unwrap()
 }
@@ -288,7 +289,10 @@ fn close_tip_works() {
 
 		assert_eq!(last_event(), RawEvent::TipClosed(h, 3, 10));
 
-		assert_noop!(Treasury::close_tip(Origin::signed(100), h.into()), Error::<Test, _>::UnknownTip);
+		assert_noop!(
+			Treasury::close_tip(Origin::signed(100), h.into()),
+			Error::<Test, _>::UnknownTip
+		);
 	});
 }
 
@@ -302,10 +306,16 @@ fn retract_tip_works() {
 		assert_ok!(Treasury::tip(Origin::signed(10), h.clone(), 10));
 		assert_ok!(Treasury::tip(Origin::signed(11), h.clone(), 10));
 		assert_ok!(Treasury::tip(Origin::signed(12), h.clone(), 10));
-		assert_noop!(Treasury::retract_tip(Origin::signed(10), h.clone()), Error::<Test, _>::NotFinder);
+		assert_noop!(
+			Treasury::retract_tip(Origin::signed(10), h.clone()),
+			Error::<Test, _>::NotFinder
+		);
 		assert_ok!(Treasury::retract_tip(Origin::signed(0), h.clone()));
 		System::set_block_number(2);
-		assert_noop!(Treasury::close_tip(Origin::signed(0), h.into()), Error::<Test, _>::UnknownTip);
+		assert_noop!(
+			Treasury::close_tip(Origin::signed(0), h.into()),
+			Error::<Test, _>::UnknownTip
+		);
 
 		// with tip new
 		Balances::make_free_balance_be(&Treasury::account_id(), 101);
@@ -313,10 +323,16 @@ fn retract_tip_works() {
 		let h = tip_hash();
 		assert_ok!(Treasury::tip(Origin::signed(11), h.clone(), 10));
 		assert_ok!(Treasury::tip(Origin::signed(12), h.clone(), 10));
-		assert_noop!(Treasury::retract_tip(Origin::signed(0), h.clone()), Error::<Test, _>::NotFinder);
+		assert_noop!(
+			Treasury::retract_tip(Origin::signed(0), h.clone()),
+			Error::<Test, _>::NotFinder
+		);
 		assert_ok!(Treasury::retract_tip(Origin::signed(10), h.clone()));
 		System::set_block_number(2);
-		assert_noop!(Treasury::close_tip(Origin::signed(10), h.into()), Error::<Test, _>::UnknownTip);
+		assert_noop!(
+			Treasury::close_tip(Origin::signed(10), h.into()),
+			Error::<Test, _>::UnknownTip
+		);
 	});
 }
 
@@ -530,9 +546,9 @@ fn treasury_account_doesnt_get_deleted() {
 #[test]
 fn inexistent_account_works() {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	pallet_balances::GenesisConfig::<Test>{
-		balances: vec![(0, 100), (1, 99), (2, 1)],
-	}.assimilate_storage(&mut t).unwrap();
+	pallet_balances::GenesisConfig::<Test> { balances: vec![(0, 100), (1, 99), (2, 1)] }
+		.assimilate_storage(&mut t)
+		.unwrap();
 	// Treasury genesis config is not build thus treasury account does not exist
 	let mut t: sp_io::TestExternalities = t.into();
 
@@ -575,14 +591,17 @@ fn propose_bounty_works() {
 		assert_eq!(Balances::reserved_balance(0), deposit);
 		assert_eq!(Balances::free_balance(0), 100 - deposit);
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 0,
-			curator_deposit: 0,
-			value: 10,
-			bond: deposit,
-			status: BountyStatus::Proposed,
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 0,
+				curator_deposit: 0,
+				value: 10,
+				bond: deposit,
+				status: BountyStatus::Proposed,
+			}
+		);
 
 		assert_eq!(Treasury::bounty_descriptions(0).unwrap(), b"1234567890".to_vec());
 
@@ -652,14 +671,17 @@ fn approve_bounty_works() {
 
 		let deposit: u64 = 80 + 5;
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 0,
-			value: 50,
-			curator_deposit: 0,
-			bond: deposit,
-			status: BountyStatus::Approved,
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 0,
+				value: 50,
+				curator_deposit: 0,
+				bond: deposit,
+				status: BountyStatus::Approved,
+			}
+		);
 		assert_eq!(Treasury::bounty_approvals(), vec![0]);
 
 		assert_noop!(Treasury::close_bounty(Origin::root(), 0), Error::<Test, _>::UnexpectedStatus);
@@ -674,14 +696,17 @@ fn approve_bounty_works() {
 		assert_eq!(Balances::reserved_balance(0), 0);
 		assert_eq!(Balances::free_balance(0), 100);
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 0,
-			curator_deposit: 0,
-			value: 50,
-			bond: deposit,
-			status: BountyStatus::Funded,
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 0,
+				curator_deposit: 0,
+				value: 50,
+				bond: deposit,
+				status: BountyStatus::Funded,
+			}
+		);
 		assert_eq!(Treasury::pot(), 100 - 50 - 25); // burn 25
 		assert_eq!(Balances::free_balance(Treasury::bounty_account_id(0)), 50);
 	});
@@ -693,7 +718,10 @@ fn assign_curator_works() {
 		System::set_block_number(1);
 		Balances::make_free_balance_be(&Treasury::account_id(), 101);
 
-		assert_noop!(Treasury::propose_curator(Origin::root(), 0, 4, 4), Error::<Test, _>::InvalidIndex);
+		assert_noop!(
+			Treasury::propose_curator(Origin::root(), 0, 4, 4),
+			Error::<Test, _>::InvalidIndex
+		);
 
 		assert_ok!(Treasury::propose_bounty(Origin::signed(0), 50, b"12345".to_vec()));
 
@@ -702,39 +730,49 @@ fn assign_curator_works() {
 		System::set_block_number(2);
 		<Treasury as OnInitialize<u64>>::on_initialize(2);
 
-		assert_noop!(Treasury::propose_curator(Origin::root(), 0, 4, 50), Error::<Test, _>::InvalidFee);
+		assert_noop!(
+			Treasury::propose_curator(Origin::root(), 0, 4, 50),
+			Error::<Test, _>::InvalidFee
+		);
 
 		assert_ok!(Treasury::propose_curator(Origin::root(), 0, 4, 4));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 4,
-			curator_deposit: 0,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::CuratorProposed {
-				curator: 4,
-			},
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 4,
+				curator_deposit: 0,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::CuratorProposed { curator: 4 },
+			}
+		);
 
-		assert_noop!(Treasury::accept_curator(Origin::signed(1), 0), Error::<Test, _>::RequireCurator);
-		assert_noop!(Treasury::accept_curator(Origin::signed(4), 0), pallet_balances::Error::<Test, _>::InsufficientBalance);
+		assert_noop!(
+			Treasury::accept_curator(Origin::signed(1), 0),
+			Error::<Test, _>::RequireCurator
+		);
+		assert_noop!(
+			Treasury::accept_curator(Origin::signed(4), 0),
+			pallet_balances::Error::<Test, _>::InsufficientBalance
+		);
 
 		Balances::make_free_balance_be(&4, 10);
 
 		assert_ok!(Treasury::accept_curator(Origin::signed(4), 0));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 4,
-			curator_deposit: 2,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::Active {
-				curator: 4,
-				update_due: 22,
-			},
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 4,
+				curator_deposit: 2,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::Active { curator: 4, update_due: 22 },
+			}
+		);
 
 		assert_eq!(Balances::free_balance(&4), 8);
 		assert_eq!(Balances::reserved_balance(&4), 2);
@@ -759,14 +797,17 @@ fn unassign_curator_works() {
 
 		assert_ok!(Treasury::unassign_curator(Origin::signed(4), 0));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 4,
-			curator_deposit: 0,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::Funded,
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 4,
+				curator_deposit: 0,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::Funded,
+			}
+		);
 
 		assert_ok!(Treasury::propose_curator(Origin::root(), 0, 4, 4));
 
@@ -776,14 +817,17 @@ fn unassign_curator_works() {
 
 		assert_ok!(Treasury::unassign_curator(Origin::root(), 0));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 4,
-			curator_deposit: 0,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::Funded,
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 4,
+				curator_deposit: 0,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::Funded,
+			}
+		);
 
 		assert_eq!(Balances::free_balance(&4), 8);
 		assert_eq!(Balances::reserved_balance(&4), 0); // slashed 2
@@ -808,22 +852,24 @@ fn award_and_claim_bounty_works() {
 
 		assert_eq!(Balances::free_balance(4), 8); // inital 10 - 2 deposit
 
-		assert_noop!(Treasury::award_bounty(Origin::signed(1), 0, 3), Error::<Test, _>::RequireCurator);
+		assert_noop!(
+			Treasury::award_bounty(Origin::signed(1), 0, 3),
+			Error::<Test, _>::RequireCurator
+		);
 
 		assert_ok!(Treasury::award_bounty(Origin::signed(4), 0, 3));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 4,
-			curator_deposit: 2,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::PendingPayout {
-				curator: 4,
-				beneficiary: 3,
-				unlock_at: 5
-			},
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 4,
+				curator_deposit: 2,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::PendingPayout { curator: 4, beneficiary: 3, unlock_at: 5 },
+			}
+		);
 
 		assert_noop!(Treasury::claim_bounty(Origin::signed(1), 0), Error::<Test, _>::Premature);
 
@@ -896,14 +942,17 @@ fn cancel_and_refund() {
 
 		assert_ok!(Balances::transfer(Origin::signed(0), Treasury::bounty_account_id(0), 10));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 0,
-			curator_deposit: 0,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::Funded,
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 0,
+				curator_deposit: 0,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::Funded,
+			}
+		);
 
 		assert_eq!(Balances::free_balance(Treasury::bounty_account_id(0)), 60);
 
@@ -911,7 +960,8 @@ fn cancel_and_refund() {
 
 		assert_ok!(Treasury::close_bounty(Origin::root(), 0));
 
-		assert_eq!(Treasury::pot(), 85); // - 25 + 10
+		assert_eq!(Treasury::pot(), 85); // 
+		                         // - 25 + 10
 	});
 }
 
@@ -982,18 +1032,20 @@ fn expire_and_unassign() {
 
 		assert_ok!(Treasury::unassign_curator(Origin::signed(0), 0));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 10,
-			curator_deposit: 0,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::Funded,
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 10,
+				curator_deposit: 0,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::Funded,
+			}
+		);
 
 		assert_eq!(Balances::free_balance(1), 93);
 		assert_eq!(Balances::reserved_balance(1), 0); // slashed
-
 	});
 }
 
@@ -1007,7 +1059,10 @@ fn extend_expiry() {
 
 		assert_ok!(Treasury::approve_bounty(Origin::root(), 0));
 
-		assert_noop!(Treasury::extend_bounty_expiry(Origin::signed(1), 0, Vec::new()), Error::<Test, _>::UnexpectedStatus);
+		assert_noop!(
+			Treasury::extend_bounty_expiry(Origin::signed(1), 0, Vec::new()),
+			Error::<Test, _>::UnexpectedStatus
+		);
 
 		System::set_block_number(2);
 		<Treasury as OnInitialize<u64>>::on_initialize(2);
@@ -1021,28 +1076,37 @@ fn extend_expiry() {
 		System::set_block_number(10);
 		<Treasury as OnInitialize<u64>>::on_initialize(10);
 
-		assert_noop!(Treasury::extend_bounty_expiry(Origin::signed(0), 0, Vec::new()), Error::<Test, _>::RequireCurator);
+		assert_noop!(
+			Treasury::extend_bounty_expiry(Origin::signed(0), 0, Vec::new()),
+			Error::<Test, _>::RequireCurator
+		);
 		assert_ok!(Treasury::extend_bounty_expiry(Origin::signed(4), 0, Vec::new()));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 10,
-			curator_deposit: 5,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::Active { curator: 4, update_due: 30 },
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 10,
+				curator_deposit: 5,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::Active { curator: 4, update_due: 30 },
+			}
+		);
 
 		assert_ok!(Treasury::extend_bounty_expiry(Origin::signed(4), 0, Vec::new()));
 
-		assert_eq!(Treasury::bounties(0).unwrap(), Bounty {
-			proposer: 0,
-			fee: 10,
-			curator_deposit: 5,
-			value: 50,
-			bond: 85,
-			status: BountyStatus::Active { curator: 4, update_due: 30 }, // still the same
-		});
+		assert_eq!(
+			Treasury::bounties(0).unwrap(),
+			Bounty {
+				proposer: 0,
+				fee: 10,
+				curator_deposit: 5,
+				value: 50,
+				bond: 85,
+				status: BountyStatus::Active { curator: 4, update_due: 30 }, // still the same
+			}
+		);
 
 		System::set_block_number(25);
 		<Treasury as OnInitialize<u64>>::on_initialize(25);
@@ -1068,8 +1132,8 @@ fn test_last_reward_migration() {
 		BlockNumber: Parameter,
 		Hash: Parameter,
 	> {
-		/// The hash of the reason for the tip. The reason should be a human-readable UTF-8 encoded string. A URL would be
-		/// sensible.
+		/// The hash of the reason for the tip. The reason should be a human-readable UTF-8 encoded
+		/// string. A URL would be sensible.
 		reason: Hash,
 		/// The account to be tipped.
 		who: AccountId,
@@ -1090,7 +1154,7 @@ fn test_last_reward_migration() {
 		who: 10,
 		finder: Some((20, 30)),
 		closes: Some(13),
-		tips: vec![(40, 50), (60, 70)]
+		tips: vec![(40, 50), (60, 70)],
 	};
 
 	let reason2 = BlakeTwo256::hash(b"reason2");
@@ -1101,18 +1165,12 @@ fn test_last_reward_migration() {
 		who: 20,
 		finder: None,
 		closes: Some(13),
-		tips: vec![(40, 50), (60, 70)]
+		tips: vec![(40, 50), (60, 70)],
 	};
 
 	let data = vec![
-		(
-			Tips::<Test>::hashed_key_for(hash1),
-			old_tip_finder.encode().to_vec()
-		),
-		(
-			Tips::<Test>::hashed_key_for(hash2),
-			old_tip_no_finder.encode().to_vec()
-		),
+		(Tips::<Test>::hashed_key_for(hash1), old_tip_finder.encode().to_vec()),
+		(Tips::<Test>::hashed_key_for(hash2), old_tip_no_finder.encode().to_vec()),
 	];
 
 	s.top = data.into_iter().collect();
@@ -1153,10 +1211,12 @@ fn test_last_reward_migration() {
 fn genesis_funding_works() {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let initial_funding = 100;
-	pallet_balances::GenesisConfig::<Test>{
+	pallet_balances::GenesisConfig::<Test> {
 		// Total issuance will be 200 with treasury account initialized with 100.
 		balances: vec![(0, 100), (Treasury::account_id(), initial_funding)],
-	}.assimilate_storage(&mut t).unwrap();
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	GenesisConfig::default().assimilate_storage::<Test, _>(&mut t).unwrap();
 	let mut t: sp_io::TestExternalities = t.into();
 

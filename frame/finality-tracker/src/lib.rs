@@ -19,14 +19,14 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_inherents::{InherentIdentifier, ProvideInherent, InherentData, MakeFatalError};
-use sp_runtime::traits::{One, Zero, SaturatedConversion};
-use sp_std::{prelude::*, result, cmp, vec};
-use frame_support::{decl_module, decl_storage, decl_error, ensure};
 use frame_support::traits::Get;
-use frame_support::weights::{DispatchClass};
+use frame_support::weights::DispatchClass;
+use frame_support::{decl_error, decl_module, decl_storage, ensure};
 use frame_system::{ensure_none, Trait as SystemTrait};
-use sp_finality_tracker::{INHERENT_IDENTIFIER, FinalizedInherentData};
+use sp_finality_tracker::{FinalizedInherentData, INHERENT_IDENTIFIER};
+use sp_inherents::{InherentData, InherentIdentifier, MakeFatalError, ProvideInherent};
+use sp_runtime::traits::{One, SaturatedConversion, Zero};
+use sp_std::{cmp, prelude::*, result, vec};
 
 pub const DEFAULT_WINDOW_SIZE: u32 = 101;
 pub const DEFAULT_REPORT_LATENCY: u32 = 1000;
@@ -109,9 +109,9 @@ impl<T: Trait> Module<T> {
 		let mut ordered = Self::ordered_hints();
 		let window_size = cmp::max(T::BlockNumber::one(), T::WindowSize::get());
 
-		let hint = hint.unwrap_or_else(|| recent.last()
-			.expect("always at least one recent sample; qed").clone()
-		);
+		let hint = hint.unwrap_or_else(|| {
+			recent.last().expect("always at least one recent sample; qed").clone()
+		});
 
 		// prune off the front of the list -- typically 1 except for when
 		// the sample size has just been shrunk.
@@ -120,7 +120,8 @@ impl<T: Trait> Module<T> {
 			let to_prune = (recent.len() + 1).saturating_sub(window_size.saturated_into::<usize>());
 
 			for drained in recent.drain(..to_prune) {
-				let idx = ordered.binary_search(&drained)
+				let idx = ordered
+					.binary_search(&drained)
 					.expect("recent and ordered contain the same items; qed");
 
 				ordered.remove(idx);
@@ -128,8 +129,7 @@ impl<T: Trait> Module<T> {
 		}
 
 		// find the position in the ordered list where the new item goes.
-		let ordered_idx = ordered.binary_search(&hint)
-			.unwrap_or_else(|idx| idx);
+		let ordered_idx = ordered.binary_search(&hint).unwrap_or_else(|idx| idx);
 
 		ordered.insert(ordered_idx, hint);
 		recent.push(hint);
@@ -187,10 +187,12 @@ impl<T: Trait> ProvideInherent for Module<T> {
 	fn create_inherent(data: &InherentData) -> Option<Self::Call> {
 		if let Ok(final_num) = data.finalized_number() {
 			// make hint only when not same as last to avoid bloat.
-			Self::recent_hints().last().and_then(|last| if last == &final_num {
-				None
-			} else {
-				Some(Call::final_hint(final_num))
+			Self::recent_hints().last().and_then(|last| {
+				if last == &final_num {
+					None
+				} else {
+					Some(Call::final_hint(final_num))
+				}
 			})
 		} else {
 			None
@@ -206,19 +208,17 @@ impl<T: Trait> ProvideInherent for Module<T> {
 mod tests {
 	use super::*;
 
-	use sp_io::TestExternalities;
+	use frame_support::{
+		assert_ok, impl_outer_origin, parameter_types, traits::OnFinalize, weights::Weight,
+	};
+	use frame_system as system;
 	use sp_core::H256;
+	use sp_io::TestExternalities;
 	use sp_runtime::{
 		testing::Header,
 		traits::{BlakeTwo256, IdentityLookup},
 		Perbill,
 	};
-	use frame_support::{
-		assert_ok, impl_outer_origin, parameter_types,
-		weights::Weight,
-		traits::OnFinalize,
-	};
-	use frame_system as system;
 	use std::cell::RefCell;
 
 	#[derive(Clone, PartialEq, Debug)]
@@ -313,7 +313,7 @@ mod tests {
 					&parent_hash,
 					&Default::default(),
 					&Default::default(),
-					Default::default()
+					Default::default(),
 				);
 				FinalityTracker::on_finalize(i);
 				let hdr = System::finalize();

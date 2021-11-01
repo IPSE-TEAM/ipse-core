@@ -20,10 +20,10 @@
 // Each function will be used based on which fuzzer binary is being used.
 #![allow(dead_code)]
 
-use sp_npos_elections::{ElectionResult, VoteWeight, phragmms, seq_phragmen};
-use sp_std::collections::btree_map::BTreeMap;
-use sp_runtime::Perbill;
 use rand::{self, Rng, RngCore};
+use sp_npos_elections::{phragmms, seq_phragmen, ElectionResult, VoteWeight};
+use sp_runtime::Perbill;
+use sp_std::collections::btree_map::BTreeMap;
 
 /// converts x into the range [a, b] in a pseudo-fair way.
 pub fn to_range(x: usize, a: usize, b: usize) -> usize {
@@ -39,7 +39,7 @@ pub fn to_range(x: usize, a: usize, b: usize) -> usize {
 
 pub enum ElectionType {
 	Phragmen(Option<(usize, u128)>),
-	Phragmms(Option<(usize, u128)>)
+	Phragmms(Option<(usize, u128)>),
 }
 
 pub type AccountId = u64;
@@ -71,19 +71,20 @@ pub fn generate_random_npos_result(
 	});
 
 	let mut voters = Vec::with_capacity(voter_count as usize);
-	(prefix ..= (prefix + voter_count)).for_each(|acc| {
+	(prefix..=(prefix + voter_count)).for_each(|acc| {
 		let edge_per_this_voter = rng.gen_range(1, candidates.len());
 		// all possible targets
 		let mut all_targets = candidates.clone();
 		// we remove and pop into `targets` `edge_per_this_voter` times.
-		let targets = (0..edge_per_this_voter).map(|_| {
-			let upper = all_targets.len() - 1;
-			let idx = rng.gen_range(0, upper);
-			all_targets.remove(idx)
-		})
-		.collect::<Vec<AccountId>>();
+		let targets = (0..edge_per_this_voter)
+			.map(|_| {
+				let upper = all_targets.len() - 1;
+				let idx = rng.gen_range(0, upper);
+				all_targets.remove(idx)
+			})
+			.collect::<Vec<AccountId>>();
 
-		let stake_var = rng.gen_range(ed, 100 * ed) ;
+		let stake_var = rng.gen_range(ed, 100 * ed);
 		let stake = base_stake + stake_var;
 		stake_of.insert(acc, stake);
 		voters.push((acc, stake, targets));
@@ -91,20 +92,20 @@ pub fn generate_random_npos_result(
 
 	(
 		match election_type {
-			ElectionType::Phragmen(conf) =>
-				seq_phragmen::<AccountId, sp_runtime::Perbill>(
-					to_elect,
-					candidates.clone(),
-					voters.clone(),
-					conf,
-				).unwrap(),
-			ElectionType::Phragmms(conf) =>
-				phragmms::<AccountId, sp_runtime::Perbill>(
-					to_elect,
-					candidates.clone(),
-					voters.clone(),
-					conf,
-				).unwrap(),
+			ElectionType::Phragmen(conf) => seq_phragmen::<AccountId, sp_runtime::Perbill>(
+				to_elect,
+				candidates.clone(),
+				voters.clone(),
+				conf,
+			)
+			.unwrap(),
+			ElectionType::Phragmms(conf) => phragmms::<AccountId, sp_runtime::Perbill>(
+				to_elect,
+				candidates.clone(),
+				voters.clone(),
+				conf,
+			)
+			.unwrap(),
 		},
 		candidates,
 		voters,

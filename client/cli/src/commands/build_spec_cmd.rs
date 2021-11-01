@@ -22,9 +22,12 @@ use crate::params::SharedParams;
 use crate::CliConfiguration;
 use log::info;
 use sc_network::config::build_multiaddr;
-use sc_service::{config::{MultiaddrWithPeerId, NetworkConfiguration}, ChainSpec};
-use structopt::StructOpt;
+use sc_service::{
+	config::{MultiaddrWithPeerId, NetworkConfiguration},
+	ChainSpec,
+};
 use std::io::Write;
+use structopt::StructOpt;
 
 /// The `build-spec` command used to build a specification.
 #[derive(Debug, StructOpt)]

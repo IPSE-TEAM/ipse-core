@@ -24,7 +24,7 @@ use futures::pin_mut;
 use futures::select;
 use futures::{future, future::FutureExt, Future};
 use log::info;
-use sc_service::{Configuration, TaskType, TaskManager};
+use sc_service::{Configuration, TaskManager, TaskType};
 use sp_utils::metrics::{TOKIO_THREADS_ALIVE, TOKIO_THREADS_TOTAL};
 use std::marker::PhantomData;
 
@@ -121,13 +121,10 @@ impl<C: SubstrateCli> Runner<C> {
 		let tokio_runtime = build_runtime()?;
 		let runtime_handle = tokio_runtime.handle().clone();
 
-		let task_executor = move |fut, task_type| {
-			match task_type {
-				TaskType::Async => runtime_handle.spawn(fut).map(drop),
-				TaskType::Blocking =>
-					runtime_handle.spawn_blocking(move || futures::executor::block_on(fut))
-						.map(drop),
-			}
+		let task_executor = move |fut, task_type| match task_type {
+			TaskType::Async => runtime_handle.spawn(fut).map(drop),
+			TaskType::Blocking =>
+				runtime_handle.spawn_blocking(move || futures::executor::block_on(fut)).map(drop),
 		};
 
 		Ok(Runner {
@@ -154,18 +151,17 @@ impl<C: SubstrateCli> Runner<C> {
 	fn print_node_infos(&self) {
 		info!("{}", C::impl_name());
 		info!("✌️  version {}", C::impl_version());
-		info!(
-			"❤️  by {}, {}-{}",
-			C::author(),
-			C::copyright_start_year(),
-			Local::today().year(),
-		);
+		info!("❤️  by {}, {}-{}", C::author(), C::copyright_start_year(), Local::today().year(),);
 		info!("📋 Chain specification: {}", self.config.chain_spec.name());
 		info!("🏷 Node name: {}", self.config.network.node_name);
 		info!("👤 Role: {}", self.config.display_role());
-		info!("💾 Database: {} at {}",
+		info!(
+			"💾 Database: {} at {}",
 			self.config.database,
-			self.config.database.path().map_or_else(|| "<unknown>".to_owned(), |p| p.display().to_string())
+			self.config
+				.database
+				.path()
+				.map_or_else(|| "<unknown>".to_owned(), |p| p.display().to_string())
 		);
 		info!("⛓  Native runtime: {}", C::native_runtime_version(&self.config.chain_spec));
 	}
@@ -191,7 +187,8 @@ impl<C: SubstrateCli> Runner<C> {
 	/// A helper function that runs a future with tokio and stops if the process receives
 	/// the signal SIGTERM or SIGINT
 	pub fn async_run<FUT>(
-		self, runner: impl FnOnce(Configuration) -> Result<(FUT, TaskManager)>,
+		self,
+		runner: impl FnOnce(Configuration) -> Result<(FUT, TaskManager)>,
 	) -> Result<()>
 	where
 		FUT: Future<Output = Result<()>>,

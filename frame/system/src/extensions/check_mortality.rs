@@ -15,14 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::{Encode, Decode};
-use crate::{Trait, Module, BlockHash};
+use crate::{BlockHash, Module, Trait};
+use codec::{Decode, Encode};
 use frame_support::StorageMap;
 use sp_runtime::{
 	generic::Era,
-	traits::{SignedExtension, DispatchInfoOf, SaturatedConversion},
+	traits::{DispatchInfoOf, SaturatedConversion, SignedExtension},
 	transaction_validity::{
-		ValidTransaction, TransactionValidityError, InvalidTransaction, TransactionValidity,
+		InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
 	},
 };
 
@@ -85,7 +85,7 @@ impl<T: Trait + Send + Sync> SignedExtension for CheckMortality<T> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::mock::{Test, new_test_ext, System, CALL};
+	use crate::mock::{new_test_ext, System, Test, CALL};
 	use frame_support::weights::{DispatchClass, DispatchInfo, Pays};
 	use sp_core::H256;
 
@@ -108,7 +108,8 @@ mod tests {
 	#[test]
 	fn signed_ext_check_era_should_change_longevity() {
 		new_test_ext().execute_with(|| {
-			let normal = DispatchInfo { weight: 100, class: DispatchClass::Normal, pays_fee: Pays::Yes };
+			let normal =
+				DispatchInfo { weight: 100, class: DispatchClass::Normal, pays_fee: Pays::Yes };
 			let len = 0_usize;
 			let ext = (
 				crate::CheckWeight::<Test>::default(),

@@ -19,8 +19,8 @@
 
 #![cfg(test)]
 
-use sp_runtime::traits::{Convert, SaturatedConversion, IdentityLookup};
-use frame_support::{impl_outer_origin, impl_outer_dispatch, parameter_types};
+use frame_support::{impl_outer_dispatch, impl_outer_origin, parameter_types};
+use sp_runtime::traits::{Convert, IdentityLookup, SaturatedConversion};
 
 type AccountId = u64;
 type AccountIndex = u32;
@@ -127,7 +127,8 @@ impl pallet_session::SessionHandler<AccountId> for TestSessionHandler {
 		_: bool,
 		_: &[(AccountId, Ks)],
 		_: &[(AccountId, Ks)],
-	) {}
+	) {
+	}
 
 	fn on_disabled(_: usize) {}
 }
@@ -162,7 +163,8 @@ parameter_types! {
 
 pub type Extrinsic = sp_runtime::testing::TestXt<Call, ()>;
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Test where
+impl<C> frame_system::offchain::SendTransactionTypes<C> for Test
+where
 	Call: From<C>,
 {
 	type OverarchingCall = Call;

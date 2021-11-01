@@ -15,18 +15,16 @@
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::error::Error;
-use log::info;
-use futures::{future, prelude::*};
-use sp_runtime::traits::{
-	Block as BlockT, NumberFor, One, Zero, SaturatedConversion
-};
-use sp_runtime::generic::BlockId;
 use codec::Encode;
+use futures::{future, prelude::*};
+use log::info;
+use sp_runtime::generic::BlockId;
+use sp_runtime::traits::{Block as BlockT, NumberFor, One, SaturatedConversion, Zero};
 
-use std::{io::Write, pin::Pin};
 use sc_client_api::{BlockBackend, UsageProvider};
 use std::sync::Arc;
 use std::task::Poll;
+use std::{io::Write, pin::Pin};
 
 /// Performs the blocks export.
 pub fn export_blocks<B, C>(
@@ -34,7 +32,7 @@ pub fn export_blocks<B, C>(
 	mut output: impl Write + 'static,
 	from: NumberFor<B>,
 	to: Option<NumberFor<B>>,
-	binary: bool
+	binary: bool,
 ) -> Pin<Box<dyn Future<Output = Result<(), Error>>>>
 where
 	C: BlockBackend<B> + UsageProvider<B> + 'static,
@@ -61,7 +59,7 @@ where
 		let client = &client;
 
 		if last < block {
-			return Poll::Ready(Err("Invalid block range specified".into()));
+			return Poll::Ready(Err("Invalid block range specified".into()))
 		}
 
 		if !wrote_header {
@@ -76,14 +74,13 @@ where
 		}
 
 		match client.block(&BlockId::number(block))? {
-			Some(block) => {
+			Some(block) =>
 				if binary {
 					output.write_all(&block.encode())?;
 				} else {
 					serde_json::to_writer(&mut output, &block)
 						.map_err(|e| format!("Error writing JSON: {}", e))?;
-				}
-		},
+				},
 			// Reached end of the chain.
 			None => return Poll::Ready(Ok(())),
 		}
@@ -91,7 +88,7 @@ where
 			info!("#{}", block);
 		}
 		if block == last {
-			return Poll::Ready(Ok(()));
+			return Poll::Ready(Ok(()))
 		}
 		block += One::one();
 

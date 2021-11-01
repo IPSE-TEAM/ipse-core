@@ -91,10 +91,10 @@
 //! # fn main() {}
 //! ```
 //!
-//! ### 2. Define weights as a function of input arguments using `FunctionOf` tuple struct. This struct works
-//! in a similar manner as above. 3 items must be provided and each can be either a fixed value or a
-//! function/closure with the same parameters list as the dispatchable function itself, wrapper in a
-//! tuple.
+//! ### 2. Define weights as a function of input arguments using `FunctionOf` tuple struct. This
+//! struct works in a similar manner as above. 3 items must be provided and each can be either a
+//! fixed value or a function/closure with the same parameters list as the dispatchable function
+//! itself, wrapper in a tuple.
 //!
 //! Using this only makes sense if you want to use a function for at least one of the elements. If
 //! all 3 are static values, providing a raw tuple is easier.
@@ -126,18 +126,21 @@
 //! - Ubuntu 19.10 (GNU/Linux 5.3.0-18-generic x86_64)
 //! - rustc 1.42.0 (b8cedc004 2020-03-09)
 
+use crate::dispatch::{DispatchError, DispatchErrorWithPostInfo, DispatchResultWithPostInfo};
+use codec::{Decode, Encode};
 #[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
-use codec::{Encode, Decode};
-use sp_runtime::{
-	RuntimeDebug,
-	traits::SignedExtension,
-	generic::{CheckedExtrinsic, UncheckedExtrinsic},
-};
-use crate::dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, DispatchError};
-use sp_runtime::traits::SaturatedConversion;
-use sp_arithmetic::{Perbill, traits::{BaseArithmetic, Saturating, Unsigned}};
+use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
+use sp_arithmetic::{
+	traits::{BaseArithmetic, Saturating, Unsigned},
+	Perbill,
+};
+use sp_runtime::traits::SaturatedConversion;
+use sp_runtime::{
+	generic::{CheckedExtrinsic, UncheckedExtrinsic},
+	traits::SignedExtension,
+	RuntimeDebug,
+};
 
 /// Re-export priority as type
 pub use sp_runtime::transaction_validity::TransactionPriority;
@@ -154,7 +157,7 @@ pub mod constants {
 	pub const WEIGHT_PER_SECOND: Weight = 1_000_000_000_000;
 	pub const WEIGHT_PER_MILLIS: Weight = WEIGHT_PER_SECOND / 1000; // 1_000_000_000
 	pub const WEIGHT_PER_MICROS: Weight = WEIGHT_PER_MILLIS / 1000; // 1_000_000
-	pub const WEIGHT_PER_NANOS:  Weight = WEIGHT_PER_MICROS / 1000; // 1_000
+	pub const WEIGHT_PER_NANOS: Weight = WEIGHT_PER_MICROS / 1000; // 1_000
 
 	parameter_types! {
 		/// Importing a block with 0 txs takes ~5 ms
@@ -223,8 +226,9 @@ pub enum DispatchClass {
 	Operational,
 	/// A mandatory dispatch. These kinds of dispatch are always included regardless of their
 	/// weight, therefore it is critical that they are separately validated to ensure that a
-	/// malicious validator cannot craft a valid but impossibly heavy block. Usually this just means
-	/// ensuring that the extrinsic can only be included once and that it is always very light.
+	/// malicious validator cannot craft a valid but impossibly heavy block. Usually this just
+	/// means ensuring that the extrinsic can only be included once and that it is always very
+	/// light.
 	///
 	/// Do *NOT* use it for extrinsics that can be heavy.
 	///
@@ -331,43 +335,32 @@ pub fn extract_actual_weight(result: &DispatchResultWithPostInfo, info: &Dispatc
 	match result {
 		Ok(post_info) => &post_info,
 		Err(err) => &err.post_info,
-	}.calc_actual_weight(info)
+	}
+	.calc_actual_weight(info)
 }
 
 impl From<(Option<Weight>, Pays)> for PostDispatchInfo {
 	fn from(post_weight_info: (Option<Weight>, Pays)) -> Self {
 		let (actual_weight, pays_fee) = post_weight_info;
-		Self {
-			actual_weight,
-			pays_fee,
-		}
+		Self { actual_weight, pays_fee }
 	}
 }
 
 impl From<Pays> for PostDispatchInfo {
 	fn from(pays_fee: Pays) -> Self {
-		Self {
-			actual_weight: None,
-			pays_fee,
-		}
+		Self { actual_weight: None, pays_fee }
 	}
 }
 
 impl From<Option<Weight>> for PostDispatchInfo {
 	fn from(actual_weight: Option<Weight>) -> Self {
-		Self {
-			actual_weight,
-			pays_fee: Default::default(),
-		}
+		Self { actual_weight, pays_fee: Default::default() }
 	}
 }
 
 impl From<()> for PostDispatchInfo {
 	fn from(_: ()) -> Self {
-		Self {
-			actual_weight: None,
-			pays_fee: Default::default(),
-		}
+		Self { actual_weight: None, pays_fee: Default::default() }
 	}
 }
 
@@ -400,8 +393,9 @@ pub trait WithPostDispatchInfo {
 	fn with_weight(self, actual_weight: Weight) -> DispatchErrorWithPostInfo;
 }
 
-impl<T> WithPostDispatchInfo for T where
-	T: Into<DispatchError>
+impl<T> WithPostDispatchInfo for T
+where
+	T: Into<DispatchError>,
 {
 	fn with_weight(self, actual_weight: Weight) -> DispatchErrorWithPostInfo {
 		DispatchErrorWithPostInfo {
@@ -489,12 +483,12 @@ impl<T> PaysFee<T> for (Weight, Pays) {
 /// A struct to represent a weight which is a function of the input arguments. The given items have
 /// the following types:
 ///
-/// - `WD`: a raw `Weight` value or a closure that returns a `Weight` with the same
+/// - `WD`: a raw `Weight` value or a closure that returns a `Weight` with the same argument list as
+///   the dispatched, wrapped in a tuple.
+/// - `CD`: a raw `DispatchClass` value or a closure that returns a `DispatchClass` with the same
 ///   argument list as the dispatched, wrapped in a tuple.
-/// - `CD`: a raw `DispatchClass` value or a closure that returns a `DispatchClass`
-///   with the same argument list as the dispatched, wrapped in a tuple.
-/// - `PF`: a `Pays` variant for whether this dispatch pays fee or not or a closure that
-///   returns a `Pays` variant with the same argument list as the dispatched, wrapped in a tuple.
+/// - `PF`: a `Pays` variant for whether this dispatch pays fee or not or a closure that returns a
+///   `Pays` variant with the same argument list as the dispatched, wrapped in a tuple.
 #[deprecated = "Function arguments are available directly inside the annotation now."]
 pub struct FunctionOf<WD, CD, PF>(pub WD, pub CD, pub PF);
 
@@ -508,8 +502,9 @@ impl<Args, CD, PF> WeighData<Args> for FunctionOf<Weight, CD, PF> {
 
 // `WeighData` as a closure
 #[allow(deprecated)]
-impl<Args, WD, CD, PF> WeighData<Args> for FunctionOf<WD, CD, PF> where
-	WD : Fn(Args) -> Weight
+impl<Args, WD, CD, PF> WeighData<Args> for FunctionOf<WD, CD, PF>
+where
+	WD: Fn(Args) -> Weight,
 {
 	fn weigh_data(&self, args: Args) -> Weight {
 		(self.0)(args)
@@ -526,8 +521,9 @@ impl<Args, WD, PF> ClassifyDispatch<Args> for FunctionOf<WD, DispatchClass, PF> 
 
 // `ClassifyDispatch` as a raw value
 #[allow(deprecated)]
-impl<Args, WD, CD, PF> ClassifyDispatch<Args> for FunctionOf<WD, CD, PF> where
-	CD : Fn(Args) -> DispatchClass
+impl<Args, WD, CD, PF> ClassifyDispatch<Args> for FunctionOf<WD, CD, PF>
+where
+	CD: Fn(Args) -> DispatchClass,
 {
 	fn classify_dispatch(&self, args: Args) -> DispatchClass {
 		(self.1)(args)
@@ -544,8 +540,9 @@ impl<Args, WD, CD> PaysFee<Args> for FunctionOf<WD, CD, Pays> {
 
 // `PaysFee` as a closure
 #[allow(deprecated)]
-impl<Args, WD, CD, PF> PaysFee<Args> for FunctionOf<WD, CD, PF> where
-	PF : Fn(Args) -> Pays
+impl<Args, WD, CD, PF> PaysFee<Args> for FunctionOf<WD, CD, PF>
+where
+	PF: Fn(Args) -> Pays,
 {
 	fn pays_fee(&self, args: Args) -> Pays {
 		(self.2)(args)
@@ -565,8 +562,7 @@ where
 }
 
 /// Implementation for checked extrinsic.
-impl<AccountId, Call, Extra> GetDispatchInfo
-	for CheckedExtrinsic<AccountId, Call, Extra>
+impl<AccountId, Call, Extra> GetDispatchInfo for CheckedExtrinsic<AccountId, Call, Extra>
 where
 	Call: GetDispatchInfo,
 {
@@ -580,11 +576,7 @@ where
 impl<Call: Encode, Extra: Encode> GetDispatchInfo for sp_runtime::testing::TestXt<Call, Extra> {
 	fn get_dispatch_info(&self) -> DispatchInfo {
 		// for testing: weight == size.
-		DispatchInfo {
-			weight: self.encode().len() as _,
-			pays_fee: Pays::Yes,
-			..Default::default()
-		}
+		DispatchInfo { weight: self.encode().len() as _, pays_fee: Pays::Yes, ..Default::default() }
 	}
 }
 
@@ -680,8 +672,9 @@ pub trait WeightToFeePolynomial {
 /// Implementor of `WeightToFeePolynomial` that maps one unit of weight to one unit of fee.
 pub struct IdentityFee<T>(sp_std::marker::PhantomData<T>);
 
-impl<T> WeightToFeePolynomial for IdentityFee<T> where
-	T: BaseArithmetic + From<u32> + Copy + Unsigned
+impl<T> WeightToFeePolynomial for IdentityFee<T>
+where
+	T: BaseArithmetic + From<u32> + Copy + Unsigned,
 {
 	type Balance = T;
 
@@ -698,8 +691,8 @@ impl<T> WeightToFeePolynomial for IdentityFee<T> where
 #[cfg(test)]
 #[allow(dead_code)]
 mod tests {
-	use crate::{decl_module, parameter_types, traits::Get};
 	use super::*;
+	use crate::{decl_module, parameter_types, traits::Get};
 
 	pub trait Trait {
 		type Origin;
@@ -784,7 +777,10 @@ mod tests {
 		assert_eq!(Call::<TraitImpl>::f11(10, 20).get_dispatch_info().weight, 120);
 		assert_eq!(Call::<TraitImpl>::f11(10, 20).get_dispatch_info().class, DispatchClass::Normal);
 		assert_eq!(Call::<TraitImpl>::f12(10, 20).get_dispatch_info().weight, 0);
-		assert_eq!(Call::<TraitImpl>::f12(10, 20).get_dispatch_info().class, DispatchClass::Operational);
+		assert_eq!(
+			Call::<TraitImpl>::f12(10, 20).get_dispatch_info().class,
+			DispatchClass::Operational
+		);
 		assert_eq!(Call::<TraitImpl>::f2().get_dispatch_info().weight, 12300);
 		assert_eq!(Call::<TraitImpl>::f21().get_dispatch_info().weight, 45600);
 		assert_eq!(Call::<TraitImpl>::f2().get_dispatch_info().class, DispatchClass::Normal);
@@ -792,24 +788,15 @@ mod tests {
 
 	#[test]
 	fn extract_actual_weight_works() {
-		let pre = DispatchInfo {
-			weight: 1000,
-			.. Default::default()
-		};
+		let pre = DispatchInfo { weight: 1000, ..Default::default() };
 		assert_eq!(extract_actual_weight(&Ok(Some(7).into()), &pre), 7);
 		assert_eq!(extract_actual_weight(&Ok(Some(1000).into()), &pre), 1000);
-		assert_eq!(
-			extract_actual_weight(&Err(DispatchError::BadOrigin.with_weight(9)), &pre),
-			9
-		);
+		assert_eq!(extract_actual_weight(&Err(DispatchError::BadOrigin.with_weight(9)), &pre), 9);
 	}
 
 	#[test]
 	fn extract_actual_weight_caps_at_pre_weight() {
-		let pre = DispatchInfo {
-			weight: 1000,
-			.. Default::default()
-		};
+		let pre = DispatchInfo { weight: 1000, ..Default::default() };
 		assert_eq!(extract_actual_weight(&Ok(Some(1250).into()), &pre), 1000);
 		assert_eq!(
 			extract_actual_weight(&Err(DispatchError::BadOrigin.with_weight(1300)), &pre),

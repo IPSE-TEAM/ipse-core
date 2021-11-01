@@ -33,20 +33,24 @@
 
 #![warn(missing_docs)]
 
-use std::{
-	fmt, marker::PhantomData, sync::Arc,
-	collections::HashSet,
-};
+use std::{collections::HashSet, fmt, marker::PhantomData, sync::Arc};
 
-use parking_lot::Mutex;
-use threadpool::ThreadPool;
-use sp_api::{ApiExt, ProvideRuntimeApi};
 use futures::future::Future;
+use futures::{future::ready, prelude::*};
 use log::{debug, warn};
+use parking_lot::Mutex;
 use sc_network::{ExHashT, NetworkService, NetworkStateInfo, PeerId};
-use sp_core::{offchain::{self, OffchainStorage}, ExecutionContext, traits::SpawnNamed};
-use sp_runtime::{generic::BlockId, traits::{self, Header}};
-use futures::{prelude::*, future::ready};
+use sp_api::{ApiExt, ProvideRuntimeApi};
+use sp_core::{
+	offchain::{self, OffchainStorage},
+	traits::SpawnNamed,
+	ExecutionContext,
+};
+use sp_runtime::{
+	generic::BlockId,
+	traits::{self, Header},
+};
+use threadpool::ThreadPool;
 
 mod api;
 use api::SharedClient;
@@ -58,7 +62,7 @@ pub use sp_offchain::{OffchainWorkerApi, STORAGE_PREFIX};
 pub trait NetworkProvider: NetworkStateInfo {
 	/// Set the authorized peers.
 	fn set_authorized_peers(&self, peers: HashSet<PeerId>);
-	
+
 	/// Set the authorized only flag.
 	fn set_authorized_only(&self, reserved_only: bool);
 }
@@ -100,21 +104,14 @@ impl<Client, Storage, Block: traits::Block> OffchainWorkers<Client, Storage, Blo
 	}
 }
 
-impl<Client, Storage, Block: traits::Block> fmt::Debug for OffchainWorkers<
-	Client,
-	Storage,
-	Block,
-> {
+impl<Client, Storage, Block: traits::Block> fmt::Debug for OffchainWorkers<Client, Storage, Block> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		f.debug_tuple("OffchainWorkers").finish()
 	}
 }
 
-impl<Client, Storage, Block> OffchainWorkers<
-	Client,
-	Storage,
-	Block,
-> where
+impl<Client, Storage, Block> OffchainWorkers<Client, Storage, Block>
+where
 	Block: traits::Block,
 	Client: ProvideRuntimeApi<Block> + Send + Sync + 'static,
 	Client::Api: OffchainWorkerApi<Block>,
@@ -130,20 +127,19 @@ impl<Client, Storage, Block> OffchainWorkers<
 	) -> impl Future<Output = ()> {
 		let runtime = self.client.runtime_api();
 		let at = BlockId::hash(header.hash());
-		let has_api_v1 = runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(
-			&at, |v| v == 1
-		);
-		let has_api_v2 = runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(
-			&at, |v| v == 2
-		);
+		let has_api_v1 =
+			runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(&at, |v| v == 1);
+		let has_api_v2 =
+			runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(&at, |v| v == 2);
 		let version = match (has_api_v1, has_api_v2) {
 			(_, Ok(true)) => 2,
 			(Ok(true), _) => 1,
 			err => {
-				let help = "Consider turning off offchain workers if they are not part of your runtime.";
+				let help =
+					"Consider turning off offchain workers if they are not part of your runtime.";
 				log::error!("Unsupported Offchain Worker API version: {:?}. {}.", err, help);
 				0
-			}
+			},
 		};
 		debug!("Checking offchain workers at {:?}: version:{}", at, version);
 		if version > 0 {
@@ -160,18 +156,19 @@ impl<Client, Storage, Block> OffchainWorkers<
 				let runtime = client.runtime_api();
 				let api = Box::new(api);
 				debug!("Running offchain workers at {:?}", at);
-				let context = ExecutionContext::OffchainCall(Some(
-					(api, offchain::Capabilities::all())
-				));
+				let context =
+					ExecutionContext::OffchainCall(Some((api, offchain::Capabilities::all())));
 				let run = if version == 2 {
 					runtime.offchain_worker_with_context(&at, context, &header)
 				} else {
 					#[allow(deprecated)]
 					runtime.offchain_worker_before_version_2_with_context(
-						&at, context, *header.number()
+						&at,
+						context,
+						*header.number(),
 					)
 				};
-				if let Err(e) =	run {
+				if let Err(e) = run {
 					log::error!("Error running offchain workers at {:?}: {:?}", at, e);
 				}
 			});
@@ -201,44 +198,45 @@ pub async fn notification_future<Client, Storage, Block, Spawner>(
 	offchain: Arc<OffchainWorkers<Client, Storage, Block>>,
 	spawner: Spawner,
 	network_provider: Arc<dyn NetworkProvider + Send + Sync>,
-)
-	where
-		Block: traits::Block,
-		Client: ProvideRuntimeApi<Block> + sc_client_api::BlockchainEvents<Block> + Send + Sync + 'static,
-		Client::Api: OffchainWorkerApi<Block>,
-		Storage: OffchainStorage + 'static,
-		Spawner: SpawnNamed
+) where
+	Block: traits::Block,
+	Client:
+		ProvideRuntimeApi<Block> + sc_client_api::BlockchainEvents<Block> + Send + Sync + 'static,
+	Client::Api: OffchainWorkerApi<Block>,
+	Storage: OffchainStorage + 'static,
+	Spawner: SpawnNamed,
 {
-	client.import_notification_stream().for_each(move |n| {
-		if n.is_new_best {
-			spawner.spawn(
-				"offchain-on-block",
-				offchain.on_block_imported(
-					&n.header,
-					network_provider.clone(),
-					is_validator,
-				).boxed(),
-			);
-		} else {
-			log::debug!(
-				target: "sc_offchain",
-				"Skipping offchain workers for non-canon block: {:?}",
-				n.header,
-			)
-		}
+	client
+		.import_notification_stream()
+		.for_each(move |n| {
+			if n.is_new_best {
+				spawner.spawn(
+					"offchain-on-block",
+					offchain
+						.on_block_imported(&n.header, network_provider.clone(), is_validator)
+						.boxed(),
+				);
+			} else {
+				log::debug!(
+					target: "sc_offchain",
+					"Skipping offchain workers for non-canon block: {:?}",
+					n.header,
+				)
+			}
 
-		ready(())
-	}).await;
+			ready(())
+		})
+		.await;
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::sync::Arc;
 	use sc_network::{Multiaddr, PeerId};
-	use substrate_test_runtime_client::{TestClient, runtime::Block};
 	use sc_transaction_pool::{BasicPool, FullChainApi};
-	use sp_transaction_pool::{TransactionPool, InPoolTransaction};
+	use sp_transaction_pool::{InPoolTransaction, TransactionPool};
+	use std::sync::Arc;
+	use substrate_test_runtime_client::{runtime::Block, TestClient};
 
 	struct TestNetwork();
 
@@ -262,9 +260,7 @@ mod tests {
 		}
 	}
 
-	struct TestPool(
-		Arc<BasicPool<FullChainApi<TestClient, Block>, Block>>
-	);
+	struct TestPool(Arc<BasicPool<FullChainApi<TestClient, Block>, Block>>);
 
 	impl sp_transaction_pool::OffchainSubmitTransaction<Block> for TestPool {
 		fn submit_at(
@@ -285,21 +281,14 @@ mod tests {
 
 		let client = Arc::new(substrate_test_runtime_client::new());
 		let spawner = sp_core::testing::TaskExecutor::new();
-		let pool = TestPool(BasicPool::new_full(
-			Default::default(),
-			None,
-			spawner,
-			client.clone(),
-		));
+		let pool = TestPool(BasicPool::new_full(Default::default(), None, spawner, client.clone()));
 		let db = sc_client_db::offchain::LocalStorage::new_test();
 		let network = Arc::new(TestNetwork());
 		let header = client.header(&BlockId::number(0)).unwrap().unwrap();
 
 		// when
 		let offchain = OffchainWorkers::new(client, db);
-		futures::executor::block_on(
-			offchain.on_block_imported(&header, network, false)
-		);
+		futures::executor::block_on(offchain.on_block_imported(&header, network, false));
 
 		// then
 		assert_eq!(pool.0.status().ready, 1);
