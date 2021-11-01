@@ -42,6 +42,7 @@ use crate::ipse_traits::PocHandler;
 use sp_std::{collections::btree_set::BTreeSet};
 
 const Staking_ID: LockIdentifier = *b"pocstake";
+pub const TiB: u64 = 1024 * 1024 * 1024 * 1024;
 
 type BalanceOf<T> =
 	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
@@ -71,6 +72,8 @@ pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trai
 	type RecommendLockExpire: Get<Self::BlockNumber>;
 
 	type RecommendMaxNumber: Get<usize>;
+
+	type MaxPlotSize: Get<u64>;
 
 }
 
@@ -227,6 +230,8 @@ decl_module! {
 
 			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
+			ensure!(disk <= T::MaxPlotSize::get(), Error::<T>::PlotSizeToMax);
+
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
 			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::NumericIdInUsing);
@@ -367,7 +372,9 @@ decl_module! {
 
 			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
 
-			ensure!(disk != 0 as GIB, Error::<T>::PlotSizeIsZero);
+			ensure!(disk != 0 as GIB , Error::<T>::PlotSizeIsZero);
+
+			ensure!(disk <= T::MaxPlotSize::get(), Error::<T>::PlotSizeToMax);
 
 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
 
@@ -929,5 +936,6 @@ decl_error! {
 		AmountTooLow,
 		/// you staking amount too low
 		StakingAmountooLow,
+		PlotSizeToMax,
 	}
 }

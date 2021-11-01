@@ -24,6 +24,7 @@
 
 
 use sp_std::prelude::*;
+use poc_staking::TiB;
 use frame_support::{
 	construct_runtime, parameter_types, debug, RuntimeDebug,
 	weights::{
@@ -320,6 +321,7 @@ parameter_types! {
 	pub const RecommendMaxNumber: usize = 50;
 	pub const StakingLockExpire: BlockNumber = 7*DAYS;
 	pub const RecommendLockExpire: BlockNumber = 7*DAYS;
+	pub const MaxPlotSize: u64 = 8 * TiB;
 }
 
 impl poc_staking::Trait for Runtime {
@@ -344,6 +346,8 @@ impl poc_staking::Trait for Runtime {
 	type RecommendMaxNumber = RecommendMaxNumber;
 
 	type PocStakingMinAmount = PocStakingMinAmount;
+
+	type MaxPlotSize = MaxPlotSize;
 }
 
 parameter_types! {

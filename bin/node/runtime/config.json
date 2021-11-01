@@ -1,4 +1,5 @@
 {   "test": "u64",
+	"TiB": "u64",
     "Address": "IndicesLookupSource",
     "LookupSource": "IndicesLookupSource",
     "GIB": "u64",
