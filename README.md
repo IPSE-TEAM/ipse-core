@@ -29,9 +29,7 @@ First, complete the [basic Rust setup instructions](./doc/rust-setup.md).
 
 ### Connect To Our Mainnet
 #### Synchronization Node
-./IPSE --chain main
-
-`
+`./IPSE --chain main`
 #### Node For Validator
 Generate three mnemonics and see the sr25519 key and address associated with them. these key will be used by Babe, Audi, and Imon for block production.
 ```buildoutcfg
