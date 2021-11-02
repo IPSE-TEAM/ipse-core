@@ -17,23 +17,26 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::chain_spec::ChainSpec;
-use log::info;
-use wasm_bindgen::prelude::*;
 use browser_utils::{
-	Client,
-	browser_configuration, set_console_error_panic_hook, init_console_log,
+	browser_configuration, init_console_log, set_console_error_panic_hook, Client,
 };
+use log::info;
 use std::str::FromStr;
+use wasm_bindgen::prelude::*;
 
 /// Starts the client.
 #[wasm_bindgen]
-pub async fn start_client(chain_spec: Option<String>, log_level: String) -> Result<Client, JsValue> {
-	start_inner(chain_spec, log_level)
-		.await
-		.map_err(|err| JsValue::from_str(&err.to_string()))
+pub async fn start_client(
+	chain_spec: Option<String>,
+	log_level: String,
+) -> Result<Client, JsValue> {
+	start_inner(chain_spec, log_level).await.map_err(|err| JsValue::from_str(&err.to_string()))
 }
 
-async fn start_inner(chain_spec: Option<String>, log_level: String) -> Result<Client, Box<dyn std::error::Error>> {
+async fn start_inner(
+	chain_spec: Option<String>,
+	log_level: String,
+) -> Result<Client, Box<dyn std::error::Error>> {
 	set_console_error_panic_hook();
 	init_console_log(log::Level::from_str(&log_level)?)?;
 	let chain_spec = match chain_spec {
@@ -52,10 +55,9 @@ async fn start_inner(chain_spec: Option<String>, log_level: String) -> Result<Cl
 	info!("👤 Role: {:?}", config.role);
 
 	// Create the service. This is the most heavy initialization step.
-	let (task_manager, rpc_handlers) =
-		crate::service::new_light_base(config)
-			.map(|(components, rpc_handlers, _, _, _)| (components, rpc_handlers))
-			.map_err(|e| format!("{:?}", e))?;
+	let (task_manager, rpc_handlers) = crate::service::new_light_base(config)
+		.map(|(components, rpc_handlers, _, _, _)| (components, rpc_handlers))
+		.map_err(|e| format!("{:?}", e))?;
 
 	Ok(browser_utils::start_client(task_manager, rpc_handlers))
 }

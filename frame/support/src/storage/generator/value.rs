@@ -15,12 +15,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::{FullCodec, Encode, EncodeLike, Decode};
 use crate::{
-	Never,
+	hash::{StorageHasher, Twox128},
 	storage::{self, unhashed, StorageAppend},
-	hash::{Twox128, StorageHasher},
+	Never,
 };
+use codec::{Decode, Encode, EncodeLike, FullCodec};
 
 /// Generator for `StorageValue` used by `decl_storage`.
 ///

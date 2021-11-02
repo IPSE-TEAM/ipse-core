@@ -19,20 +19,20 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod tests;
-mod utils;
 #[cfg(feature = "std")]
 mod analysis;
+mod tests;
+mod utils;
 
-pub use utils::*;
 #[cfg(feature = "std")]
 pub use analysis::{Analysis, BenchmarkSelector};
+pub use frame_support;
+pub use paste;
 #[doc(hidden)]
 pub use sp_io::storage::root as storage_root;
 pub use sp_runtime::traits::Zero;
-pub use frame_support;
-pub use paste;
 pub use sp_storage::TrackedStorageKey;
+pub use utils::*;
 
 /// Construct pallet benchmarks for weighing dispatchables.
 ///
@@ -686,7 +686,7 @@ macro_rules! benchmark_backend {
 // Every variant must implement [`BenchmarkingSetup`].
 //
 // ```nocompile
-//
+// 
 // struct Transfer;
 // impl BenchmarkingSetup for Transfer { ... }
 //
@@ -1006,7 +1006,6 @@ macro_rules! impl_benchmark_test {
 	};
 }
 
-
 /// This macro adds pallet benchmarks to a `Vec<BenchmarkBatch>` object.
 ///
 /// First create an object that holds in the input parameters for the benchmark:
@@ -1016,8 +1015,8 @@ macro_rules! impl_benchmark_test {
 /// ```
 ///
 /// The `whitelist` is a parameter you pass to control the DB read/write tracking.
-/// We use a vector of [TrackedStorageKey](./struct.TrackedStorageKey.html), which is a simple struct used to set
-/// if a key has been read or written to.
+/// We use a vector of [TrackedStorageKey](./struct.TrackedStorageKey.html), which is a simple
+/// struct used to set if a key has been read or written to.
 ///
 /// For values that should be skipped entirely, we can just pass `key.into()`. For example:
 ///

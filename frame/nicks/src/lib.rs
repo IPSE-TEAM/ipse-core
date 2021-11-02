@@ -41,18 +41,18 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use sp_runtime::{
-	traits::{StaticLookup, Zero}
-};
 use frame_support::{
-	decl_module, decl_event, decl_storage, ensure, decl_error,
-	traits::{Currency, EnsureOrigin, ReservableCurrency, OnUnbalanced, Get},
+	decl_error, decl_event, decl_module, decl_storage, ensure,
+	traits::{Currency, EnsureOrigin, Get, OnUnbalanced, ReservableCurrency},
 };
 use frame_system::ensure_signed;
+use sp_runtime::traits::{StaticLookup, Zero};
+use sp_std::prelude::*;
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
+type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait Trait: frame_system::Trait {
 	/// The overarching event type.
@@ -85,7 +85,11 @@ decl_storage! {
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId, Balance = BalanceOf<T> {
+	pub enum Event<T>
+	where
+		AccountId = <T as frame_system::Trait>::AccountId,
+		Balance = BalanceOf<T>,
+	{
 		/// A name was set. \[who\]
 		NameSet(AccountId),
 		/// A name was forcibly set. \[target\]
@@ -241,13 +245,15 @@ mod tests {
 	use super::*;
 
 	use frame_support::{
-		assert_ok, assert_noop, impl_outer_origin, parameter_types, weights::Weight,
-		ord_parameter_types
+		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types,
+		weights::Weight,
 	};
-	use sp_core::H256;
 	use frame_system::EnsureSignedBy;
+	use sp_core::H256;
 	use sp_runtime::{
-		Perbill, testing::Header, traits::{BlakeTwo256, IdentityLookup, BadOrigin},
+		testing::Header,
+		traits::{BadOrigin, BlakeTwo256, IdentityLookup},
+		Perbill,
 	};
 
 	impl_outer_origin! {
@@ -324,12 +330,9 @@ mod tests {
 
 	fn new_test_ext() -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-		pallet_balances::GenesisConfig::<Test> {
-			balances: vec![
-				(1, 10),
-				(2, 10),
-			],
-		}.assimilate_storage(&mut t).unwrap();
+		pallet_balances::GenesisConfig::<Test> { balances: vec![(1, 10), (2, 10)] }
+			.assimilate_storage(&mut t)
+			.unwrap();
 		t.into()
 	}
 
@@ -389,7 +392,10 @@ mod tests {
 				pallet_balances::Error::<Test, _>::InsufficientBalance
 			);
 
-			assert_noop!(Nicks::set_name(Origin::signed(1), b"Ga".to_vec()), Error::<Test>::TooShort);
+			assert_noop!(
+				Nicks::set_name(Origin::signed(1), b"Ga".to_vec()),
+				Error::<Test>::TooShort
+			);
 			assert_noop!(
 				Nicks::set_name(Origin::signed(1), b"Gavin James Wood, Esquire".to_vec()),
 				Error::<Test>::TooLong

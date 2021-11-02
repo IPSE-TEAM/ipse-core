@@ -2,8 +2,8 @@
 //! FIXME: REMOVE THIS ONCE THE PR WAS MERGE
 //! https://github.com/slog-rs/async/pull/14
 
-use slog::{Record, RecordStatic, Level, SingleKV, KV, BorrowedKV};
-use slog::{Serializer, OwnedKVList, Key};
+use slog::{BorrowedKV, Level, Record, RecordStatic, SingleKV, KV};
+use slog::{Key, OwnedKVList, Serializer};
 
 use std::fmt;
 use take_mut::take;
@@ -93,11 +93,7 @@ impl Serializer for ToSendSerializer {
 		take(&mut self.kv, |kv| Box::new((kv, SingleKV(key, val))));
 		Ok(())
 	}
-	fn emit_arguments(
-		&mut self,
-		key: Key,
-		val: &fmt::Arguments,
-	) -> slog::Result {
+	fn emit_arguments(&mut self, key: Key, val: &fmt::Arguments) -> slog::Result {
 		let val = fmt::format(*val);
 		take(&mut self.kv, |kv| Box::new((kv, SingleKV(key, val))));
 		Ok(())
@@ -123,10 +119,7 @@ impl AsyncRecord {
 	/// Serializes a `Record` and an `OwnedKVList`.
 	pub fn from(record: &Record, logger_values: &OwnedKVList) -> Self {
 		let mut ser = ToSendSerializer::new();
-		record
-			.kv()
-			.serialize(record, &mut ser)
-			.expect("`ToSendSerializer` can't fail");
+		record.kv().serialize(record, &mut ser).expect("`ToSendSerializer` can't fail");
 
 		AsyncRecord {
 			msg: fmt::format(*record.msg()),
@@ -140,16 +133,11 @@ impl AsyncRecord {
 
 	/// Deconstruct this `AsyncRecord` into a record and `OwnedKVList`.
 	pub fn as_record_values(&self, mut f: impl FnMut(&Record, &OwnedKVList)) {
-		let rs = RecordStatic {
-			location: &*self.location,
-			level: self.level,
-			tag: &self.tag,
-		};
+		let rs = RecordStatic { location: &*self.location, level: self.level, tag: &self.tag };
 
-		f(&Record::new(
-			&rs,
-			&format_args!("{}", self.msg),
-			BorrowedKV(&self.kv),
-		), &self.logger_values)
+		f(
+			&Record::new(&rs, &format_args!("{}", self.msg), BorrowedKV(&self.kv)),
+			&self.logger_values,
+		)
 	}
 }

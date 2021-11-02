@@ -27,7 +27,10 @@
 
 use libp2p::PeerId;
 use log::error;
-use std::{borrow::Cow, collections::{HashSet, HashMap}};
+use std::{
+	borrow::Cow,
+	collections::{HashMap, HashSet},
+};
 use wasm_timer::Instant;
 
 /// State storage behind the peerset.
@@ -36,7 +39,6 @@ use wasm_timer::Instant;
 ///
 /// This struct is nothing more but a data structure containing a list of nodes, where each node
 /// has a reputation and is either connected to us or not.
-///
 #[derive(Debug, Clone)]
 pub struct PeersState {
 	/// List of nodes that we know about.
@@ -80,9 +82,7 @@ struct Node {
 impl Default for Node {
 	fn default() -> Node {
 		Node {
-			connection_state: ConnectionState::NotConnected {
-				last_connected: Instant::now(),
-			},
+			connection_state: ConnectionState::NotConnected { last_connected: Instant::now() },
 			reputation: 0,
 		}
 	}
@@ -130,23 +130,17 @@ impl PeersState {
 	/// Returns an object that grants access to the state of a peer.
 	pub fn peer<'a>(&'a mut self, peer_id: &'a PeerId) -> Peer<'a> {
 		match self.nodes.get_mut(peer_id) {
-			None => return Peer::Unknown(UnknownPeer {
-				parent: self,
-				peer_id: Cow::Borrowed(peer_id),
-			}),
-			Some(peer) => {
+			None =>
+				return Peer::Unknown(UnknownPeer { parent: self, peer_id: Cow::Borrowed(peer_id) }),
+			Some(peer) =>
 				if peer.connection_state.is_connected() {
-					Peer::Connected(ConnectedPeer {
-						state: self,
-						peer_id: Cow::Borrowed(peer_id),
-					})
+					Peer::Connected(ConnectedPeer { state: self, peer_id: Cow::Borrowed(peer_id) })
 				} else {
 					Peer::NotConnected(NotConnectedPeer {
 						state: self,
 						peer_id: Cow::Borrowed(peer_id),
 					})
-				}
-			}
+				},
 		}
 	}
 
@@ -161,22 +155,21 @@ impl PeersState {
 	// Note: this method could theoretically return a `ConnectedPeer`, but implementing that
 	// isn't simple.
 	pub fn connected_peers(&self) -> impl Iterator<Item = &PeerId> {
-		self.nodes.iter()
-			.filter(|(_, p)| p.connection_state.is_connected())
-			.map(|(p, _)| p)
+		self.nodes.iter().filter(|(_, p)| p.connection_state.is_connected()).map(|(p, _)| p)
 	}
 
 	/// Returns the peer with the highest reputation and that we are not connected to.
 	///
 	/// If multiple nodes have the same reputation, which one is returned is unspecified.
 	pub fn highest_not_connected_peer(&mut self) -> Option<NotConnectedPeer> {
-		let outcome = self.nodes
+		let outcome = self
+			.nodes
 			.iter_mut()
 			.filter(|(_, Node { connection_state, .. })| !connection_state.is_connected())
 			.fold(None::<(&PeerId, &mut Node)>, |mut cur_node, to_try| {
 				if let Some(cur_node) = cur_node.take() {
 					if cur_node.1.reputation >= to_try.1.reputation {
-						return Some(cur_node);
+						return Some(cur_node)
 					}
 				}
 				Some(to_try)
@@ -184,10 +177,7 @@ impl PeersState {
 			.map(|(peer_id, _)| peer_id.clone());
 
 		if let Some(peer_id) = outcome {
-			Some(NotConnectedPeer {
-				state: self,
-				peer_id: Cow::Owned(peer_id),
-			})
+			Some(NotConnectedPeer { state: self, peer_id: Cow::Owned(peer_id) })
 		} else {
 			None
 		}
@@ -199,7 +189,7 @@ impl PeersState {
 	pub fn add_no_slot_node(&mut self, peer_id: PeerId) {
 		// Reminder: `HashSet::insert` returns false if the node was already in the set
 		if !self.no_slot_nodes.insert(peer_id.clone()) {
-			return;
+			return
 		}
 
 		if let Some(peer) = self.nodes.get_mut(&peer_id) {
@@ -217,7 +207,7 @@ impl PeersState {
 	pub fn remove_no_slot_node(&mut self, peer_id: &PeerId) {
 		// Reminder: `HashSet::remove` returns false if the node was already not in the set
 		if !self.no_slot_nodes.remove(peer_id) {
-			return;
+			return
 		}
 
 		if let Some(peer) = self.nodes.get_mut(peer_id) {
@@ -253,7 +243,7 @@ impl<'a> Peer<'a> {
 
 	/// If we are the `Unknown` variant, returns the inner `ConnectedPeer`. Returns `None`
 	/// otherwise.
-	#[cfg(test)]	// Feel free to remove this if this function is needed outside of tests
+	#[cfg(test)] // Feel free to remove this if this function is needed outside of tests
 	pub fn into_not_connected(self) -> Option<NotConnectedPeer<'a>> {
 		match self {
 			Peer::Connected(_) => None,
@@ -264,7 +254,7 @@ impl<'a> Peer<'a> {
 
 	/// If we are the `Unknown` variant, returns the inner `ConnectedPeer`. Returns `None`
 	/// otherwise.
-	#[cfg(test)]	// Feel free to remove this if this function is needed outside of tests
+	#[cfg(test)] // Feel free to remove this if this function is needed outside of tests
 	pub fn into_unknown(self) -> Option<UnknownPeer<'a>> {
 		match self {
 			Peer::Connected(_) => None,
@@ -294,21 +284,19 @@ impl<'a> ConnectedPeer<'a> {
 				match node.connection_state {
 					ConnectionState::In => self.state.num_in -= 1,
 					ConnectionState::Out => self.state.num_out -= 1,
-					ConnectionState::NotConnected { .. } =>
-						debug_assert!(false, "State inconsistency: disconnecting a disconnected node")
+					ConnectionState::NotConnected { .. } => debug_assert!(
+						false,
+						"State inconsistency: disconnecting a disconnected node"
+					),
 				}
 			}
-			node.connection_state = ConnectionState::NotConnected {
-				last_connected: Instant::now(),
-			};
+			node.connection_state =
+				ConnectionState::NotConnected { last_connected: Instant::now() };
 		} else {
 			debug_assert!(false, "State inconsistency: disconnecting a disconnected node");
 		}
 
-		NotConnectedPeer {
-			state: self.state,
-			peer_id: self.peer_id,
-		}
+		NotConnectedPeer { state: self.state, peer_id: self.peer_id }
 	}
 
 	/// Returns the reputation value of the node.
@@ -346,7 +334,7 @@ pub struct NotConnectedPeer<'a> {
 
 impl<'a> NotConnectedPeer<'a> {
 	/// Destroys this `NotConnectedPeer` and returns the `PeerId` inside of it.
-	#[cfg(test)]	// Feel free to remove this if this function is needed outside of tests
+	#[cfg(test)] // Feel free to remove this if this function is needed outside of tests
 	pub fn into_peer_id(self) -> PeerId {
 		self.peer_id.into_owned()
 	}
@@ -377,8 +365,8 @@ impl<'a> NotConnectedPeer<'a> {
 					"State inconsistency with {}; not connected after borrow",
 					self.peer_id
 				);
-				return Instant::now();
-			}
+				return Instant::now()
+			},
 		};
 
 		match state.connection_state {
@@ -386,7 +374,7 @@ impl<'a> NotConnectedPeer<'a> {
 			_ => {
 				error!(target: "peerset", "State inconsistency with {}", self.peer_id);
 				Instant::now()
-			}
+			},
 		}
 	}
 
@@ -402,7 +390,7 @@ impl<'a> NotConnectedPeer<'a> {
 		// Note that it is possible for num_out to be strictly superior to the max, in case we were
 		// connected to reserved node then marked them as not reserved.
 		if self.state.num_out >= self.state.max_out && !is_no_slot_occupy {
-			return Err(self);
+			return Err(self)
 		}
 
 		if let Some(mut peer) = self.state.nodes.get_mut(&*self.peer_id) {
@@ -414,10 +402,7 @@ impl<'a> NotConnectedPeer<'a> {
 			debug_assert!(false, "State inconsistency: try_outgoing on an unknown node");
 		}
 
-		Ok(ConnectedPeer {
-			state: self.state,
-			peer_id: self.peer_id,
-		})
+		Ok(ConnectedPeer { state: self.state, peer_id: self.peer_id })
 	}
 
 	/// Tries to accept the peer as an incoming connection.
@@ -432,7 +417,7 @@ impl<'a> NotConnectedPeer<'a> {
 		// Note that it is possible for num_in to be strictly superior to the max, in case we were
 		// connected to reserved node then marked them as not reserved.
 		if self.state.num_in >= self.state.max_in && !is_no_slot_occupy {
-			return Err(self);
+			return Err(self)
 		}
 
 		if let Some(mut peer) = self.state.nodes.get_mut(&*self.peer_id) {
@@ -444,10 +429,7 @@ impl<'a> NotConnectedPeer<'a> {
 			debug_assert!(false, "State inconsistency: try_accept_incoming on an unknown node");
 		}
 
-		Ok(ConnectedPeer {
-			state: self.state,
-			peer_id: self.peer_id,
-		})
+		Ok(ConnectedPeer { state: self.state, peer_id: self.peer_id })
 	}
 
 	/// Returns the reputation value of the node.
@@ -485,10 +467,7 @@ impl<'a> NotConnectedPeer<'a> {
 			);
 		}
 
-		UnknownPeer {
-			parent: self.state,
-			peer_id: self.peer_id,
-		}
+		UnknownPeer { parent: self.state, peer_id: self.peer_id }
 	}
 }
 
@@ -504,24 +483,22 @@ impl<'a> UnknownPeer<'a> {
 	/// The node starts with a reputation of 0. You can adjust these default
 	/// values using the `NotConnectedPeer` that this method returns.
 	pub fn discover(self) -> NotConnectedPeer<'a> {
-		self.parent.nodes.insert(self.peer_id.clone().into_owned(), Node {
-			connection_state: ConnectionState::NotConnected {
-				last_connected: Instant::now(),
+		self.parent.nodes.insert(
+			self.peer_id.clone().into_owned(),
+			Node {
+				connection_state: ConnectionState::NotConnected { last_connected: Instant::now() },
+				reputation: 0,
 			},
-			reputation: 0,
-		});
+		);
 
 		let state = self.parent;
-		NotConnectedPeer {
-			state,
-			peer_id: self.peer_id,
-		}
+		NotConnectedPeer { state, peer_id: self.peer_id }
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{PeersState, Peer};
+	use super::{Peer, PeersState};
 	use libp2p::PeerId;
 
 	#[test]
@@ -548,11 +525,15 @@ mod tests {
 		peers_state.add_no_slot_node(id1.clone());
 		if let Peer::Unknown(p) = peers_state.peer(&id1) {
 			assert!(p.discover().try_accept_incoming().is_ok());
-		} else { panic!() }
+		} else {
+			panic!()
+		}
 
 		if let Peer::Unknown(e) = peers_state.peer(&id2) {
 			assert!(e.discover().try_accept_incoming().is_ok());
-		} else { panic!() }
+		} else {
+			panic!()
+		}
 	}
 
 	#[test]
@@ -561,8 +542,20 @@ mod tests {
 		let id1 = PeerId::random();
 		let id2 = PeerId::random();
 
-		assert!(peers_state.peer(&id1).into_unknown().unwrap().discover().try_accept_incoming().is_ok());
-		assert!(peers_state.peer(&id2).into_unknown().unwrap().discover().try_accept_incoming().is_err());
+		assert!(peers_state
+			.peer(&id1)
+			.into_unknown()
+			.unwrap()
+			.discover()
+			.try_accept_incoming()
+			.is_ok());
+		assert!(peers_state
+			.peer(&id2)
+			.into_unknown()
+			.unwrap()
+			.discover()
+			.try_accept_incoming()
+			.is_err());
 		peers_state.peer(&id1).into_connected().unwrap().disconnect();
 		assert!(peers_state.peer(&id2).into_not_connected().unwrap().try_accept_incoming().is_ok());
 	}
@@ -576,16 +569,31 @@ mod tests {
 		assert!(peers_state.highest_not_connected_peer().is_none());
 		peers_state.peer(&id1).into_unknown().unwrap().discover().set_reputation(50);
 		peers_state.peer(&id2).into_unknown().unwrap().discover().set_reputation(25);
-		assert_eq!(peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()), Some(id1.clone()));
+		assert_eq!(
+			peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()),
+			Some(id1.clone())
+		);
 		peers_state.peer(&id2).into_not_connected().unwrap().set_reputation(75);
-		assert_eq!(peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()), Some(id2.clone()));
+		assert_eq!(
+			peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()),
+			Some(id2.clone())
+		);
 		peers_state.peer(&id2).into_not_connected().unwrap().try_accept_incoming().unwrap();
-		assert_eq!(peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()), Some(id1.clone()));
+		assert_eq!(
+			peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()),
+			Some(id1.clone())
+		);
 		peers_state.peer(&id1).into_not_connected().unwrap().set_reputation(100);
 		peers_state.peer(&id2).into_connected().unwrap().disconnect();
-		assert_eq!(peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()), Some(id1.clone()));
+		assert_eq!(
+			peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()),
+			Some(id1.clone())
+		);
 		peers_state.peer(&id1).into_not_connected().unwrap().set_reputation(-100);
-		assert_eq!(peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()), Some(id2.clone()));
+		assert_eq!(
+			peers_state.highest_not_connected_peer().map(|p| p.into_peer_id()),
+			Some(id2.clone())
+		);
 	}
 
 	#[test]

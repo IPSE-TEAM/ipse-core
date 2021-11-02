@@ -21,22 +21,26 @@
 
 use super::*;
 
-use frame_system::RawOrigin;
 use frame_benchmarking::benchmarks;
-use sp_core::OpaquePeerId;
+use frame_support::traits::UnfilteredDispatchable;
+use frame_system::RawOrigin;
 use sp_core::offchain::OpaqueMultiaddr;
+use sp_core::OpaquePeerId;
 use sp_runtime::traits::{ValidateUnsigned, Zero};
 use sp_runtime::transaction_validity::TransactionSource;
-use frame_support::traits::UnfilteredDispatchable;
 
 use crate::Module as ImOnline;
 
 const MAX_KEYS: u32 = 1000;
 const MAX_EXTERNAL_ADDRESSES: u32 = 100;
 
-pub fn create_heartbeat<T: Trait>(k: u32, e: u32) ->
-	Result<(crate::Heartbeat<T::BlockNumber>, <T::AuthorityId as RuntimeAppPublic>::Signature), &'static str>
-{
+pub fn create_heartbeat<T: Trait>(
+	k: u32,
+	e: u32,
+) -> Result<
+	(crate::Heartbeat<T::BlockNumber>, <T::AuthorityId as RuntimeAppPublic>::Signature),
+	&'static str,
+> {
 	let mut keys = Vec::new();
 	for _ in 0..k {
 		keys.push(T::AuthorityId::generate_pair(None));
@@ -51,12 +55,12 @@ pub fn create_heartbeat<T: Trait>(k: u32, e: u32) ->
 		block_number: T::BlockNumber::zero(),
 		network_state,
 		session_index: 0,
-		authority_index: k-1,
+		authority_index: k - 1,
 		validators_len: keys.len() as u32,
 	};
 
 	let encoded_heartbeat = input_heartbeat.encode();
-	let authority_id = keys.get((k-1) as usize).ok_or("out of range")?;
+	let authority_id = keys.get((k - 1) as usize).ok_or("out of range")?;
 	let signature = authority_id.sign(&encoded_heartbeat).ok_or("couldn't make signature")?;
 
 	Ok((input_heartbeat, signature))

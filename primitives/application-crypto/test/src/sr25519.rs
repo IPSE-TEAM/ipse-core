@@ -17,24 +17,23 @@
 
 //! Integration tests for sr25519
 
-
-use sp_runtime::generic::BlockId;
+use sp_api::ProvideRuntimeApi;
+use sp_application_crypto::sr25519::{AppPair, AppPublic};
 use sp_core::{
 	crypto::Pair,
 	testing::{KeyStore, SR25519},
 };
+use sp_runtime::generic::BlockId;
 use substrate_test_runtime_client::{
-	TestClientBuilder, DefaultTestClientBuilderExt, TestClientBuilderExt,
-	runtime::TestAPI,
+	runtime::TestAPI, DefaultTestClientBuilderExt, TestClientBuilder, TestClientBuilderExt,
 };
-use sp_api::ProvideRuntimeApi;
-use sp_application_crypto::sr25519::{AppPair, AppPublic};
 
 #[test]
 fn sr25519_works_in_runtime() {
 	let keystore = KeyStore::new();
 	let test_client = TestClientBuilder::new().set_keystore(keystore.clone()).build();
-	let (signature, public) = test_client.runtime_api()
+	let (signature, public) = test_client
+		.runtime_api()
 		.test_sr25519_crypto(&BlockId::Number(0))
 		.expect("Tests `sr25519` crypto.");
 

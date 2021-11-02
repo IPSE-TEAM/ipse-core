@@ -18,8 +18,6 @@
 
 //! Initialization errors.
 
-
-
 /// Result type alias for the CLI.
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -40,7 +38,7 @@ pub enum Error {
 	#[from(ignore)]
 	Input(String),
 	/// Invalid listen multiaddress
-	#[display(fmt="Invalid listen multiaddress")]
+	#[display(fmt = "Invalid listen multiaddress")]
 	#[from(ignore)]
 	InvalidListenMultiaddress,
 	/// Other uncategorized error.

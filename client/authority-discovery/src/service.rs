@@ -32,9 +32,7 @@ pub struct Service {
 /// [`Worker`]'s local address cache for a given [`AuthorityId`].
 impl Service {
 	pub(crate) fn new(to_worker: mpsc::Sender<ServicetoWorkerMsg>) -> Self {
-		Self {
-			to_worker,
-		}
+		Self { to_worker }
 	}
 
 	/// Get the addresses for the given [`AuthorityId`] from the local address
@@ -49,7 +47,10 @@ impl Service {
 	/// represents a different sentry node. This might change once support for
 	/// sentry nodes is removed (see
 	/// https://github.com/paritytech/substrate/issues/6845).
-	pub async fn get_addresses_by_authority_id(&mut self, authority: AuthorityId) -> Option<Vec<Multiaddr>> {
+	pub async fn get_addresses_by_authority_id(
+		&mut self,
+		authority: AuthorityId,
+	) -> Option<Vec<Multiaddr>> {
 		let (tx, rx) = oneshot::channel();
 
 		self.to_worker
@@ -68,10 +69,7 @@ impl Service {
 	pub async fn get_authority_id_by_peer_id(&mut self, peer_id: PeerId) -> Option<AuthorityId> {
 		let (tx, rx) = oneshot::channel();
 
-		self.to_worker
-			.send(ServicetoWorkerMsg::GetAuthorityIdByPeerId(peer_id, tx))
-			.await
-			.ok()?;
+		self.to_worker.send(ServicetoWorkerMsg::GetAuthorityIdByPeerId(peer_id, tx)).await.ok()?;
 
 		rx.await.ok().flatten()
 	}

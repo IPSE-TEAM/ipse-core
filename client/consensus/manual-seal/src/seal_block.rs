@@ -16,23 +16,23 @@
 
 //! Block sealing utilities
 
-use crate::{Error, rpc, CreatedBlock, ConsensusDataProvider};
-use std::sync::Arc;
-use sp_runtime::{
-	traits::{Block as BlockT, Header as HeaderT},
-	generic::BlockId,
-};
+use crate::{rpc, ConsensusDataProvider, CreatedBlock, Error};
 use futures::prelude::*;
 use sc_transaction_pool::txpool;
-use sp_consensus::{
-	self, BlockImport, Environment, Proposer, ForkChoiceStrategy,
-	BlockImportParams, BlockOrigin, ImportResult, SelectChain,
-};
-use sp_blockchain::HeaderBackend;
-use std::collections::HashMap;
-use std::time::Duration;
-use sp_inherents::InherentDataProviders;
 use sp_api::{ProvideRuntimeApi, TransactionFor};
+use sp_blockchain::HeaderBackend;
+use sp_consensus::{
+	self, BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy,
+	ImportResult, Proposer, SelectChain,
+};
+use sp_inherents::InherentDataProviders;
+use sp_runtime::{
+	generic::BlockId,
+	traits::{Block as BlockT, Header as HeaderT},
+};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 
 /// max duration for creating a proposal in secs
 pub const MAX_PROPOSAL_DURATION: u64 = 10;
@@ -57,7 +57,8 @@ pub struct SealBlockParams<'a, B: BlockT, BI, SC, C: ProvideRuntimeApi<B>, E, P:
 	/// SelectChain object
 	pub select_chain: &'a SC,
 	/// Digest provider for inclusion in blocks.
-	pub consensus_data_provider: Option<&'a dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>,
+	pub consensus_data_provider:
+		Option<&'a dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>,
 	/// block import object
 	pub block_import: &'a mut BI,
 	/// inherent data provider
@@ -79,18 +80,19 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		consensus_data_provider: digest_provider,
 		mut sender,
 		..
-	}: SealBlockParams<'_, B, BI, SC, C, E, P>
-)
-	where
-		B: BlockT,
-		BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>>
-			+ Send + Sync + 'static,
-		C: HeaderBackend<B> + ProvideRuntimeApi<B>,
-		E: Environment<B>,
-		<E as Environment<B>>::Error: std::fmt::Display,
-		<E::Proposer as Proposer<B>>::Error: std::fmt::Display,
-		P: txpool::ChainApi<Block=B>,
-		SC: SelectChain<B>,
+	}: SealBlockParams<'_, B, BI, SC, C, E, P>,
+) where
+	B: BlockT,
+	BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>>
+		+ Send
+		+ Sync
+		+ 'static,
+	C: HeaderBackend<B> + ProvideRuntimeApi<B>,
+	E: Environment<B>,
+	<E as Environment<B>>::Error: std::fmt::Display,
+	<E::Proposer as Proposer<B>>::Error: std::fmt::Display,
+	P: txpool::ChainApi<Block = B>,
+	SC: SelectChain<B>,
 {
 	let future = async {
 		if pool.validated_pool().status().ready == 0 && !create_empty {
@@ -101,17 +103,15 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		// use the parent_hash supplied via `EngineCommand`
 		// or fetch the best_block.
 		let parent = match parent_hash {
-			Some(hash) => {
-				match client.header(BlockId::Hash(hash))? {
-					Some(header) => header,
-					None => return Err(Error::BlockNotFound(format!("{}", hash))),
-				}
-			}
-			None => select_chain.best_chain()?
+			Some(hash) => match client.header(BlockId::Hash(hash))? {
+				Some(header) => header,
+				None => return Err(Error::BlockNotFound(format!("{}", hash))),
+			},
+			None => select_chain.best_chain()?,
 		};
 
-		let proposer = env.init(&parent)
-			.map_err(|err| Error::StringError(format!("{}", err))).await?;
+		let proposer =
+			env.init(&parent).map_err(|err| Error::StringError(format!("{}", err))).await?;
 		let id = inherent_data_provider.create_inherent_data()?;
 		let inherents_len = id.len();
 
@@ -121,8 +121,10 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 			Default::default()
 		};
 
-		let proposal = proposer.propose(id.clone(), digest, Duration::from_secs(MAX_PROPOSAL_DURATION), false.into())
-			.map_err(|err| Error::StringError(format!("{}", err))).await?;
+		let proposal = proposer
+			.propose(id.clone(), digest, Duration::from_secs(MAX_PROPOSAL_DURATION), false.into())
+			.map_err(|err| Error::StringError(format!("{}", err)))
+			.await?;
 
 		if proposal.block.extrinsics().len() == inherents_len && !create_empty {
 			return Err(Error::EmptyTransactionPool)
@@ -139,9 +141,8 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		}
 
 		match block_import.import_block(params, HashMap::new())? {
-			ImportResult::Imported(aux) => {
-				Ok(CreatedBlock { hash: <B as BlockT>::Header::hash(&header), aux })
-			},
+			ImportResult::Imported(aux) =>
+				Ok(CreatedBlock { hash: <B as BlockT>::Header::hash(&header), aux }),
 			other => Err(other.into()),
 		}
 	};

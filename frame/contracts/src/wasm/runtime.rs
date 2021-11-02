@@ -16,25 +16,18 @@
 
 //! Environment definition of the wasm smart-contract runtime.
 
-use crate::{Schedule, Trait, CodeHash, BalanceOf, Error};
-use crate::exec::{
-	Ext, ExecResult, ExecReturnValue, StorageKey, TopicOf, ReturnFlags, ExecError
-};
-use crate::gas::{Gas, GasMeter, Token, GasMeterResult};
+use crate::exec::{ExecError, ExecResult, ExecReturnValue, Ext, ReturnFlags, StorageKey, TopicOf};
+use crate::gas::{Gas, GasMeter, GasMeterResult, Token};
 use crate::wasm::env_def::ConvertibleToWasm;
-use sp_sandbox;
-use parity_wasm::elements::ValueType;
-use frame_system;
-use frame_support::dispatch::DispatchError;
-use sp_std::prelude::*;
+use crate::{BalanceOf, CodeHash, Error, Schedule, Trait};
 use codec::{Decode, Encode};
+use frame_support::dispatch::DispatchError;
+use frame_system;
+use parity_wasm::elements::ValueType;
+use sp_io::hashing::{blake2_128, blake2_256, keccak_256, sha2_256};
 use sp_runtime::traits::{Bounded, SaturatedConversion};
-use sp_io::hashing::{
-	keccak_256,
-	blake2_256,
-	blake2_128,
-	sha2_256,
-};
+use sp_sandbox;
+use sp_std::prelude::*;
 
 /// Every error that can be returned to a contract when it calls any of the host functions.
 #[repr(u32)]
@@ -156,27 +149,15 @@ pub(crate) fn to_execution_result<E: Ext>(
 	if let Some(trap_reason) = runtime.trap_reason {
 		return match trap_reason {
 			// The trap was the result of the execution `return` host function.
-			TrapReason::Return(ReturnData{ flags, data }) => {
-				let flags = ReturnFlags::from_bits(flags).ok_or_else(||
-					"used reserved bit in return flags"
-				)?;
-				Ok(ExecReturnValue {
-					flags,
-					data,
-				})
+			TrapReason::Return(ReturnData { flags, data }) => {
+				let flags = ReturnFlags::from_bits(flags)
+					.ok_or_else(|| "used reserved bit in return flags")?;
+				Ok(ExecReturnValue { flags, data })
 			},
-			TrapReason::Termination => {
-				Ok(ExecReturnValue {
-					flags: ReturnFlags::empty(),
-					data: Vec::new(),
-				})
-			},
-			TrapReason::Restoration => {
-				Ok(ExecReturnValue {
-					flags: ReturnFlags::empty(),
-					data: Vec::new(),
-				})
-			},
+			TrapReason::Termination =>
+				Ok(ExecReturnValue { flags: ReturnFlags::empty(), data: Vec::new() }),
+			TrapReason::Restoration =>
+				Ok(ExecReturnValue { flags: ReturnFlags::empty(), data: Vec::new() }),
 			TrapReason::SupervisorError(error) => Err(error)?,
 		}
 	}
@@ -184,20 +165,17 @@ pub(crate) fn to_execution_result<E: Ext>(
 	// Check the exact type of the error.
 	match sandbox_result {
 		// No traps were generated. Proceed normally.
-		Ok(_) => {
-			Ok(ExecReturnValue { flags: ReturnFlags::empty(), data: Vec::new() })
-		}
+		Ok(_) => Ok(ExecReturnValue { flags: ReturnFlags::empty(), data: Vec::new() }),
 		// `Error::Module` is returned only if instantiation or linking failed (i.e.
 		// wasm binary tried to import a function that is not provided by the host).
 		// This shouldn't happen because validation process ought to reject such binaries.
 		//
 		// Because panics are really undesirable in the runtime code, we treat this as
 		// a trap for now. Eventually, we might want to revisit this.
-		Err(sp_sandbox::Error::Module) =>
-			Err("validation error")?,
+		Err(sp_sandbox::Error::Module) => Err("validation error")?,
 		// Any other kind of a trap should result in a failure.
 		Err(sp_sandbox::Error::Execution) | Err(sp_sandbox::Error::OutOfBounds) =>
-			Err(Error::<E::T>::ContractTrapped)?
+			Err(Error::<E::T>::ContractTrapped)?,
 	}
 }
 
@@ -214,8 +192,8 @@ pub enum RuntimeToken {
 	/// The given number of bytes is read from the sandbox memory and
 	/// is returned as the return data buffer of the call.
 	ReturnData(u32),
-	/// (topic_count, data_bytes): A buffer of the given size is posted as an event indexed with the
-	/// given number of topics.
+	/// (topic_count, data_bytes): A buffer of the given size is posted as an event indexed with
+	/// the given number of topics.
 	DepositEvent(u32, u32),
 }
 
@@ -226,33 +204,25 @@ impl<T: Trait> Token<T> for RuntimeToken {
 		use self::RuntimeToken::*;
 		let value = match *self {
 			Explicit(amount) => Some(amount.into()),
-			ReadMemory(byte_count) => metadata
-				.sandbox_data_read_cost
-				.checked_mul(byte_count.into()),
-			WriteMemory(byte_count) => metadata
-				.sandbox_data_write_cost
-				.checked_mul(byte_count.into()),
-			ReturnData(byte_count) => metadata
-				.return_data_per_byte_cost
-				.checked_mul(byte_count.into()),
+			ReadMemory(byte_count) =>
+				metadata.sandbox_data_read_cost.checked_mul(byte_count.into()),
+			WriteMemory(byte_count) =>
+				metadata.sandbox_data_write_cost.checked_mul(byte_count.into()),
+			ReturnData(byte_count) =>
+				metadata.return_data_per_byte_cost.checked_mul(byte_count.into()),
 			DepositEvent(topic_count, data_byte_count) => {
-				let data_cost = metadata
-					.event_data_per_byte_cost
-					.checked_mul(data_byte_count.into());
+				let data_cost =
+					metadata.event_data_per_byte_cost.checked_mul(data_byte_count.into());
 
-				let topics_cost = metadata
-					.event_per_topic_cost
-					.checked_mul(topic_count.into());
+				let topics_cost = metadata.event_per_topic_cost.checked_mul(topic_count.into());
 
 				data_cost
 					.and_then(|data_cost| {
-						topics_cost.and_then(|topics_cost| {
-							data_cost.checked_add(topics_cost)
-						})
+						topics_cost.and_then(|topics_cost| data_cost.checked_add(topics_cost))
 					})
-					.and_then(|data_and_topics_cost|
+					.and_then(|data_and_topics_cost| {
 						data_and_topics_cost.checked_add(metadata.event_base_cost)
-					)
+					})
 			},
 		};
 
@@ -271,7 +241,7 @@ fn charge_gas<T: Trait, Tok: Token<T>>(
 ) -> Result<(), sp_sandbox::HostError> {
 	match gas_meter.charge(metadata, token) {
 		GasMeterResult::Proceed => Ok(()),
-		GasMeterResult::OutOfGas =>  {
+		GasMeterResult::OutOfGas => {
 			*trap_reason = Some(TrapReason::SupervisorError(Error::<T>::OutOfGas.into()));
 			Err(sp_sandbox::HostError)
 		},
@@ -291,15 +261,11 @@ fn read_sandbox_memory<E: Ext>(
 	ptr: u32,
 	len: u32,
 ) -> Result<Vec<u8>, sp_sandbox::HostError> {
-	charge_gas(
-		ctx.gas_meter,
-		ctx.schedule,
-		&mut ctx.trap_reason,
-		RuntimeToken::ReadMemory(len),
-	)?;
+	charge_gas(ctx.gas_meter, ctx.schedule, &mut ctx.trap_reason, RuntimeToken::ReadMemory(len))?;
 
 	let mut buf = vec![0u8; len as usize];
-	ctx.memory.get(ptr, buf.as_mut_slice())
+	ctx.memory
+		.get(ptr, buf.as_mut_slice())
 		.map_err(|_| store_err(ctx, Error::<E::T>::OutOfBounds))?;
 	Ok(buf)
 }
@@ -365,8 +331,7 @@ fn write_sandbox_memory<E: Ext>(
 		RuntimeToken::WriteMemory(buf.len() as u32),
 	)?;
 
-	ctx.memory.set(ptr, buf)
-		.map_err(|_| store_err(ctx, Error::<E::T>::OutOfBounds))
+	ctx.memory.set(ptr, buf).map_err(|_| store_err(ctx, Error::<E::T>::OutOfBounds))
 }
 
 /// Write the given buffer and its length to the designated locations in sandbox memory.
@@ -391,7 +356,7 @@ fn write_sandbox_output<E: Ext>(
 	allow_skip: bool,
 ) -> Result<(), sp_sandbox::HostError> {
 	if allow_skip && out_ptr == u32::max_value() {
-		return Ok(());
+		return Ok(())
 	}
 
 	let buf_len = buf.len() as u32;
@@ -417,7 +382,8 @@ fn write_sandbox_output<E: Ext>(
 /// Stores a DispatchError returned from an Ext function into the trap_reason.
 ///
 /// This allows through supervisor generated errors to the caller.
-fn store_err<E, Error>(ctx: &mut Runtime<E>, err: Error) -> sp_sandbox::HostError where
+fn store_err<E, Error>(ctx: &mut Runtime<E>, err: Error) -> sp_sandbox::HostError
+where
 	E: Ext,
 	Error: Into<DispatchError>,
 {
@@ -441,7 +407,7 @@ fn err_into_return_code<T: Trait>(from: DispatchError) -> Result<ReturnCode, Dis
 		x if x == not_funded => Ok(NewContractNotFunded),
 		x if x == no_code => Ok(CodeNotFound),
 		x if x == invalid_contract => Ok(NotCallable),
-		err => Err(err)
+		err => Err(err),
 	}
 }
 
@@ -456,7 +422,7 @@ fn exec_into_return_code<T: Trait>(from: ExecResult) -> Result<ReturnCode, Dispa
 
 	match (error, origin) {
 		(_, Callee) => Ok(ReturnCode::CalleeTrapped),
-		(err, _) => err_into_return_code::<T>(err)
+		(err, _) => err_into_return_code::<T>(err),
 	}
 }
 
@@ -466,9 +432,10 @@ fn exec_into_return_code<T: Trait>(from: ExecResult) -> Result<ReturnCode, Dispa
 /// a `ReturnCode`. If this conversion fails because the `ExecResult` constitutes a
 /// a fatal error then this error is stored in the `ExecutionContext` so it can be
 /// extracted for display in the UI.
-fn map_exec_result<E: Ext>(ctx: &mut Runtime<E>, result: ExecResult)
-	-> Result<ReturnCode, sp_sandbox::HostError>
-{
+fn map_exec_result<E: Ext>(
+	ctx: &mut Runtime<E>,
+	result: ExecResult,
+) -> Result<ReturnCode, sp_sandbox::HostError> {
 	match exec_into_return_code::<E::T>(result) {
 		Ok(code) => Ok(code),
 		Err(err) => Err(store_err(ctx, err)),
@@ -478,14 +445,11 @@ fn map_exec_result<E: Ext>(ctx: &mut Runtime<E>, result: ExecResult)
 /// Try to convert an error into a `ReturnCode`.
 ///
 /// Used to decide between fatal and non-fatal errors.
-fn map_dispatch_result<T, E: Ext>(ctx: &mut Runtime<E>, result: Result<T, DispatchError>)
-	-> Result<ReturnCode, sp_sandbox::HostError>
-{
-	let err = if let Err(err) = result {
-		err
-	} else {
-		return Ok(ReturnCode::Success)
-	};
+fn map_dispatch_result<T, E: Ext>(
+	ctx: &mut Runtime<E>,
+	result: Result<T, DispatchError>,
+) -> Result<ReturnCode, sp_sandbox::HostError> {
+	let err = if let Err(err) = result { err } else { return Ok(ReturnCode::Success) };
 
 	match err_into_return_code::<E::T>(err) {
 		Ok(code) => Ok(code),
@@ -1278,11 +1242,7 @@ where
 	// Compute the hash on the input buffer using the given hash function.
 	let hash = hash_fn(&input);
 	// Write the resulting hash back into the sandboxed output buffer.
-	write_sandbox_memory(
-		ctx,
-		output_ptr,
-		hash.as_ref(),
-	)?;
+	write_sandbox_memory(ctx, output_ptr, hash.as_ref())?;
 	Ok(())
 }
 
@@ -1292,14 +1252,10 @@ where
 /// the order of items is not preserved.
 fn has_duplicates<T: PartialEq + AsRef<[u8]>>(items: &mut Vec<T>) -> bool {
 	// Sort the vector
-	items.sort_by(|a, b| {
-		Ord::cmp(a.as_ref(), b.as_ref())
-	});
+	items.sort_by(|a, b| Ord::cmp(a.as_ref(), b.as_ref()));
 	// And then find any two consecutive equal elements.
-	items.windows(2).any(|w| {
-		match w {
-			&[ref a, ref b] => a == b,
-			_ => false,
-		}
+	items.windows(2).any(|w| match w {
+		&[ref a, ref b] => a == b,
+		_ => false,
 	})
 }

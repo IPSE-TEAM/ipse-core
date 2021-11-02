@@ -21,32 +21,29 @@
 #[cfg(test)]
 mod tests;
 
-use std::{sync::Arc, convert::TryInto};
 use log::warn;
+use std::{convert::TryInto, sync::Arc};
 
 use sp_blockchain::{Error as ClientError, HeaderBackend};
 
-use rpc::futures::{
-	Sink, Future,
-	future::result,
-};
-use futures::{StreamExt as _, compat::Compat};
+use codec::{Decode, Encode};
 use futures::future::{ready, FutureExt, TryFutureExt};
+use futures::{compat::Compat, StreamExt as _};
+use jsonrpc_pubsub::{manager::SubscriptionManager, typed::Subscriber, SubscriptionId};
+use rpc::futures::{future::result, Future, Sink};
 use sc_rpc_api::DenyUnsafe;
-use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId, manager::SubscriptionManager};
-use codec::{Encode, Decode};
-use sp_core::{Bytes, traits::BareCryptoStorePtr};
 use sp_api::ProvideRuntimeApi;
+use sp_core::{traits::BareCryptoStorePtr, Bytes};
 use sp_runtime::generic;
-use sp_transaction_pool::{
-	TransactionPool, InPoolTransaction, TransactionStatus, TransactionSource,
-	BlockHash, TxHash, TransactionFor, error::IntoPoolError,
-};
 use sp_session::SessionKeys;
+use sp_transaction_pool::{
+	error::IntoPoolError, BlockHash, InPoolTransaction, TransactionFor, TransactionPool,
+	TransactionSource, TransactionStatus, TxHash,
+};
 
+use self::error::{Error, FutureResult, Result};
 /// Re-export the API for backward compatibility.
 pub use sc_rpc_api::author::*;
-use self::error::{Error, FutureResult, Result};
 
 /// Authoring API
 pub struct Author<P, Client> {
@@ -71,13 +68,7 @@ impl<P, Client> Author<P, Client> {
 		keystore: BareCryptoStorePtr,
 		deny_unsafe: DenyUnsafe,
 	) -> Self {
-		Author {
-			client,
-			pool,
-			subscriptions,
-			keystore,
-			deny_unsafe,
-		}
+		Author { client, pool, subscriptions, keystore, deny_unsafe }
 	}
 }
 
@@ -89,24 +80,20 @@ impl<P, Client> Author<P, Client> {
 const TX_SOURCE: TransactionSource = TransactionSource::External;
 
 impl<P, Client> AuthorApi<TxHash<P>, BlockHash<P>> for Author<P, Client>
-	where
-		P: TransactionPool + Sync + Send + 'static,
-		Client: HeaderBackend<P::Block> + ProvideRuntimeApi<P::Block> + Send + Sync + 'static,
-		Client::Api: SessionKeys<P::Block, Error = ClientError>,
+where
+	P: TransactionPool + Sync + Send + 'static,
+	Client: HeaderBackend<P::Block> + ProvideRuntimeApi<P::Block> + Send + Sync + 'static,
+	Client::Api: SessionKeys<P::Block, Error = ClientError>,
 {
 	type Metadata = crate::Metadata;
 
-	fn insert_key(
-		&self,
-		key_type: String,
-		suri: String,
-		public: Bytes,
-	) -> Result<()> {
+	fn insert_key(&self, key_type: String, suri: String, public: Bytes) -> Result<()> {
 		self.deny_unsafe.check_if_safe()?;
 
 		let key_type = key_type.as_str().try_into().map_err(|_| Error::BadKeyType)?;
 		let mut keystore = self.keystore.write();
-		keystore.insert_unknown(key_type, &suri, &public[..])
+		keystore
+			.insert_unknown(key_type, &suri, &public[..])
 			.map_err(|_| Error::KeyStoreUnavailable)?;
 		Ok(())
 	}
@@ -115,20 +102,22 @@ impl<P, Client> AuthorApi<TxHash<P>, BlockHash<P>> for Author<P, Client>
 		self.deny_unsafe.check_if_safe()?;
 
 		let best_block_hash = self.client.info().best_hash;
-		self.client.runtime_api().generate_session_keys(
-			&generic::BlockId::Hash(best_block_hash),
-			None,
-		).map(Into::into).map_err(|e| Error::Client(Box::new(e)))
+		self.client
+			.runtime_api()
+			.generate_session_keys(&generic::BlockId::Hash(best_block_hash), None)
+			.map(Into::into)
+			.map_err(|e| Error::Client(Box::new(e)))
 	}
 
 	fn has_session_keys(&self, session_keys: Bytes) -> Result<bool> {
 		self.deny_unsafe.check_if_safe()?;
 
 		let best_block_hash = self.client.info().best_hash;
-		let keys = self.client.runtime_api().decode_session_keys(
-			&generic::BlockId::Hash(best_block_hash),
-			session_keys.to_vec(),
-		).map_err(|e| Error::Client(Box::new(e)))?
+		let keys = self
+			.client
+			.runtime_api()
+			.decode_session_keys(&generic::BlockId::Hash(best_block_hash), session_keys.to_vec())
+			.map_err(|e| Error::Client(Box::new(e)))?
 			.ok_or_else(|| Error::InvalidSessionKeys)?;
 
 		Ok(self.keystore.read().has_keys(&keys))
@@ -147,12 +136,15 @@ impl<P, Client> AuthorApi<TxHash<P>, BlockHash<P>> for Author<P, Client>
 			Err(err) => return Box::new(result(Err(err.into()))),
 		};
 		let best_block_hash = self.client.info().best_hash;
-		Box::new(self.pool
-			.submit_one(&generic::BlockId::hash(best_block_hash), TX_SOURCE, xt)
-			.compat()
-			.map_err(|e| e.into_pool_error()
-				.map(Into::into)
-				.unwrap_or_else(|e| error::Error::Verification(Box::new(e)).into()))
+		Box::new(
+			self.pool
+				.submit_one(&generic::BlockId::hash(best_block_hash), TX_SOURCE, xt)
+				.compat()
+				.map_err(|e| {
+					e.into_pool_error()
+						.map(Into::into)
+						.unwrap_or_else(|e| error::Error::Verification(Box::new(e)).into())
+				}),
 		)
 	}
 
@@ -166,7 +158,8 @@ impl<P, Client> AuthorApi<TxHash<P>, BlockHash<P>> for Author<P, Client>
 	) -> Result<Vec<TxHash<P>>> {
 		self.deny_unsafe.check_if_safe()?;
 
-		let hashes = bytes_or_hash.into_iter()
+		let hashes = bytes_or_hash
+			.into_iter()
 			.map(|x| match x {
 				hash::ExtrinsicOrHash::Hash(h) => Ok(h),
 				hash::ExtrinsicOrHash::Extrinsic(bytes) => {
@@ -176,32 +169,26 @@ impl<P, Client> AuthorApi<TxHash<P>, BlockHash<P>> for Author<P, Client>
 			})
 			.collect::<Result<Vec<_>>>()?;
 
-		Ok(
-			self.pool
-				.remove_invalid(&hashes)
-				.into_iter()
-				.map(|tx| tx.hash().clone())
-				.collect()
-		)
+		Ok(self.pool.remove_invalid(&hashes).into_iter().map(|tx| tx.hash().clone()).collect())
 	}
 
-	fn watch_extrinsic(&self,
+	fn watch_extrinsic(
+		&self,
 		_metadata: Self::Metadata,
 		subscriber: Subscriber<TransactionStatus<TxHash<P>, BlockHash<P>>>,
 		xt: Bytes,
 	) {
 		let submit = || -> Result<_> {
 			let best_block_hash = self.client.info().best_hash;
-			let dxt = TransactionFor::<P>::decode(&mut &xt[..])
-				.map_err(error::Error::from)?;
-			Ok(
-				self.pool
-					.submit_and_watch(&generic::BlockId::hash(best_block_hash), TX_SOURCE, dxt)
-					.map_err(|e| e.into_pool_error()
+			let dxt = TransactionFor::<P>::decode(&mut &xt[..]).map_err(error::Error::from)?;
+			Ok(self
+				.pool
+				.submit_and_watch(&generic::BlockId::hash(best_block_hash), TX_SOURCE, dxt)
+				.map_err(|e| {
+					e.into_pool_error()
 						.map(error::Error::from)
 						.unwrap_or_else(|e| error::Error::Verification(Box::new(e)).into())
-					)
-			)
+				}))
 		};
 
 		let subscriptions = self.subscriptions.clone();
@@ -214,27 +201,31 @@ impl<P, Client> AuthorApi<TxHash<P>, BlockHash<P>> for Author<P, Client>
 			.map(move |result| match result {
 				Ok(watcher) => {
 					subscriptions.add(subscriber, move |sink| {
-						sink
-							.sink_map_err(|_| unimplemented!())
+						sink.sink_map_err(|_| unimplemented!())
 							.send_all(Compat::new(watcher))
 							.map(|_| ())
 					});
 				},
 				Err(err) => {
 					warn!("Failed to submit extrinsic: {}", err);
-					// reject the subscriber (ignore errors - we don't care if subscriber is no longer there).
+					// reject the subscriber (ignore errors - we don't care if subscriber is no
+					// longer there).
 					let _ = subscriber.reject(err.into());
 				},
 			});
 
-		let res = self.subscriptions.executor()
-			.execute(Box::new(Compat::new(future.map(|_| Ok(())))));
+		let res =
+			self.subscriptions.executor().execute(Box::new(Compat::new(future.map(|_| Ok(())))));
 		if res.is_err() {
 			warn!("Error spawning subscription RPC task.");
 		}
 	}
 
-	fn unwatch_extrinsic(&self, _metadata: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
+	fn unwatch_extrinsic(
+		&self,
+		_metadata: Option<Self::Metadata>,
+		id: SubscriptionId,
+	) -> Result<bool> {
 		Ok(self.subscriptions.cancel(id))
 	}
 }

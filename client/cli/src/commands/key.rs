@@ -21,11 +21,8 @@ use crate::Error;
 use structopt::StructOpt;
 
 use super::{
-	insert::InsertCmd,
-	inspect::InspectKeyCmd,
-	generate::GenerateCmd,
-	inspect_node_key::InspectNodeKeyCmd,
-	generate_node_key::GenerateNodeKeyCmd,
+	generate::GenerateCmd, generate_node_key::GenerateNodeKeyCmd, insert::InsertCmd,
+	inspect::InspectKeyCmd, inspect_node_key::InspectNodeKeyCmd,
 };
 
 /// Key utilities for the cli.

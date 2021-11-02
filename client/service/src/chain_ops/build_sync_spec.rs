@@ -14,23 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
-use sp_runtime::traits::Block as BlockT;
 use sp_blockchain::HeaderBackend;
-use std::sync::Arc;
 use sp_runtime::generic::BlockId;
+use sp_runtime::traits::Block as BlockT;
+use std::sync::Arc;
 
 /// Build a `LightSyncState` from the CHT roots stored in a backend.
 pub fn build_light_sync_state<TBl, TCl>(
 	client: Arc<TCl>,
 ) -> Result<sc_chain_spec::LightSyncState<TBl>, sp_blockchain::Error>
-	where
-		TBl: BlockT,
-		TCl: HeaderBackend<TBl>,
+where
+	TBl: BlockT,
+	TCl: HeaderBackend<TBl>,
 {
 	let finalized_hash = client.info().finalized_hash;
 	let header = client.header(BlockId::Hash(finalized_hash))?.unwrap();
 
-	Ok(sc_chain_spec::LightSyncState {
-		header
-	})
+	Ok(sc_chain_spec::LightSyncState { header })
 }

@@ -193,14 +193,14 @@ macro_rules! define_env {
 
 #[cfg(test)]
 mod tests {
+	use crate::exec::Ext;
+	use crate::gas::Gas;
+	use crate::wasm::tests::MockExt;
+	use crate::wasm::Runtime;
 	use parity_wasm::elements::FunctionType;
 	use parity_wasm::elements::ValueType;
 	use sp_runtime::traits::Zero;
 	use sp_sandbox::{ReturnValue, Value};
-	use crate::wasm::tests::MockExt;
-	use crate::wasm::Runtime;
-	use crate::exec::Ext;
-	use crate::gas::Gas;
 
 	#[test]
 	fn macro_unmarshall_then_body_then_marshall_value_or_trap() {
@@ -263,16 +263,15 @@ mod tests {
 				Err(sp_sandbox::HostError)
 			}
 		});
-		let _f: fn(&mut Runtime<MockExt>, &[sp_sandbox::Value])
-			-> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> = seal_gas::<MockExt>;
+		let _f: fn(
+			&mut Runtime<MockExt>,
+			&[sp_sandbox::Value],
+		) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> = seal_gas::<MockExt>;
 	}
 
 	#[test]
 	fn macro_gen_signature() {
-		assert_eq!(
-			gen_signature!((i32)),
-			FunctionType::new(vec![ValueType::I32], None),
-		);
+		assert_eq!(gen_signature!((i32)), FunctionType::new(vec![ValueType::I32], None),);
 
 		assert_eq!(
 			gen_signature!( (i32, u32) -> u32 ),

@@ -33,7 +33,6 @@
 //! When using this module for enabling equivocation reporting it is required
 //! that the `ValidateUnsigned` for the BABE pallet is used in the runtime
 //! definition.
-//!
 
 use frame_support::{debug, traits::KeyOwnerProofSystem};
 use sp_consensus_babe::{EquivocationProof, SlotNumber};
@@ -109,16 +108,23 @@ pub struct EquivocationHandler<I, R> {
 
 impl<I, R> Default for EquivocationHandler<I, R> {
 	fn default() -> Self {
-		Self {
-			_phantom: Default::default(),
-		}
+		Self { _phantom: Default::default() }
 	}
 }
 
 impl<T, R> HandleEquivocation<T> for EquivocationHandler<T::KeyOwnerIdentification, R>
 where
-	// We use the authorship pallet to fetch the current block author and use
-	// `offchain::SendTransactionTypes` for unsigned extrinsic creation and
+	// We use the
+	// authorship
+	// pallet to fetch
+	// the current
+	// block author
+	// and use
+	// `offchain::
+	// SendTransactionTypes`
+	// for unsigned
+	// extrinsic creation
+	// and
 	// submission.
 	T: Trait + pallet_authorship::Trait + frame_system::offchain::SendTransactionTypes<Call<T>>,
 	// A system for reporting offences after valid equivocation reports are
@@ -170,25 +176,22 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 		if let Call::report_equivocation_unsigned(equivocation_proof, _) = call {
 			// discard equivocation report not coming from the local node
 			match source {
-				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
+				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ },
 				_ => {
 					debug::warn!(
 						target: "babe",
 						"rejecting unsigned report equivocation transaction because it is not local/in-block."
 					);
 
-					return InvalidTransaction::Call.into();
-				}
+					return InvalidTransaction::Call.into()
+				},
 			}
 
 			ValidTransaction::with_tag_prefix("BabeEquivocation")
 				// We assign the maximum priority for any equivocation report.
 				.priority(TransactionPriority::max_value())
 				// Only one equivocation report for the same offender at the same slot.
-				.and_provides((
-					equivocation_proof.offender.clone(),
-					equivocation_proof.slot_number,
-				))
+				.and_provides((equivocation_proof.offender.clone(), equivocation_proof.slot_number))
 				// We don't propagate this. This can never be included on a remote node.
 				.propagate(false)
 				.build()
@@ -200,10 +203,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 	fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
 		if let Call::report_equivocation_unsigned(equivocation_proof, key_owner_proof) = call {
 			// check the membership proof to extract the offender's id
-			let key = (
-				sp_consensus_babe::KEY_TYPE,
-				equivocation_proof.offender.clone(),
-			);
+			let key = (sp_consensus_babe::KEY_TYPE, equivocation_proof.offender.clone());
 
 			let offender = T::KeyOwnerProofSystem::check_proof(key, key_owner_proof.clone())
 				.ok_or(InvalidTransaction::BadProof)?;

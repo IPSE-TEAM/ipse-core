@@ -41,9 +41,9 @@
 //! ### Executing Privileged Functions
 //!
 //! The Sudo module itself is not intended to be used within other modules.
-//! Instead, you can build "privileged functions" (i.e. functions that require `Root` origin) in other modules.
-//! You can execute these privileged functions by calling `sudo` with the sudo key account.
-//! Privileged functions cannot be directly executed via an extrinsic.
+//! Instead, you can build "privileged functions" (i.e. functions that require `Root` origin) in
+//! other modules. You can execute these privileged functions by calling `sudo` with the sudo key
+//! account. Privileged functions cannot be directly executed via an extrinsic.
 //!
 //! Learn more about privileged functions and `Root` origin in the [`Origin`] type documentation.
 //!
@@ -87,16 +87,14 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use sp_runtime::{traits::StaticLookup, DispatchResult};
 use sp_std::prelude::*;
-use sp_runtime::{DispatchResult, traits::StaticLookup};
 
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
 use frame_support::{
-	Parameter, decl_module, decl_event, decl_storage, decl_error, ensure,
-};
-use frame_support::{
-	weights::{Weight, GetDispatchInfo, Pays},
-	traits::{UnfilteredDispatchable, Get},
 	dispatch::DispatchResultWithPostInfo,
+	traits::{Get, UnfilteredDispatchable},
+	weights::{GetDispatchInfo, Pays, Weight},
 };
 use frame_system::ensure_signed;
 
@@ -110,7 +108,7 @@ pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
 	/// A sudo-able call.
-	type Call: Parameter + UnfilteredDispatchable<Origin=Self::Origin> + GetDispatchInfo;
+	type Call: Parameter + UnfilteredDispatchable<Origin = Self::Origin> + GetDispatchInfo;
 }
 
 decl_module! {
@@ -230,7 +228,10 @@ decl_module! {
 }
 
 decl_event!(
-	pub enum Event<T> where AccountId = <T as frame_system::Trait>::AccountId {
+	pub enum Event<T>
+	where
+		AccountId = <T as frame_system::Trait>::AccountId,
+	{
 		/// A sudo just took place. \[result\]
 		Sudid(DispatchResult),
 		/// The \[sudoer\] just switched identity; the old key is supplied.

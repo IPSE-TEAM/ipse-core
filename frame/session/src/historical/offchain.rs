@@ -34,7 +34,6 @@ use super::{IdentificationTuple, ProvingTrie, Trait};
 use super::shared;
 use sp_std::prelude::*;
 
-
 /// A set of validators, which was used for a fixed session index.
 struct ValidatorSet<T: Trait> {
 	validator_set: Vec<IdentificationTuple<T>>,
@@ -83,14 +82,12 @@ pub fn prove_session_membership<T: Trait, D: AsRef<[u8]>>(
 	let trie = ProvingTrie::<T>::generate_for(validators.into_iter()).ok()?;
 
 	let (id, data) = session_key;
-	trie.prove(id, data.as_ref())
-		.map(|trie_nodes| MembershipProof {
-			session: session_index,
-			trie_nodes,
-			validator_count: count,
-		})
+	trie.prove(id, data.as_ref()).map(|trie_nodes| MembershipProof {
+		session: session_index,
+		trie_nodes,
+		validator_count: count,
+	})
 }
-
 
 /// Attempt to prune anything that is older than `first_to_keep` session index.
 ///
@@ -120,9 +117,9 @@ pub fn prune_older_than<T: Trait>(first_to_keep: SessionIndex) {
 					let _ = StorageValueRef::persistent(derived_key.as_ref()).clear();
 				}
 			}
-		}
-		Ok(Err(_)) => {} // failed to store the value calculated with the given closure
-		Err(_) => {}     // failed to calculate the value to store with the given closure
+		},
+		Ok(Err(_)) => {}, // failed to store the value calculated with the given closure
+		Err(_) => {},     // failed to calculate the value to store with the given closure
 	}
 }
 
@@ -145,11 +142,7 @@ mod tests {
 	use codec::Encode;
 	use frame_support::traits::{KeyOwnerProofSystem, OnInitialize};
 	use sp_core::crypto::key_types::DUMMY;
-	use sp_core::offchain::{
-		testing::TestOffchainExt,
-		OffchainExt,
-		StorageKind,
-	};
+	use sp_core::offchain::{testing::TestOffchainExt, OffchainExt, StorageKind};
 
 	use sp_runtime::testing::UintAuthorityId;
 
@@ -162,16 +155,11 @@ mod tests {
 
 		crate::GenesisConfig::<Test> {
 			keys: NEXT_VALIDATORS.with(|l| {
-				l.borrow()
-					.iter()
-					.cloned()
-					.map(|i| (i, i, UintAuthorityId(i).into()))
-					.collect()
+				l.borrow().iter().cloned().map(|i| (i, i, UintAuthorityId(i).into())).collect()
 			}),
 		}
 		.assimilate_storage(&mut ext)
 		.unwrap();
-
 
 		let mut ext = sp_io::TestExternalities::new(ext);
 
@@ -188,13 +176,14 @@ mod tests {
 
 	#[test]
 	fn encode_decode_roundtrip() {
-		use codec::{Decode, Encode};
 		use super::super::super::Trait as SessionTrait;
 		use super::super::Trait as HistoricalTrait;
+		use codec::{Decode, Encode};
 
 		let sample = (
-				22u32 as <Test as SessionTrait>::ValidatorId,
-				7_777_777 as <Test as HistoricalTrait>::FullIdentification);
+			22u32 as <Test as SessionTrait>::ValidatorId,
+			7_777_777 as <Test as HistoricalTrait>::FullIdentification,
+		);
 
 		let encoded = sample.encode();
 		let decoded = Decode::decode(&mut encoded.as_slice()).expect("Must decode");
@@ -205,7 +194,7 @@ mod tests {
 	fn onchain_to_offchain() {
 		let mut ext = new_test_ext();
 
-		const DATA: &[u8] = &[7,8,9,10,11];
+		const DATA: &[u8] = &[7, 8, 9, 10, 11];
 		ext.execute_with(|| {
 			b"alphaomega"[..].using_encoded(|key| sp_io::offchain_index::set(key, DATA));
 		});
@@ -213,14 +202,12 @@ mod tests {
 		ext.persist_offchain_overlay();
 
 		ext.execute_with(|| {
-			let data =
-			b"alphaomega"[..].using_encoded(|key| {
+			let data = b"alphaomega"[..].using_encoded(|key| {
 				sp_io::offchain::local_storage_get(StorageKind::PERSISTENT, key)
 			});
 			assert_eq!(data, Some(DATA.to_vec()));
 		});
 	}
-
 
 	#[test]
 	fn historical_proof_offchain() {
@@ -246,8 +233,6 @@ mod tests {
 		ext.persist_offchain_overlay();
 
 		ext.execute_with(|| {
-
-
 			System::set_block_number(2);
 			Session::on_initialize(2);
 			assert_eq!(<SessionModule<Test>>::current_index(), 2);

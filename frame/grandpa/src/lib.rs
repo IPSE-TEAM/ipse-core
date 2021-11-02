@@ -40,21 +40,21 @@ use fg_primitives::{
 	GRANDPA_ENGINE_ID,
 };
 use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResultWithPostInfo,
-	storage, traits::KeyOwnerProofSystem, weights::{Pays, Weight}, Parameter,
+	decl_error, decl_event, decl_module, decl_storage,
+	dispatch::DispatchResultWithPostInfo,
+	storage,
+	traits::KeyOwnerProofSystem,
+	weights::{Pays, Weight},
+	Parameter,
 };
 use frame_system::{ensure_none, ensure_root, ensure_signed};
 use pallet_finality_tracker::OnFinalizationStalled;
-use sp_runtime::{
-	generic::DigestItem,
-	traits::Zero,
-	DispatchResult, KeyTypeId,
-};
+use sp_runtime::{generic::DigestItem, traits::Zero, DispatchResult, KeyTypeId};
 use sp_session::{GetSessionNumber, GetValidatorCount};
 use sp_staking::SessionIndex;
 
-mod equivocation;
 mod default_weights;
+mod equivocation;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
@@ -163,7 +163,7 @@ pub enum StoredState<N> {
 		/// Block at which the intention to pause was scheduled.
 		scheduled_at: N,
 		/// Number of blocks after which the change will be enacted.
-		delay: N
+		delay: N,
 	},
 	/// The current GRANDPA authority set is paused.
 	Paused,
@@ -381,10 +381,7 @@ impl<T: Trait> Module<T> {
 
 	/// Set the current set of authorities, along with their respective weights.
 	fn set_grandpa_authorities(authorities: &AuthorityList) {
-		storage::unhashed::put(
-			GRANDPA_AUTHORITIES_KEY,
-			&VersionedAuthorityList::from(authorities),
-		);
+		storage::unhashed::put(GRANDPA_AUTHORITIES_KEY, &VersionedAuthorityList::from(authorities));
 	}
 
 	/// Schedule GRANDPA to pause starting in the given number of blocks.
@@ -392,10 +389,7 @@ impl<T: Trait> Module<T> {
 	pub fn schedule_pause(in_blocks: T::BlockNumber) -> DispatchResult {
 		if let StoredState::Live = <State<T>>::get() {
 			let scheduled_at = <frame_system::Module<T>>::block_number();
-			<State<T>>::put(StoredState::PendingPause {
-				delay: in_blocks,
-				scheduled_at,
-			});
+			<State<T>>::put(StoredState::PendingPause { delay: in_blocks, scheduled_at });
 
 			Ok(())
 		} else {
@@ -407,10 +401,7 @@ impl<T: Trait> Module<T> {
 	pub fn schedule_resume(in_blocks: T::BlockNumber) -> DispatchResult {
 		if let StoredState::Paused = <State<T>>::get() {
 			let scheduled_at = <frame_system::Module<T>>::block_number();
-			<State<T>>::put(StoredState::PendingResume {
-				delay: in_blocks,
-				scheduled_at,
-			});
+			<State<T>>::put(StoredState::PendingResume { delay: in_blocks, scheduled_at });
 
 			Ok(())
 		} else {
@@ -473,10 +464,7 @@ impl<T: Trait> Module<T> {
 	// config builder or through `on_genesis_session`.
 	fn initialize(authorities: &AuthorityList) {
 		if !authorities.is_empty() {
-			assert!(
-				Self::grandpa_authorities().is_empty(),
-				"Authorities are already initialized!"
-			);
+			assert!(Self::grandpa_authorities().is_empty(), "Authorities are already initialized!");
 			Self::set_grandpa_authorities(authorities);
 		}
 
@@ -501,16 +489,16 @@ impl<T: Trait> Module<T> {
 		let validator_count = key_owner_proof.validator_count();
 
 		// validate the key ownership proof extracting the id of the offender.
-		let offender =
-			T::KeyOwnerProofSystem::check_proof(
-				(fg_primitives::KEY_TYPE, equivocation_proof.offender().clone()),
-				key_owner_proof,
-			).ok_or(Error::<T>::InvalidKeyOwnershipProof)?;
+		let offender = T::KeyOwnerProofSystem::check_proof(
+			(fg_primitives::KEY_TYPE, equivocation_proof.offender().clone()),
+			key_owner_proof,
+		)
+		.ok_or(Error::<T>::InvalidKeyOwnershipProof)?;
 
 		// validate equivocation proof (check votes are different and
 		// signatures are valid).
 		if !sp_finality_grandpa::check_equivocation_proof(equivocation_proof) {
-			return Err(Error::<T>::InvalidEquivocationProof.into());
+			return Err(Error::<T>::InvalidEquivocationProof.into())
 		}
 
 		// fetch the current and previous sets last session index. on the
@@ -518,31 +506,29 @@ impl<T: Trait> Module<T> {
 		let previous_set_id_session_index = if set_id == 0 {
 			None
 		} else {
-			let session_index =
-				if let Some(session_id) = Self::session_for_set(set_id - 1) {
-					session_id
-				} else {
-					return Err(Error::<T>::InvalidEquivocationProof.into());
-				};
+			let session_index = if let Some(session_id) = Self::session_for_set(set_id - 1) {
+				session_id
+			} else {
+				return Err(Error::<T>::InvalidEquivocationProof.into())
+			};
 
 			Some(session_index)
 		};
 
-		let set_id_session_index =
-			if let Some(session_id) = Self::session_for_set(set_id) {
-				session_id
-			} else {
-				return Err(Error::<T>::InvalidEquivocationProof.into());
-			};
+		let set_id_session_index = if let Some(session_id) = Self::session_for_set(set_id) {
+			session_id
+		} else {
+			return Err(Error::<T>::InvalidEquivocationProof.into())
+		};
 
 		// check that the session id for the membership proof is within the
 		// bounds of the set id reported in the equivocation.
 		if session_index > set_id_session_index ||
 			previous_set_id_session_index
-			.map(|previous_index| session_index <= previous_index)
-			.unwrap_or(false)
+				.map(|previous_index| session_index <= previous_index)
+				.unwrap_or(false)
 		{
-			return Err(Error::<T>::InvalidEquivocationProof.into());
+			return Err(Error::<T>::InvalidEquivocationProof.into())
 		}
 
 		// report to the offences module rewarding the sender.
@@ -555,7 +541,8 @@ impl<T: Trait> Module<T> {
 				set_id,
 				round,
 			),
-		).map_err(|_| Error::<T>::DuplicateOffenceReport)?;
+		)
+		.map_err(|_| Error::<T>::DuplicateOffenceReport)?;
 
 		// waive the fee since the report is valid and beneficial
 		Ok(Pays::No.into())
@@ -582,19 +569,22 @@ impl<T: Trait> sp_runtime::BoundToRuntimeAppPublic for Module<T> {
 }
 
 impl<T: Trait> pallet_session::OneSessionHandler<T::AccountId> for Module<T>
-	where T: pallet_session::Trait
+where
+	T: pallet_session::Trait,
 {
 	type Key = AuthorityId;
 
 	fn on_genesis_session<'a, I: 'a>(validators: I)
-		where I: Iterator<Item=(&'a T::AccountId, AuthorityId)>
+	where
+		I: Iterator<Item = (&'a T::AccountId, AuthorityId)>,
 	{
 		let authorities = validators.map(|(_, k)| (k, 1)).collect::<Vec<_>>();
 		Self::initialize(&authorities);
 	}
 
 	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, _queued_validators: I)
-		where I: Iterator<Item=(&'a T::AccountId, AuthorityId)>
+	where
+		I: Iterator<Item = (&'a T::AccountId, AuthorityId)>,
 	{
 		// Always issue a change if `session` says that the validators have changed.
 		// Even if their session keys are the same as before, the underlying economic

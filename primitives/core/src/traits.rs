@@ -18,9 +18,9 @@
 //! Shareable Substrate traits.
 
 use crate::{
-	crypto::{KeyTypeId, CryptoTypePublicPair},
-	vrf::{VRFTranscriptData, VRFSignature},
-	ed25519, sr25519, ecdsa,
+	crypto::{CryptoTypePublicPair, KeyTypeId},
+	ecdsa, ed25519, sr25519,
+	vrf::{VRFSignature, VRFTranscriptData},
 };
 use std::{
 	borrow::Cow,
@@ -35,20 +35,20 @@ pub use sp_externalities::{Externalities, ExternalitiesExt};
 #[derive(Debug, derive_more::Display)]
 pub enum Error {
 	/// Public key type is not supported
-	#[display(fmt="Key not supported: {:?}", _0)]
+	#[display(fmt = "Key not supported: {:?}", _0)]
 	KeyNotSupported(KeyTypeId),
 	/// Pair not found for public key and KeyTypeId
-	#[display(fmt="Pair was not found: {}", _0)]
+	#[display(fmt = "Pair was not found: {}", _0)]
 	PairNotFound(String),
 	/// Validation error
-	#[display(fmt="Validation error: {}", _0)]
+	#[display(fmt = "Validation error: {}", _0)]
 	ValidationError(String),
 	/// Keystore unavailable
-	#[display(fmt="Keystore unavailable")]
+	#[display(fmt = "Keystore unavailable")]
 	Unavailable,
 	/// Programming errors
-	#[display(fmt="An unknown keystore error occurred: {}", _0)]
-	Other(String)
+	#[display(fmt = "An unknown keystore error occurred: {}", _0)]
+	Other(String),
 }
 
 /// Something that generates, stores and provides access to keys.
@@ -96,7 +96,12 @@ pub trait BareCryptoStore: Send + Sync {
 	/// Places it into the file system store.
 	///
 	/// `Err` if there's some sort of weird filesystem error, but should generally be `Ok`.
-	fn insert_unknown(&mut self, _key_type: KeyTypeId, _suri: &str, _public: &[u8]) -> Result<(), ()>;
+	fn insert_unknown(
+		&mut self,
+		_key_type: KeyTypeId,
+		_suri: &str,
+		_public: &[u8],
+	) -> Result<(), ()>;
 
 	/// Get the password for this store.
 	fn password(&self) -> Option<&str>;
@@ -107,7 +112,7 @@ pub trait BareCryptoStore: Send + Sync {
 	fn supported_keys(
 		&self,
 		id: KeyTypeId,
-		keys: Vec<CryptoTypePublicPair>
+		keys: Vec<CryptoTypePublicPair>,
 	) -> Result<Vec<CryptoTypePublicPair>, Error>;
 	/// List all supported keys
 	///
@@ -143,14 +148,14 @@ pub trait BareCryptoStore: Send + Sync {
 		&self,
 		id: KeyTypeId,
 		keys: Vec<CryptoTypePublicPair>,
-		msg: &[u8]
+		msg: &[u8],
 	) -> Result<(CryptoTypePublicPair, Vec<u8>), Error> {
 		if keys.len() == 1 {
-			return self.sign_with(id, &keys[0], msg).map(|s| (keys[0].clone(), s));
+			return self.sign_with(id, &keys[0], msg).map(|s| (keys[0].clone(), s))
 		} else {
 			for k in self.supported_keys(id, keys)? {
 				if let Ok(sign) = self.sign_with(id, &k, msg) {
-					return Ok((k, sign));
+					return Ok((k, sign))
 				}
 			}
 		}
@@ -169,7 +174,7 @@ pub trait BareCryptoStore: Send + Sync {
 		id: KeyTypeId,
 		keys: Vec<CryptoTypePublicPair>,
 		msg: &[u8],
-	) -> Result<Vec<Result<Vec<u8>, Error>>, ()>{
+	) -> Result<Vec<Result<Vec<u8>, Error>>, ()> {
 		Ok(keys.iter().map(|k| self.sign_with(id, k, msg)).collect())
 	}
 
@@ -210,10 +215,7 @@ pub trait CodeExecutor: Sized + Send + Sync + CallInWasm + Clone + 'static {
 
 	/// Call a given method in the runtime. Returns a tuple of the result (either the output data
 	/// or an execution error) together with a `bool`, which is true if native execution was used.
-	fn call<
-		R: codec::Codec + PartialEq,
-		NC: FnOnce() -> Result<R, String> + UnwindSafe,
-	>(
+	fn call<R: codec::Codec + PartialEq, NC: FnOnce() -> Result<R, String> + UnwindSafe>(
 		&self,
 		ext: &mut dyn Externalities,
 		runtime_code: &RuntimeCode,
@@ -277,11 +279,7 @@ impl<'a> RuntimeCode<'a> {
 	///
 	/// This is only useful for tests that don't want to execute any code.
 	pub fn empty() -> Self {
-		Self {
-			code_fetcher: &NoneFetchRuntimeCode,
-			hash: Vec::new(),
-			heap_pages: None,
-		}
+		Self { code_fetcher: &NoneFetchRuntimeCode, hash: Vec::new(), heap_pages: None }
 	}
 }
 

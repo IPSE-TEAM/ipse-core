@@ -19,15 +19,15 @@
 
 use super::*;
 
-use frame_system::RawOrigin as SystemOrigin;
+use frame_benchmarking::{account, benchmarks_instance, whitelisted_caller};
 use frame_system::EventRecord;
-use frame_benchmarking::{benchmarks_instance, account, whitelisted_caller};
+use frame_system::RawOrigin as SystemOrigin;
 use sp_runtime::traits::Bounded;
 use sp_std::mem::size_of;
 
+use crate::Module as Collective;
 use frame_system::Call as SystemCall;
 use frame_system::Module as System;
-use crate::Module as Collective;
 
 const SEED: u32 = 0;
 

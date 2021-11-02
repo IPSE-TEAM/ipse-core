@@ -25,18 +25,19 @@
 mod mock;
 mod tests;
 
-use sp_std::vec::Vec;
+use codec::{Decode, Encode};
 use frame_support::{
-	decl_module, decl_event, decl_storage, Parameter, debug,
-	traits::Get,
-	weights::Weight,
+	debug, decl_event, decl_module, decl_storage, traits::Get, weights::Weight, Parameter,
 };
-use sp_runtime::{traits::{Hash, Zero}, Perbill};
+use sp_runtime::{
+	traits::{Hash, Zero},
+	Perbill,
+};
 use sp_staking::{
+	offence::{Kind, Offence, OffenceDetails, OffenceError, OnOffenceHandler, ReportOffence},
 	SessionIndex,
-	offence::{Offence, ReportOffence, Kind, OnOffenceHandler, OffenceDetails, OffenceError},
 };
-use codec::{Encode, Decode};
+use sp_std::vec::Vec;
 
 /// A binary blob which represents a SCALE codec-encoded `O::TimeSlot`.
 type OpaqueTimeSlot = Vec<u8>;
@@ -52,17 +53,25 @@ pub type DeferredOffenceOf<T> = (
 );
 
 pub trait WeightInfo {
-	fn report_offence_im_online(r: u32, o: u32, n: u32, ) -> Weight;
-	fn report_offence_grandpa(r: u32, n: u32, ) -> Weight;
-	fn report_offence_babe(r: u32, n: u32, ) -> Weight;
-	fn on_initialize(d: u32, ) -> Weight;
+	fn report_offence_im_online(r: u32, o: u32, n: u32) -> Weight;
+	fn report_offence_grandpa(r: u32, n: u32) -> Weight;
+	fn report_offence_babe(r: u32, n: u32) -> Weight;
+	fn on_initialize(d: u32) -> Weight;
 }
 
 impl WeightInfo for () {
-	fn report_offence_im_online(_r: u32, _o: u32, _n: u32, ) -> Weight { 1_000_000_000 }
-	fn report_offence_grandpa(_r: u32, _n: u32, ) -> Weight { 1_000_000_000 }
-	fn report_offence_babe(_r: u32, _n: u32, ) -> Weight { 1_000_000_000 }
-	fn on_initialize(_d: u32, ) -> Weight { 1_000_000_000 }
+	fn report_offence_im_online(_r: u32, _o: u32, _n: u32) -> Weight {
+		1_000_000_000
+	}
+	fn report_offence_grandpa(_r: u32, _n: u32) -> Weight {
+		1_000_000_000
+	}
+	fn report_offence_babe(_r: u32, _n: u32) -> Weight {
+		1_000_000_000
+	}
+	fn on_initialize(_d: u32) -> Weight {
+		1_000_000_000
+	}
 }
 
 /// Offences trait
@@ -73,9 +82,10 @@ pub trait Trait: frame_system::Trait {
 	type IdentificationTuple: Parameter + Ord;
 	/// A handler called for every offence report.
 	type OnOffenceHandler: OnOffenceHandler<Self::AccountId, Self::IdentificationTuple, Weight>;
-	/// The a soft limit on maximum weight that may be consumed while dispatching deferred offences in
-	/// `on_initialize`.
-	/// Note it's going to be exceeded before we stop adding to it, so it has to be set conservatively.
+	/// The a soft limit on maximum weight that may be consumed while dispatching deferred offences
+	/// in `on_initialize`.
+	/// Note it's going to be exceeded before we stop adding to it, so it has to be set
+	/// conservatively.
 	type WeightSoftLimit: Get<Weight>;
 }
 
@@ -170,23 +180,20 @@ where
 
 		// Go through all offenders in the offence report and find all offenders that was spotted
 		// in unique reports.
-		let TriageOutcome { concurrent_offenders } = match Self::triage_offence_report::<O>(
-			reporters,
-			&time_slot,
-			offenders,
-		) {
-			Some(triage) => triage,
-			// The report contained only duplicates, so there is no need to slash again.
-			None => return Err(OffenceError::DuplicateReport),
-		};
+		let TriageOutcome { concurrent_offenders } =
+			match Self::triage_offence_report::<O>(reporters, &time_slot, offenders) {
+				Some(triage) => triage,
+				// The report contained only duplicates, so there is no need to slash again.
+				None => return Err(OffenceError::DuplicateReport),
+			};
 
 		let offenders_count = concurrent_offenders.len() as u32;
 
 		// The amount new offenders are slashed
 		let new_fraction = O::slash_fraction(offenders_count, validator_set_count);
 
-		let slash_perbill: Vec<_> = (0..concurrent_offenders.len())
-			.map(|_| new_fraction.clone()).collect();
+		let slash_perbill: Vec<_> =
+			(0..concurrent_offenders.len()).map(|_| new_fraction.clone()).collect();
 
 		let applied = Self::report_or_store_offence(
 			&concurrent_offenders,
@@ -218,18 +225,15 @@ impl<T: Trait> Module<T> {
 		slash_perbill: &[Perbill],
 		session_index: SessionIndex,
 	) -> bool {
-		match T::OnOffenceHandler::on_offence(
-			&concurrent_offenders,
-			&slash_perbill,
-			session_index,
-		) {
+		match T::OnOffenceHandler::on_offence(&concurrent_offenders, &slash_perbill, session_index)
+		{
 			Ok(_) => true,
 			Err(_) => {
-				<DeferredOffences<T>>::mutate(|d|
+				<DeferredOffences<T>>::mutate(|d| {
 					d.push((concurrent_offenders.to_vec(), slash_perbill.to_vec(), session_index))
-				);
+				});
 				false
-			}
+			},
 		}
 	}
 
@@ -260,10 +264,7 @@ impl<T: Trait> Module<T> {
 				any_new = true;
 				<Reports<T>>::insert(
 					&report_id,
-					OffenceDetails {
-						offender,
-						reporters: reporters.clone(),
-					},
+					OffenceDetails { offender, reporters: reporters.clone() },
 				);
 
 				storage.insert(time_slot, report_id);
@@ -272,16 +273,15 @@ impl<T: Trait> Module<T> {
 
 		if any_new {
 			// Load report details for the all reports happened at the same time.
-			let concurrent_offenders = storage.concurrent_reports
+			let concurrent_offenders = storage
+				.concurrent_reports
 				.iter()
 				.filter_map(|report_id| <Reports<T>>::get(report_id))
 				.collect::<Vec<_>>();
 
 			storage.save();
 
-			Some(TriageOutcome {
-				concurrent_offenders,
-			})
+			Some(TriageOutcome { concurrent_offenders })
 		} else {
 			None
 		}
@@ -322,26 +322,19 @@ impl<T: Trait, O: Offence<T::IdentificationTuple>> ReportIndexStorage<T, O> {
 
 		let concurrent_reports = <ConcurrentReportsIndex<T>>::get(&O::ID, &opaque_time_slot);
 
-		Self {
-			opaque_time_slot,
-			concurrent_reports,
-			same_kind_reports,
-		}
+		Self { opaque_time_slot, concurrent_reports, same_kind_reports }
 	}
 
 	/// Insert a new report to the index.
 	fn insert(&mut self, time_slot: &O::TimeSlot, report_id: ReportIdOf<T>) {
 		// Insert the report id into the list while maintaining the ordering by the time
 		// slot.
-		let pos = match self
-			.same_kind_reports
-			.binary_search_by_key(&time_slot, |&(ref when, _)| when)
-		{
-			Ok(pos) => pos,
-			Err(pos) => pos,
-		};
-		self.same_kind_reports
-			.insert(pos, (time_slot.clone(), report_id));
+		let pos =
+			match self.same_kind_reports.binary_search_by_key(&time_slot, |&(ref when, _)| when) {
+				Ok(pos) => pos,
+				Err(pos) => pos,
+			};
+		self.same_kind_reports.insert(pos, (time_slot.clone(), report_id));
 
 		// Update the list of concurrent reports.
 		self.concurrent_reports.push(report_id);

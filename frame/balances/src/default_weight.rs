@@ -15,7 +15,7 @@
 
 //! Weights for the Balances Pallet
 
-use frame_support::weights::{Weight, constants::RocksDbWeight as DbWeight};
+use frame_support::weights::{constants::RocksDbWeight as DbWeight, Weight};
 
 impl crate::WeightInfo for () {
 	fn transfer() -> Weight {

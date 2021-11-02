@@ -46,17 +46,18 @@
 //!
 //! ### Bounty
 //!
-//! A Bounty Spending is a reward for a specified body of work - or specified set of objectives - that
-//! needs to be executed for a predefined Treasury amount to be paid out. A curator is assigned after
-//! the bounty is approved and funded by Council, to be delegated
-//! with the responsibility of assigning a payout address once the specified set of objectives is completed.
+//! A Bounty Spending is a reward for a specified body of work - or specified set of objectives -
+//! that needs to be executed for a predefined Treasury amount to be paid out. A curator is assigned
+//! after the bounty is approved and funded by Council, to be delegated
+//! with the responsibility of assigning a payout address once the specified set of objectives is
+//! completed.
 //!
-//! After the Council has activated a bounty, it delegates the work that requires expertise to a curator
-//! in exchange of a deposit. Once the curator accepts the bounty, they
+//! After the Council has activated a bounty, it delegates the work that requires expertise to a
+//! curator in exchange of a deposit. Once the curator accepts the bounty, they
 //! get to close the Active bounty. Closing the Active bounty enacts a delayed payout to the payout
 //! address, the curator fee and the return of the curator deposit. The
-//! delay allows for intervention through regular democracy. The Council gets to unassign the curator,
-//! resulting in a new curator election. The Council also gets to cancel
+//! delay allows for intervention through regular democracy. The Council gets to unassign the
+//! curator, resulting in a new curator election. The Council also gets to cancel
 //! the bounty if deemed necessary before assigning a curator or once the bounty is active or payout
 //! is pending, resulting in the slash of the curator's deposit.
 //!
@@ -82,19 +83,23 @@
 //!   rather than the main beneficiary.
 //!
 //! Bounty:
-//! - **Bounty spending proposal:** A proposal to reward a predefined body of work upon completion by
+//! - **Bounty spending proposal:** A proposal to reward a predefined body of work upon completion
+//!   by
 //! the Treasury.
 //! - **Proposer:** An account proposing a bounty spending.
-//! - **Curator:** An account managing the bounty and assigning a payout address receiving the reward
+//! - **Curator:** An account managing the bounty and assigning a payout address receiving the
+//!   reward
 //! for the completion of work.
 //! - **Deposit:** The amount held on deposit for placing a bounty proposal plus the amount held on
 //! deposit per byte within the bounty description.
-//! - **Curator deposit:** The payment from a candidate willing to curate an approved bounty. The deposit
+//! - **Curator deposit:** The payment from a candidate willing to curate an approved bounty. The
+//!   deposit
 //! is returned when/if the bounty is completed.
 //! - **Bounty value:** The total amount that should be paid to the Payout Address if the bounty is
 //! rewarded.
 //! - **Payout address:** The account to which the total or part of the bounty is assigned to.
-//! - **Payout Delay:** The delay period for which a bounty beneficiary needs to wait before claiming.
+//! - **Payout Delay:** The delay period for which a bounty beneficiary needs to wait before
+//!   claiming.
 //! - **Curator fee:** The reserved upfront payment for a curator for work related to the bounty.
 //!
 //! ## Interface
@@ -118,7 +123,8 @@
 //! Bounty protocol:
 //! - `propose_bounty` - Propose a specific treasury amount to be earmarked for a predefined set of
 //! tasks and stake the required deposit.
-//! - `approve_bounty` - Accept a specific treasury amount to be earmarked for a predefined body of work.
+//! - `approve_bounty` - Accept a specific treasury amount to be earmarked for a predefined body of
+//!   work.
 //! - `propose_curator` - Assign an account to a bounty as candidate curator.
 //! - `accept_curator` - Accept a bounty assignment from the Council, setting a curator deposit.
 //! - `extend_bounty_expiry` - Extend the expiry block number of the bounty and stay active.
@@ -134,44 +140,48 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
-use sp_std::prelude::*;
-use frame_support::{decl_module, decl_storage, decl_event, ensure, print, decl_error, Parameter};
-use frame_support::traits::{
-	Currency, Get, Imbalance, OnUnbalanced, ExistenceRequirement::{KeepAlive, AllowDeath},
-	ReservableCurrency, WithdrawReason
-};
-use sp_runtime::{Permill, ModuleId, Percent, RuntimeDebug, DispatchResult, traits::{
-	Zero, StaticLookup, AccountIdConversion, Saturating, Hash, BadOrigin
-}};
+use codec::{Decode, Encode};
 use frame_support::dispatch::DispatchResultWithPostInfo;
-use frame_support::weights::{Weight, DispatchClass};
 use frame_support::traits::{Contains, ContainsLengthBound, EnsureOrigin};
-use codec::{Encode, Decode};
+use frame_support::traits::{
+	Currency,
+	ExistenceRequirement::{AllowDeath, KeepAlive},
+	Get, Imbalance, OnUnbalanced, ReservableCurrency, WithdrawReason,
+};
+use frame_support::weights::{DispatchClass, Weight};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, print, Parameter};
 use frame_system::{self as system, ensure_signed};
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+use sp_runtime::{
+	traits::{AccountIdConversion, BadOrigin, Hash, Saturating, StaticLookup, Zero},
+	DispatchResult, ModuleId, Percent, Permill, RuntimeDebug,
+};
+use sp_std::prelude::*;
 
-mod tests;
 mod benchmarking;
 mod default_weights;
+mod tests;
 
 type BalanceOf<T, I> =
 	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type PositiveImbalanceOf<T, I> =
-	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::PositiveImbalance;
-type NegativeImbalanceOf<T, I> =
-	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
+type PositiveImbalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<
+	<T as frame_system::Trait>::AccountId,
+>>::PositiveImbalance;
+type NegativeImbalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<
+	<T as frame_system::Trait>::AccountId,
+>>::NegativeImbalance;
 
 pub trait WeightInfo {
 	fn propose_spend() -> Weight;
 	fn reject_proposal() -> Weight;
 	fn approve_proposal() -> Weight;
-	fn report_awesome(r: u32, ) -> Weight;
+	fn report_awesome(r: u32) -> Weight;
 	fn retract_tip() -> Weight;
-	fn tip_new(r: u32, t: u32, ) -> Weight;
-	fn tip(t: u32, ) -> Weight;
-	fn close_tip(t: u32, ) -> Weight;
-	fn propose_bounty(r: u32, ) -> Weight;
+	fn tip_new(r: u32, t: u32) -> Weight;
+	fn tip(t: u32) -> Weight;
+	fn close_tip(t: u32) -> Weight;
+	fn propose_bounty(r: u32) -> Weight;
 	fn approve_bounty() -> Weight;
 	fn propose_curator() -> Weight;
 	fn unassign_curator() -> Weight;
@@ -181,11 +191,11 @@ pub trait WeightInfo {
 	fn close_bounty_proposed() -> Weight;
 	fn close_bounty_active() -> Weight;
 	fn extend_bounty_expiry() -> Weight;
-	fn on_initialize_proposals(p: u32, ) -> Weight;
-	fn on_initialize_bounties(b: u32, ) -> Weight;
+	fn on_initialize_proposals(p: u32) -> Weight;
+	fn on_initialize_bounties(b: u32) -> Weight;
 }
 
-pub trait Trait<I=DefaultInstance>: frame_system::Trait {
+pub trait Trait<I = DefaultInstance>: frame_system::Trait {
 	/// The treasury's module id, used for deriving its sovereign account ID.
 	type ModuleId: Get<ModuleId>;
 
@@ -285,8 +295,8 @@ pub struct OpenTip<
 	BlockNumber: Parameter,
 	Hash: Parameter,
 > {
-	/// The hash of the reason for the tip. The reason should be a human-readable UTF-8 encoded string. A URL would be
-	/// sensible.
+	/// The hash of the reason for the tip. The reason should be a human-readable UTF-8 encoded
+	/// string. A URL would be sensible.
 	reason: Hash,
 	/// The account to be tipped.
 	who: AccountId,
@@ -332,7 +342,8 @@ pub enum BountyStatus<AccountId, BlockNumber> {
 	Approved,
 	/// The bounty is funded and waiting for curator assignment.
 	Funded,
-	/// A curator has been proposed by the `ApproveOrigin`. Waiting for acceptance from the curator.
+	/// A curator has been proposed by the `ApproveOrigin`. Waiting for acceptance from the
+	/// curator.
 	CuratorProposed {
 		/// The assigned curator of this bounty.
 		curator: AccountId,
@@ -1250,9 +1261,9 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 					if m < a {
 						continue
 					} else {
-						break true;
+						break true
 					}
-				}
+				},
 			}
 		});
 	}
@@ -1261,7 +1272,10 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 	///
 	/// Up to three balance operations.
 	/// Plus `O(T)` (`T` is Tippers length).
-	fn payout_tip(hash: T::Hash, tip: OpenTip<T::AccountId, BalanceOf<T, I>, T::BlockNumber, T::Hash>) {
+	fn payout_tip(
+		hash: T::Hash,
+		tip: OpenTip<T::AccountId, BalanceOf<T, I>, T::BlockNumber, T::Hash>,
+	) {
 		let mut tips = tip.tips;
 		Self::retain_active_tips(&mut tips);
 		tips.sort_by_key(|i| i.1);
@@ -1341,7 +1355,10 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 							let _ = T::Currency::unreserve(&bounty.proposer, bounty.bond);
 
 							// fund the bounty account
-							imbalance.subsume(T::Currency::deposit_creating(&Self::bounty_account_id(index), bounty.value));
+							imbalance.subsume(T::Currency::deposit_creating(
+								&Self::bounty_account_id(index),
+								bounty.value,
+							));
 
 							Self::deposit_event(RawEvent::BountyBecameActive(index));
 							false
@@ -1374,12 +1391,9 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 		// proof: budget_remaining is account free balance minus ED;
 		// Thus we can't spend more than account free balance minus ED;
 		// Thus account is kept alive; qed;
-		if let Err(problem) = T::Currency::settle(
-			&account_id,
-			imbalance,
-			WithdrawReason::Transfer.into(),
-			KeepAlive
-		) {
+		if let Err(problem) =
+			T::Currency::settle(&account_id, imbalance, WithdrawReason::Transfer.into(), KeepAlive)
+		{
 			print("Inconsistent state - couldn't settle imbalance for funds spent by treasury");
 			// Nothing else to do here.
 			drop(problem);
@@ -1403,21 +1417,29 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 		description: Vec<u8>,
 		value: BalanceOf<T, I>,
 	) -> DispatchResult {
-		ensure!(description.len() <= T::MaximumReasonLength::get() as usize, Error::<T, I>::ReasonTooBig);
+		ensure!(
+			description.len() <= T::MaximumReasonLength::get() as usize,
+			Error::<T, I>::ReasonTooBig
+		);
 		ensure!(value >= T::BountyValueMinimum::get(), Error::<T, I>::InvalidValue);
 
 		let index = Self::bounty_count();
 
 		// reserve deposit for new bounty
-		let bond = T::BountyDepositBase::get()
-			+ T::DataDepositPerByte::get() * (description.len() as u32).into();
+		let bond = T::BountyDepositBase::get() +
+			T::DataDepositPerByte::get() * (description.len() as u32).into();
 		T::Currency::reserve(&proposer, bond)
 			.map_err(|_| Error::<T, I>::InsufficientProposersBalance)?;
 
 		BountyCount::<I>::put(index + 1);
 
 		let bounty = Bounty {
-			proposer, value, fee: 0.into(), curator_deposit: 0.into(), bond, status: BountyStatus::Proposed,
+			proposer,
+			value,
+			fee: 0.into(),
+			curator_deposit: 0.into(),
+			bond,
+			status: BountyStatus::Proposed,
 		};
 
 		Bounties::<T, I>::insert(index, &bounty);
@@ -1429,8 +1451,8 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 	}
 
 	pub fn migrate_retract_tip_for_tip_new() {
-		/// An open tipping "motion". Retains all details of a tip including information on the finder
-		/// and the members who have voted.
+		/// An open tipping "motion". Retains all details of a tip including information on the
+		/// finder and the members who have voted.
 		#[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug)]
 		pub struct OldOpenTip<
 			AccountId: Parameter,
@@ -1438,27 +1460,28 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 			BlockNumber: Parameter,
 			Hash: Parameter,
 		> {
-			/// The hash of the reason for the tip. The reason should be a human-readable UTF-8 encoded string. A URL would be
-			/// sensible.
+			/// The hash of the reason for the tip. The reason should be a human-readable UTF-8
+			/// encoded string. A URL would be sensible.
 			reason: Hash,
 			/// The account to be tipped.
 			who: AccountId,
 			/// The account who began this tip and the amount held on deposit.
 			finder: Option<(AccountId, Balance)>,
-			/// The block number at which this tip will close if `Some`. If `None`, then no closing is
-			/// scheduled.
+			/// The block number at which this tip will close if `Some`. If `None`, then no closing
+			/// is scheduled.
 			closes: Option<BlockNumber>,
 			/// The members who have voted for this tip. Sorted by AccountId.
 			tips: Vec<(AccountId, Balance)>,
 		}
 
-		use frame_support::{Twox64Concat, migration::StorageKeyIterator};
+		use frame_support::{migration::StorageKeyIterator, Twox64Concat};
 
 		for (hash, old_tip) in StorageKeyIterator::<
 			T::Hash,
 			OldOpenTip<T::AccountId, BalanceOf<T, I>, T::BlockNumber, T::Hash>,
 			Twox64Concat,
-		>::new(I::PREFIX.as_bytes(), b"Tips").drain()
+		>::new(I::PREFIX.as_bytes(), b"Tips")
+		.drain()
 		{
 			let (finder, deposit, finders_fee) = match old_tip.finder {
 				Some((finder, deposit)) => (finder, deposit, true),
@@ -1471,7 +1494,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 				deposit,
 				closes: old_tip.closes,
 				tips: old_tip.tips,
-				finders_fee
+				finders_fee,
 			};
 			Tips::<T, I>::insert(hash, new_tip)
 		}

@@ -20,14 +20,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Encode;
-use sp_std::vec;
-use sp_std::prelude::*;
-use sp_core::{ChangesTrieConfiguration, storage::well_known_keys};
-use sp_runtime::traits::Hash;
 use frame_benchmarking::{benchmarks, whitelisted_caller};
-use frame_support::traits::Get;
 use frame_support::storage::{self, StorageMap};
-use frame_system::{Module as System, Call, RawOrigin, DigestItemOf, AccountInfo};
+use frame_support::traits::Get;
+use frame_system::{AccountInfo, Call, DigestItemOf, Module as System, RawOrigin};
+use sp_core::{storage::well_known_keys, ChangesTrieConfiguration};
+use sp_runtime::traits::Hash;
+use sp_std::prelude::*;
+use sp_std::vec;
 
 mod mock;
 

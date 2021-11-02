@@ -20,10 +20,10 @@ use crate::{
 	exec::{AccountIdOf, StorageKey},
 	AliveContractInfo, BalanceOf, CodeHash, ContractInfo, ContractInfoOf, Trait, TrieId,
 };
-use sp_std::prelude::*;
+use frame_support::{storage::child, StorageMap};
 use sp_io::hashing::blake2_256;
 use sp_runtime::traits::Bounded;
-use frame_support::{storage::child, StorageMap};
+use sp_std::prelude::*;
 
 /// An error that means that the account requested either doesn't exist or represents a tombstone
 /// account.
@@ -93,23 +93,16 @@ pub fn write_contract_storage<T: Trait>(
 			if new_value.is_empty() {
 				new_info.empty_pair_count += 1;
 			}
-		}
-		(None, None) => {}
+		},
+		(None, None) => {},
 	}
 
 	// Update the total storage size.
-	let prev_value_len = opt_prev_value
-		.as_ref()
-		.map(|old_value| old_value.len() as u32)
-		.unwrap_or(0);
-	let new_value_len = opt_new_value
-		.as_ref()
-		.map(|new_value| new_value.len() as u32)
-		.unwrap_or(0);
-	new_info.storage_size = new_info
-		.storage_size
-		.saturating_add(new_value_len)
-		.saturating_sub(prev_value_len);
+	let prev_value_len =
+		opt_prev_value.as_ref().map(|old_value| old_value.len() as u32).unwrap_or(0);
+	let new_value_len = opt_new_value.as_ref().map(|new_value| new_value.len() as u32).unwrap_or(0);
+	new_info.storage_size =
+		new_info.storage_size.saturating_add(new_value_len).saturating_sub(prev_value_len);
 
 	new_info.last_write = Some(<frame_system::Module<T>>::block_number());
 	<ContractInfoOf<T>>::insert(&account, ContractInfo::Alive(new_info));
@@ -143,7 +136,7 @@ pub fn set_rent_allowance<T: Trait>(
 		Some(ContractInfo::Alive(ref mut alive_info)) => {
 			alive_info.rent_allowance = rent_allowance;
 			Ok(())
-		}
+		},
 		_ => Err(ContractAbsentError),
 	})
 }
@@ -166,7 +159,7 @@ pub fn place_contract<T: Trait>(
 ) -> Result<(), &'static str> {
 	<ContractInfoOf<T>>::mutate(account, |maybe_contract_info| {
 		if maybe_contract_info.is_some() {
-			return Err("Alive contract or tombstone already exists");
+			return Err("Alive contract or tombstone already exists")
 		}
 
 		*maybe_contract_info = Some(

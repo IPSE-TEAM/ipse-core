@@ -19,17 +19,18 @@
 
 #![cfg(test)]
 
-use crate::{Trait, Module, GenesisConfig};
-use sp_consensus_aura::ed25519::AuthorityId;
-use sp_runtime::{
-	traits::IdentityLookup, Perbill,
-	testing::{Header, UintAuthorityId},
-};
+use crate::{GenesisConfig, Module, Trait};
 use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
-use sp_io;
+use sp_consensus_aura::ed25519::AuthorityId;
 use sp_core::H256;
+use sp_io;
+use sp_runtime::{
+	testing::{Header, UintAuthorityId},
+	traits::IdentityLookup,
+	Perbill,
+};
 
-impl_outer_origin!{
+impl_outer_origin! {
 	pub enum Origin for Test where system = frame_system {}
 }
 
@@ -86,9 +87,11 @@ impl Trait for Test {
 
 pub fn new_test_ext(authorities: Vec<u64>) -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	GenesisConfig::<Test>{
+	GenesisConfig::<Test> {
 		authorities: authorities.into_iter().map(|a| UintAuthorityId(a).to_public_key()).collect(),
-	}.assimilate_storage(&mut t).unwrap();
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	t.into()
 }
 

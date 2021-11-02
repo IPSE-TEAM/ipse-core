@@ -19,13 +19,9 @@
 //! Middleware for RPC requests.
 
 use jsonrpc_core::{
-	Middleware as RequestMiddleware, Metadata,
-	Request, Response, FutureResponse, FutureOutput
+	FutureOutput, FutureResponse, Metadata, Middleware as RequestMiddleware, Request, Response,
 };
-use prometheus_endpoint::{
-	Registry, CounterVec, PrometheusError,
-	Opts, register, U64
-};
+use prometheus_endpoint::{register, CounterVec, Opts, PrometheusError, Registry, U64};
 
 use futures::{future::Either, Future};
 
@@ -38,17 +34,21 @@ pub struct RpcMetrics {
 impl RpcMetrics {
 	/// Create an instance of metrics
 	pub fn new(metrics_registry: Option<&Registry>) -> Result<Self, PrometheusError> {
-		metrics_registry.and_then(|r| {
-			Some(RpcMetrics {
-				rpc_calls: register(CounterVec::new(
-					Opts::new(
-						"rpc_calls_total",
-						"Number of rpc calls received",
-					),
-					&["protocol"]
-				).ok()?, r).ok()?,
+		metrics_registry
+			.and_then(|r| {
+				Some(RpcMetrics {
+					rpc_calls: register(
+						CounterVec::new(
+							Opts::new("rpc_calls_total", "Number of rpc calls received"),
+							&["protocol"],
+						)
+						.ok()?,
+						r,
+					)
+					.ok()?,
+				})
 			})
-		}).ok_or(PrometheusError::Msg("Cannot register metric".to_string()))
+			.ok_or(PrometheusError::Msg("Cannot register metric".to_string()))
 	}
 }
 
@@ -62,10 +62,7 @@ impl RpcMiddleware {
 	/// Create an instance of middleware with provided metrics
 	/// transport_label is used as a label for Prometheus collector
 	pub fn new(metrics: Option<RpcMetrics>, transport_label: &str) -> Self {
-		RpcMiddleware {
-			metrics,
-			transport_label: String::from(transport_label),
-		}
+		RpcMiddleware { metrics, transport_label: String::from(transport_label) }
 	}
 }
 

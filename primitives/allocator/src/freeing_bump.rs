@@ -38,15 +38,18 @@
 //! allocation size is capped, therefore the number of orders and thus the linked lists is as well
 //! limited.
 //!
-//! When the allocator serves an allocation request it first checks the linked list for the respective
-//! order. If it doesn't have any free chunks, the allocator requests memory from the bump allocator.
-//! In any case the order is stored in the header of the allocation.
+//! When the allocator serves an allocation request it first checks the linked list for the
+//! respective order. If it doesn't have any free chunks, the allocator requests memory from the
+//! bump allocator. In any case the order is stored in the header of the allocation.
 //!
 //! Upon deallocation we get the order of the allocation from its header and then add that
 //! allocation to the linked list for the respective order.
 
 use crate::Error;
-use sp_std::{convert::{TryFrom, TryInto}, ops::{Range, Index, IndexMut}};
+use sp_std::{
+	convert::{TryFrom, TryInto},
+	ops::{Index, IndexMut, Range},
+};
 use sp_wasm_interface::{Pointer, WordSize};
 
 /// The minimal alignment guaranteed by this allocator. The alignment of 8 is chosen because it is
@@ -115,7 +118,7 @@ impl Order {
 	/// `MIN_POSSIBLE_ALLOCATION <= size <= MAX_POSSIBLE_ALLOCATION`
 	fn from_size(size: u32) -> Result<Self, Error> {
 		let clamped_size = if size > MAX_POSSIBLE_ALLOCATION {
-			return Err(Error::RequestedAllocationTooLarge);
+			return Err(Error::RequestedAllocationTooLarge)
 		} else if size < MIN_POSSIBLE_ALLOCATION {
 			MIN_POSSIBLE_ALLOCATION
 		} else {
@@ -190,9 +193,8 @@ impl Link {
 /// |            0 | next element link |
 /// +--------------+-------------------+
 /// ```
-///
+/// 
 /// ## Occupied header
-///
 /// ```ignore
 /// 64             32                  0
 //  +--------------+-------------------+
@@ -260,9 +262,7 @@ struct FreeLists {
 impl FreeLists {
 	/// Creates the free empty lists.
 	fn new() -> Self {
-		Self {
-			heads: [Link::Null; N]
-		}
+		Self { heads: [Link::Null; N] }
 	}
 
 	/// Replaces a given link for the specified order and returns the old one.
@@ -344,11 +344,11 @@ impl FreeingBumpHeapAllocator {
 				self.free_lists[order] = next_free;
 
 				header_ptr
-			}
+			},
 			Link::Null => {
 				// Corresponding free list is empty. Allocate a new item.
 				self.bump(order.size() + HEADER_SIZE, mem.size())?
-			}
+			},
 		};
 
 		// Write the order in the occupied header.
@@ -366,7 +366,11 @@ impl FreeingBumpHeapAllocator {
 	///
 	/// - `mem` - a slice representing the linear memory on which this allocator operates.
 	/// - `ptr` - pointer to the allocated chunk
-	pub fn deallocate<M: Memory + ?Sized>(&mut self, mem: &mut M, ptr: Pointer<u8>) -> Result<(), Error> {
+	pub fn deallocate<M: Memory + ?Sized>(
+		&mut self,
+		mem: &mut M,
+		ptr: Pointer<u8>,
+	) -> Result<(), Error> {
 		let header_ptr = u32::from(ptr)
 			.checked_sub(HEADER_SIZE)
 			.ok_or_else(|| error("Invalid pointer for deallocation"))?;
@@ -396,7 +400,7 @@ impl FreeingBumpHeapAllocator {
 	/// would exhaust the heap.
 	fn bump(&mut self, size: u32, heap_end: u32) -> Result<u32, Error> {
 		if self.bumper + size > heap_end {
-			return Err(Error::AllocatorOutOfSpace);
+			return Err(Error::AllocatorOutOfSpace)
 		}
 
 		let res = self.bumper;
@@ -419,9 +423,8 @@ impl Memory for [u8] {
 	fn read_le_u64(&self, ptr: u32) -> Result<u64, Error> {
 		let range =
 			heap_range(ptr, 8, self.len()).ok_or_else(|| error("read out of heap bounds"))?;
-		let bytes = self[range]
-			.try_into()
-			.expect("[u8] slice of length 8 must be convertible to [u8; 8]");
+		let bytes =
+			self[range].try_into().expect("[u8] slice of length 8 must be convertible to [u8; 8]");
 		Ok(u64::from_le_bytes(bytes))
 	}
 	fn write_le_u64(&mut self, ptr: u32, val: u64) -> Result<(), Error> {

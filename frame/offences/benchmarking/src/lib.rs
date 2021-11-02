@@ -24,23 +24,26 @@ mod mock;
 use sp_std::prelude::*;
 use sp_std::vec;
 
-use frame_system::{RawOrigin, Module as System, Trait as SystemTrait};
-use frame_benchmarking::{benchmarks, account};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::{Currency, OnInitialize};
+use frame_system::{Module as System, RawOrigin, Trait as SystemTrait};
 
-use sp_runtime::{Perbill, traits::{Convert, StaticLookup, Saturating, UniqueSaturatedInto}};
-use sp_staking::offence::{ReportOffence, Offence, OffenceDetails};
+use sp_runtime::{
+	traits::{Convert, Saturating, StaticLookup, UniqueSaturatedInto},
+	Perbill,
+};
+use sp_staking::offence::{Offence, OffenceDetails, ReportOffence};
 
-use pallet_balances::{Trait as BalancesTrait};
 use pallet_babe::BabeEquivocationOffence;
+use pallet_balances::Trait as BalancesTrait;
 use pallet_grandpa::{GrandpaEquivocationOffence, GrandpaTimeSlot};
-use pallet_im_online::{Trait as ImOnlineTrait, Module as ImOnline, UnresponsivenessOffence};
-use pallet_offences::{Trait as OffencesTrait, Module as Offences};
-use pallet_session::historical::{Trait as HistoricalTrait, IdentificationTuple};
-use pallet_session::{Trait as SessionTrait, SessionManager};
+use pallet_im_online::{Module as ImOnline, Trait as ImOnlineTrait, UnresponsivenessOffence};
+use pallet_offences::{Module as Offences, Trait as OffencesTrait};
+use pallet_session::historical::{IdentificationTuple, Trait as HistoricalTrait};
+use pallet_session::{SessionManager, Trait as SessionTrait};
 use pallet_staking::{
-	Module as Staking, Trait as StakingTrait, RewardDestination, ValidatorPrefs,
-	Exposure, IndividualExposure, ElectionStatus, MAX_NOMINATIONS, Event as StakingEvent
+	ElectionStatus, Event as StakingEvent, Exposure, IndividualExposure, Module as Staking,
+	RewardDestination, Trait as StakingTrait, ValidatorPrefs, MAX_NOMINATIONS,
 };
 
 const SEED: u32 = 0;
@@ -60,7 +63,8 @@ pub trait Trait:
 	+ HistoricalTrait
 	+ BalancesTrait
 	+ IdTupleConvert<Self>
-{}
+{
+}
 
 /// A helper trait to make sure we can convert `IdentificationTuple` coming from historical
 /// and the one required by offences.
@@ -69,8 +73,9 @@ pub trait IdTupleConvert<T: HistoricalTrait + OffencesTrait> {
 	fn convert(id: IdentificationTuple<T>) -> <T as OffencesTrait>::IdentificationTuple;
 }
 
-impl<T: HistoricalTrait + OffencesTrait> IdTupleConvert<T> for T where
-	<T as OffencesTrait>::IdentificationTuple: From<IdentificationTuple<T>>
+impl<T: HistoricalTrait + OffencesTrait> IdTupleConvert<T> for T
+where
+	<T as OffencesTrait>::IdentificationTuple: From<IdentificationTuple<T>>,
 {
 	fn convert(id: IdentificationTuple<T>) -> <T as OffencesTrait>::IdentificationTuple {
 		id.into()
@@ -78,7 +83,8 @@ impl<T: HistoricalTrait + OffencesTrait> IdTupleConvert<T> for T where
 }
 
 type LookupSourceOf<T> = <<T as SystemTrait>::Lookup as StaticLookup>::Source;
-type BalanceOf<T> = <<T as StakingTrait>::Currency as Currency<<T as SystemTrait>::AccountId>>::Balance;
+type BalanceOf<T> =
+	<<T as StakingTrait>::Currency as Currency<<T as SystemTrait>::AccountId>>::Balance;
 
 struct Offender<T: Trait> {
 	pub controller: T::AccountId,
@@ -107,18 +113,19 @@ fn create_offender<T: Trait>(n: u32, nominators: u32) -> Result<Offender<T>, &'s
 		reward_destination.clone(),
 	)?;
 
-	let validator_prefs = ValidatorPrefs {
-		commission: Perbill::from_percent(50),
-	};
+	let validator_prefs = ValidatorPrefs { commission: Perbill::from_percent(50) };
 	Staking::<T>::validate(RawOrigin::Signed(controller.clone()).into(), validator_prefs)?;
 
 	let mut individual_exposures = vec![];
 	let mut nominator_stashes = vec![];
 	// Create n nominators
-	for i in 0 .. nominators {
-		let nominator_stash: T::AccountId = account("nominator stash", n * MAX_NOMINATORS + i, SEED);
-		let nominator_controller: T::AccountId = account("nominator controller", n * MAX_NOMINATORS + i, SEED);
-		let nominator_controller_lookup: LookupSourceOf<T> = T::Lookup::unlookup(nominator_controller.clone());
+	for i in 0..nominators {
+		let nominator_stash: T::AccountId =
+			account("nominator stash", n * MAX_NOMINATORS + i, SEED);
+		let nominator_controller: T::AccountId =
+			account("nominator controller", n * MAX_NOMINATORS + i, SEED);
+		let nominator_controller_lookup: LookupSourceOf<T> =
+			T::Lookup::unlookup(nominator_controller.clone());
 		T::Currency::make_free_balance_be(&nominator_stash, free_amount.into());
 
 		Staking::<T>::bond(
@@ -129,56 +136,59 @@ fn create_offender<T: Trait>(n: u32, nominators: u32) -> Result<Offender<T>, &'s
 		)?;
 
 		let selected_validators: Vec<LookupSourceOf<T>> = vec![controller_lookup.clone()];
-		Staking::<T>::nominate(RawOrigin::Signed(nominator_controller.clone()).into(), selected_validators)?;
+		Staking::<T>::nominate(
+			RawOrigin::Signed(nominator_controller.clone()).into(),
+			selected_validators,
+		)?;
 
-		individual_exposures.push(IndividualExposure {
-			who: nominator_stash.clone(),
-			value: amount.clone(),
-		});
+		individual_exposures
+			.push(IndividualExposure { who: nominator_stash.clone(), value: amount.clone() });
 		nominator_stashes.push(nominator_stash.clone());
 	}
 
-	let exposure = Exposure {
-		total: amount.clone() * n.into(),
-		own: amount,
-		others: individual_exposures,
-	};
+	let exposure =
+		Exposure { total: amount.clone() * n.into(), own: amount, others: individual_exposures };
 	let current_era = 0u32;
 	Staking::<T>::add_era_stakers(current_era.into(), stash.clone().into(), exposure);
 
 	Ok(Offender { controller, stash, nominator_stashes })
 }
 
-fn make_offenders<T: Trait>(num_offenders: u32, num_nominators: u32) -> Result<
-	(Vec<IdentificationTuple<T>>, Vec<Offender<T>>),
-	&'static str
-> {
+fn make_offenders<T: Trait>(
+	num_offenders: u32,
+	num_nominators: u32,
+) -> Result<(Vec<IdentificationTuple<T>>, Vec<Offender<T>>), &'static str> {
 	Staking::<T>::new_session(0);
 
 	let mut offenders = vec![];
-	for i in 0 .. num_offenders {
+	for i in 0..num_offenders {
 		let offender = create_offender::<T>(i + 1, num_nominators)?;
 		offenders.push(offender);
 	}
 
 	Staking::<T>::start_session(0);
 
-	let id_tuples = offenders.iter()
-		.map(|offender|
+	let id_tuples = offenders
+		.iter()
+		.map(|offender| {
 			<T as SessionTrait>::ValidatorIdOf::convert(offender.controller.clone())
-				.expect("failed to get validator id from account id"))
-		.map(|validator_id|
+				.expect("failed to get validator id from account id")
+		})
+		.map(|validator_id| {
 			<T as HistoricalTrait>::FullIdentificationOf::convert(validator_id.clone())
-			.map(|full_id| (validator_id, full_id))
-			.expect("failed to convert validator id to full identification"))
+				.map(|full_id| (validator_id, full_id))
+				.expect("failed to convert validator id to full identification")
+		})
 		.collect::<Vec<IdentificationTuple<T>>>();
 	Ok((id_tuples, offenders))
 }
 
 #[cfg(test)]
 fn check_events<T: Trait, I: Iterator<Item = <T as SystemTrait>::Event>>(expected: I) {
-	let events = System::<T>::events() .into_iter()
-		.map(|frame_system::EventRecord { event, .. }| event).collect::<Vec<_>>();
+	let events = System::<T>::events()
+		.into_iter()
+		.map(|frame_system::EventRecord { event, .. }| event)
+		.collect::<Vec<_>>();
 	let expected = expected.collect::<Vec<_>>();
 	let lengths = (events.len(), expected.len());
 	let length_mismatch = if lengths.0 != lengths.1 {
@@ -191,7 +201,9 @@ fn check_events<T: Trait, I: Iterator<Item = <T as SystemTrait>::Event>>(expecte
 		pretty("--Got:", &events);
 		pretty("--Expected:", &expected);
 		format!("Mismatching length. Got: {}, expected: {}", lengths.0, lengths.1)
-	} else { Default::default() };
+	} else {
+		Default::default()
+	};
 
 	for (idx, (a, b)) in events.into_iter().zip(expected).enumerate() {
 		assert_eq!(a, b, "Mismatch at: {}. {}", idx, length_mismatch);

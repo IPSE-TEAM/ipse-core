@@ -16,12 +16,11 @@
 // limitations under the License.
 
 #[doc(hidden)]
-pub use crate::sp_std::vec::Vec;
-#[doc(hidden)]
 pub use crate::sp_runtime::traits::{Block as BlockT, Extrinsic};
 #[doc(hidden)]
-pub use sp_inherents::{InherentData, ProvideInherent, CheckInherentsResult, IsFatalError};
-
+pub use crate::sp_std::vec::Vec;
+#[doc(hidden)]
+pub use sp_inherents::{CheckInherentsResult, InherentData, IsFatalError, ProvideInherent};
 
 /// Implement the outer inherent.
 /// All given modules need to implement `ProvideInherent`.
@@ -140,8 +139,11 @@ macro_rules! impl_outer_inherent {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sp_runtime::{traits, testing::{Header, self}};
 	use crate::dispatch::IsSubType;
+	use sp_runtime::{
+		testing::{self, Header},
+		traits,
+	};
 
 	#[derive(codec::Encode, codec::Decode, Clone, PartialEq, Eq, Debug, serde::Serialize)]
 	enum Call {

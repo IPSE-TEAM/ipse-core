@@ -19,8 +19,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_inherents::{InherentIdentifier, InherentData, Error};
 use codec::Decode;
+use sp_inherents::{Error, InherentData, InherentIdentifier};
 
 #[cfg(feature = "std")]
 use codec::Encode;
@@ -57,18 +57,15 @@ impl<F, N> InherentDataProvider<F, N> {
 
 #[cfg(feature = "std")]
 impl<F, N: Encode> sp_inherents::ProvideInherentData for InherentDataProvider<F, N>
-	where F: Fn() -> Result<N, Error>
+where
+	F: Fn() -> Result<N, Error>,
 {
 	fn inherent_identifier(&self) -> &'static InherentIdentifier {
 		&INHERENT_IDENTIFIER
 	}
 
-	fn provide_inherent_data(
-		&self,
-		inherent_data: &mut InherentData,
-	) -> Result<(), Error> {
-		(self.inner)()
-			.and_then(|n| inherent_data.put_data(INHERENT_IDENTIFIER, &n))
+	fn provide_inherent_data(&self, inherent_data: &mut InherentData) -> Result<(), Error> {
+		(self.inner)().and_then(|n| inherent_data.put_data(INHERENT_IDENTIFIER, &n))
 	}
 
 	fn error_to_string(&self, _error: &[u8]) -> Option<String> {

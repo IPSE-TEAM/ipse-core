@@ -19,17 +19,15 @@
 //! RPC API for GRANDPA.
 #![warn(missing_docs)]
 
-use std::sync::Arc;
-use futures::{FutureExt, TryFutureExt, TryStreamExt, StreamExt};
-use log::warn;
-use jsonrpc_derive::rpc;
-use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId, manager::SubscriptionManager};
+use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use jsonrpc_core::futures::{
-	sink::Sink as Sink01,
+	future::Executor as Executor01, future::Future as Future01, sink::Sink as Sink01,
 	stream::Stream as Stream01,
-	future::Future as Future01,
-	future::Executor as Executor01,
 };
+use jsonrpc_derive::rpc;
+use jsonrpc_pubsub::{manager::SubscriptionManager, typed::Subscriber, SubscriptionId};
+use log::warn;
+use std::sync::Arc;
 
 mod error;
 mod finality;
@@ -40,8 +38,8 @@ use sc_finality_grandpa::GrandpaJustificationStream;
 use sp_runtime::traits::Block as BlockT;
 
 use finality::{EncodedFinalityProofs, RpcFinalityProofProvider};
-use report::{ReportAuthoritySet, ReportVoterState, ReportedRoundStates};
 use notification::JustificationNotification;
+use report::{ReportAuthoritySet, ReportVoterState, ReportedRoundStates};
 
 type FutureResult<T> =
 	Box<dyn jsonrpc_core::futures::Future<Item = T, Error = jsonrpc_core::Error> + Send>;
@@ -67,7 +65,7 @@ pub trait GrandpaApi<Notification, Hash> {
 	fn subscribe_justifications(
 		&self,
 		metadata: Self::Metadata,
-		subscriber: Subscriber<Notification>
+		subscriber: Subscriber<Notification>,
 	);
 
 	/// Unsubscribe from receiving notifications about recently finalized blocks.
@@ -79,11 +77,12 @@ pub trait GrandpaApi<Notification, Hash> {
 	fn unsubscribe_justifications(
 		&self,
 		metadata: Option<Self::Metadata>,
-		id: SubscriptionId
+		id: SubscriptionId,
 	) -> jsonrpc_core::Result<bool>;
 
-	/// Prove finality for the range (begin; end] hash. Returns None if there are no finalized blocks
-	/// unknown in the range. If no authorities set is provided, the current one will be attempted.
+	/// Prove finality for the range (begin; end] hash. Returns None if there are no finalized
+	/// blocks unknown in the range. If no authorities set is provided, the current one will be
+	/// attempted.
 	#[rpc(name = "grandpa_proveFinality")]
 	fn prove_finality(
 		&self,
@@ -117,17 +116,12 @@ impl<AuthoritySet, VoterState, Block: BlockT, ProofProvider>
 		E: Executor01<Box<dyn Future01<Item = (), Error = ()> + Send>> + Send + Sync + 'static,
 	{
 		let manager = SubscriptionManager::new(Arc::new(executor));
-		Self {
-			authority_set,
-			voter_state,
-			justification_stream,
-			manager,
-			finality_proof_provider,
-		}
+		Self { authority_set, voter_state, justification_stream, manager, finality_proof_provider }
 	}
 }
 
-impl<AuthoritySet, VoterState, Block, ProofProvider> GrandpaApi<JustificationNotification, Block::Hash>
+impl<AuthoritySet, VoterState, Block, ProofProvider>
+	GrandpaApi<JustificationNotification, Block::Hash>
 	for GrandpaRpcHandler<AuthoritySet, VoterState, Block, ProofProvider>
 where
 	VoterState: ReportVoterState + Send + Sync + 'static,
@@ -146,10 +140,12 @@ where
 	fn subscribe_justifications(
 		&self,
 		_metadata: Self::Metadata,
-		subscriber: Subscriber<JustificationNotification>
+		subscriber: Subscriber<JustificationNotification>,
 	) {
-		let stream = self.justification_stream.subscribe()
-			.map(|x| Ok::<_,()>(JustificationNotification::from(x)))
+		let stream = self
+			.justification_stream
+			.subscribe()
+			.map(|x| Ok::<_, ()>(JustificationNotification::from(x)))
 			.map_err(|e| warn!("Notification stream error: {:?}", e))
 			.compat();
 
@@ -164,7 +160,7 @@ where
 	fn unsubscribe_justifications(
 		&self,
 		_metadata: Option<Self::Metadata>,
-		id: SubscriptionId
+		id: SubscriptionId,
 	) -> jsonrpc_core::Result<bool> {
 		Ok(self.manager.cancel(id))
 	}
@@ -176,11 +172,9 @@ where
 		authorities_set_id: Option<u64>,
 	) -> FutureResult<Option<EncodedFinalityProofs>> {
 		// If we are not provided a set_id, try with the current one.
-		let authorities_set_id = authorities_set_id
-			.unwrap_or_else(|| self.authority_set.get().0);
-		let result = self
-			.finality_proof_provider
-			.rpc_prove_finality(begin, end, authorities_set_id);
+		let authorities_set_id = authorities_set_id.unwrap_or_else(|| self.authority_set.get().0);
+		let result =
+			self.finality_proof_provider.rpc_prove_finality(begin, end, authorities_set_id);
 		let future = async move { result }.boxed();
 		Box::new(
 			future
@@ -189,7 +183,7 @@ where
 					error::Error::ProveFinalityFailed(e)
 				})
 				.map_err(jsonrpc_core::Error::from)
-				.compat()
+				.compat(),
 		)
 	}
 }
@@ -197,14 +191,14 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use jsonrpc_core::{types::Params, Notification, Output};
 	use std::{collections::HashSet, convert::TryInto, sync::Arc};
-	use jsonrpc_core::{Notification, Output, types::Params};
 
-	use parity_scale_codec::{Encode, Decode};
+	use parity_scale_codec::{Decode, Encode};
 	use sc_block_builder::BlockBuilder;
 	use sc_finality_grandpa::{
-		report, AuthorityId, GrandpaJustificationSender, GrandpaJustification,
-		FinalityProofFragment,
+		report, AuthorityId, FinalityProofFragment, GrandpaJustification,
+		GrandpaJustificationSender,
 	};
 	use sp_blockchain::HeaderBackend;
 	use sp_consensus::RecordProof;
@@ -213,9 +207,7 @@ mod tests {
 	use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 	use substrate_test_runtime_client::{
 		runtime::{Block, Header, H256},
-		DefaultTestClientBuilderExt,
-		TestClientBuilderExt,
-		TestClientBuilder,
+		DefaultTestClientBuilderExt, TestClientBuilder, TestClientBuilderExt,
 	};
 
 	struct TestAuthoritySet;
@@ -295,17 +287,14 @@ mod tests {
 
 			let background_rounds = vec![(1, past_round_state)].into_iter().collect();
 
-			Some(report::VoterState {
-				background_rounds,
-				best_round: (2, best_round_state),
-			})
+			Some(report::VoterState { background_rounds, best_round: (2, best_round_state) })
 		}
 	}
 
-	fn setup_io_handler<VoterState>(voter_state: VoterState) -> (
-		jsonrpc_core::MetaIoHandler<sc_rpc::Metadata>,
-		GrandpaJustificationSender<Block>,
-	) where
+	fn setup_io_handler<VoterState>(
+		voter_state: VoterState,
+	) -> (jsonrpc_core::MetaIoHandler<sc_rpc::Metadata>, GrandpaJustificationSender<Block>)
+	where
 		VoterState: ReportVoterState + Send + Sync + 'static,
 	{
 		setup_io_handler_with_finality_proofs(voter_state, Default::default())
@@ -314,10 +303,8 @@ mod tests {
 	fn setup_io_handler_with_finality_proofs<VoterState>(
 		voter_state: VoterState,
 		finality_proofs: Vec<FinalityProofFragment<Header>>,
-	) -> (
-		jsonrpc_core::MetaIoHandler<sc_rpc::Metadata>,
-		GrandpaJustificationSender<Block>,
-	) where
+	) -> (jsonrpc_core::MetaIoHandler<sc_rpc::Metadata>, GrandpaJustificationSender<Block>)
+	where
 		VoterState: ReportVoterState + Send + Sync + 'static,
 	{
 		let (justification_sender, justification_stream) = GrandpaJustificationStream::channel();
@@ -350,7 +337,7 @@ mod tests {
 
 	#[test]
 	fn working_rpc_handler() {
-		let (io,  _) = setup_io_handler(TestVoterState);
+		let (io, _) = setup_io_handler(TestVoterState);
 
 		let request = r#"{"jsonrpc":"2.0","method":"grandpa_roundState","params":[],"id":1}"#;
 		let response = "{\"jsonrpc\":\"2.0\",\"result\":{\
@@ -383,7 +370,8 @@ mod tests {
 		let (meta, _) = setup_session();
 
 		// Subscribe
-		let sub_request = r#"{"jsonrpc":"2.0","method":"grandpa_subscribeJustifications","params":[],"id":1}"#;
+		let sub_request =
+			r#"{"jsonrpc":"2.0","method":"grandpa_subscribeJustifications","params":[],"id":1}"#;
 		let resp = io.handle_request_sync(sub_request, meta.clone());
 		let resp: Output = serde_json::from_str(&resp.unwrap()).unwrap();
 
@@ -415,7 +403,8 @@ mod tests {
 		let (meta, _) = setup_session();
 
 		// Subscribe
-		let sub_request = r#"{"jsonrpc":"2.0","method":"grandpa_subscribeJustifications","params":[],"id":1}"#;
+		let sub_request =
+			r#"{"jsonrpc":"2.0","method":"grandpa_subscribeJustifications","params":[],"id":1}"#;
 		let resp = io.handle_request_sync(sub_request, meta.clone());
 		let resp: Output = serde_json::from_str(&resp.unwrap()).unwrap();
 		assert!(matches!(resp, Output::Success(_)));
@@ -445,7 +434,10 @@ mod tests {
 			RecordProof::Yes,
 			Default::default(),
 			&*backend,
-		).unwrap().build().unwrap();
+		)
+		.unwrap()
+		.build()
+		.unwrap();
 
 		let block = built_block.block;
 		let block_hash = block.hash();
@@ -506,8 +498,7 @@ mod tests {
 			_ => panic!(),
 		};
 
-		let recv_sub_id: String =
-			serde_json::from_value(json_map["subscription"].take()).unwrap();
+		let recv_sub_id: String = serde_json::from_value(json_map["subscription"].take()).unwrap();
 		let recv_justification: sp_core::Bytes =
 			serde_json::from_value(json_map["result"].take()).unwrap();
 		let recv_justification: GrandpaJustification<Block> =
@@ -526,10 +517,8 @@ mod tests {
 			unknown_headers: vec![header(2)],
 			authorities_proof: None,
 		}];
-		let (io,  _) = setup_io_handler_with_finality_proofs(
-			TestVoterState,
-			finality_proofs.clone(),
-		);
+		let (io, _) =
+			setup_io_handler_with_finality_proofs(TestVoterState, finality_proofs.clone());
 
 		let request = "{\"jsonrpc\":\"2.0\",\"method\":\"grandpa_proveFinality\",\"params\":[\
 			\"0x0000000000000000000000000000000000000000000000000000000000000000\",\

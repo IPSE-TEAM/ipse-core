@@ -19,12 +19,14 @@
 
 use super::*;
 
-use frame_benchmarking::{benchmarks, account, whitelist_account};
+use frame_benchmarking::{account, benchmarks, whitelist_account};
 use frame_support::{
+	traits::{
+		schedule::DispatchTime, Currency, EnsureOrigin, Get, OnInitialize, UnfilteredDispatchable,
+	},
 	IterableStorageMap,
-	traits::{Currency, Get, EnsureOrigin, OnInitialize, UnfilteredDispatchable, schedule::DispatchTime},
 };
-use frame_system::{RawOrigin, Module as System, self, EventRecord};
+use frame_system::{self, EventRecord, Module as System, RawOrigin};
 use sp_runtime::traits::{Bounded, One};
 
 use crate::Module as Democracy;
@@ -53,11 +55,7 @@ fn add_proposal<T: Trait>(n: u32) -> Result<T::Hash, &'static str> {
 	let value = T::MinimumDeposit::get();
 	let proposal_hash: T::Hash = T::Hashing::hash_of(&n);
 
-	Democracy::<T>::propose(
-		RawOrigin::Signed(other).into(),
-		proposal_hash,
-		value.into(),
-	)?;
+	Democracy::<T>::propose(RawOrigin::Signed(other).into(), proposal_hash, value.into())?;
 
 	Ok(proposal_hash)
 }
@@ -80,20 +78,15 @@ fn add_referendum<T: Trait>(n: u32) -> Result<ReferendumIndex, &'static str> {
 		63,
 		system::RawOrigin::Root.into(),
 		Call::enact_proposal(proposal_hash, referendum_index).into(),
-	).map_err(|_| "failed to schedule named")?;
+	)
+	.map_err(|_| "failed to schedule named")?;
 	Ok(referendum_index)
 }
 
 fn account_vote<T: Trait>(b: BalanceOf<T>) -> AccountVote<BalanceOf<T>> {
-	let v = Vote {
-		aye: true,
-		conviction: Conviction::Locked1x,
-	};
+	let v = Vote { aye: true, conviction: Conviction::Locked1x };
 
-	AccountVote::Standard {
-		vote: v,
-		balance: b,
-	}
+	AccountVote::Standard { vote: v, balance: b }
 }
 
 benchmarks! {

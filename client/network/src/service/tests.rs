@@ -18,8 +18,8 @@
 
 use crate::{config, Event, NetworkService, NetworkWorker};
 
-use libp2p::PeerId;
 use futures::prelude::*;
+use libp2p::PeerId;
 use sp_runtime::traits::{Block as BlockT, Header as _};
 use std::{sync::Arc, time::Duration};
 use substrate_test_runtime_client::{TestClientBuilder, TestClientBuilderExt as _};
@@ -34,14 +34,10 @@ type TestNetworkService = NetworkService<
 ///
 /// > **Note**: We return the events stream in order to not possibly lose events between the
 /// >			construction of the service and the moment the events stream is grabbed.
-fn build_test_full_node(config: config::NetworkConfiguration)
-	-> (Arc<TestNetworkService>, impl Stream<Item = Event>)
-{
-	let client = Arc::new(
-		TestClientBuilder::with_default_backend()
-			.build_with_longest_chain()
-			.0,
-	);
+fn build_test_full_node(
+	config: config::NetworkConfiguration,
+) -> (Arc<TestNetworkService>, impl Stream<Item = Event>) {
+	let client = Arc::new(TestClientBuilder::with_default_backend().build_with_longest_chain().0);
 
 	#[derive(Clone)]
 	struct PassThroughVerifier(bool);
@@ -64,14 +60,13 @@ fn build_test_full_node(config: config::NetworkConfiguration)
 				.log(|l| {
 					l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"aura"))
 						.or_else(|| {
-							l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"babe"))
+							l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(
+								b"babe",
+							))
 						})
 				})
 				.map(|blob| {
-					vec![(
-						sp_blockchain::well_known_cache_keys::AUTHORITIES,
-						blob.to_vec(),
-					)]
+					vec![(sp_blockchain::well_known_cache_keys::AUTHORITIES, blob.to_vec())]
 				});
 
 			let mut import = sp_consensus::BlockImportParams::new(origin, header);
@@ -125,16 +120,19 @@ const ENGINE_ID: sp_runtime::ConsensusEngineId = *b"foo\0";
 
 /// Builds two nodes and their associated events stream.
 /// The nodes are connected together and have the `ENGINE_ID` protocol registered.
-fn build_nodes_one_proto()
-	-> (Arc<TestNetworkService>, impl Stream<Item = Event>, Arc<TestNetworkService>, impl Stream<Item = Event>)
-{
+fn build_nodes_one_proto() -> (
+	Arc<TestNetworkService>,
+	impl Stream<Item = Event>,
+	Arc<TestNetworkService>,
+	impl Stream<Item = Event>,
+) {
 	let listen_addr = config::build_multiaddr![Memory(rand::random::<u64>())];
 
 	let (node1, events_stream1) = build_test_full_node(config::NetworkConfiguration {
 		notifications_protocols: vec![(ENGINE_ID, From::from("/foo"))],
 		listen_addresses: vec![listen_addr.clone()],
 		transport: config::TransportConfig::MemoryOnly,
-		.. config::NetworkConfiguration::new_local()
+		..config::NetworkConfiguration::new_local()
 	});
 
 	let (node2, events_stream2) = build_test_full_node(config::NetworkConfiguration {
@@ -145,7 +143,7 @@ fn build_nodes_one_proto()
 			peer_id: node1.local_peer_id().clone(),
 		}],
 		transport: config::TransportConfig::MemoryOnly,
-		.. config::NetworkConfiguration::new_local()
+		..config::NetworkConfiguration::new_local()
 	});
 
 	(node1, events_stream1, node2, events_stream2)
@@ -181,16 +179,24 @@ fn notifications_state_consistent() {
 			iterations += 1;
 			if iterations >= 1_000 {
 				assert!(something_happened);
-				break;
+				break
 			}
 
 			// Start by sending a notification from node1 to node2 and vice-versa. Part of the
 			// test consists in ensuring that notifications get ignored if the stream isn't open.
 			if rand::random::<u8>() % 5 >= 3 {
-				node1.write_notification(node2.local_peer_id().clone(), ENGINE_ID, b"hello world".to_vec());
+				node1.write_notification(
+					node2.local_peer_id().clone(),
+					ENGINE_ID,
+					b"hello world".to_vec(),
+				);
 			}
 			if rand::random::<u8>() % 5 >= 3 {
-				node2.write_notification(node1.local_peer_id().clone(), ENGINE_ID, b"hello world".to_vec());
+				node2.write_notification(
+					node1.local_peer_id().clone(),
+					ENGINE_ID,
+					b"hello world".to_vec(),
+				);
 			}
 
 			// Also randomly disconnect the two nodes from time to time.
@@ -219,32 +225,44 @@ fn notifications_state_consistent() {
 			};
 
 			match next_event {
-				future::Either::Left(Event::NotificationStreamOpened { remote, engine_id, .. }) => {
+				future::Either::Left(Event::NotificationStreamOpened {
+					remote, engine_id, ..
+				}) => {
 					something_happened = true;
 					assert!(!node1_to_node2_open);
 					node1_to_node2_open = true;
 					assert_eq!(remote, *node2.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				}
-				future::Either::Right(Event::NotificationStreamOpened { remote, engine_id, .. }) => {
+				},
+				future::Either::Right(Event::NotificationStreamOpened {
+					remote,
+					engine_id,
+					..
+				}) => {
 					something_happened = true;
 					assert!(!node2_to_node1_open);
 					node2_to_node1_open = true;
 					assert_eq!(remote, *node1.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				}
-				future::Either::Left(Event::NotificationStreamClosed { remote, engine_id, .. }) => {
+				},
+				future::Either::Left(Event::NotificationStreamClosed {
+					remote, engine_id, ..
+				}) => {
 					assert!(node1_to_node2_open);
 					node1_to_node2_open = false;
 					assert_eq!(remote, *node2.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				}
-				future::Either::Right(Event::NotificationStreamClosed { remote, engine_id, .. }) => {
+				},
+				future::Either::Right(Event::NotificationStreamClosed {
+					remote,
+					engine_id,
+					..
+				}) => {
 					assert!(node2_to_node1_open);
 					node2_to_node1_open = false;
 					assert_eq!(remote, *node1.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				}
+				},
 				future::Either::Left(Event::NotificationsReceived { remote, .. }) => {
 					assert!(node1_to_node2_open);
 					assert_eq!(remote, *node2.local_peer_id());
@@ -252,10 +270,10 @@ fn notifications_state_consistent() {
 						node1.write_notification(
 							node2.local_peer_id().clone(),
 							ENGINE_ID,
-							b"hello world".to_vec()
+							b"hello world".to_vec(),
 						);
 					}
-				}
+				},
 				future::Either::Right(Event::NotificationsReceived { remote, .. }) => {
 					assert!(node2_to_node1_open);
 					assert_eq!(remote, *node1.local_peer_id());
@@ -263,14 +281,14 @@ fn notifications_state_consistent() {
 						node2.write_notification(
 							node1.local_peer_id().clone(),
 							ENGINE_ID,
-							b"hello world".to_vec()
+							b"hello world".to_vec(),
 						);
 					}
-				}
+				},
 
 				// Add new events here.
-				future::Either::Left(Event::Dht(_)) => {}
-				future::Either::Right(Event::Dht(_)) => {}
+				future::Either::Left(Event::Dht(_)) => {},
+				future::Either::Right(Event::Dht(_)) => {},
 			};
 		}
 	});
@@ -285,7 +303,7 @@ fn lots_of_incoming_peers_works() {
 		listen_addresses: vec![listen_addr.clone()],
 		in_peers: u32::max_value(),
 		transport: config::TransportConfig::MemoryOnly,
-		.. config::NetworkConfiguration::new_local()
+		..config::NetworkConfiguration::new_local()
 	});
 
 	let main_node_peer_id = main_node.local_peer_id().clone();
@@ -305,7 +323,7 @@ fn lots_of_incoming_peers_works() {
 				peer_id: main_node_peer_id.clone(),
 			}],
 			transport: config::TransportConfig::MemoryOnly,
-			.. config::NetworkConfiguration::new_local()
+			..config::NetworkConfiguration::new_local()
 		});
 
 		background_tasks_to_wait.push(async_std::task::spawn(async move {
@@ -341,9 +359,7 @@ fn lots_of_incoming_peers_works() {
 		}));
 	}
 
-	futures::executor::block_on(async move {
-		future::join_all(background_tasks_to_wait).await
-	});
+	futures::executor::block_on(async move { future::join_all(background_tasks_to_wait).await });
 }
 
 #[test]
@@ -362,14 +378,13 @@ fn notifications_back_pressure() {
 		while received_notifications < TOTAL_NOTIFS {
 			match events_stream2.next().await.unwrap() {
 				Event::NotificationStreamClosed { .. } => panic!(),
-				Event::NotificationsReceived { messages, .. } => {
+				Event::NotificationsReceived { messages, .. } =>
 					for message in messages {
 						assert_eq!(message.0, ENGINE_ID);
 						assert_eq!(message.1, format!("hello #{}", received_notifications));
 						received_notifications += 1;
-					}
-				}
-				_ => {}
+					},
+				_ => {},
 			};
 
 			if rand::random::<u8>() < 2 {
@@ -383,7 +398,7 @@ fn notifications_back_pressure() {
 		loop {
 			match events_stream1.next().await.unwrap() {
 				Event::NotificationStreamOpened { .. } => break,
-				_ => {}
+				_ => {},
 			};
 		}
 
@@ -405,7 +420,7 @@ fn ensure_listen_addresses_consistent_with_transport_memory() {
 	let _ = build_test_full_node(config::NetworkConfiguration {
 		listen_addresses: vec![listen_addr.clone()],
 		transport: config::TransportConfig::MemoryOnly,
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }
 
@@ -416,7 +431,7 @@ fn ensure_listen_addresses_consistent_with_transport_not_memory() {
 
 	let _ = build_test_full_node(config::NetworkConfiguration {
 		listen_addresses: vec![listen_addr.clone()],
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }
 
@@ -433,7 +448,7 @@ fn ensure_boot_node_addresses_consistent_with_transport_memory() {
 		listen_addresses: vec![listen_addr.clone()],
 		transport: config::TransportConfig::MemoryOnly,
 		boot_nodes: vec![boot_node],
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }
 
@@ -449,7 +464,7 @@ fn ensure_boot_node_addresses_consistent_with_transport_not_memory() {
 	let _ = build_test_full_node(config::NetworkConfiguration {
 		listen_addresses: vec![listen_addr.clone()],
 		boot_nodes: vec![boot_node],
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }
 
@@ -466,7 +481,7 @@ fn ensure_reserved_node_addresses_consistent_with_transport_memory() {
 		listen_addresses: vec![listen_addr.clone()],
 		transport: config::TransportConfig::MemoryOnly,
 		reserved_nodes: vec![reserved_node],
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }
 
@@ -482,7 +497,7 @@ fn ensure_reserved_node_addresses_consistent_with_transport_not_memory() {
 	let _ = build_test_full_node(config::NetworkConfiguration {
 		listen_addresses: vec![listen_addr.clone()],
 		reserved_nodes: vec![reserved_node],
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }
 
@@ -496,7 +511,7 @@ fn ensure_public_addresses_consistent_with_transport_memory() {
 		listen_addresses: vec![listen_addr.clone()],
 		transport: config::TransportConfig::MemoryOnly,
 		public_addresses: vec![public_address],
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }
 
@@ -509,6 +524,6 @@ fn ensure_public_addresses_consistent_with_transport_not_memory() {
 	let _ = build_test_full_node(config::NetworkConfiguration {
 		listen_addresses: vec![listen_addr.clone()],
 		public_addresses: vec![public_address],
-		.. config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
+		..config::NetworkConfiguration::new("test-node", "test-client", Default::default(), None)
 	});
 }

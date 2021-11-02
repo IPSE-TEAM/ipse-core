@@ -19,21 +19,17 @@
 
 #![cfg(test)]
 
-use sp_runtime::{
-	Perbill,
-	traits::IdentityLookup,
-	testing::Header,
-};
+use crate::{decl_tests, tests::CallWithDispatchInfo, GenesisConfig, Module, Trait};
+use frame_support::traits::Get;
+use frame_support::weights::{DispatchInfo, IdentityFee, Weight};
+use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use sp_core::H256;
 use sp_io;
-use frame_support::{impl_outer_origin, impl_outer_event, parameter_types};
-use frame_support::traits::Get;
-use frame_support::weights::{Weight, DispatchInfo, IdentityFee};
+use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
 use std::cell::RefCell;
-use crate::{GenesisConfig, Module, Trait, decl_tests, tests::CallWithDispatchInfo};
 
 use frame_system as system;
-impl_outer_origin!{
+impl_outer_origin! {
 	pub enum Origin for Test {}
 }
 
@@ -54,7 +50,9 @@ thread_local! {
 
 pub struct ExistentialDeposit;
 impl Get<u64> for ExistentialDeposit {
-	fn get() -> u64 { EXISTENTIAL_DEPOSIT.with(|v| *v.borrow()) }
+	fn get() -> u64 {
+		EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+	}
 }
 
 // Workaround for https://github.com/rust-lang/rust/issues/26925 . Remove when sorted.
@@ -120,10 +118,7 @@ pub struct ExtBuilder {
 }
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self {
-			existential_deposit: 1,
-			monied: false,
-		}
+		Self { existential_deposit: 1, monied: false }
 	}
 }
 impl ExtBuilder {
@@ -148,12 +143,14 @@ impl ExtBuilder {
 					(2, 20 * self.existential_deposit),
 					(3, 30 * self.existential_deposit),
 					(4, 40 * self.existential_deposit),
-					(12, 10 * self.existential_deposit)
+					(12, 10 * self.existential_deposit),
 				]
 			} else {
 				vec![]
 			},
-		}.assimilate_storage(&mut t).unwrap();
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
@@ -161,4 +158,4 @@ impl ExtBuilder {
 	}
 }
 
-decl_tests!{ Test, ExtBuilder, EXISTENTIAL_DEPOSIT }
+decl_tests! { Test, ExtBuilder, EXISTENTIAL_DEPOSIT }

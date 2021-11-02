@@ -20,10 +20,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_system::{RawOrigin, EventRecord};
-use frame_benchmarking::{benchmarks, account, whitelisted_caller};
-use sp_runtime::traits::Bounded;
 use crate::Module as Proxy;
+use frame_benchmarking::{account, benchmarks, whitelisted_caller};
+use frame_system::{EventRecord, RawOrigin};
+use sp_runtime::traits::Bounded;
 
 const SEED: u32 = 0;
 
@@ -52,7 +52,7 @@ fn add_proxies<T: Trait>(n: u32, maybe_who: Option<T::AccountId>) -> Result<(), 
 fn add_announcements<T: Trait>(
 	n: u32,
 	maybe_who: Option<T::AccountId>,
-	maybe_real: Option<T::AccountId>
+	maybe_real: Option<T::AccountId>,
 ) -> Result<(), &'static str> {
 	let caller = maybe_who.unwrap_or_else(|| account("caller", 0, SEED));
 	T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());

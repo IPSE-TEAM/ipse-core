@@ -19,13 +19,13 @@
 use crate::error;
 use crate::params::{GenericNumber, PruningParams, SharedParams};
 use crate::CliConfiguration;
+use sc_client_api::{Backend, UsageProvider};
 use sc_service::chain_ops::revert_chain;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use std::fmt::Debug;
 use std::str::FromStr;
 use std::sync::Arc;
 use structopt::StructOpt;
-use sc_client_api::{Backend, UsageProvider};
 
 /// The `revert` command used revert the chain to a previous state.
 #[derive(Debug, StructOpt)]
@@ -45,11 +45,7 @@ pub struct RevertCmd {
 
 impl RevertCmd {
 	/// Run the revert command
-	pub async fn run<B, BA, C>(
-		&self,
-		client: Arc<C>,
-		backend: Arc<BA>,
-	) -> error::Result<()>
+	pub async fn run<B, BA, C>(&self, client: Arc<C>, backend: Arc<BA>) -> error::Result<()>
 	where
 		B: BlockT,
 		BA: Backend<B>,

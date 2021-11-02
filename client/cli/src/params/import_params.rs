@@ -60,11 +60,7 @@ pub struct ImportParams {
 	pub execution_strategies: ExecutionStrategiesParams,
 
 	/// Specify the state cache size.
-	#[structopt(
-		long = "state-cache-size",
-		value_name = "Bytes",
-		default_value = "67108864"
-	)]
+	#[structopt(long = "state-cache-size", value_name = "Bytes", default_value = "67108864")]
 	pub state_cache_size: usize,
 
 	/// Comma separated list of targets for tracing.
@@ -107,11 +103,7 @@ impl ImportParams {
 	pub fn execution_strategies(&self, is_dev: bool, is_validator: bool) -> ExecutionStrategies {
 		let exec = &self.execution_strategies;
 		let exec_all_or = |strat: Option<ExecutionStrategy>, default: ExecutionStrategy| {
-			let default = if is_dev {
-				ExecutionStrategy::Native
-			} else {
-				default
-			};
+			let default = if is_dev { ExecutionStrategy::Native } else { default };
 
 			exec.execution.unwrap_or_else(|| strat.unwrap_or(default)).into()
 		};
@@ -125,10 +117,14 @@ impl ImportParams {
 		ExecutionStrategies {
 			syncing: exec_all_or(exec.execution_syncing, DEFAULT_EXECUTION_SYNCING),
 			importing: exec_all_or(exec.execution_import_block, default_execution_import_block),
-			block_construction:
-				exec_all_or(exec.execution_block_construction, DEFAULT_EXECUTION_BLOCK_CONSTRUCTION),
-			offchain_worker:
-				exec_all_or(exec.execution_offchain_worker, DEFAULT_EXECUTION_OFFCHAIN_WORKER),
+			block_construction: exec_all_or(
+				exec.execution_block_construction,
+				DEFAULT_EXECUTION_BLOCK_CONSTRUCTION,
+			),
+			offchain_worker: exec_all_or(
+				exec.execution_offchain_worker,
+				DEFAULT_EXECUTION_OFFCHAIN_WORKER,
+			),
 			other: exec_all_or(exec.execution_other, DEFAULT_EXECUTION_OTHER),
 		}
 	}
@@ -175,7 +171,8 @@ pub struct ExecutionStrategiesParams {
 	)]
 	pub execution_offchain_worker: Option<ExecutionStrategy>,
 
-	/// The means of execution used when calling into the runtime while not syncing, importing or constructing blocks.
+	/// The means of execution used when calling into the runtime while not syncing, importing or
+	/// constructing blocks.
 	#[structopt(
 		long = "execution-other",
 		value_name = "STRATEGY",

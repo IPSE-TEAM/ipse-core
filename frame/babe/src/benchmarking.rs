@@ -97,10 +97,7 @@ mod tests {
 			);
 
 			println!("equivocation_proof: {:?}", equivocation_proof);
-			println!(
-				"equivocation_proof.encode(): {:?}",
-				equivocation_proof.encode()
-			);
+			println!("equivocation_proof.encode(): {:?}", equivocation_proof.encode());
 		});
 	}
 }

@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use super::*;
+use futures::executor::block_on;
+use sp_consensus::block_validation::Validation;
 use sp_consensus::BlockOrigin;
 use std::time::Duration;
-use futures::executor::block_on;
-use super::*;
-use sp_consensus::block_validation::Validation;
 use substrate_test_runtime::Header;
 
 fn test_ancestor_search_when_common_is(n: usize) {
@@ -269,11 +269,15 @@ fn sync_justifications() {
 		net.poll(cx);
 
 		for height in (10..21).step_by(5) {
-			if net.peer(0).client().justification(&BlockId::Number(height)).unwrap() != Some(Vec::new()) {
-				return Poll::Pending;
+			if net.peer(0).client().justification(&BlockId::Number(height)).unwrap() !=
+				Some(Vec::new())
+			{
+				return Poll::Pending
 			}
-			if net.peer(1).client().justification(&BlockId::Number(height)).unwrap() != Some(Vec::new()) {
-				return Poll::Pending;
+			if net.peer(1).client().justification(&BlockId::Number(height)).unwrap() !=
+				Some(Vec::new())
+			{
+				return Poll::Pending
 			}
 		}
 
@@ -552,7 +556,7 @@ fn can_sync_explicit_forks() {
 	// poll until the two nodes connect, otherwise announcing the block will not work
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
 		net.poll(cx);
-		if net.peer(0).num_peers() == 0  || net.peer(1).num_peers() == 0 {
+		if net.peer(0).num_peers() == 0 || net.peer(1).num_peers() == 0 {
 			Poll::Pending
 		} else {
 			Poll::Ready(())
@@ -637,7 +641,7 @@ fn full_sync_requires_block_body() {
 	// Wait for nodes to connect
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
 		net.poll(cx);
-		if net.peer(0).num_peers() == 0  || net.peer(1).num_peers() == 0 {
+		if net.peer(0).num_peers() == 0 || net.peer(1).num_peers() == 0 {
 			Poll::Pending
 		} else {
 			Poll::Ready(())
@@ -695,7 +699,7 @@ fn can_sync_to_peers_with_wrong_common_block() {
 	// wait for connection
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
 		net.poll(cx);
-		if net.peer(0).num_peers() == 0  || net.peer(1).num_peers() == 0 {
+		if net.peer(0).num_peers() == 0 || net.peer(1).num_peers() == 0 {
 			Poll::Pending
 		} else {
 			Poll::Ready(())

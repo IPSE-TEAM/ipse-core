@@ -18,9 +18,9 @@
 
 //! Substrate system API helpers.
 
+use serde::{Deserialize, Serialize};
+use sp_chain_spec::{ChainType, Properties};
 use std::fmt;
-use serde::{Serialize, Deserialize};
-use sp_chain_spec::{Properties, ChainType};
 
 /// Running node's static details.
 #[derive(Clone, Debug)]
@@ -53,9 +53,7 @@ pub struct Health {
 
 impl fmt::Display for Health {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "{} peers ({})", self.peers, if self.is_syncing {
-			"syncing"
-		} else { "idle" })
+		write!(fmt, "{} peers ({})", self.peers, if self.is_syncing { "syncing" } else { "idle" })
 	}
 }
 
@@ -97,7 +95,8 @@ mod tests {
 				peers: 1,
 				is_syncing: false,
 				should_have_peers: true,
-			}).unwrap(),
+			})
+			.unwrap(),
 			r#"{"peers":1,"isSyncing":false,"shouldHavePeers":true}"#,
 		);
 	}
@@ -110,7 +109,8 @@ mod tests {
 				roles: "a".into(),
 				best_hash: 5u32,
 				best_number: 6u32,
-			}).unwrap(),
+			})
+			.unwrap(),
 			r#"{"peerId":"2","roles":"a","bestHash":5,"bestNumber":6}"#,
 		);
 	}

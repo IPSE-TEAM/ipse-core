@@ -45,7 +45,6 @@
 //! However, if multiple instances of [`QueuedSender`] exist for the same peer and protocol, or
 //! if some other code uses the [`NetworkService`] to send notifications to this combination or
 //! peer and protocol, then the notifications will be interleaved in an unpredictable way.
-//!
 
 use crate::{ExHashT, NetworkService};
 
@@ -80,7 +79,7 @@ impl<M> QueuedSender<M> {
 		peer_id: PeerId,
 		protocol: ConsensusEngineId,
 		queue_size_limit: usize,
-		messages_encode: F
+		messages_encode: F,
 	) -> (Self, impl Future<Output = ()> + Send + 'static)
 	where
 		M: Send + 'static,
@@ -95,13 +94,7 @@ impl<M> QueuedSender<M> {
 			messages_queue: Mutex::new(VecDeque::with_capacity(queue_size_limit)),
 		});
 
-		let task = spawn_task(
-			service,
-			peer_id,
-			protocol,
-			shared.clone(),
-			messages_encode
-		);
+		let task = spawn_task(service, peer_id, protocol, shared.clone(), messages_encode);
 
 		(QueuedSender { shared }, task)
 	}
@@ -122,7 +115,7 @@ impl<M> QueuedSender<M> {
 	/// The returned `Future` is expected to be ready quite quickly.
 	pub async fn queue_or_discard(&self, message: M)
 	where
-		M: Send + 'static
+		M: Send + 'static,
 	{
 		self.lock_queue().await.push_or_discard(message);
 	}
@@ -211,11 +204,11 @@ async fn spawn_task<B: BlockT, H: ExHashT, M, F: Fn(M) -> Vec<u8>>(
 
 			loop {
 				if shared.stop_task.load(atomic::Ordering::Acquire) {
-					return;
+					return
 				}
 
 				if let Some(msg) = queue.pop_front() {
-					break 'next_msg msg;
+					break 'next_msg msg
 				}
 
 				// It is possible that the destructor of `QueuedSender` sets `stop_task` to

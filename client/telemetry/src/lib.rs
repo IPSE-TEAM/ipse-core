@@ -32,7 +32,8 @@
 //! will also deregister the global logger and replace it with a logger that discards messages.
 //! The `Stream` generates [`TelemetryEvent`]s.
 //!
-//! > **Note**: Cloning the [`Telemetry`] and polling from multiple clones has an unspecified behaviour.
+//! > **Note**: Cloning the [`Telemetry`] and polling from multiple clones has an unspecified
+//! behaviour.
 //!
 //! # Example
 //!
@@ -58,19 +59,23 @@
 //! 	"foo" => "bar",
 //! )
 //! ```
-//!
 
-use futures::{prelude::*, channel::mpsc};
-use libp2p::{Multiaddr, wasm_ext};
+use futures::{channel::mpsc, prelude::*};
+use libp2p::{wasm_ext, Multiaddr};
 use log::{error, warn};
 use parking_lot::Mutex;
-use serde::{Serialize, Deserialize, Deserializer};
-use std::{pin::Pin, sync::Arc, task::{Context, Poll}, time::Duration};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::{
+	pin::Pin,
+	sync::Arc,
+	task::{Context, Poll},
+	time::Duration,
+};
 use wasm_timer::Instant;
 
 pub use libp2p::wasm_ext::ExtTransport;
-pub use slog_scope::with_logger;
 pub use slog;
+pub use slog_scope::with_logger;
 
 mod async_record;
 mod worker;
@@ -99,26 +104,24 @@ pub struct TelemetryConfig {
 /// The URL string can be either a URL or a multiaddress.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TelemetryEndpoints(
-	#[serde(deserialize_with = "url_or_multiaddr_deser")]
-	Vec<(Multiaddr, u8)>
+	#[serde(deserialize_with = "url_or_multiaddr_deser")] Vec<(Multiaddr, u8)>,
 );
 
 /// Custom deserializer for TelemetryEndpoints, used to convert urls or multiaddr to multiaddr.
 fn url_or_multiaddr_deser<'de, D>(deserializer: D) -> Result<Vec<(Multiaddr, u8)>, D::Error>
-	where D: Deserializer<'de>
+where
+	D: Deserializer<'de>,
 {
 	Vec::<(String, u8)>::deserialize(deserializer)?
 		.iter()
-		.map(|e| Ok((url_to_multiaddr(&e.0)
-		.map_err(serde::de::Error::custom)?, e.1)))
+		.map(|e| Ok((url_to_multiaddr(&e.0).map_err(serde::de::Error::custom)?, e.1)))
 		.collect()
 }
 
 impl TelemetryEndpoints {
 	pub fn new(endpoints: Vec<(String, u8)>) -> Result<Self, libp2p::multiaddr::Error> {
-		let endpoints: Result<Vec<(Multiaddr, u8)>, libp2p::multiaddr::Error> = endpoints.iter()
-			.map(|e| Ok((url_to_multiaddr(&e.0)?, e.1)))
-			.collect();
+		let endpoints: Result<Vec<(Multiaddr, u8)>, libp2p::multiaddr::Error> =
+			endpoints.iter().map(|e| Ok((url_to_multiaddr(&e.0)?, e.1))).collect();
 		endpoints.map(Self)
 	}
 }
@@ -207,14 +210,11 @@ pub fn init_telemetry(config: TelemetryConfig) -> Telemetry {
 		Err(err) => {
 			error!(target: "telemetry", "Failed to initialize telemetry worker: {:?}", err);
 			None
-		}
+		},
 	};
 
 	Telemetry {
-		inner: Arc::new(Mutex::new(TelemetryInner {
-			worker,
-			receiver,
-		})),
+		inner: Arc::new(Mutex::new(TelemetryInner { worker, receiver })),
 		_guard: Arc::new(guard),
 	}
 }
@@ -248,8 +248,8 @@ impl Stream for Telemetry {
 				// Returning `Pending` here means that we may never get polled again, but this is
 				// ok because we're in a situation where something else is actually currently doing
 				// the polling.
-				return Poll::Pending;
-			}
+				return Poll::Pending
+			},
 		};
 
 		let mut has_connected = false;
@@ -266,12 +266,16 @@ impl Stream for Telemetry {
 				}
 			}
 
-			if let Poll::Ready(Some(log_entry)) = Stream::poll_next(Pin::new(&mut inner.receiver), cx) {
+			if let Poll::Ready(Some(log_entry)) =
+				Stream::poll_next(Pin::new(&mut inner.receiver), cx)
+			{
 				if let Some(worker) = inner.worker.as_mut() {
-					log_entry.as_record_values(|rec, val| { let _ = worker.log(rec, val); });
+					log_entry.as_record_values(|rec, val| {
+						let _ = worker.log(rec, val);
+					});
 				}
 			} else {
-				break;
+				break
 			}
 		}
 
@@ -291,12 +295,16 @@ impl slog::Drain for TelemetryDrain {
 	type Ok = ();
 	type Err = ();
 
-	fn log(&self, record: &slog::Record, values: &slog::OwnedKVList) -> Result<Self::Ok, Self::Err> {
+	fn log(
+		&self,
+		record: &slog::Record,
+		values: &slog::OwnedKVList,
+	) -> Result<Self::Ok, Self::Err> {
 		let before = Instant::now();
 
 		let serialized = async_record::AsyncRecord::from(record, values);
-		// Note: interestingly, `try_send` requires a `&mut` because it modifies some internal value, while `clone()`
-		// is lock-free.
+		// Note: interestingly, `try_send` requires a `&mut` because it modifies some internal
+		// value, while `clone()` is lock-free.
 		if let Err(err) = self.sender.clone().try_send(serialized) {
 			warn!(target: "telemetry", "Ignored telemetry message because of error on channel: {:?}", err);
 		}
@@ -323,14 +331,18 @@ macro_rules! telemetry {
 
 #[cfg(test)]
 mod telemetry_endpoints_tests {
-	use libp2p::Multiaddr;
-	use super::TelemetryEndpoints;
 	use super::url_to_multiaddr;
+	use super::TelemetryEndpoints;
+	use libp2p::Multiaddr;
 
 	#[test]
 	fn valid_endpoints() {
-		let endp = vec![("wss://telemetry.polkadot.io/submit/".into(), 3), ("/ip4/80.123.90.4/tcp/5432".into(), 4)];
-		let telem = TelemetryEndpoints::new(endp.clone()).expect("Telemetry endpoint should be valid");
+		let endp = vec![
+			("wss://telemetry.polkadot.io/submit/".into(), 3),
+			("/ip4/80.123.90.4/tcp/5432".into(), 4),
+		];
+		let telem =
+			TelemetryEndpoints::new(endp.clone()).expect("Telemetry endpoint should be valid");
 		let mut res: Vec<(Multiaddr, u8)> = vec![];
 		for (a, b) in endp.iter() {
 			res.push((url_to_multiaddr(a).expect("provided url should be valid"), *b))
@@ -340,14 +352,20 @@ mod telemetry_endpoints_tests {
 
 	#[test]
 	fn invalid_endpoints() {
-		let endp = vec![("/ip4/...80.123.90.4/tcp/5432".into(), 3), ("/ip4/no:!?;rlkqre;;::::///tcp/5432".into(), 4)];
+		let endp = vec![
+			("/ip4/...80.123.90.4/tcp/5432".into(), 3),
+			("/ip4/no:!?;rlkqre;;::::///tcp/5432".into(), 4),
+		];
 		let telem = TelemetryEndpoints::new(endp);
 		assert!(telem.is_err());
 	}
 
 	#[test]
 	fn valid_and_invalid_endpoints() {
-		let endp = vec![("/ip4/80.123.90.4/tcp/5432".into(), 3), ("/ip4/no:!?;rlkqre;;::::///tcp/5432".into(), 4)];
+		let endp = vec![
+			("/ip4/80.123.90.4/tcp/5432".into(), 3),
+			("/ip4/no:!?;rlkqre;;::::///tcp/5432".into(), 4),
+		];
 		let telem = TelemetryEndpoints::new(endp);
 		assert!(telem.is_err());
 	}

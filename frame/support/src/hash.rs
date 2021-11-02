@@ -18,8 +18,8 @@
 //! Hash utilities.
 
 use codec::Codec;
+use sp_io::hashing::{blake2_128, blake2_256, twox_128, twox_256, twox_64};
 use sp_std::prelude::Vec;
-use sp_io::hashing::{blake2_128, blake2_256, twox_64, twox_128, twox_256};
 
 // This trait must be kept coherent with frame-support-procedural HasherKind usage
 pub trait Hashable: Sized {
@@ -51,7 +51,9 @@ impl<T: Codec> Hashable for T {
 	fn twox_64_concat(&self) -> Vec<u8> {
 		self.using_encoded(Twox64Concat::hash)
 	}
-	fn identity(&self) -> Vec<u8> { self.encode() }
+	fn identity(&self) -> Vec<u8> {
+		self.encode()
+	}
 }
 
 /// Hasher to use to hash keys to insert to storage.
@@ -89,11 +91,7 @@ pub struct Twox64Concat;
 impl StorageHasher for Twox64Concat {
 	type Output = Vec<u8>;
 	fn hash(x: &[u8]) -> Vec<u8> {
-		twox_64(x)
-			.iter()
-			.chain(x.into_iter())
-			.cloned()
-			.collect::<Vec<_>>()
+		twox_64(x).iter().chain(x.into_iter()).cloned().collect::<Vec<_>>()
 	}
 }
 impl ReversibleStorageHasher for Twox64Concat {
@@ -111,11 +109,7 @@ pub struct Blake2_128Concat;
 impl StorageHasher for Blake2_128Concat {
 	type Output = Vec<u8>;
 	fn hash(x: &[u8]) -> Vec<u8> {
-		blake2_128(x)
-			.iter()
-			.chain(x.into_iter())
-			.cloned()
-			.collect::<Vec<_>>()
+		blake2_128(x).iter().chain(x.into_iter()).cloned().collect::<Vec<_>>()
 	}
 }
 impl ReversibleStorageHasher for Blake2_128Concat {

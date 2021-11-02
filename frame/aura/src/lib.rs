@@ -28,7 +28,8 @@
 //!
 //! ### Public Functions
 //!
-//! - `slot_duration` - Determine the Aura slot-duration based on the Timestamp module configuration.
+//! - `slot_duration` - Determine the Aura slot-duration based on the Timestamp module
+//!   configuration.
 //!
 //! ## Related Modules
 //!
@@ -40,28 +41,31 @@
 //! If you're interested in hacking on this module, it is useful to understand the interaction with
 //! `substrate/primitives/inherents/src/lib.rs` and, specifically, the required implementation of
 //! [`ProvideInherent`](../sp_inherents/trait.ProvideInherent.html) and
-//! [`ProvideInherentData`](../sp_inherents/trait.ProvideInherentData.html) to create and check inherents.
+//! [`ProvideInherentData`](../sp_inherents/trait.ProvideInherentData.html) to create and check
+//! inherents.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use pallet_timestamp;
 
-use sp_std::{result, prelude::*};
-use codec::{Encode, Decode};
+use codec::{Decode, Encode};
 use frame_support::{
-	decl_storage, decl_module, Parameter, traits::{Get, FindAuthor},
-	ConsensusEngineId,
+	decl_module, decl_storage,
+	traits::{FindAuthor, Get},
+	ConsensusEngineId, Parameter,
 };
-use sp_runtime::{
-	RuntimeAppPublic,
-	traits::{SaturatedConversion, Saturating, Zero, Member, IsMember}, generic::DigestItem,
-};
-use sp_timestamp::OnTimestampSet;
-use sp_inherents::{InherentIdentifier, InherentData, ProvideInherent, MakeFatalError};
 use sp_consensus_aura::{
-	AURA_ENGINE_ID, ConsensusLog, AuthorityIndex,
-	inherents::{INHERENT_IDENTIFIER, AuraInherentData},
+	inherents::{AuraInherentData, INHERENT_IDENTIFIER},
+	AuthorityIndex, ConsensusLog, AURA_ENGINE_ID,
 };
+use sp_inherents::{InherentData, InherentIdentifier, MakeFatalError, ProvideInherent};
+use sp_runtime::{
+	generic::DigestItem,
+	traits::{IsMember, Member, SaturatedConversion, Saturating, Zero},
+	RuntimeAppPublic,
+};
+use sp_std::{prelude::*, result};
+use sp_timestamp::OnTimestampSet;
 
 mod mock;
 mod tests;
@@ -93,10 +97,8 @@ impl<T: Trait> Module<T> {
 	fn change_authorities(new: Vec<T::AuthorityId>) {
 		<Authorities<T>>::put(&new);
 
-		let log: DigestItem<T::Hash> = DigestItem::Consensus(
-			AURA_ENGINE_ID,
-			ConsensusLog::AuthoritiesChange(new).encode()
-		);
+		let log: DigestItem<T::Hash> =
+			DigestItem::Consensus(AURA_ENGINE_ID, ConsensusLog::AuthoritiesChange(new).encode());
 		<frame_system::Module<T>>::deposit_log(log.into());
 	}
 
@@ -116,14 +118,16 @@ impl<T: Trait> pallet_session::OneSessionHandler<T::AccountId> for Module<T> {
 	type Key = T::AuthorityId;
 
 	fn on_genesis_session<'a, I: 'a>(validators: I)
-		where I: Iterator<Item=(&'a T::AccountId, T::AuthorityId)>
+	where
+		I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
 	{
 		let authorities = validators.map(|(_, k)| k).collect::<Vec<_>>();
 		Self::initialize_authorities(&authorities);
 	}
 
 	fn on_new_session<'a, I: 'a>(changed: bool, validators: I, _queued_validators: I)
-		where I: Iterator<Item=(&'a T::AccountId, T::AuthorityId)>
+	where
+		I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
 	{
 		// instant changes
 		if changed {
@@ -146,8 +150,9 @@ impl<T: Trait> pallet_session::OneSessionHandler<T::AccountId> for Module<T> {
 }
 
 impl<T: Trait> FindAuthor<u32> for Module<T> {
-	fn find_author<'a, I>(digests: I) -> Option<u32> where
-		I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])>
+	fn find_author<'a, I>(digests: I) -> Option<u32>
+	where
+		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
 		for (id, mut data) in digests.into_iter() {
 			if id == AURA_ENGINE_ID {
@@ -162,7 +167,7 @@ impl<T: Trait> FindAuthor<u32> for Module<T> {
 	}
 }
 
-/// We can not implement `FindAuthor` twice, because the compiler does not know if 
+/// We can not implement `FindAuthor` twice, because the compiler does not know if
 /// `u32 == T::AuthorityId` and thus, prevents us to implement the trait twice.
 #[doc(hidden)]
 pub struct FindAccountFromAuthorIndex<T, Inner>(sp_std::marker::PhantomData<(T, Inner)>);
@@ -171,7 +176,8 @@ impl<T: Trait, Inner: FindAuthor<u32>> FindAuthor<T::AuthorityId>
 	for FindAccountFromAuthorIndex<T, Inner>
 {
 	fn find_author<'a, I>(digests: I) -> Option<T::AuthorityId>
-		where I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])>
+	where
+		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
 		let i = Inner::find_author(digests)?;
 
@@ -185,9 +191,7 @@ pub type AuraAuthorId<T> = FindAccountFromAuthorIndex<T, Module<T>>;
 
 impl<T: Trait> IsMember<T::AuthorityId> for Module<T> {
 	fn is_member(authority_id: &T::AuthorityId) -> bool {
-		Self::authorities()
-			.iter()
-			.any(|id| id == authority_id)
+		Self::authorities().iter().any(|id| id == authority_id)
 	}
 }
 
@@ -204,7 +208,7 @@ impl<T: Trait> Module<T> {
 		<Self as Store>::LastTimestamp::put(now);
 
 		if last.is_zero() {
-			return;
+			return
 		}
 
 		assert!(!slot_duration.is_zero(), "Aura slot duration cannot be zero.");
@@ -247,7 +251,8 @@ impl<T: Trait> ProvideInherent for Module<T> {
 		if timestamp_based_slot == seal_slot {
 			Ok(())
 		} else {
-			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal").into())
+			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal")
+				.into())
 		}
 	}
 }

@@ -27,8 +27,8 @@ use sc_network::NetworkStatus;
 use sp_blockchain::HeaderMetadata;
 use sp_runtime::traits::{Block as BlockT, Header};
 use sp_transaction_pool::TransactionPool;
-use sp_utils::{status_sinks, mpsc::tracing_unbounded};
-use std::{fmt::Display, sync::Arc, time::Duration, collections::VecDeque};
+use sp_utils::{mpsc::tracing_unbounded, status_sinks};
+use std::{collections::VecDeque, fmt::Display, sync::Arc, time::Duration};
 
 mod display;
 
@@ -57,18 +57,17 @@ pub struct OutputFormat {
 
 impl Default for OutputFormat {
 	fn default() -> Self {
-		Self {
-			enable_color: true,
-			prefix: String::new(),
-		}
+		Self { enable_color: true, prefix: String::new() }
 	}
 }
 
-/// Marker trait for a type that implements `TransactionPool` and `MallocSizeOf` on `not(target_os = "unknown")`.
+/// Marker trait for a type that implements `TransactionPool` and `MallocSizeOf` on `not(target_os =
+/// "unknown")`.
 #[cfg(target_os = "unknown")]
 pub trait TransactionPoolAndMaybeMallogSizeOf: TransactionPool {}
 
-/// Marker trait for a type that implements `TransactionPool` and `MallocSizeOf` on `not(target_os = "unknown")`.
+/// Marker trait for a type that implements `TransactionPool` and `MallocSizeOf` on `not(target_os =
+/// "unknown")`.
 #[cfg(not(target_os = "unknown"))]
 pub trait TransactionPoolAndMaybeMallogSizeOf: TransactionPool + MallocSizeOf {}
 
@@ -95,37 +94,30 @@ where
 	let (network_status_sink, network_status_stream) = tracing_unbounded("mpsc_network_status");
 	network_status_sinks.push(Duration::from_millis(5000), network_status_sink);
 
-	let display_notifications = network_status_stream
-		.for_each(move |net_status| {
-			let info = client_1.usage_info();
-			if let Some(ref usage) = info.usage {
-				trace!(target: "usage", "Usage statistics: {}", usage);
-			} else {
-				trace!(
-					target: "usage",
-					"Usage statistics not displayed as backend does not provide it",
-				)
-			}
-			#[cfg(not(target_os = "unknown"))]
+	let display_notifications = network_status_stream.for_each(move |net_status| {
+		let info = client_1.usage_info();
+		if let Some(ref usage) = info.usage {
+			trace!(target: "usage", "Usage statistics: {}", usage);
+		} else {
 			trace!(
 				target: "usage",
-				"Subsystems memory [txpool: {} kB]",
-				parity_util_mem::malloc_size(&*pool) / 1024,
-			);
-			display.display(&info, net_status);
-			future::ready(())
-		});
+				"Usage statistics not displayed as backend does not provide it",
+			)
+		}
+		#[cfg(not(target_os = "unknown"))]
+		trace!(
+			target: "usage",
+			"Subsystems memory [txpool: {} kB]",
+			parity_util_mem::malloc_size(&*pool) / 1024,
+		);
+		display.display(&info, net_status);
+		future::ready(())
+	});
 
-	future::join(
-		display_notifications,
-		display_block_import(client, format.prefix),
-	).map(|_| ())
+	future::join(display_notifications, display_block_import(client, format.prefix)).map(|_| ())
 }
 
-fn display_block_import<B: BlockT, C>(
-	client: Arc<C>,
-	prefix: String,
-) -> impl Future<Output = ()>
+fn display_block_import<B: BlockT, C>(client: Arc<C>, prefix: String) -> impl Future<Output = ()>
 where
 	C: UsageProvider<B> + HeaderMetadata<B> + BlockchainEvents<B>,
 	<C as HeaderMetadata<B>>::Error: Display,
@@ -142,20 +134,20 @@ where
 	client.import_notification_stream().for_each(move |n| {
 		// detect and log reorganizations.
 		if let Some((ref last_num, ref last_hash)) = last_best {
-			if n.header.parent_hash() != last_hash && n.is_new_best  {
-				let maybe_ancestor = sp_blockchain::lowest_common_ancestor(
-					&*client,
-					last_hash.clone(),
-					n.hash,
-				);
+			if n.header.parent_hash() != last_hash && n.is_new_best {
+				let maybe_ancestor =
+					sp_blockchain::lowest_common_ancestor(&*client, last_hash.clone(), n.hash);
 
 				match maybe_ancestor {
 					Ok(ref ancestor) if ancestor.hash != *last_hash => info!(
 						"♻️  {}Reorg on #{},{} to #{},{}, common ancestor #{},{}",
 						prefix,
-						Colour::Red.bold().paint(format!("{}", last_num)), last_hash,
-						Colour::Green.bold().paint(format!("{}", n.header.number())), n.hash,
-						Colour::White.bold().paint(format!("{}", ancestor.number)), ancestor.hash,
+						Colour::Red.bold().paint(format!("{}", last_num)),
+						last_hash,
+						Colour::Green.bold().paint(format!("{}", n.header.number())),
+						n.hash,
+						Colour::White.bold().paint(format!("{}", ancestor.number)),
+						ancestor.hash,
 					),
 					Ok(_) => {},
 					Err(e) => warn!("Error computing tree route: {}", e),
@@ -166,7 +158,6 @@ where
 		if n.is_new_best {
 			last_best = Some((n.header.number().clone(), n.hash.clone()));
 		}
-
 
 		// If we already printed a message for a given block recently,
 		// we should not print it again.

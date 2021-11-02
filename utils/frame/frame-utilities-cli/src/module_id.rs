@@ -18,21 +18,18 @@
 //! Implementation of the `moduleid` subcommand
 
 use sc_cli::{
-	Error, utils::print_from_uri, CryptoSchemeFlag,
-	OutputTypeFlag, KeystoreParams, with_crypto_scheme,
+	utils::print_from_uri, with_crypto_scheme, CryptoSchemeFlag, Error, KeystoreParams,
+	OutputTypeFlag,
 };
-use sp_runtime::ModuleId;
+use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_runtime::traits::AccountIdConversion;
-use sp_core::crypto::{Ss58Codec, Ss58AddressFormat};
-use std::convert::{TryInto, TryFrom};
+use sp_runtime::ModuleId;
+use std::convert::{TryFrom, TryInto};
 use structopt::StructOpt;
 
 /// The `moduleid` command
 #[derive(Debug, StructOpt)]
-#[structopt(
-	name = "moduleid",
-	about = "Inspect a module ID address"
-)]
+#[structopt(name = "moduleid", about = "Inspect a module ID address")]
 pub struct ModuleIdCmd {
 	/// The module ID used to derive the account
 	id: String,
@@ -63,18 +60,18 @@ pub struct ModuleIdCmd {
 impl ModuleIdCmd {
 	/// runs the command
 	pub fn run<R>(&self) -> Result<(), Error>
-		where
-			R: frame_system::Trait,
-			R::AccountId: Ss58Codec,
+	where
+		R: frame_system::Trait,
+		R::AccountId: Ss58Codec,
 	{
 		if self.id.len() != 8 {
 			Err("a module id must be a string of 8 characters")?
 		}
 		let password = self.keystore_params.read_password()?;
 
-		let id_fixed_array: [u8; 8] = self.id.as_bytes()
-			.try_into()
-			.map_err(|_| "Cannot convert argument to moduleid: argument should be 8-character string")?;
+		let id_fixed_array: [u8; 8] = self.id.as_bytes().try_into().map_err(|_| {
+			"Cannot convert argument to moduleid: argument should be 8-character string"
+		})?;
 
 		let account_id: R::AccountId = ModuleId(id_fixed_array).into_account();
 
@@ -91,4 +88,3 @@ impl ModuleIdCmd {
 		Ok(())
 	}
 }
-

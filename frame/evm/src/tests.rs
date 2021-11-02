@@ -2,16 +2,14 @@
 
 use super::*;
 
-use std::{str::FromStr, collections::BTreeMap};
-use frame_support::{
-	assert_ok, impl_outer_origin, parameter_types, impl_outer_dispatch,
-};
+use frame_support::{assert_ok, impl_outer_dispatch, impl_outer_origin, parameter_types};
 use sp_core::{Blake2Hasher, H256};
 use sp_runtime::{
-	Perbill,
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	Perbill,
 };
+use std::{collections::BTreeMap, str::FromStr};
 
 impl_outer_origin! {
 	pub enum Origin for Test where system = frame_system {}
@@ -122,7 +120,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			code: vec![
 				0x00, // STOP
 			],
-		}
+		},
 	);
 	accounts.insert(
 		H160::from_str("1000000000000000000000000000000000000002").unwrap(),
@@ -133,7 +131,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 			code: vec![
 				0xff, // INVALID
 			],
-		}
+		},
 	);
 
 	pallet_balances::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
@@ -173,17 +171,14 @@ fn mutate_account_works() {
 	new_test_ext().execute_with(|| {
 		EVM::mutate_account_basic(
 			&H160::from_str("1000000000000000000000000000000000000001").unwrap(),
-			Account {
-				nonce: U256::from(10),
-				balance: U256::from(1000),
-			},
+			Account { nonce: U256::from(10), balance: U256::from(1000) },
 		);
 
-		assert_eq!(EVM::account_basic(
-			&H160::from_str("1000000000000000000000000000000000000001").unwrap()
-		), Account {
-			nonce: U256::from(10),
-			balance: U256::from(1000),
-		});
+		assert_eq!(
+			EVM::account_basic(
+				&H160::from_str("1000000000000000000000000000000000000001").unwrap()
+			),
+			Account { nonce: U256::from(10), balance: U256::from(1000) }
+		);
 	});
 }

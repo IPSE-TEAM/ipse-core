@@ -50,8 +50,8 @@ use sp_inherents::{InherentData, InherentIdentifier, MakeFatalError, ProvideInhe
 
 pub use sp_consensus_babe::{AuthorityId, PUBLIC_KEY_LENGTH, RANDOMNESS_LENGTH, VRF_OUTPUT_LENGTH};
 
-mod equivocation;
 mod default_weights;
+mod equivocation;
 
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod benchmarking;
@@ -76,8 +76,8 @@ pub trait Trait: pallet_timestamp::Trait {
 	/// BABE requires some logic to be triggered on every block to query for whether an epoch
 	/// has ended and to perform the transition to the next epoch.
 	///
-	/// Typically, the `ExternalTrigger` type should be used. An internal trigger should only be used
-	/// when no other module is responsible for changing authority set.
+	/// Typically, the `ExternalTrigger` type should be used. An internal trigger should only be
+	/// used when no other module is responsible for changing authority set.
 	type EpochChangeTrigger: EpochChangeTrigger;
 
 	/// The proof of key ownership, used for validating equivocation reports.
@@ -123,7 +123,7 @@ pub trait EpochChangeTrigger {
 pub struct ExternalTrigger;
 
 impl EpochChangeTrigger for ExternalTrigger {
-	fn trigger<T: Trait>(_: T::BlockNumber) { } // nothing - trigger is external.
+	fn trigger<T: Trait>(_: T::BlockNumber) {} // nothing - trigger is external.
 }
 
 /// A type signifying to BABE that it should perform epoch changes
@@ -316,9 +316,9 @@ impl<T: Trait> RandomnessT<<T as frame_system::Trait>::Hash> for Module<T> {
 	///   order to obviate the ability of your user to look up the parent hash and choose when to
 	///   transact based upon it.
 	/// - Require your user to first commit to an additional value by first posting its hash.
-	///   Require them to reveal the value to determine the final result, hashing it with the
-	///   output of this random function. This reduces the ability of a cabal of block producers
-	///   from conspiring against individuals.
+	///   Require them to reveal the value to determine the final result, hashing it with the output
+	///   of this random function. This reduces the ability of a cabal of block producers from
+	///   conspiring against individuals.
 	fn random(subject: &[u8]) -> T::Hash {
 		let mut subject = subject.to_vec();
 		subject.reserve(VRF_OUTPUT_LENGTH);
@@ -332,8 +332,9 @@ impl<T: Trait> RandomnessT<<T as frame_system::Trait>::Hash> for Module<T> {
 pub type BabeKey = [u8; PUBLIC_KEY_LENGTH];
 
 impl<T: Trait> FindAuthor<u32> for Module<T> {
-	fn find_author<'a, I>(digests: I) -> Option<u32> where
-		I: 'a + IntoIterator<Item=(ConsensusEngineId, &'a [u8])>
+	fn find_author<'a, I>(digests: I) -> Option<u32>
+	where
+		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
 	{
 		for (id, mut data) in digests.into_iter() {
 			if id == BABE_ENGINE_ID {
@@ -342,15 +343,13 @@ impl<T: Trait> FindAuthor<u32> for Module<T> {
 			}
 		}
 
-		return None;
+		return None
 	}
 }
 
 impl<T: Trait> IsMember<AuthorityId> for Module<T> {
 	fn is_member(authority_id: &AuthorityId) -> bool {
-		<Module<T>>::authorities()
-			.iter()
-			.any(|id| &id.0 == authority_id)
+		<Module<T>>::authorities().iter().any(|id| &id.0 == authority_id)
 	}
 }
 
@@ -403,33 +402,30 @@ impl<T: Trait> Module<T> {
 	// This implementation is linked to how [`should_epoch_change`] is working. This might need to
 	// be updated accordingly, if the underlying mechanics of slot and epochs change.
 	//
-	// WEIGHT NOTE: This function is tied to the weight of `EstimateNextSessionRotation`. If you update
-	// this function, you must also update the corresponding weight.
+	// WEIGHT NOTE: This function is tied to the weight of `EstimateNextSessionRotation`. If you
+	// update this function, you must also update the corresponding weight.
 	pub fn next_expected_epoch_change(now: T::BlockNumber) -> Option<T::BlockNumber> {
 		let next_slot = Self::current_epoch_start().saturating_add(T::EpochDuration::get());
-		next_slot
-			.checked_sub(CurrentSlot::get())
-			.map(|slots_remaining| {
-				// This is a best effort guess. Drifts in the slot/block ratio will cause errors here.
-				let blocks_remaining: T::BlockNumber = slots_remaining.saturated_into();
-				now.saturating_add(blocks_remaining)
-			})
+		next_slot.checked_sub(CurrentSlot::get()).map(|slots_remaining| {
+			// This is a best effort guess. Drifts in the slot/block ratio will cause errors here.
+			let blocks_remaining: T::BlockNumber = slots_remaining.saturated_into();
+			now.saturating_add(blocks_remaining)
+		})
 	}
 
 	/// Plan an epoch config change. The epoch config change is recorded and will be enacted on the
-	/// next call to `enact_epoch_change`. The config will be activated one epoch after. Multiple calls to this
-	/// method will replace any existing planned config change that had not been enacted yet.
-	pub fn plan_config_change(
-		config: NextConfigDescriptor,
-	) {
+	/// next call to `enact_epoch_change`. The config will be activated one epoch after. Multiple
+	/// calls to this method will replace any existing planned config change that had not been
+	/// enacted yet.
+	pub fn plan_config_change(config: NextConfigDescriptor) {
 		NextEpochConfig::put(config);
 	}
 
-	/// DANGEROUS: Enact an epoch change. Should be done on every block where `should_epoch_change` has returned `true`,
-	/// and the caller is the only caller of this function.
+	/// DANGEROUS: Enact an epoch change. Should be done on every block where `should_epoch_change`
+	/// has returned `true`, and the caller is the only caller of this function.
 	///
-	/// Typically, this is not handled directly by the user, but by higher-level validator-set manager logic like
-	/// `pallet-session`.
+	/// Typically, this is not handled directly by the user, but by higher-level validator-set
+	/// manager logic like `pallet-session`.
 	pub fn enact_epoch_change(
 		authorities: Vec<(AuthorityId, BabeAuthorityWeight)>,
 		next_authorities: Vec<(AuthorityId, BabeAuthorityWeight)>,
@@ -460,10 +456,8 @@ impl<T: Trait> Module<T> {
 		// so that nodes can track changes.
 		let next_randomness = NextRandomness::get();
 
-		let next_epoch = NextEpochDescriptor {
-			authorities: next_authorities,
-			randomness: next_randomness,
-		};
+		let next_epoch =
+			NextEpochDescriptor { authorities: next_authorities, randomness: next_randomness };
 		Self::deposit_consensus(ConsensusLog::NextEpochData(next_epoch));
 
 		if let Some(next_config) = NextEpochConfig::take() {
@@ -503,79 +497,78 @@ impl<T: Trait> Module<T> {
 		// => let's ensure that we only modify the storage once per block
 		let initialized = Self::initialized().is_some();
 		if initialized {
-			return;
+			return
 		}
 
-		let maybe_pre_digest: Option<PreDigest> = <frame_system::Module<T>>::digest()
-			.logs
-			.iter()
-			.filter_map(|s| s.as_pre_runtime())
-			.filter_map(|(id, mut data)| if id == BABE_ENGINE_ID {
-				PreDigest::decode(&mut data).ok()
-			} else {
-				None
-			})
-			.next();
+		let maybe_pre_digest: Option<PreDigest> =
+			<frame_system::Module<T>>::digest()
+				.logs
+				.iter()
+				.filter_map(|s| s.as_pre_runtime())
+				.filter_map(|(id, mut data)| {
+					if id == BABE_ENGINE_ID {
+						PreDigest::decode(&mut data).ok()
+					} else {
+						None
+					}
+				})
+				.next();
 
-		let maybe_randomness: Option<schnorrkel::Randomness> = maybe_pre_digest.and_then(|digest| {
-			// on the first non-zero block (i.e. block #1)
-			// this is where the first epoch (epoch #0) actually starts.
-			// we need to adjust internal storage accordingly.
-			if GenesisSlot::get() == 0 {
-				GenesisSlot::put(digest.slot_number());
-				debug_assert_ne!(GenesisSlot::get(), 0);
+		let maybe_randomness: Option<schnorrkel::Randomness> =
+			maybe_pre_digest.and_then(|digest| {
+				// on the first non-zero block (i.e. block #1)
+				// this is where the first epoch (epoch #0) actually starts.
+				// we need to adjust internal storage accordingly.
+				if GenesisSlot::get() == 0 {
+					GenesisSlot::put(digest.slot_number());
+					debug_assert_ne!(GenesisSlot::get(), 0);
 
-				// deposit a log because this is the first block in epoch #0
-				// we use the same values as genesis because we haven't collected any
-				// randomness yet.
-				let next = NextEpochDescriptor {
-					authorities: Self::authorities(),
-					randomness: Self::randomness(),
-				};
+					// deposit a log because this is the first block in epoch #0
+					// we use the same values as genesis because we haven't collected any
+					// randomness yet.
+					let next = NextEpochDescriptor {
+						authorities: Self::authorities(),
+						randomness: Self::randomness(),
+					};
 
-				Self::deposit_consensus(ConsensusLog::NextEpochData(next))
-			}
+					Self::deposit_consensus(ConsensusLog::NextEpochData(next))
+				}
 
-			// the slot number of the current block being initialized
-			let current_slot = digest.slot_number();
+				// the slot number of the current block being initialized
+				let current_slot = digest.slot_number();
 
-			// how many slots were skipped between current and last block
-			let lateness = current_slot.saturating_sub(CurrentSlot::get() + 1);
-			let lateness = T::BlockNumber::from(lateness as u32);
+				// how many slots were skipped between current and last block
+				let lateness = current_slot.saturating_sub(CurrentSlot::get() + 1);
+				let lateness = T::BlockNumber::from(lateness as u32);
 
-			Lateness::<T>::put(lateness);
-			CurrentSlot::put(current_slot);
+				Lateness::<T>::put(lateness);
+				CurrentSlot::put(current_slot);
 
-			if let PreDigest::Primary(primary) = digest {
-				// place the VRF output into the `Initialized` storage item
-				// and it'll be put onto the under-construction randomness
-				// later, once we've decided which epoch this block is in.
-				//
-				// Reconstruct the bytes of VRFInOut using the authority id.
-				Authorities::get()
-					.get(primary.authority_index as usize)
-					.and_then(|author| {
-						schnorrkel::PublicKey::from_bytes(author.0.as_slice()).ok()
-					})
-					.and_then(|pubkey| {
-						let transcript = sp_consensus_babe::make_transcript(
-							&Self::randomness(),
-							current_slot,
-							EpochIndex::get(),
-						);
+				if let PreDigest::Primary(primary) = digest {
+					// place the VRF output into the `Initialized` storage item
+					// and it'll be put onto the under-construction randomness
+					// later, once we've decided which epoch this block is in.
+					//
+					// Reconstruct the bytes of VRFInOut using the authority id.
+					Authorities::get()
+						.get(primary.authority_index as usize)
+						.and_then(|author| {
+							schnorrkel::PublicKey::from_bytes(author.0.as_slice()).ok()
+						})
+						.and_then(|pubkey| {
+							let transcript = sp_consensus_babe::make_transcript(
+								&Self::randomness(),
+								current_slot,
+								EpochIndex::get(),
+							);
 
-						primary.vrf_output.0.attach_input_hash(
-							&pubkey,
-							transcript
-						).ok()
-					})
-					.map(|inout| {
-						inout.make_bytes(&sp_consensus_babe::BABE_VRF_INOUT_CONTEXT)
-					})
-			} else {
-				None
-			}
-		});
+							primary.vrf_output.0.attach_input_hash(&pubkey, transcript).ok()
+						})
+						.map(|inout| inout.make_bytes(&sp_consensus_babe::BABE_VRF_INOUT_CONTEXT))
+				} else {
+					None
+				}
+			});
 
 		Initialized::put(maybe_randomness);
 
@@ -619,19 +612,20 @@ impl<T: Trait> Module<T> {
 
 		// validate the equivocation proof
 		if !sp_consensus_babe::check_equivocation_proof(equivocation_proof) {
-			return Err(Error::<T>::InvalidEquivocationProof.into());
+			return Err(Error::<T>::InvalidEquivocationProof.into())
 		}
 
 		let validator_set_count = key_owner_proof.validator_count();
 		let session_index = key_owner_proof.session();
 
-		let epoch_index = (slot_number.saturating_sub(GenesisSlot::get()) / T::EpochDuration::get())
-			.saturated_into::<u32>();
+		let epoch_index = (slot_number.saturating_sub(GenesisSlot::get()) /
+			T::EpochDuration::get())
+		.saturated_into::<u32>();
 
 		// check that the slot number is consistent with the session index
 		// in the key ownership proof (i.e. slot is for that epoch)
 		if epoch_index != session_index {
-			return Err(Error::<T>::InvalidKeyOwnershipProof.into());
+			return Err(Error::<T>::InvalidKeyOwnershipProof.into())
 		}
 
 		// check the membership proof and extract the offender's id
@@ -675,7 +669,7 @@ impl<T: Trait> Module<T> {
 }
 
 impl<T: Trait> OnTimestampSet<T::Moment> for Module<T> {
-	fn on_timestamp_set(_moment: T::Moment) { }
+	fn on_timestamp_set(_moment: T::Moment) {}
 }
 
 impl<T: Trait> frame_support::traits::EstimateNextSessionRotation<T::BlockNumber> for Module<T> {
@@ -704,22 +698,20 @@ impl<T: Trait> pallet_session::OneSessionHandler<T::AccountId> for Module<T> {
 	type Key = AuthorityId;
 
 	fn on_genesis_session<'a, I: 'a>(validators: I)
-		where I: Iterator<Item=(&'a T::AccountId, AuthorityId)>
+	where
+		I: Iterator<Item = (&'a T::AccountId, AuthorityId)>,
 	{
 		let authorities = validators.map(|(_, k)| (k, 1)).collect::<Vec<_>>();
 		Self::initialize_authorities(&authorities);
 	}
 
 	fn on_new_session<'a, I: 'a>(_changed: bool, validators: I, queued_validators: I)
-		where I: Iterator<Item=(&'a T::AccountId, AuthorityId)>
+	where
+		I: Iterator<Item = (&'a T::AccountId, AuthorityId)>,
 	{
-		let authorities = validators.map(|(_account, k)| {
-			(k, 1)
-		}).collect::<Vec<_>>();
+		let authorities = validators.map(|(_account, k)| (k, 1)).collect::<Vec<_>>();
 
-		let next_authorities = queued_validators.map(|(_account, k)| {
-			(k, 1)
-		}).collect::<Vec<_>>();
+		let next_authorities = queued_validators.map(|(_account, k)| (k, 1)).collect::<Vec<_>>();
 
 		Self::enact_epoch_change(authorities, next_authorities)
 	}
@@ -736,7 +728,7 @@ impl<T: Trait> pallet_session::OneSessionHandler<T::AccountId> for Module<T> {
 fn compute_randomness(
 	last_epoch_randomness: schnorrkel::Randomness,
 	epoch_index: u64,
-	rho: impl Iterator<Item=schnorrkel::Randomness>,
+	rho: impl Iterator<Item = schnorrkel::Randomness>,
 	rho_size_hint: Option<usize>,
 ) -> schnorrkel::Randomness {
 	let mut s = Vec::with_capacity(40 + rho_size_hint.unwrap_or(0) * VRF_OUTPUT_LENGTH);
@@ -771,7 +763,8 @@ impl<T: Trait> ProvideInherent for Module<T> {
 		if timestamp_based_slot == seal_slot {
 			Ok(())
 		} else {
-			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal").into())
+			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal")
+				.into())
 		}
 	}
 }

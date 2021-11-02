@@ -23,9 +23,9 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 use frame_support::{decl_module, decl_storage};
 use sp_authority_discovery::AuthorityId;
+use sp_std::{collections::btree_set::BTreeSet, prelude::*};
 
 /// The module's config trait.
 pub trait Trait: frame_system::Trait + pallet_session::Trait {}
@@ -93,15 +93,16 @@ impl<T: Trait> pallet_session::OneSessionHandler<T::AccountId> for Module<T> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sp_authority_discovery::{AuthorityPair};
+	use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
 	use sp_application_crypto::Pair;
+	use sp_authority_discovery::AuthorityPair;
 	use sp_core::{crypto::key_types, H256};
 	use sp_io::TestExternalities;
 	use sp_runtime::{
-		testing::{Header, UintAuthorityId}, traits::{ConvertInto, IdentityLookup, OpaqueKeys},
-		Perbill, KeyTypeId,
+		testing::{Header, UintAuthorityId},
+		traits::{ConvertInto, IdentityLookup, OpaqueKeys},
+		KeyTypeId, Perbill,
 	};
-	use frame_support::{impl_outer_origin, parameter_types, weights::Weight};
 
 	type AuthorityDiscovery = Module<Test>;
 
@@ -198,41 +199,40 @@ mod tests {
 		// everywhere.
 		let account_id = AuthorityPair::from_seed_slice(vec![10; 32].as_ref()).unwrap().public();
 
-		let mut first_authorities: Vec<AuthorityId> = vec![0, 1].into_iter()
+		let mut first_authorities: Vec<AuthorityId> = vec![0, 1]
+			.into_iter()
 			.map(|i| AuthorityPair::from_seed_slice(vec![i; 32].as_ref()).unwrap().public())
 			.map(AuthorityId::from)
 			.collect();
 
-		let second_authorities: Vec<AuthorityId> = vec![2, 3].into_iter()
+		let second_authorities: Vec<AuthorityId> = vec![2, 3]
+			.into_iter()
 			.map(|i| AuthorityPair::from_seed_slice(vec![i; 32].as_ref()).unwrap().public())
 			.map(AuthorityId::from)
 			.collect();
 		// Needed for `pallet_session::OneSessionHandler::on_new_session`.
-		let second_authorities_and_account_ids = second_authorities.clone()
+		let second_authorities_and_account_ids = second_authorities
+			.clone()
 			.into_iter()
 			.map(|id| (&account_id, id))
-			.collect::<Vec<(&AuthorityId, AuthorityId)> >();
+			.collect::<Vec<(&AuthorityId, AuthorityId)>>();
 
-		let mut third_authorities: Vec<AuthorityId> = vec![4, 5].into_iter()
+		let mut third_authorities: Vec<AuthorityId> = vec![4, 5]
+			.into_iter()
 			.map(|i| AuthorityPair::from_seed_slice(vec![i; 32].as_ref()).unwrap().public())
 			.map(AuthorityId::from)
 			.collect();
 		// Needed for `pallet_session::OneSessionHandler::on_new_session`.
-		let third_authorities_and_account_ids = third_authorities.clone()
+		let third_authorities_and_account_ids = third_authorities
+			.clone()
 			.into_iter()
 			.map(|id| (&account_id, id))
-			.collect::<Vec<(&AuthorityId, AuthorityId)> >();
+			.collect::<Vec<(&AuthorityId, AuthorityId)>>();
 
 		// Build genesis.
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<Test>()
-			.unwrap();
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		GenesisConfig {
-			keys: vec![],
-		}
-		.assimilate_storage::<Test>(&mut t)
-		.unwrap();
+		GenesisConfig { keys: vec![] }.assimilate_storage::<Test>(&mut t).unwrap();
 
 		// Create externalities.
 		let mut externalities = TestExternalities::new(t);
@@ -241,7 +241,7 @@ mod tests {
 			use pallet_session::OneSessionHandler;
 
 			AuthorityDiscovery::on_genesis_session(
-				first_authorities.iter().map(|id| (id, id.clone()))
+				first_authorities.iter().map(|id| (id, id.clone())),
 			);
 			first_authorities.sort();
 			let mut authorities_returned = AuthorityDiscovery::authorities();
@@ -257,8 +257,7 @@ mod tests {
 			let mut authorities_returned = AuthorityDiscovery::authorities();
 			authorities_returned.sort();
 			assert_eq!(
-				first_authorities,
-				authorities_returned,
+				first_authorities, authorities_returned,
 				"Expected authority set not to change as `changed` was set to false.",
 			);
 
@@ -268,7 +267,8 @@ mod tests {
 				second_authorities_and_account_ids.into_iter(),
 				third_authorities_and_account_ids.clone().into_iter(),
 			);
-			let mut second_and_third_authorities = second_authorities.iter()
+			let mut second_and_third_authorities = second_authorities
+				.iter()
 				.chain(third_authorities.iter())
 				.cloned()
 				.collect::<Vec<AuthorityId>>();

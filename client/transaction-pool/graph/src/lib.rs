@@ -31,14 +31,14 @@ mod listener;
 mod pool;
 mod ready;
 mod rotator;
-mod validated_pool;
 mod tracked_map;
+mod validated_pool;
 
 pub mod base_pool;
 pub mod watcher;
 
 pub use self::base_pool::Transaction;
 pub use self::pool::{
-	Pool, Options, ChainApi, EventStream, ExtrinsicFor, ExtrinsicHash,
-	BlockHash, NumberFor, TransactionFor, ValidatedTransaction,
+	BlockHash, ChainApi, EventStream, ExtrinsicFor, ExtrinsicHash, NumberFor, Options, Pool,
+	TransactionFor, ValidatedTransaction,
 };

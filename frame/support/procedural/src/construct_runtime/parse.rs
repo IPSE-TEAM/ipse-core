@@ -75,9 +75,9 @@ impl Parse for WhereSection {
 			definitions.push(definition);
 			if !input.peek(Token![,]) {
 				if !input.peek(token::Brace) {
-					return Err(input.error("Expected `,` or `{`"));
+					return Err(input.error("Expected `,` or `{`"))
 				}
-				break;
+				break
 			}
 			input.parse::<Token![,]>()?;
 		}
@@ -85,23 +85,14 @@ impl Parse for WhereSection {
 		let node_block = remove_kind(input, WhereKind::NodeBlock, &mut definitions)?.value;
 		let unchecked_extrinsic =
 			remove_kind(input, WhereKind::UncheckedExtrinsic, &mut definitions)?.value;
-		if let Some(WhereDefinition {
-			ref kind_span,
-			ref kind,
-			..
-		}) = definitions.first()
-		{
+		if let Some(WhereDefinition { ref kind_span, ref kind, .. }) = definitions.first() {
 			let msg = format!(
 				"`{:?}` was declared above. Please use exactly one declaration for `{:?}`.",
 				kind, kind
 			);
-			return Err(Error::new(*kind_span, msg));
+			return Err(Error::new(*kind_span, msg))
 		}
-		Ok(Self {
-			block,
-			node_block,
-			unchecked_extrinsic,
-		})
+		Ok(Self { block, node_block, unchecked_extrinsic })
 	}
 }
 
@@ -125,17 +116,11 @@ impl Parse for WhereDefinition {
 		let (kind_span, kind) = if lookahead.peek(keyword::Block) {
 			(input.parse::<keyword::Block>()?.span(), WhereKind::Block)
 		} else if lookahead.peek(keyword::NodeBlock) {
-			(
-				input.parse::<keyword::NodeBlock>()?.span(),
-				WhereKind::NodeBlock,
-			)
+			(input.parse::<keyword::NodeBlock>()?.span(), WhereKind::NodeBlock)
 		} else if lookahead.peek(keyword::UncheckedExtrinsic) {
-			(
-				input.parse::<keyword::UncheckedExtrinsic>()?.span(),
-				WhereKind::UncheckedExtrinsic,
-			)
+			(input.parse::<keyword::UncheckedExtrinsic>()?.span(), WhereKind::UncheckedExtrinsic)
 		} else {
-			return Err(lookahead.error());
+			return Err(lookahead.error())
 		};
 
 		Ok(Self {
@@ -186,13 +171,7 @@ impl Parse for ModuleDeclaration {
 			None
 		};
 
-		let parsed = Self {
-			name,
-			module,
-			instance,
-			module_parts,
-			index,
-		};
+		let parsed = Self { name, module, instance, module_parts, index };
 
 		Ok(parsed)
 	}
@@ -202,7 +181,7 @@ impl Parse for ModuleDeclaration {
 ///
 /// `{ Call, Event }`
 fn parse_module_parts(input: ParseStream) -> Result<Vec<ModulePart>> {
-	let module_parts :ext::Braces<ext::Punctuated<ModulePart, Token![,]>> = input.parse()?;
+	let module_parts: ext::Braces<ext::Punctuated<ModulePart, Token![,]>> = input.parse()?;
 
 	let mut resolved = HashSet::new();
 	for part in module_parts.content.inner.iter() {
@@ -211,7 +190,7 @@ fn parse_module_parts(input: ParseStream) -> Result<Vec<ModulePart>> {
 				"`{}` was already declared before. Please remove the duplicate declaration",
 				part.name(),
 			);
-			return Err(Error::new(part.keyword.span(), msg));
+			return Err(Error::new(part.keyword.span(), msg))
 		}
 	}
 
@@ -321,13 +300,10 @@ impl Parse for ModulePart {
 				keyword.name(),
 				valid_generics,
 			);
-			return Err(syn::Error::new(keyword.span(), msg));
+			return Err(syn::Error::new(keyword.span(), msg))
 		}
 
-		Ok(Self {
-			keyword,
-			generics,
-		})
+		Ok(Self { keyword, generics })
 	}
 }
 

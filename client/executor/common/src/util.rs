@@ -19,8 +19,8 @@
 //! A set of utilities for resetting a wasm instance to its initial state.
 
 use crate::error::{self, Error};
-use std::mem;
 use parity_wasm::elements::{deserialize_buffer, DataSegment, Instruction, Module as RawModule};
+use std::mem;
 
 /// A bunch of information collected from a WebAssembly module.
 pub struct WasmModuleInfo {
@@ -40,27 +40,17 @@ impl WasmModuleInfo {
 	///
 	/// Returns `Err` if the given wasm code cannot be deserialized.
 	fn data_segments(&self) -> Vec<DataSegment> {
-		self.raw_module
-			.data_section()
-			.map(|ds| ds.entries())
-			.unwrap_or(&[])
-			.to_vec()
+		self.raw_module.data_section().map(|ds| ds.entries()).unwrap_or(&[]).to_vec()
 	}
 
 	/// The number of globals defined in locally in this module.
 	pub fn declared_globals_count(&self) -> u32 {
-		self.raw_module
-			.global_section()
-			.map(|gs| gs.entries().len() as u32)
-			.unwrap_or(0)
+		self.raw_module.global_section().map(|gs| gs.entries().len() as u32).unwrap_or(0)
 	}
 
 	/// The number of imports of globals.
 	pub fn imported_globals_count(&self) -> u32 {
-		self.raw_module
-			.import_section()
-			.map(|is| is.globals() as u32)
-			.unwrap_or(0)
+		self.raw_module.import_section().map(|is| is.globals() as u32).unwrap_or(0)
 	}
 }
 
@@ -95,7 +85,7 @@ impl DataSegmentsSnapshot {
 					return Err(Error::from(
 						"initializer expression can have only up to 2 expressions in wasm 1.0"
 							.to_string(),
-					));
+					))
 				}
 				let offset = match &init_expr[0] {
 					Instruction::I32Const(v) => *v as u32,
@@ -108,14 +98,13 @@ impl DataSegmentsSnapshot {
 						// if/when we gain those.
 						return Err(Error::from(
 							"Imported globals are not supported yet".to_string(),
-						));
-					}
-					insn => {
+						))
+					},
+					insn =>
 						return Err(Error::from(format!(
 							"{:?} is not supported as initializer expression in wasm 1.0",
 							insn
-						)))
-					}
+						))),
 				};
 
 				Ok((offset, contents))

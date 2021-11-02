@@ -31,17 +31,19 @@
 //!
 //! - If provided, a ["requests processing"](ProtocolConfig::inbound_queue) channel
 //! is used to handle incoming requests.
-//!
 
-use futures::{channel::{mpsc, oneshot}, prelude::*};
+use futures::{
+	channel::{mpsc, oneshot},
+	prelude::*,
+};
 use libp2p::{
 	core::{
 		connection::{ConnectionId, ListenerId},
 		ConnectedPoint, Multiaddr, PeerId,
 	},
 	request_response::{
-		RequestResponse, RequestResponseCodec, RequestResponseConfig, RequestResponseEvent,
-		RequestResponseMessage, ResponseChannel, ProtocolSupport
+		ProtocolSupport, RequestResponse, RequestResponseCodec, RequestResponseConfig,
+		RequestResponseEvent, RequestResponseMessage, ResponseChannel,
 	},
 	swarm::{
 		protocols_handler::multi::MultiHandler, NetworkBehaviour, NetworkBehaviourAction,
@@ -49,8 +51,13 @@ use libp2p::{
 	},
 };
 use std::{
-	borrow::Cow, collections::{hash_map::Entry, HashMap}, convert::TryFrom as _, io, iter,
-	pin::Pin, task::{Context, Poll}, time::Duration,
+	borrow::Cow,
+	collections::{hash_map::Entry, HashMap},
+	convert::TryFrom as _,
+	io, iter,
+	pin::Pin,
+	task::{Context, Poll},
+	time::Duration,
 };
 
 pub use libp2p::request_response::{InboundFailure, OutboundFailure, RequestId};
@@ -58,47 +65,47 @@ pub use libp2p::request_response::{InboundFailure, OutboundFailure, RequestId};
 /// Configuration for a single request-response protocol.
 #[derive(Debug, Clone)]
 pub struct ProtocolConfig {
-    /// Name of the protocol on the wire. Should be something like `/foo/bar`.
-    pub name: Cow<'static, str>,
+	/// Name of the protocol on the wire. Should be something like `/foo/bar`.
+	pub name: Cow<'static, str>,
 
-    /// Maximum allowed size, in bytes, of a request.
-    ///
-    /// Any request larger than this value will be declined as a way to avoid allocating too
-    /// much memory for it.
-    pub max_request_size: u64,
+	/// Maximum allowed size, in bytes, of a request.
+	///
+	/// Any request larger than this value will be declined as a way to avoid allocating too
+	/// much memory for it.
+	pub max_request_size: u64,
 
-    /// Maximum allowed size, in bytes, of a response.
-    ///
-    /// Any response larger than this value will be declined as a way to avoid allocating too
-    /// much memory for it.
-    pub max_response_size: u64,
+	/// Maximum allowed size, in bytes, of a response.
+	///
+	/// Any response larger than this value will be declined as a way to avoid allocating too
+	/// much memory for it.
+	pub max_response_size: u64,
 
-    /// Duration after which emitted requests are considered timed out.
-    ///
-    /// If you expect the response to come back quickly, you should set this to a smaller duration.
-    pub request_timeout: Duration,
+	/// Duration after which emitted requests are considered timed out.
+	///
+	/// If you expect the response to come back quickly, you should set this to a smaller duration.
+	pub request_timeout: Duration,
 
-    /// Channel on which the networking service will send incoming requests.
-    ///
-    /// Every time a peer sends a request to the local node using this protocol, the networking
-    /// service will push an element on this channel. The receiving side of this channel then has
-    /// to pull this element, process the request, and send back the response to send back to the
-    /// peer.
-    ///
-    /// The size of the channel has to be carefully chosen. If the channel is full, the networking
-    /// service will discard the incoming request send back an error to the peer. Consequently,
-    /// the channel being full is an indicator that the node is overloaded.
-    ///
-    /// You can typically set the size of the channel to `T / d`, where `T` is the
-    /// `request_timeout` and `d` is the expected average duration of CPU and I/O it takes to
-    /// build a response.
-    ///
-    /// Can be `None` if the local node does not support answering incoming requests.
-    /// If this is `None`, then the local node will not advertise support for this protocol towards
-    /// other peers. If this is `Some` but the channel is closed, then the local node will
-    /// advertise support for this protocol, but any incoming request will lead to an error being
-    /// sent back.
-    pub inbound_queue: Option<mpsc::Sender<IncomingRequest>>,
+	/// Channel on which the networking service will send incoming requests.
+	///
+	/// Every time a peer sends a request to the local node using this protocol, the networking
+	/// service will push an element on this channel. The receiving side of this channel then has
+	/// to pull this element, process the request, and send back the response to send back to the
+	/// peer.
+	///
+	/// The size of the channel has to be carefully chosen. If the channel is full, the networking
+	/// service will discard the incoming request send back an error to the peer. Consequently,
+	/// the channel being full is an indicator that the node is overloaded.
+	///
+	/// You can typically set the size of the channel to `T / d`, where `T` is the
+	/// `request_timeout` and `d` is the expected average duration of CPU and I/O it takes to
+	/// build a response.
+	///
+	/// Can be `None` if the local node does not support answering incoming requests.
+	/// If this is `None`, then the local node will not advertise support for this protocol towards
+	/// other peers. If this is `Some` but the channel is closed, then the local node will
+	/// advertise support for this protocol, but any incoming request will lead to an error being
+	/// sent back.
+	pub inbound_queue: Option<mpsc::Sender<IncomingRequest>>,
 }
 
 /// A single request received by a peer on a request-response protocol.
@@ -148,14 +155,13 @@ pub struct RequestResponsesBehaviour {
 	/// "response builder" used to build responses for incoming requests.
 	protocols: HashMap<
 		Cow<'static, str>,
-		(RequestResponse<GenericCodec>, Option<mpsc::Sender<IncomingRequest>>)
+		(RequestResponse<GenericCodec>, Option<mpsc::Sender<IncomingRequest>>),
 	>,
 
 	/// Whenever an incoming request arrives, a `Future` is added to this list and will yield the
 	/// response to send back to the remote.
-	pending_responses: stream::FuturesUnordered<
-		Pin<Box<dyn Future<Output = RequestProcessingOutcome> + Send>>
-	>,
+	pending_responses:
+		stream::FuturesUnordered<Pin<Box<dyn Future<Output = RequestProcessingOutcome> + Send>>>,
 }
 
 /// Generated by the response builder and waiting to be processed.
@@ -187,31 +193,34 @@ impl RequestResponsesBehaviour {
 				ProtocolSupport::Outbound
 			};
 
-			let rq_rp = RequestResponse::new(GenericCodec {
-				max_request_size: protocol.max_request_size,
-				max_response_size: protocol.max_response_size,
-			}, iter::once((protocol.name.as_bytes().to_vec(), protocol_support)), cfg);
+			let rq_rp = RequestResponse::new(
+				GenericCodec {
+					max_request_size: protocol.max_request_size,
+					max_response_size: protocol.max_response_size,
+				},
+				iter::once((protocol.name.as_bytes().to_vec(), protocol_support)),
+				cfg,
+			);
 
 			match protocols.entry(protocol.name) {
 				Entry::Vacant(e) => e.insert((rq_rp, protocol.inbound_queue)),
-				Entry::Occupied(e) =>
-					return Err(RegisterError::DuplicateProtocol(e.key().clone())),
+				Entry::Occupied(e) => return Err(RegisterError::DuplicateProtocol(e.key().clone())),
 			};
 		}
 
-		Ok(Self {
-			protocols,
-			pending_responses: stream::FuturesUnordered::new(),
-		})
+		Ok(Self { protocols, pending_responses: stream::FuturesUnordered::new() })
 	}
 
 	/// Initiates sending a request.
 	///
 	/// An error is returned if we are not connected to the target peer or if the protocol doesn't
 	/// match one that has been registered.
-	pub fn send_request(&mut self, target: &PeerId, protocol: &str, request: Vec<u8>)
-		-> Result<RequestId, SendRequestError>
-	{
+	pub fn send_request(
+		&mut self,
+		target: &PeerId,
+		protocol: &str,
+		request: Vec<u8>,
+	) -> Result<RequestId, SendRequestError> {
 		if let Some((protocol, _)) = self.protocols.get_mut(protocol) {
 			if protocol.is_connected(target) {
 				Ok(protocol.send_request(target, request))
@@ -225,19 +234,20 @@ impl RequestResponsesBehaviour {
 }
 
 impl NetworkBehaviour for RequestResponsesBehaviour {
-	type ProtocolsHandler = MultiHandler<
-		String,
-		<RequestResponse<GenericCodec> as NetworkBehaviour>::ProtocolsHandler,
-	>;
+	type ProtocolsHandler =
+		MultiHandler<String, <RequestResponse<GenericCodec> as NetworkBehaviour>::ProtocolsHandler>;
 	type OutEvent = Event;
 
 	fn new_handler(&mut self) -> Self::ProtocolsHandler {
-		let iter = self.protocols.iter_mut()
+		let iter = self
+			.protocols
+			.iter_mut()
 			.map(|(p, (r, _))| (p.to_string(), NetworkBehaviour::new_handler(r)));
 
-		MultiHandler::try_from_iter(iter)
-			.expect("Protocols are in a HashMap and there can be at most one handler per \
-						  protocol name, which is the only possible error; qed")
+		MultiHandler::try_from_iter(iter).expect(
+			"Protocols are in a HashMap and there can be at most one handler per \
+						  protocol name, which is the only possible error; qed",
+		)
 	}
 
 	fn addresses_of_peer(&mut self, _: &PeerId) -> Vec<Multiaddr> {
@@ -261,7 +271,12 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 		}
 	}
 
-	fn inject_connection_closed(&mut self, peer_id: &PeerId, conn: &ConnectionId, endpoint: &ConnectedPoint) {
+	fn inject_connection_closed(
+		&mut self,
+		peer_id: &PeerId,
+		conn: &ConnectionId,
+		endpoint: &ConnectedPoint,
+	) {
 		for (p, _) in self.protocols.values_mut() {
 			NetworkBehaviour::inject_connection_closed(p, peer_id, conn, endpoint)
 		}
@@ -277,7 +292,7 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 		&mut self,
 		peer_id: Option<&PeerId>,
 		addr: &Multiaddr,
-		error: &dyn std::error::Error
+		error: &dyn std::error::Error,
 	) {
 		for (p, _) in self.protocols.values_mut() {
 			NetworkBehaviour::inject_addr_reach_failure(p, peer_id, addr, error)
@@ -349,21 +364,18 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 			// Poll to see if any response is ready to be sent back.
 			while let Poll::Ready(Some(result)) = self.pending_responses.poll_next_unpin(cx) {
 				match result {
-					RequestProcessingOutcome::Response {
-						protocol, inner_channel, response
-					} => {
+					RequestProcessingOutcome::Response { protocol, inner_channel, response } =>
 						if let Some((protocol, _)) = self.protocols.get_mut(&*protocol) {
 							protocol.send_response(inner_channel, Ok(response));
-						}
-					}
+						},
 					RequestProcessingOutcome::Busy { peer, protocol } => {
 						let out = Event::InboundRequest {
 							peer,
 							protocol,
 							result: Err(ResponseFailure::Busy),
 						};
-						return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out));
-					}
+						return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out))
+					},
 				}
 			}
 
@@ -377,32 +389,30 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 						// Other events generated by the underlying behaviour are transparently
 						// passed through.
 						NetworkBehaviourAction::DialAddress { address } => {
-							log::error!("The request-response isn't supposed to start dialing peers");
+							log::error!(
+								"The request-response isn't supposed to start dialing peers"
+							);
 							return Poll::Ready(NetworkBehaviourAction::DialAddress { address })
-						}
+						},
 						NetworkBehaviourAction::DialPeer { peer_id, condition } => {
-							log::error!("The request-response isn't supposed to start dialing peers");
+							log::error!(
+								"The request-response isn't supposed to start dialing peers"
+							);
 							return Poll::Ready(NetworkBehaviourAction::DialPeer {
 								peer_id,
 								condition,
 							})
-						}
-						NetworkBehaviourAction::NotifyHandler {
-							peer_id,
-							handler,
-							event,
-						} => {
+						},
+						NetworkBehaviourAction::NotifyHandler { peer_id, handler, event } =>
 							return Poll::Ready(NetworkBehaviourAction::NotifyHandler {
 								peer_id,
 								handler,
 								event: ((*protocol).to_string(), event),
-							})
-						}
-						NetworkBehaviourAction::ReportObservedAddr { address } => {
+							}),
+						NetworkBehaviourAction::ReportObservedAddr { address } =>
 							return Poll::Ready(NetworkBehaviourAction::ReportObservedAddr {
 								address,
-							})
-						}
+							}),
 					};
 
 					match ev {
@@ -431,7 +441,9 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 								// processing this request, which is reflected as a "Busy" error.
 								if let Ok(response) = rx.await {
 									RequestProcessingOutcome::Response {
-										protocol, inner_channel: channel, response
+										protocol,
+										inner_channel: channel,
+										response,
 									}
 								} else {
 									RequestProcessingOutcome::Busy { peer, protocol }
@@ -440,37 +452,29 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 
 							// This `continue` makes sure that `pending_responses` gets polled
 							// after we have added the new element.
-							continue 'poll_all;
-						}
+							continue 'poll_all
+						},
 
 						// Received a response from a remote to one of our requests.
 						RequestResponseEvent::Message {
-							message:
-								RequestResponseMessage::Response {
-									request_id,
-									response,
-								},
+							message: RequestResponseMessage::Response { request_id, response },
 							..
 						} => {
 							let out = Event::RequestFinished {
 								request_id,
 								result: response.map_err(|()| RequestFailure::Refused),
 							};
-							return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out));
-						}
+							return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out))
+						},
 
 						// One of our requests has failed.
-						RequestResponseEvent::OutboundFailure {
-							request_id,
-							error,
-							..
-						} => {
+						RequestResponseEvent::OutboundFailure { request_id, error, .. } => {
 							let out = Event::RequestFinished {
 								request_id,
 								result: Err(RequestFailure::Network(error)),
 							};
-							return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out));
-						}
+							return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out))
+						},
 
 						// Remote has tried to send a request but failed.
 						RequestResponseEvent::InboundFailure { peer, error, .. } => {
@@ -479,13 +483,13 @@ impl NetworkBehaviour for RequestResponsesBehaviour {
 								protocol: protocol.clone(),
 								result: Err(ResponseFailure::Network(error)),
 							};
-							return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out));
-						}
+							return Poll::Ready(NetworkBehaviourAction::GenerateEvent(out))
+						},
 					};
 				}
 			}
 
-			break Poll::Pending;
+			break Poll::Pending
 		}
 	}
 }
@@ -530,7 +534,7 @@ pub enum ResponseFailure {
 /// Implements the libp2p [`RequestResponseCodec`] trait. Defines how streams of bytes are turned
 /// into requests and responses and vice-versa.
 #[derive(Debug, Clone)]
-#[doc(hidden)]  // Needs to be public in order to satisfy the Rust compiler.
+#[doc(hidden)] // Needs to be public in order to satisfy the Rust compiler.
 pub struct GenericCodec {
 	max_request_size: u64,
 	max_response_size: u64,
@@ -551,13 +555,14 @@ impl RequestResponseCodec for GenericCodec {
 		T: AsyncRead + Unpin + Send,
 	{
 		// Read the length.
-		let length = unsigned_varint::aio::read_usize(&mut io).await
+		let length = unsigned_varint::aio::read_usize(&mut io)
+			.await
 			.map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, err))?;
 		if length > usize::try_from(self.max_request_size).unwrap_or(usize::max_value()) {
 			return Err(io::Error::new(
 				io::ErrorKind::InvalidInput,
-				format!("Request size exceeds limit: {} > {}", length, self.max_request_size)
-			));
+				format!("Request size exceeds limit: {} > {}", length, self.max_request_size),
+			))
 		}
 
 		// Read the payload.
@@ -585,7 +590,7 @@ impl RequestResponseCodec for GenericCodec {
 			Err(unsigned_varint::io::ReadError::Io(err))
 				if matches!(err.kind(), io::ErrorKind::UnexpectedEof) =>
 			{
-				return Ok(Err(()));
+				return Ok(Err(()))
 			}
 			Err(err) => return Err(io::Error::new(io::ErrorKind::InvalidInput, err)),
 		};
@@ -593,8 +598,8 @@ impl RequestResponseCodec for GenericCodec {
 		if length > usize::try_from(self.max_response_size).unwrap_or(usize::max_value()) {
 			return Err(io::Error::new(
 				io::ErrorKind::InvalidInput,
-				format!("Response size exceeds limit: {} > {}", length, self.max_response_size)
-			));
+				format!("Response size exceeds limit: {} > {}", length, self.max_response_size),
+			))
 		}
 
 		// Read the payload.
@@ -656,12 +661,12 @@ impl RequestResponseCodec for GenericCodec {
 #[cfg(test)]
 mod tests {
 	use futures::{channel::mpsc, prelude::*};
-	use libp2p::identity::Keypair;
-	use libp2p::Multiaddr;
+	use libp2p::core::transport::{MemoryTransport, Transport};
 	use libp2p::core::upgrade;
-	use libp2p::core::transport::{Transport, MemoryTransport};
+	use libp2p::identity::Keypair;
 	use libp2p::noise;
 	use libp2p::swarm::{Swarm, SwarmEvent};
+	use libp2p::Multiaddr;
 	use std::{iter, time::Duration};
 
 	#[test]
@@ -673,9 +678,8 @@ mod tests {
 			.map(|_| {
 				let keypair = Keypair::generate_ed25519();
 
-				let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
-					.into_authentic(&keypair)
-					.unwrap();
+				let noise_keys =
+					noise::Keypair::<noise::X25519Spec>::new().into_authentic(&keypair).unwrap();
 
 				let transport = MemoryTransport
 					.upgrade(upgrade::Version::V1)
@@ -685,13 +689,15 @@ mod tests {
 				let behaviour = {
 					let (tx, mut rx) = mpsc::channel(64);
 
-					let b = super::RequestResponsesBehaviour::new(iter::once(super::ProtocolConfig {
-						name: From::from(protocol_name),
-						max_request_size: 1024,
-						max_response_size: 1024 * 1024,
-						request_timeout: Duration::from_secs(30),
-						inbound_queue: Some(tx),
-					})).unwrap();
+					let b =
+						super::RequestResponsesBehaviour::new(iter::once(super::ProtocolConfig {
+							name: From::from(protocol_name),
+							max_request_size: 1024,
+							max_response_size: 1024 * 1024,
+							request_timeout: Duration::from_secs(30),
+							inbound_queue: Some(tx),
+						}))
+						.unwrap();
 
 					async_std::task::spawn(async move {
 						while let Some(rq) = rx.next().await {
@@ -704,7 +710,8 @@ mod tests {
 				};
 
 				let mut swarm = Swarm::new(transport, behaviour, keypair.public().into_peer_id());
-				let listen_addr: Multiaddr = format!("/memory/{}", rand::random::<u64>()).parse().unwrap();
+				let listen_addr: Multiaddr =
+					format!("/memory/{}", rand::random::<u64>()).parse().unwrap();
 
 				Swarm::listen_on(&mut swarm, listen_addr.clone()).unwrap();
 				(swarm, listen_addr)
@@ -729,7 +736,7 @@ mod tests {
 							assert!(result.is_ok());
 							break
 						},
-						_ => {}
+						_ => {},
 					}
 				}
 			}
@@ -743,24 +750,19 @@ mod tests {
 			loop {
 				match swarm.next_event().await {
 					SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-						let id = swarm.send_request(
-							&peer_id,
-							protocol_name,
-							b"this is a request".to_vec()
-						).unwrap();
+						let id = swarm
+							.send_request(&peer_id, protocol_name, b"this is a request".to_vec())
+							.unwrap();
 						assert!(sent_request_id.is_none());
 						sent_request_id = Some(id);
-					}
-					SwarmEvent::Behaviour(super::Event::RequestFinished {
-						request_id,
-						result,
-					}) => {
+					},
+					SwarmEvent::Behaviour(super::Event::RequestFinished { request_id, result }) => {
 						assert_eq!(Some(request_id), sent_request_id);
 						let result = result.unwrap();
 						assert_eq!(result, b"this is a response");
-						break;
-					}
-					_ => {}
+						break
+					},
+					_ => {},
 				}
 			}
 		});
@@ -775,9 +777,8 @@ mod tests {
 			.map(|_| {
 				let keypair = Keypair::generate_ed25519();
 
-				let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
-					.into_authentic(&keypair)
-					.unwrap();
+				let noise_keys =
+					noise::Keypair::<noise::X25519Spec>::new().into_authentic(&keypair).unwrap();
 
 				let transport = MemoryTransport
 					.upgrade(upgrade::Version::V1)
@@ -787,18 +788,22 @@ mod tests {
 				let behaviour = {
 					let (tx, mut rx) = mpsc::channel(64);
 
-					let b = super::RequestResponsesBehaviour::new(iter::once(super::ProtocolConfig {
-						name: From::from(protocol_name),
-						max_request_size: 1024,
-						max_response_size: 8,  // <-- important for the test
-						request_timeout: Duration::from_secs(30),
-						inbound_queue: Some(tx),
-					})).unwrap();
+					let b =
+						super::RequestResponsesBehaviour::new(iter::once(super::ProtocolConfig {
+							name: From::from(protocol_name),
+							max_request_size: 1024,
+							max_response_size: 8, // <-- important for the test
+							request_timeout: Duration::from_secs(30),
+							inbound_queue: Some(tx),
+						}))
+						.unwrap();
 
 					async_std::task::spawn(async move {
 						while let Some(rq) = rx.next().await {
 							assert_eq!(rq.payload, b"this is a request");
-							let _ = rq.pending_response.send(b"this response exceeds the limit".to_vec());
+							let _ = rq
+								.pending_response
+								.send(b"this response exceeds the limit".to_vec());
 						}
 					});
 
@@ -806,7 +811,8 @@ mod tests {
 				};
 
 				let mut swarm = Swarm::new(transport, behaviour, keypair.public().into_peer_id());
-				let listen_addr: Multiaddr = format!("/memory/{}", rand::random::<u64>()).parse().unwrap();
+				let listen_addr: Multiaddr =
+					format!("/memory/{}", rand::random::<u64>()).parse().unwrap();
 
 				Swarm::listen_on(&mut swarm, listen_addr.clone()).unwrap();
 				(swarm, listen_addr)
@@ -831,7 +837,7 @@ mod tests {
 							assert!(result.is_ok());
 							break
 						},
-						_ => {}
+						_ => {},
 					}
 				}
 			}
@@ -845,26 +851,23 @@ mod tests {
 			loop {
 				match swarm.next_event().await {
 					SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-						let id = swarm.send_request(
-							&peer_id,
-							protocol_name,
-							b"this is a request".to_vec()
-						).unwrap();
+						let id = swarm
+							.send_request(&peer_id, protocol_name, b"this is a request".to_vec())
+							.unwrap();
 						assert!(sent_request_id.is_none());
 						sent_request_id = Some(id);
-					}
-					SwarmEvent::Behaviour(super::Event::RequestFinished {
-						request_id,
-						result,
-					}) => {
+					},
+					SwarmEvent::Behaviour(super::Event::RequestFinished { request_id, result }) => {
 						assert_eq!(Some(request_id), sent_request_id);
 						match result {
-							Err(super::RequestFailure::Network(super::OutboundFailure::ConnectionClosed)) => {},
-							_ => panic!()
+							Err(super::RequestFailure::Network(
+								super::OutboundFailure::ConnectionClosed,
+							)) => {},
+							_ => panic!(),
 						}
-						break;
-					}
-					_ => {}
+						break
+					},
+					_ => {},
 				}
 			}
 		});

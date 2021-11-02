@@ -18,8 +18,8 @@ use libp2p::core::multiaddr::{Multiaddr, Protocol};
 use rand::seq::SliceRandom;
 use std::collections::HashMap;
 
-use sp_authority_discovery::AuthorityId;
 use sc_network::PeerId;
+use sp_authority_discovery::AuthorityId;
 
 /// The maximum number of authority connections initialized through the authority discovery module.
 ///
@@ -44,14 +44,13 @@ impl AddrCache {
 	/// [`AuthorityId`] or [`PeerId`].
 	pub fn insert(&mut self, authority_id: AuthorityId, mut addresses: Vec<Multiaddr>) {
 		if addresses.is_empty() {
-			return;
+			return
 		}
 
 		// Insert into `self.peer_id_to_authority_id`.
-		let peer_ids = addresses.iter()
-			.map(|a| peer_id_from_multiaddr(a))
-			.filter_map(|peer_id| peer_id);
-		for peer_id in  peer_ids {
+		let peer_ids =
+			addresses.iter().map(|a| peer_id_from_multiaddr(a)).filter_map(|peer_id| peer_id);
+		for peer_id in peer_ids {
 			self.peer_id_to_authority_id.insert(peer_id, authority_id.clone());
 		}
 
@@ -66,7 +65,10 @@ impl AddrCache {
 	}
 
 	/// Returns the addresses for the given [`AuthorityId`].
-	pub fn get_addresses_by_authority_id(&self, authority_id: &AuthorityId) -> Option<&Vec<Multiaddr>> {
+	pub fn get_addresses_by_authority_id(
+		&self,
+		authority_id: &AuthorityId,
+	) -> Option<&Vec<Multiaddr>> {
 		self.authority_id_to_addresses.get(&authority_id)
 	}
 
@@ -85,25 +87,23 @@ impl AddrCache {
 			.iter()
 			.filter_map(|(_authority_id, addresses)| {
 				debug_assert!(!addresses.is_empty());
-				addresses
-					.choose(&mut rng)
+				addresses.choose(&mut rng)
 			})
 			.collect::<Vec<&Multiaddr>>();
 
 		addresses.sort_unstable_by(|a, b| a.as_ref().cmp(b.as_ref()));
 		addresses.dedup();
 
-		addresses
-			.choose_multiple(&mut rng, MAX_NUM_AUTHORITY_CONN)
-			.map(|a| (**a).clone())
-			.collect()
+		addresses.choose_multiple(&mut rng, MAX_NUM_AUTHORITY_CONN).map(|a| (**a).clone()).collect()
 	}
 
 	/// Removes all [`PeerId`]s and [`Multiaddr`]s from the cache that are not related to the given
 	/// [`AuthorityId`]s.
 	pub fn retain_ids(&mut self, authority_ids: &Vec<AuthorityId>) {
 		// The below logic could be replaced by `BtreeMap::drain_filter` once it stabilized.
-		let authority_ids_to_remove = self.authority_id_to_addresses.iter()
+		let authority_ids_to_remove = self
+			.authority_id_to_addresses
+			.iter()
 			.filter(|(id, _addresses)| !authority_ids.contains(id))
 			.map(|entry| entry.0)
 			.cloned()
@@ -114,7 +114,8 @@ impl AddrCache {
 			let addresses = self.authority_id_to_addresses.remove(&authority_id_to_remove);
 
 			// Remove other entries from `self.peer_id_to_authority_id`.
-			let peer_ids = addresses.iter()
+			let peer_ids = addresses
+				.iter()
 				.flatten()
 				.map(|a| peer_id_from_multiaddr(a))
 				.filter_map(|peer_id| peer_id);
@@ -128,10 +129,12 @@ impl AddrCache {
 }
 
 fn peer_id_from_multiaddr(addr: &Multiaddr) -> Option<PeerId> {
-	addr.iter().last().and_then(|protocol| if let Protocol::P2p(multihash) = protocol {
-		PeerId::from_multihash(multihash).ok()
-	} else {
-		None
+	addr.iter().last().and_then(|protocol| {
+		if let Protocol::P2p(multihash) = protocol {
+			PeerId::from_multihash(multihash).ok()
+		} else {
+			None
+		}
 	})
 }
 
@@ -162,10 +165,10 @@ mod tests {
 	impl Arbitrary for TestMultiaddr {
 		fn arbitrary<G: Gen>(g: &mut G) -> Self {
 			let seed: [u8; 32] = g.gen();
-			let peer_id = PeerId::from_multihash(
-				multihash::wrap(multihash::Code::Sha2_256, &seed)
-			).unwrap();
-			let multiaddr = "/ip6/2001:db8:0:0:0:0:0:2/tcp/30333".parse::<Multiaddr>()
+			let peer_id =
+				PeerId::from_multihash(multihash::wrap(multihash::Code::Sha2_256, &seed)).unwrap();
+			let multiaddr = "/ip6/2001:db8:0:0:0:0:0:2/tcp/30333"
+				.parse::<Multiaddr>()
 				.unwrap()
 				.with(Protocol::P2p(peer_id.into()));
 
@@ -192,7 +195,9 @@ mod tests {
 
 			let subset = cache.get_random_subset();
 			assert!(
-				subset.contains(&first.1) && subset.contains(&second.1) && subset.contains(&third.1),
+				subset.contains(&first.1) &&
+					subset.contains(&second.1) &&
+					subset.contains(&third.1),
 				"Expect initial subset to contain all authorities.",
 			);
 			assert_eq!(
@@ -215,19 +220,19 @@ mod tests {
 			);
 			assert!(!subset.contains(&third.1), "Did not expect address from third authority");
 			assert_eq!(
-				None, cache.get_addresses_by_authority_id(&third.0),
+				None,
+				cache.get_addresses_by_authority_id(&third.0),
 				"Expect `get_addresses_by_authority_id` to not return `None` for third authority."
 			);
 			assert_eq!(
-				None, cache.get_authority_id_by_peer_id(&peer_id_from_multiaddr(&third.1).unwrap()),
+				None,
+				cache.get_authority_id_by_peer_id(&peer_id_from_multiaddr(&third.1).unwrap()),
 				"Expect `get_authority_id_by_peer_id` to return `None` for third authority."
 			);
 
 			TestResult::passed()
 		}
 
-		QuickCheck::new()
-			.max_tests(10)
-			.quickcheck(property as fn(_, _, _) -> TestResult)
+		QuickCheck::new().max_tests(10).quickcheck(property as fn(_, _, _) -> TestResult)
 	}
 }

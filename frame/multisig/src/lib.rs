@@ -46,36 +46,43 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use codec::{Encode, Decode};
-use sp_io::hashing::blake2_256;
-use frame_support::{decl_module, decl_event, decl_error, decl_storage, Parameter, ensure, RuntimeDebug};
-use frame_support::{traits::{Get, ReservableCurrency, Currency},
-	weights::{Weight, GetDispatchInfo},
-	dispatch::{DispatchResultWithPostInfo, DispatchErrorWithPostInfo, PostDispatchInfo},
+use codec::{Decode, Encode};
+use frame_support::{
+	decl_error, decl_event, decl_module, decl_storage, ensure, Parameter, RuntimeDebug,
+};
+use frame_support::{
+	dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo},
+	traits::{Currency, Get, ReservableCurrency},
+	weights::{GetDispatchInfo, Weight},
 };
 use frame_system::{self as system, ensure_signed, RawOrigin};
-use sp_runtime::{DispatchError, DispatchResult, traits::{Dispatchable, Zero}};
+use sp_io::hashing::blake2_256;
+use sp_runtime::{
+	traits::{Dispatchable, Zero},
+	DispatchError, DispatchResult,
+};
+use sp_std::prelude::*;
 
-mod tests;
 mod benchmarking;
 mod default_weights;
+mod tests;
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 /// Just a bunch of bytes, but they should decode to a valid `Call`.
 pub type OpaqueCall = Vec<u8>;
 
 pub trait WeightInfo {
-	fn as_multi_threshold_1(z: u32, ) -> Weight;
-	fn as_multi_create(s: u32, z: u32, ) -> Weight;
-	fn as_multi_create_store(s: u32, z: u32, ) -> Weight;
-	fn as_multi_approve(s: u32, z: u32, ) -> Weight;
-	fn as_multi_approve_store(s: u32, z: u32, ) -> Weight;
-	fn as_multi_complete(s: u32, z: u32, ) -> Weight;
-	fn approve_as_multi_create(s: u32, ) -> Weight;
-	fn approve_as_multi_approve(s: u32, ) -> Weight;
-	fn approve_as_multi_complete(s: u32, ) -> Weight;
-	fn cancel_as_multi(s: u32, ) -> Weight;
+	fn as_multi_threshold_1(z: u32) -> Weight;
+	fn as_multi_create(s: u32, z: u32) -> Weight;
+	fn as_multi_create_store(s: u32, z: u32) -> Weight;
+	fn as_multi_approve(s: u32, z: u32) -> Weight;
+	fn as_multi_approve_store(s: u32, z: u32) -> Weight;
+	fn as_multi_complete(s: u32, z: u32) -> Weight;
+	fn approve_as_multi_create(s: u32) -> Weight;
+	fn approve_as_multi_approve(s: u32) -> Weight;
+	fn approve_as_multi_complete(s: u32) -> Weight;
+	fn cancel_as_multi(s: u32) -> Weight;
 }
 
 /// Configuration trait.
@@ -84,8 +91,10 @@ pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
 	/// The overarching call type.
-	type Call: Parameter + Dispatchable<Origin=Self::Origin, PostInfo=PostDispatchInfo>
-		+ GetDispatchInfo + From<frame_system::Call<Self>>;
+	type Call: Parameter
+		+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+		+ GetDispatchInfo
+		+ From<frame_system::Call<Self>>;
 
 	/// The currency mechanism.
 	type Currency: ReservableCurrency<Self::AccountId>;
@@ -488,7 +497,7 @@ impl<T: Trait> Module<T> {
 				let call_hash = blake2_256(&call);
 				let call_len = call.len();
 				(call_hash, call_len, Some(call), should_store)
-			}
+			},
 			CallOrHash::Hash(h) => (h, 0, None, false),
 		};
 
@@ -503,12 +512,16 @@ impl<T: Trait> Module<T> {
 			// We only bother with the approval if we're below threshold.
 			let maybe_pos = m.approvals.binary_search(&who).err().filter(|_| approvals < threshold);
 			// Bump approvals if not yet voted and the vote is needed.
-			if maybe_pos.is_some() { approvals += 1; }
+			if maybe_pos.is_some() {
+				approvals += 1;
+			}
 
 			// We only bother fetching/decoding call if we know that we're ready to execute.
 			let maybe_approved_call = if approvals >= threshold {
 				Self::get_call(&call_hash, maybe_call.as_ref().map(|c| c.as_ref()))
-			} else { None };
+			} else {
+				None
+			};
 
 			if let Some((call, call_len)) = maybe_approved_call {
 				// verify weight
@@ -522,21 +535,33 @@ impl<T: Trait> Module<T> {
 
 				let result = call.dispatch(RawOrigin::Signed(id.clone()).into());
 				Self::deposit_event(RawEvent::MultisigExecuted(
-					who, timepoint, id, call_hash, result.map(|_| ()).map_err(|e| e.error)
+					who,
+					timepoint,
+					id,
+					call_hash,
+					result.map(|_| ()).map_err(|e| e.error),
 				));
-				Ok(get_result_weight(result).map(|actual_weight|
-					T::WeightInfo::as_multi_complete(
-						other_signatories_len as u32,
-						call_len as u32
-					).saturating_add(actual_weight)
-				).into())
+				Ok(get_result_weight(result)
+					.map(|actual_weight| {
+						T::WeightInfo::as_multi_complete(
+							other_signatories_len as u32,
+							call_len as u32,
+						)
+						.saturating_add(actual_weight)
+					})
+					.into())
 			} else {
 				// We cannot dispatch the call now; either it isn't available, or it is, but we
 				// don't have threshold approvals even with our signature.
 
 				// Store the call if desired.
 				let stored = if let Some(data) = maybe_call.filter(|_| store) {
-					Self::store_call_and_reserve(who.clone(), &call_hash, data, BalanceOf::<T>::zero())?;
+					Self::store_call_and_reserve(
+						who.clone(),
+						&call_hash,
+						data,
+						BalanceOf::<T>::zero(),
+					)?;
 					true
 				} else {
 					false
@@ -559,10 +584,7 @@ impl<T: Trait> Module<T> {
 						call_len as u32,
 					)
 				} else {
-					T::WeightInfo::as_multi_approve(
-						other_signatories_len as u32,
-						call_len as u32,
-					)
+					T::WeightInfo::as_multi_approve(other_signatories_len as u32, call_len as u32)
 				};
 				// Call is not made, so the actual weight does not include call
 				Ok(Some(final_weight).into())
@@ -583,24 +605,22 @@ impl<T: Trait> Module<T> {
 				false
 			};
 
-			<Multisigs<T>>::insert(&id, call_hash, Multisig {
-				when: Self::timepoint(),
-				deposit,
-				depositor: who.clone(),
-				approvals: vec![who.clone()],
-			});
+			<Multisigs<T>>::insert(
+				&id,
+				call_hash,
+				Multisig {
+					when: Self::timepoint(),
+					deposit,
+					depositor: who.clone(),
+					approvals: vec![who.clone()],
+				},
+			);
 			Self::deposit_event(RawEvent::NewMultisig(who, id, call_hash));
 
 			let final_weight = if stored {
-				T::WeightInfo::as_multi_create_store(
-					other_signatories_len as u32,
-					call_len as u32,
-				)
+				T::WeightInfo::as_multi_create_store(other_signatories_len as u32, call_len as u32)
 			} else {
-				T::WeightInfo::as_multi_create(
-					other_signatories_len as u32,
-					call_len as u32,
-				)
+				T::WeightInfo::as_multi_create(other_signatories_len as u32, call_len as u32)
 			};
 			// Call is not made, so the actual weight does not include call
 			Ok(Some(final_weight).into())
@@ -619,22 +639,27 @@ impl<T: Trait> Module<T> {
 		other_deposit: BalanceOf<T>,
 	) -> DispatchResult {
 		ensure!(!Calls::<T>::contains_key(hash), Error::<T>::AlreadyStored);
-		let deposit = other_deposit + T::DepositBase::get()
-			+ T::DepositFactor::get() * BalanceOf::<T>::from(((data.len() + 31) / 32) as u32);
+		let deposit = other_deposit +
+			T::DepositBase::get() +
+			T::DepositFactor::get() * BalanceOf::<T>::from(((data.len() + 31) / 32) as u32);
 		T::Currency::reserve(&who, deposit)?;
 		Calls::<T>::insert(&hash, (data, who, deposit));
 		Ok(())
 	}
 
 	/// Attempt to decode and return the call, provided by the user or from storage.
-	fn get_call(hash: &[u8; 32], maybe_known: Option<&[u8]>) -> Option<(<T as Trait>::Call, usize)> {
-		maybe_known.map_or_else(|| {
-			Calls::<T>::get(hash).and_then(|(data, ..)| {
-				Decode::decode(&mut &data[..]).ok().map(|d| (d, data.len()))
-			})
-		}, |data| {
-			Decode::decode(&mut &data[..]).ok().map(|d| (d, data.len()))
-		})
+	fn get_call(
+		hash: &[u8; 32],
+		maybe_known: Option<&[u8]>,
+	) -> Option<(<T as Trait>::Call, usize)> {
+		maybe_known.map_or_else(
+			|| {
+				Calls::<T>::get(hash).and_then(|(data, ..)| {
+					Decode::decode(&mut &data[..]).ok().map(|d| (d, data.len()))
+				})
+			},
+			|data| Decode::decode(&mut &data[..]).ok().map(|d| (d, data.len())),
+		)
 	}
 
 	/// Attempt to remove a call from storage, returning any deposit on it to the owner.
@@ -653,9 +678,10 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Check that signatories is sorted and doesn't contain sender, then insert sender.
-	fn ensure_sorted_and_insert(other_signatories: Vec<T::AccountId>, who: T::AccountId)
-		-> Result<Vec<T::AccountId>, DispatchError>
-	{
+	fn ensure_sorted_and_insert(
+		other_signatories: Vec<T::AccountId>,
+		who: T::AccountId,
+	) -> Result<Vec<T::AccountId>, DispatchError> {
 		let mut signatories = other_signatories;
 		let mut maybe_last = None;
 		let mut index = 0;

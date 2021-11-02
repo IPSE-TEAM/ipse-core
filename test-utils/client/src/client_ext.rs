@@ -17,17 +17,16 @@
 
 //! Client extension for tests.
 
-use sc_service::client::Client;
+use codec::alloc::collections::hash_map::HashMap;
 use sc_client_api::backend::Finalizer;
 use sc_client_api::client::BlockBackend;
+use sc_service::client::Client;
 use sp_consensus::{
-	BlockImportParams, BlockImport, BlockOrigin, Error as ConsensusError,
-	ForkChoiceStrategy,
+	BlockImport, BlockImportParams, BlockOrigin, Error as ConsensusError, ForkChoiceStrategy,
 };
-use sp_runtime::Justification;
-use sp_runtime::traits::{Block as BlockT};
 use sp_runtime::generic::BlockId;
-use codec::alloc::collections::hash_map::HashMap;
+use sp_runtime::traits::Block as BlockT;
+use sp_runtime::Justification;
 
 /// Extension trait for a test client.
 pub trait ClientExt<Block: BlockT>: Sized {
@@ -51,24 +50,23 @@ pub trait ClientBlockImportExt<Block: BlockT>: Sized {
 	fn import_as_best(&mut self, origin: BlockOrigin, block: Block) -> Result<(), ConsensusError>;
 
 	/// Import a block and finalize it.
-	fn import_as_final(&mut self, origin: BlockOrigin, block: Block)
-		-> Result<(), ConsensusError>;
+	fn import_as_final(&mut self, origin: BlockOrigin, block: Block) -> Result<(), ConsensusError>;
 
 	/// Import block with justification, finalizes block.
 	fn import_justified(
 		&mut self,
 		origin: BlockOrigin,
 		block: Block,
-		justification: Justification
+		justification: Justification,
 	) -> Result<(), ConsensusError>;
 }
 
 impl<B, E, RA, Block> ClientExt<Block> for Client<B, E, Block, RA>
-	where
-		B: sc_client_api::backend::Backend<Block>,
-		E: sc_client_api::CallExecutor<Block> + 'static,
-		Self: BlockImport<Block, Error = ConsensusError>,
-		Block: BlockT,
+where
+	B: sc_client_api::backend::Backend<Block>,
+	E: sc_client_api::CallExecutor<Block> + 'static,
+	Self: BlockImport<Block, Error = ConsensusError>,
+	Block: BlockT,
 {
 	fn finalize_block(
 		&self,
@@ -85,7 +83,8 @@ impl<B, E, RA, Block> ClientExt<Block> for Client<B, E, Block, RA>
 
 /// This implementation is required, because of the weird api requirements around `BlockImport`.
 impl<Block: BlockT, T, Transaction> ClientBlockImportExt<Block> for std::sync::Arc<T>
-	where for<'r> &'r T: BlockImport<Block, Error = ConsensusError, Transaction = Transaction>
+where
+	for<'r> &'r T: BlockImport<Block, Error = ConsensusError, Transaction = Transaction>,
 {
 	fn import(&mut self, origin: BlockOrigin, block: Block) -> Result<(), ConsensusError> {
 		let (header, extrinsics) = block.deconstruct();
@@ -133,8 +132,8 @@ impl<Block: BlockT, T, Transaction> ClientBlockImportExt<Block> for std::sync::A
 }
 
 impl<B, E, RA, Block: BlockT> ClientBlockImportExt<Block> for Client<B, E, Block, RA>
-	where
-		Self: BlockImport<Block, Error = ConsensusError>,
+where
+	Self: BlockImport<Block, Error = ConsensusError>,
 {
 	fn import(&mut self, origin: BlockOrigin, block: Block) -> Result<(), ConsensusError> {
 		let (header, extrinsics) = block.deconstruct();

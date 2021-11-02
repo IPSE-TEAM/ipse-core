@@ -15,22 +15,33 @@
 // along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-	config::{ProtocolId, Role}, block_requests, light_client_handler, finality_requests,
-	peer_info, request_responses, discovery::{DiscoveryBehaviour, DiscoveryConfig, DiscoveryOut},
-	protocol::{message::{self, Roles}, CustomMessageOutcome, NotificationsSink, Protocol},
-	ObservedRole, DhtEvent, ExHashT,
+	block_requests,
+	config::{ProtocolId, Role},
+	discovery::{DiscoveryBehaviour, DiscoveryConfig, DiscoveryOut},
+	finality_requests, light_client_handler, peer_info,
+	protocol::{
+		message::{self, Roles},
+		CustomMessageOutcome, NotificationsSink, Protocol,
+	},
+	request_responses, DhtEvent, ExHashT, ObservedRole,
 };
 
 use bytes::Bytes;
 use codec::Encode as _;
-use libp2p::NetworkBehaviour;
 use libp2p::core::{Multiaddr, PeerId, PublicKey};
 use libp2p::identify::IdentifyInfo;
 use libp2p::kad::record;
 use libp2p::swarm::{NetworkBehaviourAction, NetworkBehaviourEventProcess, PollParameters};
+use libp2p::NetworkBehaviour;
 use log::debug;
-use sp_consensus::{BlockOrigin, import_queue::{IncomingBlock, Origin}};
-use sp_runtime::{traits::{Block as BlockT, NumberFor}, ConsensusEngineId, Justification};
+use sp_consensus::{
+	import_queue::{IncomingBlock, Origin},
+	BlockOrigin,
+};
+use sp_runtime::{
+	traits::{Block as BlockT, NumberFor},
+	ConsensusEngineId, Justification,
+};
 use std::{
 	borrow::Cow,
 	collections::{HashSet, VecDeque},
@@ -40,7 +51,7 @@ use std::{
 };
 
 pub use crate::request_responses::{
-	ResponseFailure, InboundFailure, RequestFailure, OutboundFailure, RequestId, SendRequestError
+	InboundFailure, OutboundFailure, RequestFailure, RequestId, ResponseFailure, SendRequestError,
 };
 
 /// General behaviour of the network. Combines all protocols together.
@@ -191,8 +202,9 @@ impl<B: BlockT, H: ExHashT> Behaviour<B, H> {
 			substrate,
 			peer_info: peer_info::PeerInfoBehaviour::new(user_agent, local_public_key),
 			discovery: disco_config.finish(),
-			request_responses:
-				request_responses::RequestResponsesBehaviour::new(request_response_protocols.into_iter())?,
+			request_responses: request_responses::RequestResponsesBehaviour::new(
+				request_response_protocols.into_iter(),
+			)?,
 			block_requests,
 			finality_proof_requests,
 			light_client_handler,
@@ -215,7 +227,9 @@ impl<B: BlockT, H: ExHashT> Behaviour<B, H> {
 	///
 	/// Identifies Kademlia instances by their [`ProtocolId`] and kbuckets by the base 2 logarithm
 	/// of their lower bound.
-	pub fn num_entries_per_kbucket(&mut self) -> impl ExactSizeIterator<Item = (&ProtocolId, Vec<(u32, usize)>)> {
+	pub fn num_entries_per_kbucket(
+		&mut self,
+	) -> impl ExactSizeIterator<Item = (&ProtocolId, Vec<(u32, usize)>)> {
 		self.discovery.num_entries_per_kbucket()
 	}
 
@@ -225,7 +239,9 @@ impl<B: BlockT, H: ExHashT> Behaviour<B, H> {
 	}
 
 	/// Returns the total size in bytes of all the records in the Kademlia record stores.
-	pub fn kademlia_records_total_size(&mut self) -> impl ExactSizeIterator<Item = (&ProtocolId, usize)> {
+	pub fn kademlia_records_total_size(
+		&mut self,
+	) -> impl ExactSizeIterator<Item = (&ProtocolId, usize)> {
 		self.discovery.kademlia_records_total_size()
 	}
 
@@ -242,9 +258,12 @@ impl<B: BlockT, H: ExHashT> Behaviour<B, H> {
 	///
 	/// An error is returned if we are not connected to the target peer of if the protocol doesn't
 	/// match one that has been registered.
-	pub fn send_request(&mut self, target: &PeerId, protocol: &str, request: Vec<u8>)
-		-> Result<RequestId, SendRequestError>
-	{
+	pub fn send_request(
+		&mut self,
+		target: &PeerId,
+		protocol: &str,
+		request: Vec<u8>,
+	) -> Result<RequestId, SendRequestError> {
 		self.request_responses.send_request(target, protocol, request)
 	}
 
@@ -264,7 +283,11 @@ impl<B: BlockT, H: ExHashT> Behaviour<B, H> {
 		// At the moment, we force this to be an encoded `Roles`.
 		let handshake_message = Roles::from(&self.role).encode();
 
-		let list = self.substrate.register_notifications_protocol(engine_id, protocol_name, handshake_message);
+		let list = self.substrate.register_notifications_protocol(
+			engine_id,
+			protocol_name,
+			handshake_message,
+		);
 		for (remote, roles, notifications_sink) in list {
 			let role = reported_roles_to_observed_role(&self.role, remote, roles);
 			self.events.push_back(BehaviourOut::NotificationStreamOpened {
@@ -286,30 +309,40 @@ impl<B: BlockT, H: ExHashT> Behaviour<B, H> {
 		&mut self.substrate
 	}
 
-	/// Start querying a record from the DHT. Will later produce either a `ValueFound` or a `ValueNotFound` event.
+	/// Start querying a record from the DHT. Will later produce either a `ValueFound` or a
+	/// `ValueNotFound` event.
 	pub fn get_value(&mut self, key: &record::Key) {
 		self.discovery.get_value(key);
 	}
 
-	/// Starts putting a record into DHT. Will later produce either a `ValuePut` or a `ValuePutFailed` event.
+	/// Starts putting a record into DHT. Will later produce either a `ValuePut` or a
+	/// `ValuePutFailed` event.
 	pub fn put_value(&mut self, key: record::Key, value: Vec<u8>) {
 		self.discovery.put_value(key, value);
 	}
 
 	/// Issue a light client request.
-	pub fn light_client_request(&mut self, r: light_client_handler::Request<B>) -> Result<(), light_client_handler::Error> {
+	pub fn light_client_request(
+		&mut self,
+		r: light_client_handler::Request<B>,
+	) -> Result<(), light_client_handler::Error> {
 		self.light_client_handler.request(r)
 	}
 }
 
-fn reported_roles_to_observed_role(local_role: &Role, remote: &PeerId, roles: Roles) -> ObservedRole {
+fn reported_roles_to_observed_role(
+	local_role: &Role,
+	remote: &PeerId,
+	roles: Roles,
+) -> ObservedRole {
 	if roles.is_authority() {
 		match local_role {
 			Role::Authority { sentry_nodes }
-				if sentry_nodes.iter().any(|s| s.peer_id == *remote) => ObservedRole::OurSentry,
-			Role::Sentry { validators }
-				if validators.iter().any(|s| s.peer_id == *remote) => ObservedRole::OurGuardedAuthority,
-			_ => ObservedRole::Authority
+				if sentry_nodes.iter().any(|s| s.peer_id == *remote) =>
+				ObservedRole::OurSentry,
+			Role::Sentry { validators } if validators.iter().any(|s| s.peer_id == *remote) =>
+				ObservedRole::OurGuardedAuthority,
+			_ => ObservedRole::Authority,
 		}
 	} else if roles.is_full() {
 		ObservedRole::Full
@@ -318,21 +351,22 @@ fn reported_roles_to_observed_role(local_role: &Role, remote: &PeerId, roles: Ro
 	}
 }
 
-impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<void::Void> for
-Behaviour<B, H> {
+impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<void::Void> for Behaviour<B, H> {
 	fn inject_event(&mut self, event: void::Void) {
 		void::unreachable(event)
 	}
 }
 
-impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<CustomMessageOutcome<B>> for
-Behaviour<B, H> {
+impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<CustomMessageOutcome<B>>
+	for Behaviour<B, H>
+{
 	fn inject_event(&mut self, event: CustomMessageOutcome<B>) {
 		match event {
 			CustomMessageOutcome::BlockImport(origin, blocks) =>
 				self.events.push_back(BehaviourOut::BlockImport(origin, blocks)),
-			CustomMessageOutcome::JustificationImport(origin, hash, nb, justification) =>
-				self.events.push_back(BehaviourOut::JustificationImport(origin, hash, nb, justification)),
+			CustomMessageOutcome::JustificationImport(origin, hash, nb, justification) => self
+				.events
+				.push_back(BehaviourOut::JustificationImport(origin, hash, nb, justification)),
 			CustomMessageOutcome::FinalityProofImport(origin, hash, nb, proof) =>
 				self.events.push_back(BehaviourOut::FinalityProofImport(origin, hash, nb, proof)),
 			CustomMessageOutcome::BlockRequest { target, request } => {
@@ -353,7 +387,7 @@ Behaviour<B, H> {
 							peer: target,
 							protocol: self.block_requests.protocol_name().to_owned(),
 						});
-					}
+					},
 					block_requests::SendRequestOutcome::NotConnected |
 					block_requests::SendRequestOutcome::EncodeError(_) => {},
 				}
@@ -361,7 +395,12 @@ Behaviour<B, H> {
 			CustomMessageOutcome::FinalityProofRequest { target, block_hash, request } => {
 				self.finality_proof_requests.send_request(&target, block_hash, request);
 			},
-			CustomMessageOutcome::NotificationStreamOpened { remote, protocols, roles, notifications_sink } => {
+			CustomMessageOutcome::NotificationStreamOpened {
+				remote,
+				protocols,
+				roles,
+				notifications_sink,
+			} => {
 				let role = reported_roles_to_observed_role(&self.role, &remote, roles);
 				for engine_id in protocols {
 					self.events.push_back(BehaviourOut::NotificationStreamOpened {
@@ -372,7 +411,11 @@ Behaviour<B, H> {
 					});
 				}
 			},
-			CustomMessageOutcome::NotificationStreamReplaced { remote, protocols, notifications_sink } =>
+			CustomMessageOutcome::NotificationStreamReplaced {
+				remote,
+				protocols,
+				notifications_sink,
+			} =>
 				for engine_id in protocols {
 					self.events.push_back(BehaviourOut::NotificationStreamReplaced {
 						remote: remote.clone(),
@@ -392,34 +435,31 @@ Behaviour<B, H> {
 			},
 			CustomMessageOutcome::PeerNewBest(peer_id, number) => {
 				self.light_client_handler.update_best_block(&peer_id, number);
-			}
-			CustomMessageOutcome::None => {}
+			},
+			CustomMessageOutcome::None => {},
 		}
 	}
 }
 
-impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<request_responses::Event> for Behaviour<B, H> {
+impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<request_responses::Event>
+	for Behaviour<B, H>
+{
 	fn inject_event(&mut self, event: request_responses::Event) {
 		match event {
 			request_responses::Event::InboundRequest { peer, protocol, result } => {
-				self.events.push_back(BehaviourOut::InboundRequest {
-					peer,
-					protocol,
-					result,
-				});
-			}
+				self.events.push_back(BehaviourOut::InboundRequest { peer, protocol, result });
+			},
 
 			request_responses::Event::RequestFinished { request_id, result } => {
-				self.events.push_back(BehaviourOut::RequestFinished {
-					request_id,
-					result,
-				});
+				self.events.push_back(BehaviourOut::RequestFinished { request_id, result });
 			},
 		}
 	}
 }
 
-impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<block_requests::Event<B>> for Behaviour<B, H> {
+impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<block_requests::Event<B>>
+	for Behaviour<B, H>
+{
 	fn inject_event(&mut self, event: block_requests::Event<B>) {
 		match event {
 			block_requests::Event::AnsweredRequest { peer, total_handling_time } => {
@@ -429,7 +469,12 @@ impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<block_requests::Event<B
 					result: Ok(total_handling_time),
 				});
 			},
-			block_requests::Event::Response { peer, original_request: _, response, request_duration } => {
+			block_requests::Event::Response {
+				peer,
+				original_request: _,
+				response,
+				request_duration,
+			} => {
 				self.events.push_back(BehaviourOut::OpaqueRequestFinished {
 					peer: peer.clone(),
 					protocol: self.block_requests.protocol_name().to_owned(),
@@ -437,7 +482,7 @@ impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<block_requests::Event<B
 				});
 				let ev = self.substrate.on_block_response(peer, response);
 				self.inject_event(ev);
-			}
+			},
 			block_requests::Event::RequestCancelled { peer, request_duration, .. } |
 			block_requests::Event::RequestTimeout { peer, request_duration, .. } => {
 				// There doesn't exist any mechanism to report cancellations or timeouts yet, so
@@ -448,43 +493,36 @@ impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<block_requests::Event<B
 					request_duration,
 				});
 				self.substrate.on_block_request_failed(&peer);
-			}
+			},
 		}
 	}
 }
 
-impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<finality_requests::Event<B>> for Behaviour<B, H> {
+impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<finality_requests::Event<B>>
+	for Behaviour<B, H>
+{
 	fn inject_event(&mut self, event: finality_requests::Event<B>) {
 		match event {
 			finality_requests::Event::Response { peer, block_hash, proof } => {
 				let response = message::FinalityProofResponse {
 					id: 0,
 					block: block_hash,
-					proof: if !proof.is_empty() {
-						Some(proof)
-					} else {
-						None
-					},
+					proof: if !proof.is_empty() { Some(proof) } else { None },
 				};
 				let ev = self.substrate.on_finality_proof_response(peer, response);
 				self.inject_event(ev);
-			}
+			},
 		}
 	}
 }
 
 impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<peer_info::PeerInfoEvent>
-	for Behaviour<B, H> {
+	for Behaviour<B, H>
+{
 	fn inject_event(&mut self, event: peer_info::PeerInfoEvent) {
 		let peer_info::PeerInfoEvent::Identified {
 			peer_id,
-			info: IdentifyInfo {
-				protocol_version,
-				agent_version,
-				mut listen_addrs,
-				protocols,
-				..
-			},
+			info: IdentifyInfo { protocol_version, agent_version, mut listen_addrs, protocols, .. },
 		} = event;
 
 		if listen_addrs.len() > 30 {
@@ -503,8 +541,7 @@ impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<peer_info::PeerInfoEven
 	}
 }
 
-impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<DiscoveryOut>
-	for Behaviour<B, H> {
+impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<DiscoveryOut> for Behaviour<B, H> {
 	fn inject_event(&mut self, out: DiscoveryOut) {
 		match out {
 			DiscoveryOut::UnroutablePeer(_peer_id) => {
@@ -512,33 +549,36 @@ impl<B: BlockT, H: ExHashT> NetworkBehaviourEventProcess<DiscoveryOut>
 				// to Kademlia is handled by the `Identify` protocol, part of the
 				// `PeerInfoBehaviour`. See the `NetworkBehaviourEventProcess`
 				// implementation for `PeerInfoEvent`.
-			}
+			},
 			DiscoveryOut::Discovered(peer_id) => {
 				self.substrate.add_discovered_nodes(iter::once(peer_id));
-			}
+			},
 			DiscoveryOut::ValueFound(results, duration) => {
 				self.events.push_back(BehaviourOut::Dht(DhtEvent::ValueFound(results), duration));
-			}
+			},
 			DiscoveryOut::ValueNotFound(key, duration) => {
 				self.events.push_back(BehaviourOut::Dht(DhtEvent::ValueNotFound(key), duration));
-			}
+			},
 			DiscoveryOut::ValuePut(key, duration) => {
 				self.events.push_back(BehaviourOut::Dht(DhtEvent::ValuePut(key), duration));
-			}
+			},
 			DiscoveryOut::ValuePutFailed(key, duration) => {
 				self.events.push_back(BehaviourOut::Dht(DhtEvent::ValuePutFailed(key), duration));
-			}
-			DiscoveryOut::RandomKademliaStarted(protocols) => {
+			},
+			DiscoveryOut::RandomKademliaStarted(protocols) =>
 				for protocol in protocols {
 					self.events.push_back(BehaviourOut::RandomKademliaStarted(protocol));
-				}
-			}
+				},
 		}
 	}
 }
 
 impl<B: BlockT, H: ExHashT> Behaviour<B, H> {
-	fn poll<TEv>(&mut self, _: &mut Context, _: &mut impl PollParameters) -> Poll<NetworkBehaviourAction<TEv, BehaviourOut<B>>> {
+	fn poll<TEv>(
+		&mut self,
+		_: &mut Context,
+		_: &mut impl PollParameters,
+	) -> Poll<NetworkBehaviourAction<TEv, BehaviourOut<B>>> {
 		if let Some(event) = self.events.pop_front() {
 			return Poll::Ready(NetworkBehaviourAction::GenerateEvent(event))
 		}

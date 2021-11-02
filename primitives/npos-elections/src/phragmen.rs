@@ -20,16 +20,16 @@
 //! This method is ensured to achieve PJR, yet, it does not achieve a constant factor approximation
 //! to the Maximin problem.
 
+use crate::balancing;
 use crate::{
-	IdentifierT, VoteWeight, Voter, CandidatePtr, ExtendedBalance, setup_inputs, ElectionResult,
+	setup_inputs, CandidatePtr, ElectionResult, ExtendedBalance, IdentifierT, VoteWeight, Voter,
+};
+use sp_arithmetic::{
+	helpers_128bit::multiply_by_rational,
+	traits::{Bounded, Zero},
+	InnerOf, PerThing, Rational128,
 };
 use sp_std::prelude::*;
-use sp_arithmetic::{
-	PerThing, InnerOf, Rational128,
-	helpers_128bit::multiply_by_rational,
-	traits::{Zero, Bounded},
-};
-use crate::balancing;
 
 /// The denominator used for loads. Since votes are collected as u64, the smallest ratio that we
 /// might collect is `1/approval_stake` where approval stake is the sum of votes. Hence, some number
@@ -68,14 +68,13 @@ pub fn seq_phragmen<AccountId: IdentifierT, P: PerThing>(
 	initial_candidates: Vec<AccountId>,
 	initial_voters: Vec<(AccountId, VoteWeight, Vec<AccountId>)>,
 	balance: Option<(usize, ExtendedBalance)>,
-) -> Result<ElectionResult<AccountId, P>, &'static str> where ExtendedBalance: From<InnerOf<P>> {
+) -> Result<ElectionResult<AccountId, P>, &'static str>
+where
+	ExtendedBalance: From<InnerOf<P>>,
+{
 	let (candidates, voters) = setup_inputs(initial_candidates, initial_voters);
 
-	let (candidates, mut voters) = seq_phragmen_core::<AccountId>(
-		rounds,
-		candidates,
-		voters,
-	)?;
+	let (candidates, mut voters) = seq_phragmen_core::<AccountId>(rounds, candidates, voters)?;
 
 	if let Some((iterations, tolerance)) = balance {
 		// NOTE: might create zero-edges, but we will strip them again when we convert voter into
@@ -93,11 +92,13 @@ pub fn seq_phragmen<AccountId: IdentifierT, P: PerThing>(
 	// sort winners based on desirability.
 	winners.sort_by_key(|c_ptr| c_ptr.borrow().round);
 
-	let mut assignments = voters.into_iter().filter_map(|v| v.into_assignment()).collect::<Vec<_>>();
+	let mut assignments =
+		voters.into_iter().filter_map(|v| v.into_assignment()).collect::<Vec<_>>();
 	let _ = assignments.iter_mut().map(|a| a.try_normalize()).collect::<Result<(), _>>()?;
-	let winners = winners.into_iter().map(|w_ptr|
-		(w_ptr.borrow().who.clone(), w_ptr.borrow().backed_stake)
-	).collect();
+	let winners = winners
+		.into_iter()
+		.map(|w_ptr| (w_ptr.borrow().who.clone(), w_ptr.borrow().backed_stake))
+		.collect();
 
 	Ok(ElectionResult { winners, assignments })
 }
@@ -144,7 +145,8 @@ pub fn seq_phragmen_core<AccountId: IdentifierT>(
 						voter.load.n(),
 						voter.budget,
 						candidate.approval_stake,
-					).unwrap_or(Bounded::max_value());
+					)
+					.unwrap_or(Bounded::max_value());
 					let temp_d = voter.load.d();
 					let temp = Rational128::from(temp_n, temp_d);
 					candidate.score = candidate.score.lazy_saturating_add(temp);
@@ -153,10 +155,8 @@ pub fn seq_phragmen_core<AccountId: IdentifierT>(
 		}
 
 		// loop 3: find the best
-		if let Some(winner_ptr) = candidates
-			.iter()
-			.filter(|c| !c.borrow().elected)
-			.min_by_key(|c| c.borrow().score)
+		if let Some(winner_ptr) =
+			candidates.iter().filter(|c| !c.borrow().elected).min_by_key(|c| c.borrow().score)
 		{
 			let mut winner = winner_ptr.borrow_mut();
 			// loop 3: update voter and edge load
@@ -180,13 +180,9 @@ pub fn seq_phragmen_core<AccountId: IdentifierT>(
 		for edge in &mut voter.edges {
 			if edge.candidate.borrow().elected {
 				// update internal state.
-				edge.weight = multiply_by_rational(
-					voter.budget,
-					edge.load.n(),
-					voter.load.n(),
-				)
-				// If result cannot fit in u128. Not much we can do about it.
-				.unwrap_or(Bounded::max_value());
+				edge.weight = multiply_by_rational(voter.budget, edge.load.n(), voter.load.n())
+					// If result cannot fit in u128. Not much we can do about it.
+					.unwrap_or(Bounded::max_value());
 			} else {
 				edge.weight = 0
 			}

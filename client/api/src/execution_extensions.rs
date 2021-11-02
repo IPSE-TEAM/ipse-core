@@ -20,20 +20,17 @@
 //! strategy for the runtime calls and provide the right `Externalities`
 //! extensions to support APIs for particular execution context & capabilities.
 
-use std::sync::{Weak, Arc};
 use codec::Decode;
+use parking_lot::RwLock;
 use sp_core::{
-	ExecutionContext,
 	offchain::{self, OffchainExt, TransactionPoolExt},
 	traits::{BareCryptoStorePtr, KeystoreExt},
+	ExecutionContext,
 };
-use sp_runtime::{
-	generic::BlockId,
-	traits,
-};
-use sp_state_machine::{ExecutionStrategy, ExecutionManager, DefaultHandler};
 use sp_externalities::Extensions;
-use parking_lot::RwLock;
+use sp_runtime::{generic::BlockId, traits};
+use sp_state_machine::{DefaultHandler, ExecutionManager, ExecutionStrategy};
+use std::sync::{Arc, Weak};
 
 /// Execution strategies settings.
 #[derive(Debug, Clone)]
@@ -88,7 +85,8 @@ pub struct ExecutionExtensions<Block: traits::Block> {
 	// extension to be a `Weak` reference.
 	// That's also the reason why it's being registered lazily instead of
 	// during initialization.
-	transaction_pool: RwLock<Option<Weak<dyn sp_transaction_pool::OffchainSubmitTransaction<Block>>>>,
+	transaction_pool:
+		RwLock<Option<Weak<dyn sp_transaction_pool::OffchainSubmitTransaction<Block>>>>,
 	extensions_factory: RwLock<Box<dyn ExtensionsFactory>>,
 }
 
@@ -105,13 +103,15 @@ impl<Block: traits::Block> Default for ExecutionExtensions<Block> {
 
 impl<Block: traits::Block> ExecutionExtensions<Block> {
 	/// Create new `ExecutionExtensions` given a `keystore` and `ExecutionStrategies`.
-	pub fn new(
-		strategies: ExecutionStrategies,
-		keystore: Option<BareCryptoStorePtr>,
-	) -> Self {
+	pub fn new(strategies: ExecutionStrategies, keystore: Option<BareCryptoStorePtr>) -> Self {
 		let transaction_pool = RwLock::new(None);
 		let extensions_factory = Box::new(());
-		Self { strategies, keystore, extensions_factory: RwLock::new(extensions_factory), transaction_pool }
+		Self {
+			strategies,
+			keystore,
+			extensions_factory: RwLock::new(extensions_factory),
+			transaction_pool,
+		}
 	}
 
 	/// Get a reference to the execution strategies.
@@ -126,7 +126,8 @@ impl<Block: traits::Block> ExecutionExtensions<Block> {
 
 	/// Register transaction pool extension.
 	pub fn register_transaction_pool<T>(&self, pool: &Arc<T>)
-		where T: sp_transaction_pool::OffchainSubmitTransaction<Block> + 'static
+	where
+		T: sp_transaction_pool::OffchainSubmitTransaction<Block> + 'static,
 	{
 		*self.transaction_pool.write() = Some(Arc::downgrade(&pool) as _);
 	}
@@ -139,21 +140,14 @@ impl<Block: traits::Block> ExecutionExtensions<Block> {
 		&self,
 		at: &BlockId<Block>,
 		context: ExecutionContext,
-	) -> (
-		ExecutionManager<DefaultHandler<R, E>>,
-		Extensions,
-	) {
+	) -> (ExecutionManager<DefaultHandler<R, E>>, Extensions) {
 		let manager = match context {
-			ExecutionContext::BlockConstruction =>
-				self.strategies.block_construction.get_manager(),
-			ExecutionContext::Syncing =>
-				self.strategies.syncing.get_manager(),
-			ExecutionContext::Importing =>
-				self.strategies.importing.get_manager(),
+			ExecutionContext::BlockConstruction => self.strategies.block_construction.get_manager(),
+			ExecutionContext::Syncing => self.strategies.syncing.get_manager(),
+			ExecutionContext::Importing => self.strategies.importing.get_manager(),
 			ExecutionContext::OffchainCall(Some((_, capabilities))) if capabilities.has_all() =>
 				self.strategies.offchain_worker.get_manager(),
-			ExecutionContext::OffchainCall(_) =>
-				self.strategies.other.get_manager(),
+			ExecutionContext::OffchainCall(_) => self.strategies.other.get_manager(),
 		};
 
 		let capabilities = context.capabilities();
@@ -168,21 +162,18 @@ impl<Block: traits::Block> ExecutionExtensions<Block> {
 
 		if capabilities.has(offchain::Capability::TransactionPool) {
 			if let Some(pool) = self.transaction_pool.read().as_ref().and_then(|x| x.upgrade()) {
-				extensions.register(
-					TransactionPoolExt(
-						Box::new(TransactionPoolAdapter {
-							at: *at,
-							pool,
-						}) as _
-					),
-				);
+				extensions
+					.register(TransactionPoolExt(
+						Box::new(TransactionPoolAdapter { at: *at, pool }) as _,
+					));
 			}
 		}
 
 		if let ExecutionContext::OffchainCall(Some(ext)) = context {
-			extensions.register(
-				OffchainExt::new(offchain::LimitedExternalities::new(capabilities, ext.0)),
-			);
+			extensions.register(OffchainExt::new(offchain::LimitedExternalities::new(
+				capabilities,
+				ext.0,
+			)));
 		}
 
 		(manager, extensions)
@@ -201,7 +192,7 @@ impl<Block: traits::Block> offchain::TransactionPool for TransactionPoolAdapter<
 			Ok(xt) => xt,
 			Err(e) => {
 				log::warn!("Unable to decode extrinsic: {:?}: {}", data, e.what());
-				return Err(());
+				return Err(())
 			},
 		};
 

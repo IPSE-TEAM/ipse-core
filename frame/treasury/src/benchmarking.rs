@@ -21,20 +21,18 @@
 
 use super::*;
 
-use frame_system::RawOrigin;
-use frame_benchmarking::{benchmarks_instance, account, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks_instance, whitelisted_caller};
 use frame_support::traits::OnInitialize;
+use frame_system::RawOrigin;
 
 use crate::Module as Treasury;
 
 const SEED: u32 = 0;
 
 // Create the pre-requisite information needed to create a treasury `propose_spend`.
-fn setup_proposal<T: Trait<I>, I: Instance>(u: u32) -> (
-	T::AccountId,
-	BalanceOf<T, I>,
-	<T::Lookup as StaticLookup>::Source,
-) {
+fn setup_proposal<T: Trait<I>, I: Instance>(
+	u: u32,
+) -> (T::AccountId, BalanceOf<T, I>, <T::Lookup as StaticLookup>::Source) {
 	let caller = account("caller", u, SEED);
 	let value: BalanceOf<T, I> = T::ProposalBondMinimum::get().saturating_mul(100.into());
 	let _ = T::Currency::make_free_balance_be(&caller, value);
@@ -46,9 +44,9 @@ fn setup_proposal<T: Trait<I>, I: Instance>(u: u32) -> (
 // Create the pre-requisite information needed to create a `report_awesome`.
 fn setup_awesome<T: Trait<I>, I: Instance>(length: u32) -> (T::AccountId, Vec<u8>, T::AccountId) {
 	let caller = whitelisted_caller();
-	let value = T::TipReportDepositBase::get()
-		+ T::DataDepositPerByte::get() * length.into()
-		+ T::Currency::minimum_balance();
+	let value = T::TipReportDepositBase::get() +
+		T::DataDepositPerByte::get() * length.into() +
+		T::Currency::minimum_balance();
 	let _ = T::Currency::make_free_balance_be(&caller, value);
 	let reason = vec![0; length as usize];
 	let awesome_person = account("awesome", 0, SEED);
@@ -56,12 +54,13 @@ fn setup_awesome<T: Trait<I>, I: Instance>(length: u32) -> (T::AccountId, Vec<u8
 }
 
 // Create the pre-requisite information needed to call `tip_new`.
-fn setup_tip<T: Trait<I>, I: Instance>(r: u32, t: u32) ->
-	Result<(T::AccountId, Vec<u8>, T::AccountId, BalanceOf<T, I>), &'static str>
-{
+fn setup_tip<T: Trait<I>, I: Instance>(
+	r: u32,
+	t: u32,
+) -> Result<(T::AccountId, Vec<u8>, T::AccountId, BalanceOf<T, I>), &'static str> {
 	let tippers_count = T::Tippers::count();
 
-	for i in 0 .. t {
+	for i in 0..t {
 		let member = account("member", i, SEED);
 		T::Tippers::add(&member);
 		ensure!(T::Tippers::contains(&member), "failed to add tipper");
@@ -77,10 +76,12 @@ fn setup_tip<T: Trait<I>, I: Instance>(r: u32, t: u32) ->
 
 // Create `t` new tips for the tip proposal with `hash`.
 // This function automatically makes the tip able to close.
-fn create_tips<T: Trait<I>, I: Instance>(t: u32, hash: T::Hash, value: BalanceOf<T, I>) ->
-	Result<(), &'static str>
-{
-	for i in 0 .. t {
+fn create_tips<T: Trait<I>, I: Instance>(
+	t: u32,
+	hash: T::Hash,
+	value: BalanceOf<T, I>,
+) -> Result<(), &'static str> {
+	for i in 0..t {
 		let caller = account("member", i, SEED);
 		ensure!(T::Tippers::contains(&caller), "caller is not a tipper");
 		Treasury::<T, I>::tip(RawOrigin::Signed(caller).into(), hash, value)?;
@@ -95,13 +96,9 @@ fn create_tips<T: Trait<I>, I: Instance>(t: u32, hash: T::Hash, value: BalanceOf
 
 // Create proposals that are approved for use in `on_initialize`.
 fn create_approved_proposals<T: Trait<I>, I: Instance>(n: u32) -> Result<(), &'static str> {
-	for i in 0 .. n {
+	for i in 0..n {
 		let (caller, value, lookup) = setup_proposal::<T, I>(i);
-		Treasury::<T, I>::propose_spend(
-			RawOrigin::Signed(caller).into(),
-			value,
-			lookup
-		)?;
+		Treasury::<T, I>::propose_spend(RawOrigin::Signed(caller).into(), value, lookup)?;
 		let proposal_id = <ProposalCount<I>>::get() - 1;
 		Treasury::<T, I>::approve_proposal(RawOrigin::Root.into(), proposal_id)?;
 	}
@@ -111,7 +108,7 @@ fn create_approved_proposals<T: Trait<I>, I: Instance>(n: u32) -> Result<(), &'s
 
 // Create bounties that are approved for use in `on_initialize`.
 fn create_approved_bounties<T: Trait<I>, I: Instance>(n: u32) -> Result<(), &'static str> {
-	for i in 0 .. n {
+	for i in 0..n {
 		let (caller, _curator, _fee, value, reason) = setup_bounty::<T, I>(i, MAX_BYTES);
 		Treasury::<T, I>::propose_bounty(RawOrigin::Signed(caller).into(), value, reason)?;
 		let bounty_id = BountyCount::<I>::get() - 1;
@@ -122,13 +119,10 @@ fn create_approved_bounties<T: Trait<I>, I: Instance>(n: u32) -> Result<(), &'st
 }
 
 // Create the pre-requisite information needed to create a treasury `propose_bounty`.
-fn setup_bounty<T: Trait<I>, I: Instance>(u: u32, d: u32) -> (
-	T::AccountId,
-	T::AccountId,
-	BalanceOf<T, I>,
-	BalanceOf<T, I>,
-	Vec<u8>,
-) {
+fn setup_bounty<T: Trait<I>, I: Instance>(
+	u: u32,
+	d: u32,
+) -> (T::AccountId, T::AccountId, BalanceOf<T, I>, BalanceOf<T, I>, Vec<u8>) {
 	let caller = account("caller", u, SEED);
 	let value: BalanceOf<T, I> = T::BountyValueMinimum::get().saturating_mul(100.into());
 	let fee = value / 2.into();
@@ -140,17 +134,20 @@ fn setup_bounty<T: Trait<I>, I: Instance>(u: u32, d: u32) -> (
 	(caller, curator, fee, value, reason)
 }
 
-fn create_bounty<T: Trait<I>, I: Instance>() -> Result<(
-	<T::Lookup as StaticLookup>::Source,
-	BountyIndex,
-), &'static str> {
+fn create_bounty<T: Trait<I>, I: Instance>(
+) -> Result<(<T::Lookup as StaticLookup>::Source, BountyIndex), &'static str> {
 	let (caller, curator, fee, value, reason) = setup_bounty::<T, I>(0, MAX_BYTES);
 	let curator_lookup = T::Lookup::unlookup(curator.clone());
 	Treasury::<T, I>::propose_bounty(RawOrigin::Signed(caller).into(), value, reason)?;
 	let bounty_id = BountyCount::<I>::get() - 1;
 	Treasury::<T, I>::approve_bounty(RawOrigin::Root.into(), bounty_id)?;
 	Treasury::<T, I>::on_initialize(T::BlockNumber::zero());
-	Treasury::<T, I>::propose_curator(RawOrigin::Root.into(), bounty_id, curator_lookup.clone(), fee)?;
+	Treasury::<T, I>::propose_curator(
+		RawOrigin::Root.into(),
+		bounty_id,
+		curator_lookup.clone(),
+		fee,
+	)?;
 	Treasury::<T, I>::accept_curator(RawOrigin::Signed(curator).into(), bounty_id)?;
 	Ok((curator_lookup, bounty_id))
 }

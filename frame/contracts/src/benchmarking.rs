@@ -19,10 +19,10 @@
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::*;
 use crate::Module as Contracts;
+use crate::*;
 
-use frame_benchmarking::{benchmarks, account};
+use frame_benchmarking::{account, benchmarks};
 use frame_system::{Module as System, RawOrigin};
 use parity_wasm::elements::FuncBody;
 use sp_runtime::traits::Hash;
@@ -31,7 +31,7 @@ macro_rules! load_module {
 	($name:expr) => {{
 		let code = include_bytes!(concat!("../fixtures/benchmarks/", $name, ".wat"));
 		compile_module::<T>(code)
-	}};
+		}};
 }
 
 fn compile_module<T: Trait>(code: &[u8]) -> (Vec<u8>, <T::Hashing as Hash>::Output) {
@@ -52,22 +52,36 @@ fn create_funded_user<T: Trait>(string: &'static str, n: u32) -> T::AccountId {
 }
 
 fn contract_with_call_body<T: Trait>(body: FuncBody) -> (Vec<u8>, <T::Hashing as Hash>::Output) {
-	use parity_wasm::elements::{
-		Instructions, Instruction::End,
-	};
+	use parity_wasm::elements::{Instruction::End, Instructions};
 	let contract = parity_wasm::builder::ModuleBuilder::new()
 		// deploy function (idx 0)
 		.function()
-			.signature().with_params(vec![]).with_return_type(None).build()
-			.body().with_instructions(Instructions::new(vec![End])).build()
-			.build()
+		.signature()
+		.with_params(vec![])
+		.with_return_type(None)
+		.build()
+		.body()
+		.with_instructions(Instructions::new(vec![End]))
+		.build()
+		.build()
 		// call function (idx 1)
 		.function()
-			.signature().with_params(vec![]).with_return_type(None).build()
-			.with_body(body)
-			.build()
-		.export().field("deploy").internal().func(0).build()
-		.export().field("call").internal().func(1).build()
+		.signature()
+		.with_params(vec![])
+		.with_return_type(None)
+		.build()
+		.with_body(body)
+		.build()
+		.export()
+		.field("deploy")
+		.internal()
+		.func(0)
+		.build()
+		.export()
+		.field("call")
+		.internal()
+		.func(1)
+		.build()
 		.build();
 	let bytes = contract.to_bytes().unwrap();
 	let hash = T::Hashing::hash(&bytes);
@@ -76,8 +90,9 @@ fn contract_with_call_body<T: Trait>(body: FuncBody) -> (Vec<u8>, <T::Hashing as
 
 fn expanded_contract<T: Trait>(target_bytes: u32) -> (Vec<u8>, <T::Hashing as Hash>::Output) {
 	use parity_wasm::elements::{
-		Instruction::{self, If, I32Const, Return, End},
-		BlockType, Instructions,
+		BlockType,
+		Instruction::{self, End, I32Const, If, Return},
+		Instructions,
 	};
 	// Base size of a contract is 47 bytes and each expansion adds 6 bytes.
 	// We do one expansion less to account for the code section and function body
@@ -85,12 +100,7 @@ fn expanded_contract<T: Trait>(target_bytes: u32) -> (Vec<u8>, <T::Hashing as Ha
 	// and therefore grow in size when the contract grows. We are not allowed to overshoot
 	// because of the maximum code size that is enforced by `put_code`.
 	let expansions = (target_bytes.saturating_sub(47) / 6).saturating_sub(1) as usize;
-	const EXPANSION: [Instruction; 4] = [
-		I32Const(0),
-		If(BlockType::NoResult),
-		Return,
-		End,
-	];
+	const EXPANSION: [Instruction; 4] = [I32Const(0), If(BlockType::NoResult), Return, End];
 	let instructions = Instructions::new(
 		EXPANSION
 			.iter()
@@ -98,7 +108,7 @@ fn expanded_contract<T: Trait>(target_bytes: u32) -> (Vec<u8>, <T::Hashing as Ha
 			.take(EXPANSION.len() * expansions)
 			.cloned()
 			.chain(sp_std::iter::once(End))
-			.collect()
+			.collect(),
 	);
 	contract_with_call_body::<T>(FuncBody::new(Vec::new(), instructions))
 }

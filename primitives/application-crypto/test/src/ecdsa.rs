@@ -16,23 +16,23 @@
 
 //! Integration tests for ecdsa
 
-use sp_runtime::generic::BlockId;
+use sp_api::ProvideRuntimeApi;
+use sp_application_crypto::ecdsa::{AppPair, AppPublic};
 use sp_core::{
 	crypto::Pair,
 	testing::{KeyStore, ECDSA},
 };
+use sp_runtime::generic::BlockId;
 use substrate_test_runtime_client::{
-	TestClientBuilder, DefaultTestClientBuilderExt, TestClientBuilderExt,
-	runtime::TestAPI,
+	runtime::TestAPI, DefaultTestClientBuilderExt, TestClientBuilder, TestClientBuilderExt,
 };
-use sp_api::ProvideRuntimeApi;
-use sp_application_crypto::ecdsa::{AppPair, AppPublic};
 
 #[test]
 fn ecdsa_works_in_runtime() {
 	let keystore = KeyStore::new();
 	let test_client = TestClientBuilder::new().set_keystore(keystore.clone()).build();
-	let (signature, public) = test_client.runtime_api()
+	let (signature, public) = test_client
+		.runtime_api()
 		.test_ecdsa_crypto(&BlockId::Number(0))
 		.expect("Tests `ecdsa` crypto.");
 

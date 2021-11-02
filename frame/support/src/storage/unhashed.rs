@@ -17,8 +17,8 @@
 
 //! Operation on unhashed runtime storage.
 
+use codec::{Decode, Encode};
 use sp_std::prelude::*;
-use codec::{Encode, Decode};
 
 /// Return the value of the item in storage under `key`, or `None` if there is no explicit entry.
 pub fn get<T: Decode + Sized>(key: &[u8]) -> Option<T> {
@@ -83,7 +83,7 @@ pub fn take_or_else<T: Decode + Sized, F: FnOnce() -> T>(key: &[u8], default_val
 
 /// Check to see if `key` has an explicit entry in storage.
 pub fn exists(key: &[u8]) -> bool {
-	sp_io::storage::read(key, &mut [0;0][..], 0).is_some()
+	sp_io::storage::read(key, &mut [0; 0][..], 0).is_some()
 }
 
 /// Ensure `key` has no explicit entry in storage.

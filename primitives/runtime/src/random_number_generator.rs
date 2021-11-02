@@ -18,8 +18,8 @@
 //! A simple pseudo random number generator that allows a stream of random numbers to be efficiently
 //! created from a single initial seed hash.
 
-use codec::{Encode, Decode};
 use crate::traits::{Hash, TrailingZeroInput};
+use codec::{Decode, Encode};
 
 /// Pseudo-random number streamer. This retains the state of the random number stream. It's as
 /// secure as the combination of the seed with which it is constructed and the hash function it uses
@@ -52,13 +52,12 @@ pub struct RandomNumberGenerator<Hashing: Hash> {
 impl<Hashing: Hash> RandomNumberGenerator<Hashing> {
 	/// A new source of random data.
 	pub fn new(seed: Hashing::Output) -> Self {
-		Self {
-			current: seed,
-			offset: 0,
-		}
+		Self { current: seed, offset: 0 }
 	}
 
-	fn offset(&self) -> usize { self.offset as usize }
+	fn offset(&self) -> usize {
+		self.offset as usize
+	}
 
 	/// Returns a number at least zero, at most `max`.
 	pub fn pick_u32(&mut self, max: u32) -> u32 {
@@ -74,11 +73,7 @@ impl<Hashing: Hash> RandomNumberGenerator<Hashing> {
 			self.offset += needed as u32;
 			let raw = u32::decode(&mut TrailingZeroInput::new(data)).unwrap_or(0);
 			if raw <= top {
-				break if max < u32::max_value() {
-					raw % (max + 1)
-				} else {
-					raw
-				}
+				break if max < u32::max_value() { raw % (max + 1) } else { raw }
 			}
 		}
 	}

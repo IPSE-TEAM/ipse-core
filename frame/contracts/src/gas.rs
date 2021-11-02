@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Substrate. If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{Trait, exec::ExecError};
-use sp_std::marker::PhantomData;
-use sp_runtime::traits::Zero;
+use crate::{exec::ExecError, Trait};
 use frame_support::dispatch::{
-	DispatchResultWithPostInfo, PostDispatchInfo, DispatchErrorWithPostInfo,
+	DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo,
 };
+use sp_runtime::traits::Zero;
+use sp_std::marker::PhantomData;
 
 #[cfg(test)]
 use std::{any::Any, fmt::Debug};
@@ -120,10 +120,8 @@ impl<T: Trait> GasMeter<T> {
 		#[cfg(test)]
 		{
 			// Unconditionally add the token to the storage.
-			let erased_tok = ErasedToken {
-				description: format!("{:?}", token),
-				token: Box::new(token),
-			};
+			let erased_tok =
+				ErasedToken { description: format!("{:?}", token), token: Box::new(token) };
 			self.tokens.push(erased_tok);
 		}
 
@@ -257,7 +255,9 @@ mod tests {
 	struct SimpleToken(u64);
 	impl Token<Test> for SimpleToken {
 		type Metadata = ();
-		fn calculate_amount(&self, _metadata: &()) -> u64 { self.0 }
+		fn calculate_amount(&self, _metadata: &()) -> u64 {
+			self.0
+		}
 	}
 
 	struct MultiplierTokenMetadata {
@@ -286,8 +286,8 @@ mod tests {
 	fn simple() {
 		let mut gas_meter = GasMeter::<Test>::new(50000);
 
-		let result = gas_meter
-			.charge(&MultiplierTokenMetadata { multiplier: 3 }, MultiplierToken(10));
+		let result =
+			gas_meter.charge(&MultiplierTokenMetadata { multiplier: 3 }, MultiplierToken(10));
 		assert!(!result.is_out_of_gas());
 
 		assert_eq!(gas_meter.gas_left(), 49_970);
@@ -327,7 +327,6 @@ mod tests {
 		// The gas meter is emptied at this moment, so this should also fail.
 		assert!(gas_meter.charge(&(), SimpleToken(1)).is_out_of_gas());
 	}
-
 
 	// Charging the exact amount that the user paid for should be
 	// possible.

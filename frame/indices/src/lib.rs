@@ -20,26 +20,25 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use codec::Codec;
-use sp_runtime::traits::{
-	StaticLookup, Member, LookupError, Zero, Saturating, AtLeast32Bit
-};
-use frame_support::{Parameter, decl_module, decl_error, decl_event, decl_storage, ensure};
-use frame_support::dispatch::DispatchResult;
-use frame_support::traits::{Currency, ReservableCurrency, Get, BalanceStatus::Reserved};
-use frame_support::weights::Weight;
-use frame_system::{ensure_signed, ensure_root};
 use self::address::Address as RawAddress;
+use codec::Codec;
+use frame_support::dispatch::DispatchResult;
+use frame_support::traits::{BalanceStatus::Reserved, Currency, Get, ReservableCurrency};
+use frame_support::weights::Weight;
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
+use frame_system::{ensure_root, ensure_signed};
+use sp_runtime::traits::{AtLeast32Bit, LookupError, Member, Saturating, StaticLookup, Zero};
+use sp_std::prelude::*;
 
-mod mock;
 pub mod address;
-mod tests;
 mod benchmarking;
 mod default_weights;
+mod mock;
+mod tests;
 
 pub type Address<T> = RawAddress<<T as frame_system::Trait>::AccountId, <T as Trait>::AccountIndex>;
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 pub trait WeightInfo {
 	fn claim() -> Weight;
@@ -295,7 +294,7 @@ impl<T: Trait> Module<T> {
 
 	/// Lookup an address to get an Id, if there's one there.
 	pub fn lookup_address(
-		a: address::Address<T::AccountId, T::AccountIndex>
+		a: address::Address<T::AccountId, T::AccountIndex>,
 	) -> Option<T::AccountId> {
 		match a {
 			address::Address::Id(i) => Some(i),

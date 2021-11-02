@@ -57,7 +57,6 @@
 //!
 //! // the combination of the two makes the election result.
 //! let election_result = ElectionResult { winners, assignments };
-//!
 //! ```
 //!
 //! The `Assignment` field of the election result is voter-major, i.e. it is from the perspective of
@@ -74,36 +73,36 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::{
-	prelude::*, collections::btree_map::BTreeMap, fmt::Debug, cmp::Ordering, rc::Rc, cell::RefCell,
-};
 use sp_arithmetic::{
-	PerThing, Rational128, ThresholdOrd, InnerOf, Normalizable,
-	traits::{Zero, Bounded},
+	traits::{Bounded, Zero},
+	InnerOf, Normalizable, PerThing, Rational128, ThresholdOrd,
+};
+use sp_std::{
+	cell::RefCell, cmp::Ordering, collections::btree_map::BTreeMap, fmt::Debug, prelude::*, rc::Rc,
 };
 
 #[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
+use codec::{Decode, Encode};
 #[cfg(feature = "std")]
-use codec::{Encode, Decode};
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 mod mock;
 #[cfg(test)]
 mod tests;
 
-mod phragmen;
 mod balancing;
-mod phragmms;
-mod node;
-mod reduce;
 mod helpers;
+mod node;
+mod phragmen;
+mod phragmms;
+mod reduce;
 
-pub use reduce::reduce;
+pub use balancing::*;
 pub use helpers::*;
 pub use phragmen::*;
 pub use phragmms::*;
-pub use balancing::*;
+pub use reduce::reduce;
 
 // re-export the compact macro, with the dependencies of the macro.
 #[doc(hidden)]
@@ -244,11 +243,19 @@ impl<AccountId: IdentifierT> Voter<AccountId> {
 	{
 		let who = self.who;
 		let budget = self.budget;
-		let distribution = self.edges.into_iter().filter_map(|e| {
-			let per_thing = P::from_rational_approximation(e.weight, budget);
-			// trim zero edges.
-			if per_thing.is_zero() { None } else { Some((e.who, per_thing)) }
-		}).collect::<Vec<_>>();
+		let distribution = self
+			.edges
+			.into_iter()
+			.filter_map(|e| {
+				let per_thing = P::from_rational_approximation(e.weight, budget);
+				// trim zero edges.
+				if per_thing.is_zero() {
+					None
+				} else {
+					Some((e.who, per_thing))
+				}
+			})
+			.collect::<Vec<_>>();
 
 		if distribution.len() > 0 {
 			Some(Assignment { who, distribution })
@@ -348,7 +355,8 @@ where
 	where
 		P: sp_std::ops::Mul<ExtendedBalance, Output = ExtendedBalance>,
 	{
-		let distribution = self.distribution
+		let distribution = self
+			.distribution
 			.into_iter()
 			.filter_map(|(target, p)| {
 				// if this ratio is zero, then skip it.
@@ -363,10 +371,7 @@ where
 			})
 			.collect::<Vec<(AccountId, ExtendedBalance)>>();
 
-		StakedAssignment {
-			who: self.who,
-			distribution,
-		}
+		StakedAssignment { who: self.who, distribution }
 	}
 
 	/// Try and normalize this assignment.
@@ -380,17 +385,15 @@ where
 	/// this crate may statically assert that this can never happen and safely `expect` this to
 	/// return `Ok`.
 	pub fn try_normalize(&mut self) -> Result<(), &'static str> {
-		self.distribution
-			.iter()
-			.map(|(_, p)| *p)
-			.collect::<Vec<_>>()
-			.normalize(P::one())
-			.map(|normalized_ratios|
-				self.distribution
-					.iter_mut()
-					.zip(normalized_ratios)
-					.for_each(|((_, old), corrected)| { *old = corrected; })
-			)
+		self.distribution.iter().map(|(_, p)| *p).collect::<Vec<_>>().normalize(P::one()).map(
+			|normalized_ratios| {
+				self.distribution.iter_mut().zip(normalized_ratios).for_each(
+					|((_, old), corrected)| {
+						*old = corrected;
+					},
+				)
+			},
+		)
 	}
 }
 
@@ -424,7 +427,8 @@ impl<AccountId> StakedAssignment<AccountId> {
 		AccountId: IdentifierT,
 	{
 		let stake = self.total();
-		let distribution = self.distribution
+		let distribution = self
+			.distribution
 			.into_iter()
 			.filter_map(|(target, w)| {
 				let per_thing = P::from_rational_approximation(w, stake);
@@ -436,10 +440,7 @@ impl<AccountId> StakedAssignment<AccountId> {
 			})
 			.collect::<Vec<(AccountId, P)>>();
 
-		Assignment {
-			who: self.who,
-			distribution,
-		}
+		Assignment { who: self.who, distribution }
 	}
 
 	/// Try and normalize this assignment.
@@ -458,12 +459,13 @@ impl<AccountId> StakedAssignment<AccountId> {
 			.map(|(_, ref weight)| *weight)
 			.collect::<Vec<_>>()
 			.normalize(stake)
-			.map(|normalized_weights|
-				self.distribution
-					.iter_mut()
-					.zip(normalized_weights.into_iter())
-					.for_each(|((_, weight), corrected)| { *weight = corrected; })
-			)
+			.map(|normalized_weights| {
+				self.distribution.iter_mut().zip(normalized_weights.into_iter()).for_each(
+					|((_, weight), corrected)| {
+						*weight = corrected;
+					},
+				)
+			})
 	}
 
 	/// Get the total stake of this assignment (aka voter budget).
@@ -525,14 +527,15 @@ pub type SupportMap<A> = BTreeMap<A, Support<A>>;
 pub fn build_support_map<AccountId>(
 	winners: &[AccountId],
 	assignments: &[StakedAssignment<AccountId>],
-) -> Result<SupportMap<AccountId>, AccountId> where
+) -> Result<SupportMap<AccountId>, AccountId>
+where
 	AccountId: IdentifierT,
 {
 	// Initialize the support of each candidate.
 	let mut supports = <SupportMap<AccountId>>::new();
-	winners
-		.iter()
-		.for_each(|e| { supports.insert(e.clone(), Default::default()); });
+	winners.iter().for_each(|e| {
+		supports.insert(e.clone(), Default::default());
+	});
 
 	// build support struct.
 	for StakedAssignment { who, distribution } in assignments.iter() {
@@ -555,9 +558,7 @@ pub fn build_support_map<AccountId>(
 /// - Sum of all supports squared. This value must be **minimized**.
 ///
 /// `O(E)` where `E` is the total number of edges.
-pub fn evaluate_support<AccountId>(
-	support: &SupportMap<AccountId>,
-) -> ElectionScore {
+pub fn evaluate_support<AccountId>(support: &SupportMap<AccountId>) -> ElectionScore {
 	let mut min_support = ExtendedBalance::max_value();
 	let mut sum: ExtendedBalance = Zero::zero();
 	// NOTE: The third element might saturate but fine for now since this will run on-chain and need
@@ -582,15 +583,13 @@ pub fn evaluate_support<AccountId>(
 ///
 /// Note that the third component should be minimized.
 pub fn is_score_better<P: PerThing>(this: ElectionScore, that: ElectionScore, epsilon: P) -> bool
-	where ExtendedBalance: From<sp_arithmetic::InnerOf<P>>
+where
+	ExtendedBalance: From<sp_arithmetic::InnerOf<P>>,
 {
 	match this
 		.iter()
 		.enumerate()
-		.map(|(i, e)| (
-			e.ge(&that[i]),
-			e.tcmp(&that[i], epsilon.mul_ceil(that[i])),
-		))
+		.map(|(i, e)| (e.ge(&that[i]), e.tcmp(&that[i], epsilon.mul_ceil(that[i]))))
 		.collect::<Vec<(bool, Ordering)>>()
 		.as_slice()
 	{
@@ -629,34 +628,30 @@ pub(crate) fn setup_inputs<AccountId: IdentifierT>(
 		})
 		.collect::<Vec<CandidatePtr<AccountId>>>();
 
-	let voters = initial_voters.into_iter().map(|(who, voter_stake, votes)| {
-		let mut edges: Vec<Edge<AccountId>> = Vec::with_capacity(votes.len());
-		for v in votes {
-			if edges.iter().any(|e| e.who == v) {
-				// duplicate edge.
-				continue;
-			}
-			if let Some(idx) = c_idx_cache.get(&v) {
-				// This candidate is valid + already cached.
-				let mut candidate = candidates[*idx].borrow_mut();
-				candidate.approval_stake =
-					candidate.approval_stake.saturating_add(voter_stake.into());
-				edges.push(
-					Edge {
+	let voters = initial_voters
+		.into_iter()
+		.map(|(who, voter_stake, votes)| {
+			let mut edges: Vec<Edge<AccountId>> = Vec::with_capacity(votes.len());
+			for v in votes {
+				if edges.iter().any(|e| e.who == v) {
+					// duplicate edge.
+					continue
+				}
+				if let Some(idx) = c_idx_cache.get(&v) {
+					// This candidate is valid + already cached.
+					let mut candidate = candidates[*idx].borrow_mut();
+					candidate.approval_stake =
+						candidate.approval_stake.saturating_add(voter_stake.into());
+					edges.push(Edge {
 						who: v.clone(),
 						candidate: Rc::clone(&candidates[*idx]),
 						..Default::default()
-					}
-				);
-			} // else {} would be wrong votes. We don't really care about it.
-		}
-		Voter {
-			who,
-			edges: edges,
-			budget: voter_stake.into(),
-			load: Rational128::zero(),
-		}
-	}).collect::<Vec<_>>();
+					});
+				} // else {} would be wrong votes. We don't really care about it.
+			}
+			Voter { who, edges, budget: voter_stake.into(), load: Rational128::zero() }
+		})
+		.collect::<Vec<_>>();
 
-	(candidates, voters,)
+	(candidates, voters)
 }

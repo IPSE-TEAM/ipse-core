@@ -80,7 +80,8 @@ pub struct BenchmarkCmd {
 	#[structopt(long)]
 	pub no_verify: bool,
 
-	/// Display and run extra benchmarks that would otherwise not be needed for weight construction.
+	/// Display and run extra benchmarks that would otherwise not be needed for weight
+	/// construction.
 	#[structopt(long)]
 	pub extra: bool,
 

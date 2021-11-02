@@ -21,7 +21,10 @@ use sc_network::{
 	config::{NetworkConfiguration, NodeKeyConfig, NonReservedPeerMode, TransportConfig},
 	multiaddr::Protocol,
 };
-use sc_service::{ChainSpec, config::{Multiaddr, MultiaddrWithPeerId}};
+use sc_service::{
+	config::{Multiaddr, MultiaddrWithPeerId},
+	ChainSpec,
+};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -81,11 +84,7 @@ pub struct NetworkParams {
 	///
 	/// This allows downloading announced blocks from multiple peers. Decrease to save
 	/// traffic and risk increased latency.
-	#[structopt(
-		long = "max-parallel-downloads",
-		value_name = "COUNT",
-		default_value = "5"
-	)]
+	#[structopt(long = "max-parallel-downloads", value_name = "COUNT", default_value = "5")]
 	pub max_parallel_downloads: u32,
 
 	#[allow(missing_docs)]

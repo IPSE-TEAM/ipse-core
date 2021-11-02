@@ -55,15 +55,12 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::{prelude::*, convert::TryInto};
-use sp_runtime::traits::Hash;
-use frame_support::{
-	decl_module, decl_storage, traits::Randomness,
-	weights::Weight
-};
-use safe_mix::TripletMix;
 use codec::Encode;
+use frame_support::{decl_module, decl_storage, traits::Randomness, weights::Weight};
 use frame_system::Trait;
+use safe_mix::TripletMix;
+use sp_runtime::traits::Hash;
+use sp_std::{convert::TryInto, prelude::*};
 
 const RANDOM_MATERIAL_LEN: u32 = 81;
 
@@ -117,7 +114,8 @@ impl<T: Trait> Randomness<T::Hash> for Module<T> {
 		let hash_series = <RandomMaterial<T>>::get();
 		if !hash_series.is_empty() {
 			// Always the case after block 1 is initialized.
-			hash_series.iter()
+			hash_series
+				.iter()
 				.cycle()
 				.skip(index)
 				.take(RANDOM_MATERIAL_LEN as usize)
@@ -133,14 +131,16 @@ impl<T: Trait> Randomness<T::Hash> for Module<T> {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use frame_support::{
+		impl_outer_origin, parameter_types,
+		traits::{OnInitialize, Randomness},
+		weights::Weight,
+	};
 	use sp_core::H256;
 	use sp_runtime::{
-		Perbill,
 		testing::Header,
 		traits::{BlakeTwo256, Header as _, IdentityLookup},
-	};
-	use frame_support::{
-		impl_outer_origin, parameter_types, weights::Weight, traits::{Randomness, OnInitialize},
+		Perbill,
 	};
 
 	#[derive(Clone, PartialEq, Eq)]
@@ -195,7 +195,7 @@ mod tests {
 
 	#[test]
 	fn test_block_number_to_index() {
-		for i in 1 .. 1000 {
+		for i in 1..1000 {
 			assert_eq!((i - 1) as usize % 81, block_number_to_index::<Test>(i));
 		}
 	}
@@ -203,7 +203,7 @@ mod tests {
 	fn setup_blocks(blocks: u64) {
 		let mut parent_hash = System::parent_hash();
 
-		for i in 1 .. (blocks + 1) {
+		for i in 1..(blocks + 1) {
 			System::initialize(
 				&i,
 				&parent_hash,

@@ -18,9 +18,9 @@
 
 //! Light client components.
 
+use sp_core::traits::{CodeExecutor, SpawnNamed};
 use sp_runtime::traits::{Block as BlockT, HashFor};
 use std::sync::Arc;
-use sp_core::traits::{CodeExecutor, SpawnNamed};
 
 pub mod backend;
 pub mod blockchain;
@@ -35,8 +35,8 @@ pub fn new_fetch_checker<E, B: BlockT, S: BlockchainStorage<B>>(
 	executor: E,
 	spawn_handle: Box<dyn SpawnNamed>,
 ) -> LightDataChecker<E, HashFor<B>, B, S>
-	where
-		E: CodeExecutor,
+where
+	E: CodeExecutor,
 {
 	LightDataChecker::new(blockchain, executor, spawn_handle)
 }
@@ -48,9 +48,9 @@ pub fn new_light_blockchain<B: BlockT, S: BlockchainStorage<B>>(storage: S) -> A
 
 /// Create an instance of light client backend.
 pub fn new_light_backend<B, S>(blockchain: Arc<Blockchain<S>>) -> Arc<Backend<S, HashFor<B>>>
-	where
-		B: BlockT,
-		S: BlockchainStorage<B>,
+where
+	B: BlockT,
+	S: BlockchainStorage<B>,
 {
 	Arc::new(Backend::new(blockchain))
 }

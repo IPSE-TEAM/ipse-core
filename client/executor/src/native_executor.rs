@@ -17,18 +17,24 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	RuntimeInfo, error::{Error, Result},
+	error::{Error, Result},
 	wasm_runtime::{RuntimeCache, WasmExecutionMethod},
+	RuntimeInfo,
+};
+use codec::{Decode, Encode};
+use log::trace;
+use sc_executor_common::wasm_runtime::WasmInstance;
+use sp_core::{
+	traits::{CodeExecutor, Externalities, MissingHostFunctions, RuntimeCode},
+	NativeOrEncoded,
 };
 use sp_version::{NativeVersion, RuntimeVersion};
-use codec::{Decode, Encode};
-use sp_core::{
-	NativeOrEncoded, traits::{CodeExecutor, Externalities, RuntimeCode, MissingHostFunctions},
+use sp_wasm_interface::{Function, HostFunctions};
+use std::{
+	panic::{AssertUnwindSafe, UnwindSafe},
+	result,
+	sync::Arc,
 };
-use log::trace;
-use std::{result, panic::{UnwindSafe, AssertUnwindSafe}, sync::Arc};
-use sp_wasm_interface::{HostFunctions, Function};
-use sc_executor_common::wasm_runtime::WasmInstance;
 
 /// Default num of pages for the heap
 const DEFAULT_HEAP_PAGES: u64 = 1024;
@@ -37,25 +43,23 @@ const DEFAULT_HEAP_PAGES: u64 = 1024;
 ///
 /// If the inner closure panics, it will be caught and return an error.
 pub fn with_externalities_safe<F, U>(ext: &mut dyn Externalities, f: F) -> Result<U>
-	where F: UnwindSafe + FnOnce() -> U
+where
+	F: UnwindSafe + FnOnce() -> U,
 {
-	sp_externalities::set_and_run_with_externalities(
-		ext,
-		move || {
-			// Substrate uses custom panic hook that terminates process on panic. Disable
-			// termination for the native call.
-			let _guard = sp_panic_handler::AbortGuard::force_unwind();
-			std::panic::catch_unwind(f).map_err(|e| {
-				if let Some(err) = e.downcast_ref::<String>() {
-					Error::RuntimePanicked(err.clone())
-				} else if let Some(err) = e.downcast_ref::<&'static str>() {
-					Error::RuntimePanicked(err.to_string())
-				} else {
-					Error::RuntimePanicked("Unknown panic".into())
-				}
-			})
-		},
-	)
+	sp_externalities::set_and_run_with_externalities(ext, move || {
+		// Substrate uses custom panic hook that terminates process on panic. Disable
+		// termination for the native call.
+		let _guard = sp_panic_handler::AbortGuard::force_unwind();
+		std::panic::catch_unwind(f).map_err(|e| {
+			if let Some(err) = e.downcast_ref::<String>() {
+				Error::RuntimePanicked(err.clone())
+			} else if let Some(err) = e.downcast_ref::<&'static str>() {
+				Error::RuntimePanicked(err.to_string())
+			} else {
+				Error::RuntimePanicked("Unknown panic".into())
+			}
+		})
+	})
 }
 
 /// Delegate for dispatching a CodeExecutor call.
@@ -135,7 +139,8 @@ impl WasmExecutor {
 		allow_missing_host_functions: bool,
 		f: F,
 	) -> Result<R>
-		where F: FnOnce(
+	where
+		F: FnOnce(
 			AssertUnwindSafe<&dyn WasmInstance>,
 			Option<&RuntimeVersion>,
 			AssertUnwindSafe<&mut dyn Externalities>,
@@ -152,7 +157,7 @@ impl WasmExecutor {
 				let instance = AssertUnwindSafe(instance);
 				let ext = AssertUnwindSafe(ext);
 				f(instance, version, ext)
-			}
+			},
 		)? {
 			Ok(r) => r,
 			Err(e) => Err(e),
@@ -180,11 +185,9 @@ impl sp_core::traits::CallInWasm for WasmExecutor {
 			};
 
 			self.with_instance(&code, ext, allow_missing_host_functions, |instance, _, mut ext| {
-				with_externalities_safe(
-					&mut **ext,
-					move || instance.call(method, call_data),
-				)
-			}).map_err(|e| e.to_string())
+				with_externalities_safe(&mut **ext, move || instance.call(method, call_data))
+			})
+			.map_err(|e| e.to_string())
 		} else {
 			let module = crate::wasm_runtime::create_wasm_runtime_with_code(
 				self.method,
@@ -193,20 +196,17 @@ impl sp_core::traits::CallInWasm for WasmExecutor {
 				self.host_functions.to_vec(),
 				allow_missing_host_functions,
 			)
-				.map_err(|e| format!("Failed to create module: {:?}", e))?;
+			.map_err(|e| format!("Failed to create module: {:?}", e))?;
 
-			let instance = module.new_instance()
-				.map_err(|e| format!("Failed to create instance: {:?}", e))?;
+			let instance =
+				module.new_instance().map_err(|e| format!("Failed to create instance: {:?}", e))?;
 
 			let instance = AssertUnwindSafe(instance);
 			let mut ext = AssertUnwindSafe(ext);
 
-			with_externalities_safe(
-				&mut **ext,
-				move || instance.call(method, call_data),
-			)
-			.and_then(|r| r)
-			.map_err(|e| e.to_string())
+			with_externalities_safe(&mut **ext, move || instance.call(method, call_data))
+				.and_then(|r| r)
+				.map_err(|e| e.to_string())
 		}
 	}
 }
@@ -265,13 +265,9 @@ impl<D: NativeExecutionDispatch> RuntimeInfo for NativeExecutor<D> {
 		ext: &mut dyn Externalities,
 		runtime_code: &RuntimeCode,
 	) -> Result<RuntimeVersion> {
-		self.wasm.with_instance(
-			runtime_code,
-			ext,
-			false,
-			|_instance, version, _ext|
-				Ok(version.cloned().ok_or_else(|| Error::ApiError("Unknown version".into()))),
-		)
+		self.wasm.with_instance(runtime_code, ext, false, |_instance, version, _ext| {
+			Ok(version.cloned().ok_or_else(|| Error::ApiError("Unknown version".into())))
+		})
 	}
 }
 
@@ -296,9 +292,8 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 			ext,
 			false,
 			|instance, onchain_version, mut ext| {
-				let onchain_version = onchain_version.ok_or_else(
-					|| Error::ApiError("Unknown version".into())
-				)?;
+				let onchain_version =
+					onchain_version.ok_or_else(|| Error::ApiError("Unknown version".into()))?;
 				match (
 					use_native,
 					onchain_version.can_call_with(&self.native_version.runtime_version),
@@ -312,17 +307,13 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 							onchain_version,
 						);
 
-						with_externalities_safe(
-							&mut **ext,
-							move || instance.call(method, data).map(NativeOrEncoded::Encoded)
-						)
-					}
-					(false, _, _) => {
-						with_externalities_safe(
-							&mut **ext,
-							move || instance.call(method, data).map(NativeOrEncoded::Encoded)
-						)
+						with_externalities_safe(&mut **ext, move || {
+							instance.call(method, data).map(NativeOrEncoded::Encoded)
+						})
 					},
+					(false, _, _) => with_externalities_safe(&mut **ext, move || {
+						instance.call(method, data).map(NativeOrEncoded::Encoded)
+					}),
 					(true, true, Some(call)) => {
 						trace!(
 							target: "executor",
@@ -333,14 +324,13 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 						);
 
 						used_native = true;
-						let res = with_externalities_safe(&mut **ext, move || (call)())
-							.and_then(|r| r
-								.map(NativeOrEncoded::Native)
-								.map_err(|s| Error::ApiError(s))
-							);
+						let res =
+							with_externalities_safe(&mut **ext, move || (call)()).and_then(|r| {
+								r.map(NativeOrEncoded::Native).map_err(|s| Error::ApiError(s))
+							});
 
 						Ok(res)
-					}
+					},
 					_ => {
 						trace!(
 							target: "executor",
@@ -351,9 +341,9 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 
 						used_native = true;
 						Ok(D::dispatch(&mut **ext, method, data).map(NativeOrEncoded::Encoded))
-					}
+					},
 				}
-			}
+			},
 		);
 		(result, used_native)
 	}
@@ -420,7 +410,6 @@ impl<D: NativeExecutionDispatch> sp_core::traits::CallInWasm for NativeExecutor<
 ///
 /// When you have multiple interfaces, you can give the host functions as a tuple e.g.:
 /// `(my_interface::HostFunctions, my_interface2::HostFunctions)`
-///
 #[macro_export]
 macro_rules! native_executor_instance {
 	( $pub:vis $name:ident, $dispatcher:path, $version:path $(,)?) => {
@@ -478,16 +467,9 @@ mod tests {
 
 	#[test]
 	fn native_executor_registers_custom_interface() {
-		let executor = NativeExecutor::<MyExecutor>::new(
-			WasmExecutionMethod::Interpreted,
-			None,
-			8,
-		);
+		let executor = NativeExecutor::<MyExecutor>::new(WasmExecutionMethod::Interpreted, None, 8);
 		my_interface::HostFunctions::host_functions().iter().for_each(|function| {
-			assert_eq!(
-				executor.wasm.host_functions.iter().filter(|f| f == &function).count(),
-				2,
-			);
+			assert_eq!(executor.wasm.host_functions.iter().filter(|f| f == &function).count(), 2,);
 		});
 
 		my_interface::say_hello_world("hey");

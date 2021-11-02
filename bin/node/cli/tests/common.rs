@@ -18,11 +18,16 @@
 
 #![cfg(unix)]
 
-use std::{process::{Child, ExitStatus}, thread, time::Duration, path::Path};
 use assert_cmd::cargo::cargo_bin;
-use std::{convert::TryInto, process::Command};
 use nix::sys::signal::{kill, Signal::SIGINT};
 use nix::unistd::Pid;
+use std::{convert::TryInto, process::Command};
+use std::{
+	path::Path,
+	process::{Child, ExitStatus},
+	thread,
+	time::Duration,
+};
 
 /// Wait for the given `child` the given number of `secs`.
 ///
@@ -50,12 +55,7 @@ pub fn wait_for(child: &mut Child, secs: usize) -> Option<ExitStatus> {
 pub fn run_dev_node_for_a_while(base_path: &Path) {
 	let mut cmd = Command::new(cargo_bin("substrate"));
 
-	let mut cmd = cmd
-		.args(&["--dev"])
-		.arg("-d")
-		.arg(base_path)
-		.spawn()
-		.unwrap();
+	let mut cmd = cmd.args(&["--dev"]).arg("-d").arg(base_path).spawn().unwrap();
 
 	// Let it produce some blocks.
 	thread::sleep(Duration::from_secs(30));

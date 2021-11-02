@@ -19,18 +19,18 @@
 
 #![cfg(test)]
 
-use sp_runtime::testing::Header;
-use sp_runtime::Perbill;
-use sp_core::H256;
-use frame_support::{impl_outer_origin, impl_outer_event, parameter_types, weights::Weight};
 use crate::{self as indices, Module, Trait};
+use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
 use frame_system as system;
 use pallet_balances as balances;
+use sp_core::H256;
+use sp_runtime::testing::Header;
+use sp_runtime::Perbill;
 
-impl_outer_origin!{
+impl_outer_origin! {
 	pub enum Origin for Test where system = frame_system {}
 }
-impl_outer_event!{
+impl_outer_event! {
 	pub enum MetaEvent for Test {
 		system<T>,
 		balances<T>,
@@ -105,9 +105,11 @@ impl Trait for Test {
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	pallet_balances::GenesisConfig::<Test>{
+	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![(1, 10), (2, 20), (3, 30), (4, 40), (5, 50), (6, 60)],
-	}.assimilate_storage(&mut t).unwrap();
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	t.into()
 }
 

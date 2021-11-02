@@ -17,10 +17,10 @@
 
 //! Some utilities for helping access storage with arbitrary key types.
 
-use sp_std::prelude::*;
-use codec::{Encode, Decode};
-use crate::{StorageHasher, Twox128};
 use crate::hash::ReversibleStorageHasher;
+use crate::{StorageHasher, Twox128};
+use codec::{Decode, Encode};
+use sp_std::prelude::*;
 
 /// Utility to iterate through raw items in storage.
 pub struct StorageIterator<T> {
@@ -70,10 +70,10 @@ impl<T: Decode + Sized> Iterator for StorageIterator<T> {
 								frame_support::storage::unhashed::kill(&next);
 							}
 							Some((self.previous_key[self.prefix.len()..].to_vec(), value))
-						}
+						},
 						None => continue,
 					}
-				}
+				},
 				None => None,
 			}
 		}
@@ -133,13 +133,13 @@ impl<K: Decode + Sized, T: Decode + Sized, H: ReversibleStorageHasher> Iterator
 										frame_support::storage::unhashed::kill(&next);
 									}
 									Some((key, value))
-								}
+								},
 								None => continue,
 							}
-						}
+						},
 						Err(_) => continue,
 					}
-				}
+				},
 				None => None,
 			}
 		}

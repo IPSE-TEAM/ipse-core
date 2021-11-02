@@ -18,9 +18,9 @@
 //! A number type that can be serialized both as a number or a string that encodes a number in a
 //! string.
 
-use std::{convert::TryFrom, fmt::Debug};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use sp_core::U256;
+use std::{convert::TryFrom, fmt::Debug};
 
 /// A number type that can be serialized both as a number or a string that encodes a number in a
 /// string.
@@ -69,7 +69,7 @@ impl TryFrom<NumberOrHex> for u32 {
 	fn try_from(num_or_hex: NumberOrHex) -> Result<u32, TryFromIntError> {
 		let num_or_hex = num_or_hex.into_u256();
 		if num_or_hex > U256::from(u32::max_value()) {
-			return Err(TryFromIntError(()));
+			return Err(TryFromIntError(()))
 		} else {
 			Ok(num_or_hex.as_u32())
 		}
@@ -81,7 +81,7 @@ impl TryFrom<NumberOrHex> for u64 {
 	fn try_from(num_or_hex: NumberOrHex) -> Result<u64, TryFromIntError> {
 		let num_or_hex = num_or_hex.into_u256();
 		if num_or_hex > U256::from(u64::max_value()) {
-			return Err(TryFromIntError(()));
+			return Err(TryFromIntError(()))
 		} else {
 			Ok(num_or_hex.as_u64())
 		}

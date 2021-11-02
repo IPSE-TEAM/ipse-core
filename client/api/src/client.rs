@@ -16,19 +16,19 @@
 
 //! A set of APIs supported by the client along with their primitives.
 
-use std::{fmt, collections::HashSet, sync::Arc, convert::TryFrom};
+use sp_consensus::BlockOrigin;
 use sp_core::storage::StorageKey;
 use sp_runtime::{
-	traits::{Block as BlockT, NumberFor},
 	generic::{BlockId, SignedBlock},
+	traits::{Block as BlockT, NumberFor},
 	Justification,
 };
-use sp_consensus::BlockOrigin;
+use std::{collections::HashSet, convert::TryFrom, fmt, sync::Arc};
 
 use crate::blockchain::Info;
 use crate::notifications::StorageEventStream;
-use sp_utils::mpsc::TracingUnboundedReceiver;
 use sp_blockchain;
+use sp_utils::mpsc::TracingUnboundedReceiver;
 
 /// Type that implements `futures::Stream` of block import events.
 pub type ImportNotifications<Block> = TracingUnboundedReceiver<BlockImportNotification<Block>>;
@@ -79,14 +79,15 @@ pub trait BlockBackend<Block: BlockT> {
 	/// Get block body by ID. Returns `None` if the body is not stored.
 	fn block_body(
 		&self,
-		id: &BlockId<Block>
+		id: &BlockId<Block>,
 	) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>>;
 
 	/// Get full block by id.
 	fn block(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<SignedBlock<Block>>>;
 
 	/// Get block status.
-	fn block_status(&self, id: &BlockId<Block>) -> sp_blockchain::Result<sp_consensus::BlockStatus>;
+	fn block_status(&self, id: &BlockId<Block>)
+		-> sp_blockchain::Result<sp_consensus::BlockStatus>;
 
 	/// Get block justification set by id.
 	fn justification(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Justification>>;
@@ -98,8 +99,11 @@ pub trait BlockBackend<Block: BlockT> {
 /// Provide a list of potential uncle headers for a given block.
 pub trait ProvideUncles<Block: BlockT> {
 	/// Gets the uncles of the block with `target_hash` going back `max_generation` ancestors.
-	fn uncles(&self, target_hash: Block::Hash, max_generation: NumberFor<Block>)
-		-> sp_blockchain::Result<Vec<Block::Header>>;
+	fn uncles(
+		&self,
+		target_hash: Block::Hash,
+		max_generation: NumberFor<Block>,
+	) -> sp_blockchain::Result<Vec<Block::Header>>;
 }
 
 /// Client info
@@ -257,10 +261,7 @@ impl<B: BlockT> TryFrom<BlockImportNotification<B>> for sp_transaction_pool::Cha
 
 	fn try_from(n: BlockImportNotification<B>) -> Result<Self, ()> {
 		if n.is_new_best {
-			Ok(Self::NewBestBlock {
-				hash: n.hash,
-				tree_route: n.tree_route,
-			})
+			Ok(Self::NewBestBlock { hash: n.hash, tree_route: n.tree_route })
 		} else {
 			Err(())
 		}
@@ -269,8 +270,6 @@ impl<B: BlockT> TryFrom<BlockImportNotification<B>> for sp_transaction_pool::Cha
 
 impl<B: BlockT> From<FinalityNotification<B>> for sp_transaction_pool::ChainEvent<B> {
 	fn from(n: FinalityNotification<B>) -> Self {
-		Self::Finalized {
-			hash: n.hash,
-		}
+		Self::Finalized { hash: n.hash }
 	}
 }

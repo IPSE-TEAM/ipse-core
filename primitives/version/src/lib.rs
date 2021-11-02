@@ -20,20 +20,20 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
-#[cfg(feature = "std")]
-use std::fmt;
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "std")]
 use std::collections::HashSet;
+#[cfg(feature = "std")]
+use std::fmt;
 
-use codec::{Encode, Decode};
-use sp_runtime::RuntimeString;
+use codec::{Decode, Encode};
 pub use sp_runtime::create_runtime_str;
+use sp_runtime::RuntimeString;
 #[doc(hidden)]
 pub use sp_std;
 
 #[cfg(feature = "std")]
-use sp_runtime::{traits::Block as BlockT, generic::BlockId};
+use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 
 /// The identity of a particular API interface that the runtime might provide.
 pub type ApiId = [u8; 8];
@@ -44,14 +44,17 @@ pub type ApisVec = sp_std::borrow::Cow<'static, [(ApiId, u32)]>;
 /// Create a vector of Api declarations.
 #[macro_export]
 macro_rules! create_apis_vec {
-	( $y:expr ) => { $crate::sp_std::borrow::Cow::Borrowed(& $y) }
+	( $y:expr ) => {
+		$crate::sp_std::borrow::Cow::Borrowed(&$y)
+	};
 }
 
 /// Runtime version.
 /// This should not be thought of as classic Semver (major/minor/tiny).
 /// This triplet have different semantics and mis-interpretation could cause problems.
-/// In particular: bug fixes should result in an increment of `spec_version` and possibly `authoring_version`,
-/// absolutely not `impl_version` since they change the semantics of the runtime.
+/// In particular: bug fixes should result in an increment of `spec_version` and possibly
+/// `authoring_version`, absolutely not `impl_version` since they change the semantics of the
+/// runtime.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, Default, sp_runtime::RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
@@ -99,9 +102,9 @@ pub struct RuntimeVersion {
 	/// number changes, then `spec_version` must change, also.
 	///
 	/// This number must change when an existing dispatchable (module ID, dispatch ID) is changed,
-	/// either through an alteration in its user-level semantics, a parameter added/removed/changed,
-	/// a dispatchable being removed, a module being removed, or a dispatchable/module changing its
-	/// index.
+	/// either through an alteration in its user-level semantics, a parameter
+	/// added/removed/changed, a dispatchable being removed, a module being removed, or a
+	/// dispatchable/module changing its index.
 	///
 	/// It need *not* change when a new module is added or when a dispatchable is added.
 	pub transaction_version: u32,
@@ -110,7 +113,9 @@ pub struct RuntimeVersion {
 #[cfg(feature = "std")]
 impl fmt::Display for RuntimeVersion {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}-{} ({}-{}.tx{}.au{})",
+		write!(
+			f,
+			"{}-{} ({}-{}.tx{}.au{})",
 			self.spec_name,
 			self.spec_version,
 			self.impl_name,
@@ -126,17 +131,13 @@ impl RuntimeVersion {
 	/// Check if this version matches other version for calling into runtime.
 	pub fn can_call_with(&self, other: &RuntimeVersion) -> bool {
 		self.spec_version == other.spec_version &&
-		self.spec_name == other.spec_name &&
-		self.authoring_version == other.authoring_version
+			self.spec_name == other.spec_name &&
+			self.authoring_version == other.authoring_version
 	}
 
 	/// Check if the given api with `api_id` is implemented and the version passes the given
 	/// `predicate`.
-	pub fn has_api_with<P: Fn(u32) -> bool>(
-		&self,
-		id: &ApiId,
-		predicate: P,
-	) -> bool {
+	pub fn has_api_with<P: Fn(u32) -> bool>(&self, id: &ApiId, predicate: P) -> bool {
 		self.apis.iter().any(|(s, v)| s == id && predicate(*v))
 	}
 }
@@ -162,11 +163,10 @@ impl NativeVersion {
 		if self.runtime_version.spec_name != other.spec_name {
 			Err(format!(
 				"`spec_name` does not match `{}` vs `{}`",
-				self.runtime_version.spec_name,
-				other.spec_name,
+				self.runtime_version.spec_name, other.spec_name,
 			))
-		} else if self.runtime_version.authoring_version != other.authoring_version
-			&& !self.can_author_with.contains(&other.authoring_version)
+		} else if self.runtime_version.authoring_version != other.authoring_version &&
+			!self.can_author_with.contains(&other.authoring_version)
 		{
 			Err(format!(
 				"`authoring_version` does not match `{version}` vs `{other_version}` and \
@@ -205,15 +205,13 @@ impl<T: GetRuntimeVersion<Block>, Block: BlockT> GetRuntimeVersion<Block> for st
 mod apis_serialize {
 	use super::*;
 	use impl_serde::serialize as bytes;
-	use serde::{Serializer, de, ser::SerializeTuple};
+	use serde::{de, ser::SerializeTuple, Serializer};
 
 	#[derive(Serialize)]
-	struct ApiId<'a>(
-		#[serde(serialize_with="serialize_bytesref")] &'a super::ApiId,
-		&'a u32,
-	);
+	struct ApiId<'a>(#[serde(serialize_with = "serialize_bytesref")] &'a super::ApiId, &'a u32);
 
-	pub fn serialize<S>(apis: &ApisVec, ser: S) -> Result<S::Ok, S::Error> where
+	pub fn serialize<S>(apis: &ApisVec, ser: S) -> Result<S::Ok, S::Error>
+	where
 		S: Serializer,
 	{
 		let len = apis.len();
@@ -224,20 +222,18 @@ mod apis_serialize {
 		seq.end()
 	}
 
-	pub fn serialize_bytesref<S>(&apis: &&super::ApiId, ser: S) -> Result<S::Ok, S::Error> where
+	pub fn serialize_bytesref<S>(&apis: &&super::ApiId, ser: S) -> Result<S::Ok, S::Error>
+	where
 		S: Serializer,
 	{
 		bytes::serialize(apis, ser)
 	}
 
 	#[derive(Deserialize)]
-	struct ApiIdOwned(
-		#[serde(deserialize_with="deserialize_bytes")]
-		super::ApiId,
-		u32,
-	);
+	struct ApiIdOwned(#[serde(deserialize_with = "deserialize_bytes")] super::ApiId, u32);
 
-	pub fn deserialize<'de, D>(deserializer: D) -> Result<ApisVec, D::Error> where
+	pub fn deserialize<'de, D>(deserializer: D) -> Result<ApisVec, D::Error>
+	where
 		D: de::Deserializer<'de>,
 	{
 		struct Visitor;
@@ -248,7 +244,8 @@ mod apis_serialize {
 				formatter.write_str("a sequence of api id and version tuples")
 			}
 
-			fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where
+			fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
+			where
 				V: de::SeqAccess<'de>,
 			{
 				let mut apis = Vec::new();
@@ -261,8 +258,9 @@ mod apis_serialize {
 		deserializer.deserialize_seq(Visitor)
 	}
 
-	pub fn deserialize_bytes<'de, D>(d: D) -> Result<super::ApiId, D::Error> where
-		D: de::Deserializer<'de>
+	pub fn deserialize_bytes<'de, D>(d: D) -> Result<super::ApiId, D::Error>
+	where
+		D: de::Deserializer<'de>,
 	{
 		let mut arr = [0; 8];
 		bytes::deserialize_check_len(d, bytes::ExpectedLen::Exact(&mut arr[..]))?;

@@ -17,33 +17,29 @@
 
 //! Test implementation for Externalities.
 
-use std::any::{Any, TypeId};
-use codec::Decode;
-use hash_db::Hasher;
 use crate::{
-	backend::Backend, OverlayedChanges, StorageTransactionCache, ext::Ext, InMemoryBackend,
-	StorageKey, StorageValue,
+	backend::Backend,
 	changes_trie::{
-		Configuration as ChangesTrieConfiguration,
-		InMemoryStorage as ChangesTrieInMemoryStorage,
-		BlockNumber as ChangesTrieBlockNumber,
-		State as ChangesTrieState,
+		BlockNumber as ChangesTrieBlockNumber, Configuration as ChangesTrieConfiguration,
+		InMemoryStorage as ChangesTrieInMemoryStorage, State as ChangesTrieState,
 	},
+	ext::Ext,
+	InMemoryBackend, OverlayedChanges, StorageKey, StorageTransactionCache, StorageValue,
 };
+use codec::Decode;
+use codec::Encode;
+use hash_db::Hasher;
 use sp_core::{
-	offchain::{
-		testing::TestPersistentOffchainDB,
-		storage::OffchainOverlayedChanges
-	},
+	offchain::{storage::OffchainOverlayedChanges, testing::TestPersistentOffchainDB},
 	storage::{
-		well_known_keys::{CHANGES_TRIE_CONFIG, CODE, HEAP_PAGES, is_child_storage_key},
+		well_known_keys::{is_child_storage_key, CHANGES_TRIE_CONFIG, CODE, HEAP_PAGES},
 		Storage,
 	},
-	traits::TaskExecutorExt,
 	testing::TaskExecutor,
+	traits::TaskExecutorExt,
 };
-use codec::Encode;
-use sp_externalities::{Extensions, Extension};
+use sp_externalities::{Extension, Extensions};
+use std::any::{Any, TypeId};
 
 /// Simple HashMap-based Externalities impl.
 pub struct TestExternalities<H: Hasher, N: ChangesTrieBlockNumber = u64>
@@ -53,9 +49,8 @@ where
 	overlay: OverlayedChanges,
 	offchain_overlay: OffchainOverlayedChanges,
 	offchain_db: TestPersistentOffchainDB,
-	storage_transaction_cache: StorageTransactionCache<
-		<InMemoryBackend<H> as Backend<H>>::Transaction, H, N
-	>,
+	storage_transaction_cache:
+		StorageTransactionCache<<InMemoryBackend<H> as Backend<H>>::Transaction, H, N>,
 	backend: InMemoryBackend<H>,
 	changes_trie_config: Option<ChangesTrieConfiguration>,
 	changes_trie_storage: ChangesTrieInMemoryStorage<H, N>,
@@ -63,8 +58,8 @@ where
 }
 
 impl<H: Hasher, N: ChangesTrieBlockNumber> TestExternalities<H, N>
-	where
-		H::Out: Ord + 'static + codec::Codec
+where
+	H::Out: Ord + 'static + codec::Codec,
 {
 	/// Get externalities implementation.
 	pub fn ext(&mut self) -> Ext<H, N, InMemoryBackend<H>> {
@@ -98,8 +93,8 @@ impl<H: Hasher, N: ChangesTrieBlockNumber> TestExternalities<H, N>
 	/// Create a new instance of `TestExternalities` with code and storage.
 	pub fn new_with_code(code: &[u8], mut storage: Storage) -> Self {
 		let mut overlay = OverlayedChanges::default();
-		let changes_trie_config = storage.top.get(CHANGES_TRIE_CONFIG)
-			.and_then(|v| Decode::decode(&mut &v[..]).ok());
+		let changes_trie_config =
+			storage.top.get(CHANGES_TRIE_CONFIG).and_then(|v| Decode::decode(&mut &v[..]).ok());
 		overlay.set_collect_extrinsics(changes_trie_config.is_some());
 
 		assert!(storage.top.keys().all(|key| !is_child_storage_key(key)));
@@ -154,17 +149,14 @@ impl<H: Hasher, N: ChangesTrieBlockNumber> TestExternalities<H, N>
 
 	/// Return a new backend with all pending value.
 	pub fn commit_all(&self) -> InMemoryBackend<H> {
-		let top: Vec<_> = self.overlay.changes()
-			.map(|(k, v)| (k.clone(), v.value().cloned()))
-			.collect();
+		let top: Vec<_> =
+			self.overlay.changes().map(|(k, v)| (k.clone(), v.value().cloned())).collect();
 		let mut transaction = vec![(None, top)];
 
 		for (child_changes, child_info) in self.overlay.children() {
 			transaction.push((
 				Some(child_info.clone()),
-				child_changes
-					.map(|(k, v)| (k.clone(), v.value().cloned()))
-					.collect(),
+				child_changes.map(|(k, v)| (k.clone(), v.value().cloned())).collect(),
 			))
 		}
 
@@ -181,7 +173,8 @@ impl<H: Hasher, N: ChangesTrieBlockNumber> TestExternalities<H, N>
 }
 
 impl<H: Hasher, N: ChangesTrieBlockNumber> std::fmt::Debug for TestExternalities<H, N>
-	where H::Out: Ord + codec::Codec,
+where
+	H::Out: Ord + codec::Codec,
 {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		write!(f, "overlay: {:?}\nbackend: {:?}", self.overlay, self.backend.pairs())
@@ -189,8 +182,8 @@ impl<H: Hasher, N: ChangesTrieBlockNumber> std::fmt::Debug for TestExternalities
 }
 
 impl<H: Hasher, N: ChangesTrieBlockNumber> PartialEq for TestExternalities<H, N>
-	where
-		H::Out: Ord + 'static + codec::Codec
+where
+	H::Out: Ord + 'static + codec::Codec,
 {
 	/// This doesn't test if they are in the same state, only if they contains the
 	/// same data at this state
@@ -200,22 +193,25 @@ impl<H: Hasher, N: ChangesTrieBlockNumber> PartialEq for TestExternalities<H, N>
 }
 
 impl<H: Hasher, N: ChangesTrieBlockNumber> Default for TestExternalities<H, N>
-	where
-		H::Out: Ord + 'static + codec::Codec,
+where
+	H::Out: Ord + 'static + codec::Codec,
 {
-	fn default() -> Self { Self::new(Default::default()) }
+	fn default() -> Self {
+		Self::new(Default::default())
+	}
 }
 
 impl<H: Hasher, N: ChangesTrieBlockNumber> From<Storage> for TestExternalities<H, N>
-	where
-		H::Out: Ord + 'static + codec::Codec,
+where
+	H::Out: Ord + 'static + codec::Codec,
 {
 	fn from(storage: Storage) -> Self {
 		Self::new(storage)
 	}
 }
 
-impl<H, N> sp_externalities::ExtensionStore for TestExternalities<H, N> where
+impl<H, N> sp_externalities::ExtensionStore for TestExternalities<H, N>
+where
 	H: Hasher,
 	H::Out: Ord + codec::Codec,
 	N: ChangesTrieBlockNumber,
@@ -232,7 +228,10 @@ impl<H, N> sp_externalities::ExtensionStore for TestExternalities<H, N> where
 		self.extensions.register_with_type_id(type_id, extension)
 	}
 
-	fn deregister_extension_by_type_id(&mut self, type_id: TypeId) -> Result<(), sp_externalities::Error> {
+	fn deregister_extension_by_type_id(
+		&mut self,
+		type_id: TypeId,
+	) -> Result<(), sp_externalities::Error> {
 		if self.extensions.deregister(type_id) {
 			Ok(())
 		} else {
@@ -244,9 +243,9 @@ impl<H, N> sp_externalities::ExtensionStore for TestExternalities<H, N> where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sp_core::{H256, traits::Externalities};
-	use sp_runtime::traits::BlakeTwo256;
 	use hex_literal::hex;
+	use sp_core::{traits::Externalities, H256};
+	use sp_runtime::traits::BlakeTwo256;
 
 	#[test]
 	fn commit_should_work() {
@@ -255,7 +254,8 @@ mod tests {
 		ext.set_storage(b"doe".to_vec(), b"reindeer".to_vec());
 		ext.set_storage(b"dog".to_vec(), b"puppy".to_vec());
 		ext.set_storage(b"dogglesworth".to_vec(), b"cat".to_vec());
-		let root = H256::from(hex!("2a340d3dfd52f5992c6b117e9e45f479e6da5afffafeb26ab619cf137a95aeb8"));
+		let root =
+			H256::from(hex!("2a340d3dfd52f5992c6b117e9e45f479e6da5afffafeb26ab619cf137a95aeb8"));
 		assert_eq!(H256::from_slice(ext.storage_root().as_slice()), root);
 	}
 
@@ -273,6 +273,6 @@ mod tests {
 	#[test]
 	fn check_send() {
 		fn assert_send<T: Send>() {}
-		assert_send::<TestExternalities::<BlakeTwo256, u64>>();
+		assert_send::<TestExternalities<BlakeTwo256, u64>>();
 	}
 }

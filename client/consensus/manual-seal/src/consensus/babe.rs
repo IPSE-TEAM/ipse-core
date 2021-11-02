@@ -21,30 +21,30 @@
 use super::ConsensusDataProvider;
 use crate::Error;
 
+use sc_client_api::AuxStore;
+use sc_consensus_babe::{
+	authorship, register_babe_inherent_data_provider, BabeIntermediate, CompatibleDigestItem,
+	Config, Epoch, INTERMEDIATE_KEY,
+};
+use sc_consensus_epochs::{descendent_query, SharedEpochChanges};
+use sc_keystore::KeyStorePtr;
 use std::{
 	any::Any,
 	borrow::Cow,
-	sync::{Arc, atomic},
+	sync::{atomic, Arc},
 	time::SystemTime,
 };
-use sc_client_api::AuxStore;
-use sc_consensus_babe::{
-	Config, Epoch, authorship, CompatibleDigestItem, BabeIntermediate,
-	register_babe_inherent_data_provider, INTERMEDIATE_KEY,
-};
-use sc_consensus_epochs::{SharedEpochChanges, descendent_query};
-use sc_keystore::KeyStorePtr;
 
 use sp_api::{ProvideRuntimeApi, TransactionFor};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
 use sp_consensus::BlockImportParams;
-use sp_consensus_babe::{BabeApi, inherents::BabeInherentData};
-use sp_inherents::{InherentDataProviders, InherentData, ProvideInherentData, InherentIdentifier};
+use sp_consensus_babe::{inherents::BabeInherentData, BabeApi};
+use sp_inherents::{InherentData, InherentDataProviders, InherentIdentifier, ProvideInherentData};
 use sp_runtime::{
-	traits::{DigestItemFor, DigestFor, Block as BlockT, Header as _},
 	generic::Digest,
+	traits::{Block as BlockT, DigestFor, DigestItemFor, Header as _},
 };
-use sp_timestamp::{InherentType, InherentError, INHERENT_IDENTIFIER};
+use sp_timestamp::{InherentError, InherentType, INHERENT_IDENTIFIER};
 
 /// Provides BABE-compatible predigests and BlockImportParams.
 /// Intended for use with BABE runtimes.
@@ -63,10 +63,10 @@ pub struct BabeConsensusDataProvider<B: BlockT, C> {
 }
 
 impl<B, C> BabeConsensusDataProvider<B, C>
-	where
-		B: BlockT,
-		C: AuxStore + ProvideRuntimeApi<B>,
-		C::Api: BabeApi<B, Error = sp_blockchain::Error>,
+where
+	B: BlockT,
+	C: AuxStore + ProvideRuntimeApi<B>,
+	C::Api: BabeApi<B, Error = sp_blockchain::Error>,
 {
 	pub fn new(
 		client: Arc<C>,
@@ -80,24 +80,26 @@ impl<B, C> BabeConsensusDataProvider<B, C>
 		provider.register_provider(timestamp_provider)?;
 		register_babe_inherent_data_provider(provider, config.slot_duration)?;
 
-		Ok(Self {
-			config,
-			client,
-			keystore,
-			epoch_changes,
-		})
+		Ok(Self { config, client, keystore, epoch_changes })
 	}
 }
 
 impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
-	where
-		B: BlockT,
-		C: AuxStore + HeaderBackend<B> + HeaderMetadata<B, Error = sp_blockchain::Error> + ProvideRuntimeApi<B>,
-		C::Api: BabeApi<B, Error = sp_blockchain::Error>,
+where
+	B: BlockT,
+	C: AuxStore
+		+ HeaderBackend<B>
+		+ HeaderMetadata<B, Error = sp_blockchain::Error>
+		+ ProvideRuntimeApi<B>,
+	C::Api: BabeApi<B, Error = sp_blockchain::Error>,
 {
 	type Transaction = TransactionFor<C, B>;
 
-	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error> {
+	fn create_digest(
+		&self,
+		parent: &B::Header,
+		inherents: &InherentData,
+	) -> Result<DigestFor<B>, Error> {
 		let slot_number = inherents.babe_inherent_data()?;
 
 		let epoch_changes = self.epoch_changes.lock();
@@ -112,10 +114,7 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 			.ok_or_else(|| sp_consensus::Error::InvalidAuthoritiesSet)?;
 
 		let epoch = epoch_changes
-			.viable_epoch(
-				&epoch_descriptor,
-				|slot| Epoch::genesis(&self.config, slot),
-			)
+			.viable_epoch(&epoch_descriptor, |slot| Epoch::genesis(&self.config, slot))
 			.ok_or_else(|| {
 				log::info!(target: "babe", "create_digest: no viable_epoch :(");
 				sp_consensus::Error::InvalidAuthoritiesSet
@@ -126,9 +125,7 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 			.ok_or_else(|| Error::StringError("failed to claim slot for authorship".into()))?;
 
 		Ok(Digest {
-			logs: vec![
-				<DigestItemFor<B> as CompatibleDigestItem>::babe_pre_digest(predigest),
-			],
+			logs: vec![<DigestItemFor<B> as CompatibleDigestItem>::babe_pre_digest(predigest)],
 		})
 	}
 
@@ -136,11 +133,13 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 		&self,
 		parent: &B::Header,
 		params: &mut BlockImportParams<B, Self::Transaction>,
-		inherents: &InherentData
+		inherents: &InherentData,
 	) -> Result<(), Error> {
 		let slot_number = inherents.babe_inherent_data()?;
 
-		let epoch_descriptor = self.epoch_changes.lock()
+		let epoch_descriptor = self
+			.epoch_changes
+			.lock()
 			.epoch_descriptor_for_child_of(
 				descendent_query(&*self.client),
 				&parent.hash(),
@@ -163,19 +162,17 @@ impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 /// Mocks the timestamp inherent to always produce the timestamp for the next babe slot.
 struct SlotTimestampProvider {
 	time: atomic::AtomicU64,
-	slot_duration: u64
+	slot_duration: u64,
 }
 
 impl SlotTimestampProvider {
 	/// create a new mocked time stamp provider.
 	fn new(slot_duration: u64) -> Result<Self, Error> {
 		let now = SystemTime::now();
-		let duration = now.duration_since(SystemTime::UNIX_EPOCH)
+		let duration = now
+			.duration_since(SystemTime::UNIX_EPOCH)
 			.map_err(|err| Error::StringError(format!("{}", err)))?;
-		Ok(Self {
-			time: atomic::AtomicU64::new(duration.as_millis() as u64),
-			slot_duration,
-		})
+		Ok(Self { time: atomic::AtomicU64::new(duration.as_millis() as u64), slot_duration })
 	}
 }
 
@@ -184,9 +181,13 @@ impl ProvideInherentData for SlotTimestampProvider {
 		&INHERENT_IDENTIFIER
 	}
 
-	fn provide_inherent_data(&self, inherent_data: &mut InherentData) -> Result<(), sp_inherents::Error> {
+	fn provide_inherent_data(
+		&self,
+		inherent_data: &mut InherentData,
+	) -> Result<(), sp_inherents::Error> {
 		// we update the time here.
-		let duration: InherentType = self.time.fetch_add(self.slot_duration, atomic::Ordering::SeqCst);
+		let duration: InherentType =
+			self.time.fetch_add(self.slot_duration, atomic::Ordering::SeqCst);
 		inherent_data.put_data(INHERENT_IDENTIFIER, &duration)?;
 		Ok(())
 	}

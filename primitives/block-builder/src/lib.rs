@@ -21,7 +21,7 @@
 
 use sp_runtime::{traits::Block as BlockT, ApplyExtrinsicResult};
 
-use sp_inherents::{InherentData, CheckInherentsResult};
+use sp_inherents::{CheckInherentsResult, InherentData};
 
 sp_api::decl_runtime_apis! {
 	/// The `BlockBuilder` api trait that provides the required functionality for building a block.

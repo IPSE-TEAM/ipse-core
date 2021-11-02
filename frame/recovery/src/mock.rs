@@ -19,16 +19,18 @@
 
 use super::*;
 
+use crate as recovery;
 use frame_support::{
-	impl_outer_origin, impl_outer_dispatch, impl_outer_event, parameter_types,
+	impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types,
+	traits::{OnFinalize, OnInitialize},
 	weights::Weight,
-	traits::{OnInitialize, OnFinalize},
 };
 use sp_core::H256;
 use sp_runtime::{
-	Perbill, traits::{BlakeTwo256, IdentityLookup}, testing::Header,
+	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
+	Perbill,
 };
-use crate as recovery;
 
 impl_outer_origin! {
 	pub enum Origin for Test where system = frame_system {}
@@ -128,7 +130,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_balances::GenesisConfig::<Test> {
 		balances: vec![(1, 100), (2, 100), (3, 100), (4, 100), (5, 100)],
-	}.assimilate_storage(&mut t).unwrap();
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	t.into()
 }
 

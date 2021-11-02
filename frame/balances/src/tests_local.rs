@@ -19,21 +19,17 @@
 
 #![cfg(test)]
 
-use sp_runtime::{
-	Perbill,
-	traits::IdentityLookup,
-	testing::Header,
-};
+use crate::{decl_tests, tests::CallWithDispatchInfo, GenesisConfig, Module, Trait};
+use frame_support::traits::{Get, StorageMapShim};
+use frame_support::weights::{DispatchInfo, IdentityFee, Weight};
+use frame_support::{impl_outer_event, impl_outer_origin, parameter_types};
 use sp_core::H256;
 use sp_io;
-use frame_support::{impl_outer_origin, impl_outer_event, parameter_types};
-use frame_support::traits::{Get, StorageMapShim};
-use frame_support::weights::{Weight, DispatchInfo, IdentityFee};
+use sp_runtime::{testing::Header, traits::IdentityLookup, Perbill};
 use std::cell::RefCell;
-use crate::{GenesisConfig, Module, Trait, decl_tests, tests::CallWithDispatchInfo};
 
 use frame_system as system;
-impl_outer_origin!{
+impl_outer_origin! {
 	pub enum Origin for Test {}
 }
 
@@ -54,7 +50,9 @@ thread_local! {
 
 pub struct ExistentialDeposit;
 impl Get<u64> for ExistentialDeposit {
-	fn get() -> u64 { EXISTENTIAL_DEPOSIT.with(|v| *v.borrow()) }
+	fn get() -> u64 {
+		EXISTENTIAL_DEPOSIT.with(|v| *v.borrow())
+	}
 }
 
 // Workaround for https://github.com/rust-lang/rust/issues/26925 . Remove when sorted.
@@ -115,7 +113,8 @@ impl Trait for Test {
 		super::Account<Test>,
 		system::CallOnCreatedAccount<Test>,
 		system::CallKillAccount<Test>,
-		u64, super::AccountData<u64>
+		u64,
+		super::AccountData<u64>,
 	>;
 	type MaxLocks = MaxLocks;
 	type WeightInfo = ();
@@ -127,10 +126,7 @@ pub struct ExtBuilder {
 }
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self {
-			existential_deposit: 1,
-			monied: false,
-		}
+		Self { existential_deposit: 1, monied: false }
 	}
 }
 impl ExtBuilder {
@@ -158,12 +154,14 @@ impl ExtBuilder {
 					(2, 20 * self.existential_deposit),
 					(3, 30 * self.existential_deposit),
 					(4, 40 * self.existential_deposit),
-					(12, 10 * self.existential_deposit)
+					(12, 10 * self.existential_deposit),
 				]
 			} else {
 				vec![]
 			},
-		}.assimilate_storage(&mut t).unwrap();
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
@@ -171,38 +169,35 @@ impl ExtBuilder {
 	}
 }
 
-decl_tests!{ Test, ExtBuilder, EXISTENTIAL_DEPOSIT }
+decl_tests! { Test, ExtBuilder, EXISTENTIAL_DEPOSIT }
 
 #[test]
 fn emit_events_with_no_existential_deposit_suicide_with_dust() {
-	<ExtBuilder>::default()
-		.existential_deposit(0)
-		.build()
-		.execute_with(|| {
-			assert_ok!(Balances::set_balance(RawOrigin::Root.into(), 1, 100, 0));
+	<ExtBuilder>::default().existential_deposit(0).build().execute_with(|| {
+		assert_ok!(Balances::set_balance(RawOrigin::Root.into(), 1, 100, 0));
 
-			assert_eq!(
-				events(),
-				[
-					Event::system(system::RawEvent::NewAccount(1)),
-					Event::balances(RawEvent::Endowed(1, 100)),
-					Event::balances(RawEvent::BalanceSet(1, 100, 0)),
-				]
-			);
+		assert_eq!(
+			events(),
+			[
+				Event::system(system::RawEvent::NewAccount(1)),
+				Event::balances(RawEvent::Endowed(1, 100)),
+				Event::balances(RawEvent::BalanceSet(1, 100, 0)),
+			]
+		);
 
-			let _ = Balances::slash(&1, 99);
+		let _ = Balances::slash(&1, 99);
 
-			// no events
-			assert_eq!(events(), []);
+		// no events
+		assert_eq!(events(), []);
 
-			assert_ok!(System::suicide(Origin::signed(1)));
+		assert_ok!(System::suicide(Origin::signed(1)));
 
-			assert_eq!(
-				events(),
-				[
-					Event::balances(RawEvent::DustLost(1, 1)),
-					Event::system(system::RawEvent::KilledAccount(1))
-				]
-			);
-		});
+		assert_eq!(
+			events(),
+			[
+				Event::balances(RawEvent::DustLost(1, 1)),
+				Event::system(system::RawEvent::KilledAccount(1))
+			]
+		);
+	});
 }

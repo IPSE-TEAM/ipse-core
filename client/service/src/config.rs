@@ -18,18 +18,27 @@
 
 //! Service configuration.
 
-pub use sc_client_db::{Database, PruningMode, DatabaseSettingsSrc as DatabaseConfig};
-pub use sc_network::Multiaddr;
-pub use sc_network::config::{ExtTransport, MultiaddrWithPeerId, NetworkConfiguration, Role, NodeKeyConfig};
-pub use sc_executor::WasmExecutionMethod;
 use sc_client_api::execution_extensions::ExecutionStrategies;
+pub use sc_client_db::{Database, DatabaseSettingsSrc as DatabaseConfig, PruningMode};
+pub use sc_executor::WasmExecutionMethod;
+pub use sc_network::config::{
+	ExtTransport, MultiaddrWithPeerId, NetworkConfiguration, NodeKeyConfig, Role,
+};
+pub use sc_network::Multiaddr;
 
-use std::{io, future::Future, path::{PathBuf, Path}, pin::Pin, net::SocketAddr, sync::Arc};
-pub use sc_transaction_pool::txpool::Options as TransactionPoolOptions;
-use sc_chain_spec::ChainSpec;
-use sp_core::crypto::SecretString;
-pub use sc_telemetry::TelemetryEndpoints;
 use prometheus_endpoint::Registry;
+use sc_chain_spec::ChainSpec;
+pub use sc_telemetry::TelemetryEndpoints;
+pub use sc_transaction_pool::txpool::Options as TransactionPoolOptions;
+use sp_core::crypto::SecretString;
+use std::{
+	future::Future,
+	io,
+	net::SocketAddr,
+	path::{Path, PathBuf},
+	pin::Pin,
+	sync::Arc,
+};
 #[cfg(not(target_os = "unknown"))]
 use tempfile::TempDir;
 
@@ -93,7 +102,8 @@ pub struct Configuration {
 	pub disable_grandpa: bool,
 	/// Development key seed.
 	///
-	/// When running in development mode, the seed will be used to generate authority keys by the keystore.
+	/// When running in development mode, the seed will be used to generate authority keys by the
+	/// keystore.
 	///
 	/// Should only be set when `node` is running development mode.
 	pub dev_key_seed: Option<String>,
@@ -130,7 +140,7 @@ pub enum KeystoreConfig {
 		/// The path of the keystore.
 		path: PathBuf,
 		/// Node keystore's password.
-		password: Option<SecretString>
+		password: Option<SecretString>,
 	},
 	/// In-memory keystore. Recommended for in-browser nodes.
 	InMemory,
@@ -171,7 +181,7 @@ impl PrometheusConfig {
 		Self {
 			port,
 			registry: Registry::new_custom(Some("substrate".into()), None)
-				.expect("this can only fail if the prefix is empty")
+				.expect("this can only fail if the prefix is empty"),
 		}
 	}
 }
@@ -224,9 +234,7 @@ impl BasePath {
 	/// instance is dropped.
 	#[cfg(not(target_os = "unknown"))]
 	pub fn new_temp_dir() -> io::Result<BasePath> {
-		Ok(BasePath::Temporary(
-			tempfile::Builder::new().prefix("substrate").tempdir()?,
-		))
+		Ok(BasePath::Temporary(tempfile::Builder::new().prefix("substrate").tempdir()?))
 	}
 
 	/// Create a `BasePath` instance based on an existing path on disk.

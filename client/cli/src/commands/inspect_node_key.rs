@@ -18,8 +18,8 @@
 //! Implementation of the `inspect-node-key` subcommand
 
 use crate::{Error, NetworkSchemeFlag};
+use libp2p::identity::{ed25519, PublicKey};
 use std::fs;
-use libp2p::identity::{PublicKey, ed25519};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -42,10 +42,10 @@ pub struct InspectNodeKeyCmd {
 impl InspectNodeKeyCmd {
 	/// runs the command
 	pub fn run(&self) -> Result<(), Error> {
-		let mut file_content = hex::decode(fs::read(&self.file)?)
-			.map_err(|_| "failed to decode secret as hex")?;
-		let secret = ed25519::SecretKey::from_bytes(&mut file_content)
-			.map_err(|_| "Bad node key file")?;
+		let mut file_content =
+			hex::decode(fs::read(&self.file)?).map_err(|_| "failed to decode secret as hex")?;
+		let secret =
+			ed25519::SecretKey::from_bytes(&mut file_content).map_err(|_| "Bad node key file")?;
 
 		let keypair = ed25519::Keypair::from(secret);
 		let peer_id = PublicKey::Ed25519(keypair.public()).into_peer_id();
@@ -58,8 +58,8 @@ impl InspectNodeKeyCmd {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
 	use super::super::GenerateNodeKeyCmd;
+	use super::*;
 
 	#[test]
 	fn inspect_node_key() {

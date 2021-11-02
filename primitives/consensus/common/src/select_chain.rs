@@ -17,7 +17,6 @@
 use crate::error::Error;
 use sp_runtime::traits::{Block as BlockT, NumberFor};
 
-
 /// The SelectChain trait defines the strategy upon which the head is chosen
 /// if multiple forks are present for an opaque definition of "best" in the
 /// specific chain build.
@@ -33,7 +32,6 @@ use sp_runtime::traits::{Block as BlockT, NumberFor};
 ///
 /// Non-deterministically finalizing chains may only use the `_authoring` functions.
 pub trait SelectChain<Block: BlockT>: Sync + Send + Clone {
-
 	/// Get all leaves of the chain: block hashes that have no children currently.
 	/// Leaves that can never be finalized will not be returned.
 	fn leaves(&self) -> Result<Vec<<Block as BlockT>::Hash>, Error>;
@@ -48,7 +46,7 @@ pub trait SelectChain<Block: BlockT>: Sync + Send + Clone {
 	fn finality_target(
 		&self,
 		target_hash: <Block as BlockT>::Hash,
-		_maybe_max_number: Option<NumberFor<Block>>
+		_maybe_max_number: Option<NumberFor<Block>>,
 	) -> Result<Option<<Block as BlockT>::Hash>, Error> {
 		Ok(Some(target_hash))
 	}

@@ -15,8 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::{Encode, Decode};
-use crate::{Trait, Module};
+use crate::{Module, Trait};
+use codec::{Decode, Encode};
 use sp_runtime::{
 	traits::{SignedExtension, Zero},
 	transaction_validity::TransactionValidityError,

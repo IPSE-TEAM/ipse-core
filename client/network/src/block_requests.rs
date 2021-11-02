@@ -22,50 +22,44 @@
 
 #![allow(unused)]
 
-use bytes::Bytes;
-use codec::{Encode, Decode};
 use crate::{
 	chain::Client,
 	config::ProtocolId,
-	protocol::{message::{self, BlockAttributes}},
+	protocol::message::{self, BlockAttributes},
 	schema,
 };
+use bytes::Bytes;
+use codec::{Decode, Encode};
 use futures::{future::BoxFuture, prelude::*, stream::FuturesUnordered};
 use futures_timer::Delay;
 use libp2p::{
 	core::{
-		ConnectedPoint,
-		Multiaddr,
-		PeerId,
 		connection::ConnectionId,
-		upgrade::{InboundUpgrade, OutboundUpgrade, ReadOneError, UpgradeInfo, Negotiated},
-		upgrade::{DeniedUpgrade, read_one, write_one}
+		upgrade::{read_one, write_one, DeniedUpgrade},
+		upgrade::{InboundUpgrade, Negotiated, OutboundUpgrade, ReadOneError, UpgradeInfo},
+		ConnectedPoint, Multiaddr, PeerId,
 	},
 	swarm::{
-		NegotiatedSubstream,
-		NetworkBehaviour,
-		NetworkBehaviourAction,
-		NotifyHandler,
-		OneShotHandler,
-		OneShotHandlerConfig,
-		PollParameters,
-		SubstreamProtocol
-	}
+		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler,
+		OneShotHandler, OneShotHandlerConfig, PollParameters, SubstreamProtocol,
+	},
 };
 use prost::Message;
-use sp_runtime::{generic::BlockId, traits::{Block, Header, One, Zero}};
+use sp_runtime::{
+	generic::BlockId,
+	traits::{Block, Header, One, Zero},
+};
 use std::{
 	cmp::min,
 	collections::{HashMap, VecDeque},
-	io,
-	iter,
+	io, iter,
 	marker::PhantomData,
 	pin::Pin,
 	sync::Arc,
+	task::{Context, Poll},
 	time::Duration,
-	task::{Context, Poll}
 };
-use void::{Void, unreachable};
+use void::{unreachable, Void};
 use wasm_timer::Instant;
 
 // Type alias for convenience.
@@ -112,7 +106,7 @@ pub enum Event<B: Block> {
 		original_request: message::BlockRequest<B>,
 		/// Time elapsed between the start of the request and the timeout.
 		request_duration: Duration,
-	}
+	},
 }
 
 /// Configuration options for `BlockRequests`.
@@ -268,7 +262,11 @@ where
 	///
 	/// If the response doesn't arrive in time, or if the remote answers improperly, the target
 	/// will be disconnected.
-	pub fn send_request(&mut self, target: &PeerId, req: message::BlockRequest<B>) -> SendRequestOutcome<B> {
+	pub fn send_request(
+		&mut self,
+		target: &PeerId,
+		req: message::BlockRequest<B>,
+	) -> SendRequestOutcome<B> {
 		// Determine which connection to send the request to.
 		let connection = if let Some(peer) = self.peers.get_mut(target) {
 			// We don't want to have multiple requests for any given node, so in priority try to
@@ -282,10 +280,10 @@ where
 					target: "sync",
 					"State inconsistency: empty list of peer connections"
 				);
-				return SendRequestOutcome::NotConnected;
+				return SendRequestOutcome::NotConnected
 			}
 		} else {
-			return SendRequestOutcome::NotConnected;
+			return SendRequestOutcome::NotConnected
 		};
 
 		let protobuf_rq = build_protobuf_block_request(
@@ -304,7 +302,7 @@ where
 				protobuf_rq,
 				err
 			);
-			return SendRequestOutcome::EncodeError(err);
+			return SendRequestOutcome::EncodeError(err)
 		}
 
 		let previous_request = connection.ongoing_request.take();
@@ -342,12 +340,11 @@ where
 	}
 
 	/// Callback, invoked when a new block request has been received from remote.
-	fn on_block_request
-		( &mut self
-		, peer: &PeerId
-		, request: &schema::v1::BlockRequest
-		) -> Result<schema::v1::BlockResponse, Error>
-	{
+	fn on_block_request(
+		&mut self,
+		peer: &PeerId,
+		request: &schema::v1::BlockRequest,
+	) -> Result<schema::v1::BlockResponse, Error> {
 		log::trace!(
 			target: "sync",
 			"Block request from peer {}: from block {:?} to block {:?}, max blocks {:?}",
@@ -356,38 +353,35 @@ where
 			request.to_block,
 			request.max_blocks);
 
-		let from_block_id =
-			match request.from_block {
-				Some(schema::v1::block_request::FromBlock::Hash(ref h)) => {
-					let h = Decode::decode(&mut h.as_ref())?;
-					BlockId::<B>::Hash(h)
-				}
-				Some(schema::v1::block_request::FromBlock::Number(ref n)) => {
-					let n = Decode::decode(&mut n.as_ref())?;
-					BlockId::<B>::Number(n)
-				}
-				None => {
-					let msg = "missing `BlockRequest::from_block` field";
-					return Err(io::Error::new(io::ErrorKind::Other, msg).into())
-				}
-			};
-
-		let max_blocks =
-			if request.max_blocks == 0 {
-				self.config.max_block_data_response
-			} else {
-				min(request.max_blocks, self.config.max_block_data_response)
-			};
-
-		let direction =
-			if request.direction == schema::v1::Direction::Ascending as i32 {
-				schema::v1::Direction::Ascending
-			} else if request.direction == schema::v1::Direction::Descending as i32 {
-				schema::v1::Direction::Descending
-			} else {
-				let msg = format!("invalid `BlockRequest::direction` value: {}", request.direction);
+		let from_block_id = match request.from_block {
+			Some(schema::v1::block_request::FromBlock::Hash(ref h)) => {
+				let h = Decode::decode(&mut h.as_ref())?;
+				BlockId::<B>::Hash(h)
+			},
+			Some(schema::v1::block_request::FromBlock::Number(ref n)) => {
+				let n = Decode::decode(&mut n.as_ref())?;
+				BlockId::<B>::Number(n)
+			},
+			None => {
+				let msg = "missing `BlockRequest::from_block` field";
 				return Err(io::Error::new(io::ErrorKind::Other, msg).into())
-			};
+			},
+		};
+
+		let max_blocks = if request.max_blocks == 0 {
+			self.config.max_block_data_response
+		} else {
+			min(request.max_blocks, self.config.max_block_data_response)
+		};
+
+		let direction = if request.direction == schema::v1::Direction::Ascending as i32 {
+			schema::v1::Direction::Ascending
+		} else if request.direction == schema::v1::Direction::Descending as i32 {
+			schema::v1::Direction::Descending
+		} else {
+			let msg = format!("invalid `BlockRequest::direction` value: {}", request.direction);
+			return Err(io::Error::new(io::ErrorKind::Other, msg).into())
+		};
 
 		let attributes = BlockAttributes::from_be_u32(request.fields)?;
 		let get_header = attributes.contains(BlockAttributes::HEADER);
@@ -398,8 +392,8 @@ where
 		let mut block_id = from_block_id;
 		let mut total_size = 0;
 		while let Some(header) = self.chain.header(block_id).unwrap_or(None) {
-			if blocks.len() >= max_blocks as usize
-				|| (blocks.len() >= 1 && total_size > self.config.max_block_body_bytes)
+			if blocks.len() >= max_blocks as usize ||
+				(blocks.len() >= 1 && total_size > self.config.max_block_body_bytes)
 			{
 				break
 			}
@@ -412,17 +406,17 @@ where
 			} else {
 				None
 			};
-			let is_empty_justification = justification.as_ref().map(|j| j.is_empty()).unwrap_or(false);
+			let is_empty_justification =
+				justification.as_ref().map(|j| j.is_empty()).unwrap_or(false);
 
 			let body = if get_body {
 				match self.chain.block_body(&BlockId::Hash(hash))? {
-					Some(mut extrinsics) => extrinsics.iter_mut()
-						.map(|extrinsic| extrinsic.encode())
-						.collect(),
+					Some(mut extrinsics) =>
+						extrinsics.iter_mut().map(|extrinsic| extrinsic.encode()).collect(),
 					None => {
 						log::trace!(target: "sync", "Missing data for block request.");
-						break;
-					}
+						break
+					},
 				}
 			} else {
 				Vec::new()
@@ -430,11 +424,7 @@ where
 
 			let block_data = schema::v1::BlockData {
 				hash: hash.encode(),
-				header: if get_header {
-					header.encode()
-				} else {
-					Vec::new()
-				},
+				header: if get_header { header.encode() } else { Vec::new() },
 				body,
 				receipt: Vec::new(),
 				message_queue: Vec::new(),
@@ -446,15 +436,13 @@ where
 			blocks.push(block_data);
 
 			match direction {
-				schema::v1::Direction::Ascending => {
-					block_id = BlockId::Number(number + One::one())
-				}
+				schema::v1::Direction::Ascending => block_id = BlockId::Number(number + One::one()),
 				schema::v1::Direction::Descending => {
 					if number.is_zero() {
 						break
 					}
 					block_id = BlockId::Hash(parent_hash)
-				}
+				},
 			}
 		}
 
@@ -464,9 +452,10 @@ where
 
 impl<B> NetworkBehaviour for BlockRequests<B>
 where
-	B: Block
+	B: Block,
 {
-	type ProtocolsHandler = OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
+	type ProtocolsHandler =
+		OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
 	type OutEvent = Event<B>;
 
 	fn new_handler(&mut self) -> Self::ProtocolsHandler {
@@ -485,22 +474,28 @@ where
 		Vec::new()
 	}
 
-	fn inject_connected(&mut self, _peer: &PeerId) {
-	}
+	fn inject_connected(&mut self, _peer: &PeerId) {}
 
-	fn inject_disconnected(&mut self, _peer: &PeerId) {
-	}
+	fn inject_disconnected(&mut self, _peer: &PeerId) {}
 
-	fn inject_connection_established(&mut self, peer_id: &PeerId, id: &ConnectionId, _: &ConnectedPoint) {
-		self.peers.entry(peer_id.clone())
+	fn inject_connection_established(
+		&mut self,
+		peer_id: &PeerId,
+		id: &ConnectionId,
+		_: &ConnectedPoint,
+	) {
+		self.peers
+			.entry(peer_id.clone())
 			.or_default()
-			.push(Connection {
-				id: *id,
-				ongoing_request: None,
-			});
+			.push(Connection { id: *id, ongoing_request: None });
 	}
 
-	fn inject_connection_closed(&mut self, peer_id: &PeerId, id: &ConnectionId, _: &ConnectedPoint) {
+	fn inject_connection_closed(
+		&mut self,
+		peer_id: &PeerId,
+		id: &ConnectionId,
+		_: &ConnectedPoint,
+	) {
 		let mut needs_remove = false;
 		if let Some(entry) = self.peers.get_mut(peer_id) {
 			if let Some(pos) = entry.iter().position(|i| i.id == *id) {
@@ -544,7 +539,7 @@ where
 		&mut self,
 		peer: PeerId,
 		connection_id: ConnectionId,
-		node_event: NodeEvent<B, NegotiatedSubstream>
+		node_event: NodeEvent<B, NegotiatedSubstream>,
 	) {
 		match node_event {
 			NodeEvent::Request(request, mut stream, handling_start) => {
@@ -563,24 +558,27 @@ where
 								peer, e
 							)
 						} else {
-							self.outgoing.push(async move {
-								if let Err(e) = write_one(&mut stream, data).await {
-									log::debug!(
-										target: "sync",
-										"Error writing block response: {}",
-										e
-									);
+							self.outgoing.push(
+								async move {
+									if let Err(e) = write_one(&mut stream, data).await {
+										log::debug!(
+											target: "sync",
+											"Error writing block response: {}",
+											e
+										);
+									}
+									(peer, handling_start.elapsed())
 								}
-								(peer, handling_start.elapsed())
-							}.boxed());
+								.boxed(),
+							);
 						}
-					}
+					},
 					Err(e) => log::debug!(
 						target: "sync",
 						"Error handling block request from peer {}: {}", peer, e
-					)
+					),
 				}
-			}
+			},
 			NodeEvent::Response(original_request, response) => {
 				log::trace!(
 					target: "sync",
@@ -588,7 +586,8 @@ where
 					peer, response.blocks.len()
 				);
 				let request_duration = if let Some(connections) = self.peers.get_mut(&peer) {
-					if let Some(connection) = connections.iter_mut().find(|c| c.id == connection_id) {
+					if let Some(connection) = connections.iter_mut().find(|c| c.id == connection_id)
+					{
 						if let Some(ongoing_request) = &mut connection.ongoing_request {
 							if ongoing_request.request == original_request {
 								let request_duration = ongoing_request.emitted.elapsed();
@@ -602,7 +601,7 @@ where
 									peer,
 									original_request
 								);
-								return;
+								return
 							}
 						} else {
 							// We remove from `self.peers` requests we're no longer interested in,
@@ -611,7 +610,7 @@ where
 								target: "sync",
 								"Response discarded because it concerns an obsolete request"
 							);
-							return;
+							return
 						}
 					} else {
 						log::error!(
@@ -619,7 +618,7 @@ where
 							"State inconsistency: response on non-existing connection {:?}",
 							connection_id
 						);
-						return;
+						return
 					}
 				} else {
 					log::error!(
@@ -627,43 +626,54 @@ where
 						"State inconsistency: response on non-connected peer {}",
 						peer
 					);
-					return;
+					return
 				};
 
-				let blocks = response.blocks.into_iter().map(|block_data| {
-					Ok(message::BlockData::<B> {
-						hash: Decode::decode(&mut block_data.hash.as_ref())?,
-						header: if !block_data.header.is_empty() {
-							Some(Decode::decode(&mut block_data.header.as_ref())?)
-						} else {
-							None
-						},
-						body: if original_request.fields.contains(message::BlockAttributes::BODY) {
-							Some(block_data.body.iter().map(|body| {
-								Decode::decode(&mut body.as_ref())
-							}).collect::<Result<Vec<_>, _>>()?)
-						} else {
-							None
-						},
-						receipt: if !block_data.message_queue.is_empty() {
-							Some(block_data.receipt)
-						} else {
-							None
-						},
-						message_queue: if !block_data.message_queue.is_empty() {
-							Some(block_data.message_queue)
-						} else {
-							None
-						},
-						justification: if !block_data.justification.is_empty() {
-							Some(block_data.justification)
-						} else if block_data.is_empty_justification {
-							Some(Vec::new())
-						} else {
-							None
-						},
+				let blocks = response
+					.blocks
+					.into_iter()
+					.map(|block_data| {
+						Ok(message::BlockData::<B> {
+							hash: Decode::decode(&mut block_data.hash.as_ref())?,
+							header: if !block_data.header.is_empty() {
+								Some(Decode::decode(&mut block_data.header.as_ref())?)
+							} else {
+								None
+							},
+							body: if original_request
+								.fields
+								.contains(message::BlockAttributes::BODY)
+							{
+								Some(
+									block_data
+										.body
+										.iter()
+										.map(|body| Decode::decode(&mut body.as_ref()))
+										.collect::<Result<Vec<_>, _>>()?,
+								)
+							} else {
+								None
+							},
+							receipt: if !block_data.message_queue.is_empty() {
+								Some(block_data.receipt)
+							} else {
+								None
+							},
+							message_queue: if !block_data.message_queue.is_empty() {
+								Some(block_data.message_queue)
+							} else {
+								None
+							},
+							justification: if !block_data.justification.is_empty() {
+								Some(block_data.justification)
+							} else if block_data.is_empty_justification {
+								Some(Vec::new())
+							} else {
+								None
+							},
+						})
 					})
-				}).collect::<Result<Vec<_>, codec::Error>>();
+					.collect::<Result<Vec<_>, codec::Error>>();
 
 				match blocks {
 					Ok(blocks) => {
@@ -675,23 +685,25 @@ where
 							request_duration,
 						};
 						self.pending_events.push_back(NetworkBehaviourAction::GenerateEvent(ev));
-					}
+					},
 					Err(err) => {
 						log::debug!(
 							target: "sync",
 							"Failed to decode block response from peer {}: {}", peer, err
 						);
-					}
+					},
 				}
-			}
+			},
 		}
 	}
 
-	fn poll(&mut self, cx: &mut Context, _: &mut impl PollParameters)
-		-> Poll<NetworkBehaviourAction<OutboundProtocol<B>, Event<B>>>
-	{
+	fn poll(
+		&mut self,
+		cx: &mut Context,
+		_: &mut impl PollParameters,
+	) -> Poll<NetworkBehaviourAction<OutboundProtocol<B>, Event<B>>> {
 		if let Some(ev) = self.pending_events.pop_front() {
-			return Poll::Ready(ev);
+			return Poll::Ready(ev)
 		}
 
 		// Check the request timeouts.
@@ -716,17 +728,14 @@ where
 						original_request,
 						request_duration,
 					};
-					return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev));
+					return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev))
 				}
 			}
 		}
 
 		if let Poll::Ready(Some((peer, total_handling_time))) = self.outgoing.poll_next_unpin(cx) {
-			let ev = Event::AnsweredRequest {
-				peer,
-				total_handling_time,
-			};
-			return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev));
+			let ev = Event::AnsweredRequest { peer, total_handling_time };
+			return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev))
 		}
 
 		Poll::Pending
@@ -771,7 +780,7 @@ impl<B: Block> UpgradeInfo for InboundProtocol<B> {
 impl<B, T> InboundUpgrade<T> for InboundProtocol<B>
 where
 	B: Block,
-	T: AsyncRead + AsyncWrite + Unpin + Send + 'static
+	T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
 	type Output = NodeEvent<B, T>;
 	type Error = ReadOneError;
@@ -786,7 +795,7 @@ where
 			let vec = read_one(&mut s, len).await?;
 			match schema::v1::BlockRequest::decode(&vec[..]) {
 				Ok(r) => Ok(NodeEvent::Request(r, s, handling_start)),
-				Err(e) => Err(ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e)))
+				Err(e) => Err(ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e))),
 			}
 		};
 		future.boxed()
@@ -820,7 +829,7 @@ impl<B: Block> UpgradeInfo for OutboundProtocol<B> {
 impl<B, T> OutboundUpgrade<T> for OutboundProtocol<B>
 where
 	B: Block,
-	T: AsyncRead + AsyncWrite + Unpin + Send + 'static
+	T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
 	type Output = NodeEvent<B, T>;
 	type Error = ReadOneError;
@@ -833,10 +842,9 @@ where
 
 			schema::v1::BlockResponse::decode(&vec[..])
 				.map(|r| NodeEvent::Response(self.original_request, r))
-				.map_err(|e| {
-					ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e))
-				})
-		}.boxed()
+				.map_err(|e| ReadOneError::Io(io::Error::new(io::ErrorKind::Other, e)))
+		}
+		.boxed()
 	}
 }
 

@@ -42,17 +42,23 @@
 
 mod tests;
 
-use sp_std::{prelude::*, marker::PhantomData, ops::{Deref, DerefMut}};
-use sp_io::hashing::blake2_256;
+use codec::{Decode, Encode};
 use frame_support::{
-	Parameter, decl_module, decl_storage, decl_event, decl_error, ensure,
-	traits::{Get, Currency, ReservableCurrency, BalanceStatus},
-	weights::Weight,
+	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::DispatchResult,
+	ensure,
+	traits::{BalanceStatus, Currency, Get, ReservableCurrency},
+	weights::Weight,
+	Parameter,
 };
 use frame_system::{self as system, ensure_signed};
-use codec::{Encode, Decode};
+use sp_io::hashing::blake2_256;
 use sp_runtime::RuntimeDebug;
+use sp_std::{
+	marker::PhantomData,
+	ops::{Deref, DerefMut},
+	prelude::*,
+};
 
 /// Pending atomic swap operation.
 #[derive(Clone, Eq, PartialEq, RuntimeDebug, Encode, Decode)]
@@ -94,14 +100,20 @@ pub struct BalanceSwapAction<AccountId, C: ReservableCurrency<AccountId>> {
 	_marker: PhantomData<C>,
 }
 
-impl<AccountId, C> BalanceSwapAction<AccountId, C> where C: ReservableCurrency<AccountId> {
+impl<AccountId, C> BalanceSwapAction<AccountId, C>
+where
+	C: ReservableCurrency<AccountId>,
+{
 	/// Create a new swap action value of balance.
 	pub fn new(value: <C as Currency<AccountId>>::Balance) -> Self {
 		Self { value, _marker: PhantomData }
 	}
 }
 
-impl<AccountId, C> Deref for BalanceSwapAction<AccountId, C> where C: ReservableCurrency<AccountId> {
+impl<AccountId, C> Deref for BalanceSwapAction<AccountId, C>
+where
+	C: ReservableCurrency<AccountId>,
+{
 	type Target = <C as Currency<AccountId>>::Balance;
 
 	fn deref(&self) -> &Self::Target {
@@ -109,14 +121,18 @@ impl<AccountId, C> Deref for BalanceSwapAction<AccountId, C> where C: Reservable
 	}
 }
 
-impl<AccountId, C> DerefMut for BalanceSwapAction<AccountId, C> where C: ReservableCurrency<AccountId> {
+impl<AccountId, C> DerefMut for BalanceSwapAction<AccountId, C>
+where
+	C: ReservableCurrency<AccountId>,
+{
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.value
 	}
 }
 
 impl<T: Trait, AccountId, C> SwapAction<AccountId, T> for BalanceSwapAction<AccountId, C>
-	where C: ReservableCurrency<AccountId>
+where
+	C: ReservableCurrency<AccountId>,
 {
 	fn reserve(&self, source: &AccountId) -> DispatchResult {
 		C::reserve(&source, self.value)
@@ -185,13 +201,14 @@ decl_error! {
 
 decl_event!(
 	/// Event of atomic swap pallet.
-	pub enum Event<T> where
+	pub enum Event<T>
+	where
 		AccountId = <T as system::Trait>::AccountId,
 		PendingSwap = PendingSwap<T>,
 	{
 		/// Swap created. \[account, proof, swap\]
 		NewSwap(AccountId, HashedProof, PendingSwap),
-		/// Swap claimed. The last parameter indicates whether the execution succeeds. 
+		/// Swap claimed. The last parameter indicates whether the execution succeeds.
 		/// \[account, proof, success\]
 		SwapClaimed(AccountId, HashedProof, bool),
 		/// Swap cancelled. \[account, proof\]

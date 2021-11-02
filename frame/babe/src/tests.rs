@@ -30,10 +30,8 @@ use sp_consensus_vrf::schnorrkel::{VRFOutput, VRFProof};
 use sp_core::crypto::{IsWrappedBy, Pair};
 
 const EMPTY_RANDOMNESS: [u8; 32] = [
-	74, 25, 49, 128, 53, 97, 244, 49,
-	222, 202, 176, 2, 231, 66, 95, 10,
-	133, 49, 213, 228, 86, 161, 164, 127,
-	217, 153, 138, 37, 48, 192, 248, 0,
+	74, 25, 49, 128, 53, 97, 244, 49, 222, 202, 176, 2, 231, 66, 95, 10, 133, 49, 213, 228, 86,
+	161, 164, 127, 217, 153, 138, 37, 48, 192, 248, 0,
 ];
 
 #[test]
@@ -44,17 +42,17 @@ fn empty_randomness_is_correct() {
 
 #[test]
 fn initial_values() {
-	new_test_ext(4).execute_with(|| {
-		assert_eq!(Babe::authorities().len(), 4)
-	})
+	new_test_ext(4).execute_with(|| assert_eq!(Babe::authorities().len(), 4))
 }
 
 #[test]
 fn check_module() {
 	new_test_ext(4).execute_with(|| {
 		assert!(!Babe::should_end_session(0), "Genesis does not change sessions");
-		assert!(!Babe::should_end_session(200000),
-			"BABE does not include the block number in epoch calculations");
+		assert!(
+			!Babe::should_end_session(200000),
+			"BABE does not include the block number in epoch calculations"
+		);
 	})
 }
 
@@ -66,24 +64,15 @@ fn first_block_epoch_zero_start() {
 		let genesis_slot = 100;
 
 		let pair = sp_core::sr25519::Pair::from_ref(&pairs[0]).as_ref();
-		let transcript = sp_consensus_babe::make_transcript(
-			&Babe::randomness(),
-			genesis_slot,
-			0,
-		);
+		let transcript = sp_consensus_babe::make_transcript(&Babe::randomness(), genesis_slot, 0);
 		let vrf_inout = pair.vrf_sign(transcript);
-		let vrf_randomness: sp_consensus_vrf::schnorrkel::Randomness = vrf_inout.0
-			.make_bytes::<[u8; 32]>(&sp_consensus_babe::BABE_VRF_INOUT_CONTEXT);
+		let vrf_randomness: sp_consensus_vrf::schnorrkel::Randomness =
+			vrf_inout.0.make_bytes::<[u8; 32]>(&sp_consensus_babe::BABE_VRF_INOUT_CONTEXT);
 		let vrf_output = VRFOutput(vrf_inout.0.to_output());
 		let vrf_proof = VRFProof(vrf_inout.1);
 
 		let first_vrf = vrf_output;
-		let pre_digest = make_pre_digest(
-			0,
-			genesis_slot,
-			first_vrf.clone(),
-			vrf_proof,
-		);
+		let pre_digest = make_pre_digest(0, genesis_slot, first_vrf.clone(), vrf_proof);
 
 		assert_eq!(Babe::genesis_slot(), 0);
 		System::initialize(
@@ -117,7 +106,7 @@ fn first_block_epoch_zero_start() {
 			sp_consensus_babe::digests::NextEpochDescriptor {
 				authorities: Babe::authorities(),
 				randomness: Babe::randomness(),
-			}
+			},
 		);
 		let consensus_digest = DigestItem::Consensus(BABE_ENGINE_ID, consensus_log.encode());
 
@@ -130,8 +119,10 @@ fn first_block_epoch_zero_start() {
 fn authority_index() {
 	new_test_ext(4).execute_with(|| {
 		assert_eq!(
-			Babe::find_author((&[(BABE_ENGINE_ID, &[][..])]).into_iter().cloned()), None,
-			"Trivially invalid authorities are ignored")
+			Babe::find_author((&[(BABE_ENGINE_ID, &[][..])]).into_iter().cloned()),
+			None,
+			"Trivially invalid authorities are ignored"
+		)
 	})
 }
 
@@ -180,7 +171,7 @@ fn can_enact_next_config() {
 			sp_consensus_babe::digests::NextConfigDescriptor::V1 {
 				c: (1, 4),
 				allowed_slots: AllowedSlots::PrimarySlots,
-			}
+			},
 		);
 		let consensus_digest = DigestItem::Consensus(BABE_ENGINE_ID, consensus_log.encode());
 
@@ -205,11 +196,7 @@ fn report_equivocation_current_session_works() {
 
 			assert_eq!(
 				Staking::eras_stakers(1, validator),
-				pallet_staking::Exposure {
-					total: 10_000,
-					own: 10_000,
-					others: vec![],
-				},
+				pallet_staking::Exposure { total: 10_000, own: 10_000, others: vec![] },
 			);
 		}
 
@@ -230,10 +217,7 @@ fn report_equivocation_current_session_works() {
 		);
 
 		// create the key ownership proof
-		let key = (
-			sp_consensus_babe::KEY_TYPE,
-			&offending_authority_pair.public(),
-		);
+		let key = (sp_consensus_babe::KEY_TYPE, &offending_authority_pair.public());
 		let key_owner_proof = Historical::prove(key).unwrap();
 
 		// report the equivocation
@@ -245,35 +229,24 @@ fn report_equivocation_current_session_works() {
 		start_era(2);
 
 		// check that the balance of offending validator is slashed 100%.
-		assert_eq!(
-			Balances::total_balance(&offending_validator_id),
-			10_000_000 - 10_000
-		);
+		assert_eq!(Balances::total_balance(&offending_validator_id), 10_000_000 - 10_000);
 		assert_eq!(Staking::slashable_balance_of(&offending_validator_id), 0);
 		assert_eq!(
 			Staking::eras_stakers(2, offending_validator_id),
-			pallet_staking::Exposure {
-				total: 0,
-				own: 0,
-				others: vec![],
-			},
+			pallet_staking::Exposure { total: 0, own: 0, others: vec![] },
 		);
 
 		// check that the balances of all other validators are left intact.
 		for validator in &validators {
 			if *validator == offending_validator_id {
-				continue;
+				continue
 			}
 
 			assert_eq!(Balances::total_balance(validator), 10_000_000);
 			assert_eq!(Staking::slashable_balance_of(validator), 10_000);
 			assert_eq!(
 				Staking::eras_stakers(2, validator),
-				pallet_staking::Exposure {
-					total: 10_000,
-					own: 10_000,
-					others: vec![],
-				},
+				pallet_staking::Exposure { total: 10_000, own: 10_000, others: vec![] },
 			);
 		}
 	})
@@ -304,10 +277,7 @@ fn report_equivocation_old_session_works() {
 		);
 
 		// create the key ownership proof
-		let key = (
-			sp_consensus_babe::KEY_TYPE,
-			&offending_authority_pair.public(),
-		);
+		let key = (sp_consensus_babe::KEY_TYPE, &offending_authority_pair.public());
 		let key_owner_proof = Historical::prove(key).unwrap();
 
 		// start a new era and report the equivocation
@@ -316,10 +286,7 @@ fn report_equivocation_old_session_works() {
 
 		// check the balance of the offending validator
 		assert_eq!(Balances::total_balance(&offending_validator_id), 10_000_000);
-		assert_eq!(
-			Staking::slashable_balance_of(&offending_validator_id),
-			10_000
-		);
+		assert_eq!(Staking::slashable_balance_of(&offending_validator_id), 10_000);
 
 		// report the equivocation
 		Babe::report_equivocation_unsigned(Origin::none(), equivocation_proof, key_owner_proof)
@@ -330,18 +297,11 @@ fn report_equivocation_old_session_works() {
 		start_era(3);
 
 		// check that the balance of offending validator is slashed 100%.
-		assert_eq!(
-			Balances::total_balance(&offending_validator_id),
-			10_000_000 - 10_000
-		);
+		assert_eq!(Balances::total_balance(&offending_validator_id), 10_000_000 - 10_000);
 		assert_eq!(Staking::slashable_balance_of(&offending_validator_id), 0);
 		assert_eq!(
 			Staking::eras_stakers(3, offending_validator_id),
-			pallet_staking::Exposure {
-				total: 0,
-				own: 0,
-				others: vec![],
-			},
+			pallet_staking::Exposure { total: 0, own: 0, others: vec![] },
 		);
 	})
 }
@@ -370,10 +330,7 @@ fn report_equivocation_invalid_key_owner_proof() {
 		);
 
 		// create the key ownership proof
-		let key = (
-			sp_consensus_babe::KEY_TYPE,
-			&offending_authority_pair.public(),
-		);
+		let key = (sp_consensus_babe::KEY_TYPE, &offending_authority_pair.public());
 		let mut key_owner_proof = Historical::prove(key).unwrap();
 
 		// we change the session index in the key ownership proof
@@ -425,10 +382,7 @@ fn report_equivocation_invalid_equivocation_proof() {
 			.unwrap();
 
 		// create the key ownership proof
-		let key = (
-			sp_consensus_babe::KEY_TYPE,
-			&offending_authority_pair.public(),
-		);
+		let key = (sp_consensus_babe::KEY_TYPE, &offending_authority_pair.public());
 		let key_owner_proof = Historical::prove(key).unwrap();
 
 		let assert_invalid_equivocation = |equivocation_proof| {
@@ -538,10 +492,7 @@ fn report_equivocation_validate_unsigned_prevents_duplicates() {
 			CurrentSlot::get(),
 		);
 
-		let key = (
-			sp_consensus_babe::KEY_TYPE,
-			&offending_authority_pair.public(),
-		);
+		let key = (sp_consensus_babe::KEY_TYPE, &offending_authority_pair.public());
 		let key_owner_proof = Historical::prove(key).unwrap();
 
 		let inner =
@@ -591,23 +542,19 @@ fn report_equivocation_validate_unsigned_prevents_duplicates() {
 fn report_equivocation_has_valid_weight() {
 	// the weight depends on the size of the validator set,
 	// but there's a lower bound of 100 validators.
-	assert!(
-		(1..=100)
-			.map(<Test as Trait>::WeightInfo::report_equivocation)
-			.collect::<Vec<_>>()
-			.windows(2)
-			.all(|w| w[0] == w[1])
-	);
+	assert!((1..=100)
+		.map(<Test as Trait>::WeightInfo::report_equivocation)
+		.collect::<Vec<_>>()
+		.windows(2)
+		.all(|w| w[0] == w[1]));
 
 	// after 100 validators the weight should keep increasing
 	// with every extra validator.
-	assert!(
-		(100..=1000)
-			.map(<Test as Trait>::WeightInfo::report_equivocation)
-			.collect::<Vec<_>>()
-			.windows(2)
-			.all(|w| w[0] < w[1])
-	);
+	assert!((100..=1000)
+		.map(<Test as Trait>::WeightInfo::report_equivocation)
+		.collect::<Vec<_>>()
+		.windows(2)
+		.all(|w| w[0] < w[1]));
 }
 
 #[test]
@@ -624,11 +571,9 @@ fn valid_equivocation_reports_dont_pay_fees() {
 			generate_equivocation_proof(0, &offending_authority_pair, CurrentSlot::get());
 
 		// create the key ownership proof.
-		let key_owner_proof = Historical::prove((
-			sp_consensus_babe::KEY_TYPE,
-			&offending_authority_pair.public(),
-		))
-		.unwrap();
+		let key_owner_proof =
+			Historical::prove((sp_consensus_babe::KEY_TYPE, &offending_authority_pair.public()))
+				.unwrap();
 
 		// check the dispatch info for the call.
 		let info = Call::<Test>::report_equivocation_unsigned(

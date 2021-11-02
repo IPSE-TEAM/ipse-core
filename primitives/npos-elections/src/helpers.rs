@@ -18,9 +18,9 @@
 //! Helper methods for npos-elections.
 
 use crate::{
-	Assignment, ExtendedBalance, VoteWeight, IdentifierT, StakedAssignment, WithApprovalOf, Error,
+	Assignment, Error, ExtendedBalance, IdentifierT, StakedAssignment, VoteWeight, WithApprovalOf,
 };
-use sp_arithmetic::{PerThing, InnerOf};
+use sp_arithmetic::{InnerOf, PerThing};
 use sp_std::prelude::*;
 
 /// Converts a vector of ratio assignments into ones with absolute budget value.
@@ -55,9 +55,12 @@ where
 	ExtendedBalance: From<InnerOf<P>>,
 {
 	let mut staked = assignment_ratio_to_staked(ratio, &stake_of);
-	staked.iter_mut().map(|a|
-		a.try_normalize(stake_of(&a.who).into()).map_err(|err| Error::ArithmeticError(err))
-	).collect::<Result<_, _>>()?;
+	staked
+		.iter_mut()
+		.map(|a| {
+			a.try_normalize(stake_of(&a.who).into()).map_err(|err| Error::ArithmeticError(err))
+		})
+		.collect::<Result<_, _>>()?;
 	Ok(staked)
 }
 
@@ -81,9 +84,10 @@ where
 	ExtendedBalance: From<InnerOf<P>>,
 {
 	let mut ratio = staked.into_iter().map(|a| a.into_assignment()).collect::<Vec<_>>();
-	ratio.iter_mut().map(|a|
-		a.try_normalize().map_err(|err| Error::ArithmeticError(err))
-	).collect::<Result<_, _>>()?;
+	ratio
+		.iter_mut()
+		.map(|a| a.try_normalize().map_err(|err| Error::ArithmeticError(err)))
+		.collect::<Result<_, _>>()?;
 	Ok(ratio)
 }
 
@@ -122,14 +126,8 @@ mod tests {
 		assert_eq!(
 			staked,
 			vec![
-				StakedAssignment {
-					who: 1u32,
-					distribution: vec![(10u32, 50), (20, 50),]
-				},
-				StakedAssignment {
-					who: 2u32,
-					distribution: vec![(10u32, 33), (20, 67),]
-				}
+				StakedAssignment { who: 1u32, distribution: vec![(10u32, 50), (20, 50),] },
+				StakedAssignment { who: 2u32, distribution: vec![(10u32, 33), (20, 67),] }
 			]
 		);
 	}

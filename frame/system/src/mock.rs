@@ -16,16 +16,13 @@
 // limitations under the License.
 
 use crate::*;
-use sp_std::cell::RefCell;
+use frame_support::{impl_outer_origin, parameter_types, weights::PostDispatchInfo};
 use sp_core::H256;
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup},
 	testing::Header,
+	traits::{BlakeTwo256, IdentityLookup},
 };
-use frame_support::{
-	impl_outer_origin, parameter_types,
-	weights::PostDispatchInfo,
-};
+use sp_std::cell::RefCell;
 
 impl_outer_origin! {
 	pub enum Origin for Test where system = super {}
@@ -57,13 +54,15 @@ parameter_types! {
 	};
 }
 
-thread_local!{
+thread_local! {
 	pub static KILLED: RefCell<Vec<u64>> = RefCell::new(vec![]);
 }
 
 pub struct RecordKilled;
 impl OnKilledAccount<u64> for RecordKilled {
-	fn on_killed_account(who: &u64) { KILLED.with(|r| r.borrow_mut().push(*who)) }
+	fn on_killed_account(who: &u64) {
+		KILLED.with(|r| r.borrow_mut().push(*who))
+	}
 }
 
 #[derive(Debug, codec::Encode, codec::Decode)]
@@ -74,9 +73,8 @@ impl Dispatchable for Call {
 	type Trait = ();
 	type Info = DispatchInfo;
 	type PostInfo = PostDispatchInfo;
-	fn dispatch(self, _origin: Self::Origin)
-		-> sp_runtime::DispatchResultWithInfo<Self::PostInfo> {
-			panic!("Do not use dummy implementation for dispatch.");
+	fn dispatch(self, _origin: Self::Origin) -> sp_runtime::DispatchResultWithInfo<Self::PostInfo> {
+		panic!("Do not use dummy implementation for dispatch.");
 	}
 }
 
@@ -115,11 +113,14 @@ pub const CALL: &<Test as Trait>::Call = &Call;
 
 /// Create new externalities for `System` module tests.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut ext: sp_io::TestExternalities = GenesisConfig::default().build_storage::<Test>().unwrap().into();
+	let mut ext: sp_io::TestExternalities =
+		GenesisConfig::default().build_storage::<Test>().unwrap().into();
 	// Add to each test the initial weight of a block
-	ext.execute_with(|| System::register_extra_weight_unchecked(
-		<Test as Trait>::BlockExecutionWeight::get(),
-		DispatchClass::Mandatory
-	));
+	ext.execute_with(|| {
+		System::register_extra_weight_unchecked(
+			<Test as Trait>::BlockExecutionWeight::get(),
+			DispatchClass::Mandatory,
+		)
+	});
 	ext
 }

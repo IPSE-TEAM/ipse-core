@@ -34,8 +34,8 @@
 //!
 //! ### Terminology
 //!
-//! * **Asset issuance:** The creation of a new asset, whose total supply will belong to the
-//!   account that issues the asset.
+//! * **Asset issuance:** The creation of a new asset, whose total supply will belong to the account
+//!   that issues the asset.
 //! * **Asset transfer:** The action of transferring assets from one account to another.
 //! * **Asset destruction:** The process of an account removing its entire holding of an asset.
 //! * **Fungible asset:** An asset whose units are interchangeable.
@@ -47,20 +47,22 @@
 //!
 //! * Issue a unique asset to its creator's account.
 //! * Move assets between accounts.
-//! * Remove an account's balance of an asset when requested by that account's owner and update
-//!   the asset's total supply.
+//! * Remove an account's balance of an asset when requested by that account's owner and update the
+//!   asset's total supply.
 //!
 //! ## Interface
 //!
 //! ### Dispatchable Functions
 //!
-//! * `issue` - Issues the total supply of a new fungible asset to the account of the caller of the function.
+//! * `issue` - Issues the total supply of a new fungible asset to the account of the caller of the
+//!   function.
 //! * `transfer` - Transfers an `amount` of units of fungible asset `id` from the balance of
 //! the function caller's account (`origin`) to a `target` account.
 //! * `destroy` - Destroys the entire holding of a fungible asset `id` associated with the account
 //! that called the function.
 //!
-//! Please refer to the [`Call`](./enum.Call.html) enum and its associated variants for documentation on each function.
+//! Please refer to the [`Call`](./enum.Call.html) enum and its associated variants for
+//! documentation on each function.
 //!
 //! ### Public Functions
 //! <!-- Original author of descriptions: @gavofyork -->
@@ -68,11 +70,13 @@
 //! * `balance` - Get the asset `id` balance of `who`.
 //! * `total_supply` - Get the total supply of an asset `id`.
 //!
-//! Please refer to the [`Module`](./struct.Module.html) struct for details on publicly available functions.
+//! Please refer to the [`Module`](./struct.Module.html) struct for details on publicly available
+//! functions.
 //!
 //! ## Usage
 //!
-//! The following example shows how to use the Assets module in your runtime by exposing public functions to:
+//! The following example shows how to use the Assets module in your runtime by exposing public
+//! functions to:
 //!
 //! * Issue a new fungible asset for a token distribution event (airdrop).
 //! * Query the fungible asset holding balance of an account.
@@ -80,7 +84,8 @@
 //!
 //! ### Prerequisites
 //!
-//! Import the Assets module and types and derive your runtime's configuration traits from the Assets module trait.
+//! Import the Assets module and types and derive your runtime's configuration traits from the
+//! Assets module trait.
 //!
 //! ### Simple Code Snippet
 //!
@@ -122,8 +127,7 @@
 //! Below are assumptions that must be held when using this module.  If any of
 //! them are violated, the behavior of this module is undefined.
 //!
-//! * The total count of assets should be less than
-//!   `Trait::AssetId::max_value()`.
+//! * The total count of assets should be less than `Trait::AssetId::max_value()`.
 //!
 //! ## Related Modules
 //!
@@ -133,10 +137,10 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{Parameter, decl_module, decl_event, decl_storage, decl_error, ensure};
-use sp_runtime::traits::{Member, AtLeast32Bit, AtLeast32BitUnsigned, Zero, StaticLookup};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter};
 use frame_system::ensure_signed;
 use sp_runtime::traits::One;
+use sp_runtime::traits::{AtLeast32Bit, AtLeast32BitUnsigned, Member, StaticLookup, Zero};
 
 /// The module configuration trait.
 pub trait Trait: frame_system::Trait {
@@ -282,9 +286,15 @@ impl<T: Trait> Module<T> {
 mod tests {
 	use super::*;
 
-	use frame_support::{impl_outer_origin, assert_ok, assert_noop, parameter_types, weights::Weight};
+	use frame_support::{
+		assert_noop, assert_ok, impl_outer_origin, parameter_types, weights::Weight,
+	};
 	use sp_core::H256;
-	use sp_runtime::{Perbill, traits::{BlakeTwo256, IdentityLookup}, testing::Header};
+	use sp_runtime::{
+		testing::Header,
+		traits::{BlakeTwo256, IdentityLookup},
+		Perbill,
+	};
 
 	impl_outer_origin! {
 		pub enum Origin for Test where system = frame_system {}

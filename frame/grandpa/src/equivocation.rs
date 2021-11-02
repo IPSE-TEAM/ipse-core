@@ -35,7 +35,6 @@
 //! When using this module for enabling equivocation reporting it is required
 //! that the `ValidateUnsigned` for the GRANDPA pallet is used in the runtime
 //! definition.
-//!
 
 use sp_std::prelude::*;
 
@@ -125,9 +124,7 @@ pub struct EquivocationHandler<I, R, O = GrandpaEquivocationOffence<I>> {
 
 impl<I, R, O> Default for EquivocationHandler<I, R, O> {
 	fn default() -> Self {
-		Self {
-			_phantom: Default::default(),
-		}
+		Self { _phantom: Default::default() }
 	}
 }
 
@@ -193,15 +190,15 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 		if let Call::report_equivocation_unsigned(equivocation_proof, _) = call {
 			// discard equivocation report not coming from the local node
 			match source {
-				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
+				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ },
 				_ => {
 					debug::warn!(
 						target: "afg",
 						"rejecting unsigned report equivocation transaction because it is not local/in-block."
 					);
 
-					return InvalidTransaction::Call.into();
-				}
+					return InvalidTransaction::Call.into()
+				},
 			}
 
 			ValidTransaction::with_tag_prefix("GrandpaEquivocation")
@@ -224,10 +221,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 	fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
 		if let Call::report_equivocation_unsigned(equivocation_proof, key_owner_proof) = call {
 			// check the membership proof to extract the offender's id
-			let key = (
-				sp_finality_grandpa::KEY_TYPE,
-				equivocation_proof.offender().clone(),
-			);
+			let key = (sp_finality_grandpa::KEY_TYPE, equivocation_proof.offender().clone());
 
 			let offender = T::KeyOwnerProofSystem::check_proof(key, key_owner_proof.clone())
 				.ok_or(InvalidTransaction::BadProof)?;

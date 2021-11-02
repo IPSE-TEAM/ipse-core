@@ -18,27 +18,25 @@
 
 //! Substrate Client data backend
 
-use std::sync::Arc;
-use std::collections::{HashMap, HashSet};
-use sp_core::ChangesTrieConfigurationRange;
-use sp_core::offchain::{OffchainStorage,storage::OffchainOverlayedChanges};
-use sp_runtime::{generic::BlockId, Justification, Storage};
-use sp_runtime::traits::{Block as BlockT, NumberFor, HashFor};
-use sp_state_machine::{
-	ChangesTrieState, ChangesTrieStorage as StateChangesTrieStorage, ChangesTrieTransaction,
-	StorageCollection, ChildStorageCollection,
-};
-use sp_storage::{StorageData, StorageKey, PrefixedStorageKey, ChildInfo};
 use crate::{
-	blockchain::{
-		Backend as BlockchainBackend, well_known_cache_keys
-	},
+	blockchain::{well_known_cache_keys, Backend as BlockchainBackend},
 	light::RemoteBlockchain,
 	UsageInfo,
 };
+use parking_lot::RwLock;
 use sp_blockchain;
 use sp_consensus::BlockOrigin;
-use parking_lot::RwLock;
+use sp_core::offchain::{storage::OffchainOverlayedChanges, OffchainStorage};
+use sp_core::ChangesTrieConfigurationRange;
+use sp_runtime::traits::{Block as BlockT, HashFor, NumberFor};
+use sp_runtime::{generic::BlockId, Justification, Storage};
+use sp_state_machine::{
+	ChangesTrieState, ChangesTrieStorage as StateChangesTrieStorage, ChangesTrieTransaction,
+	ChildStorageCollection, StorageCollection,
+};
+use sp_storage::{ChildInfo, PrefixedStorageKey, StorageData, StorageKey};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 pub use sp_state_machine::Backend as StateBackend;
 use std::marker::PhantomData;
@@ -89,16 +87,17 @@ pub fn apply_aux<'a, 'b: 'a, 'c: 'a, B, Block, D, I>(
 	insert: I,
 	delete: D,
 ) -> sp_blockchain::Result<()>
-	where
-		Block: BlockT,
-		B: Backend<Block>,
-		I: IntoIterator<Item=&'a(&'c [u8], &'c [u8])>,
-		D: IntoIterator<Item=&'a &'b [u8]>,
+where
+	Block: BlockT,
+	B: Backend<Block>,
+	I: IntoIterator<Item = &'a (&'c [u8], &'c [u8])>,
+	D: IntoIterator<Item = &'a &'b [u8]>,
 {
 	operation.op.insert_aux(
-		insert.into_iter()
+		insert
+			.into_iter()
 			.map(|(k, v)| (k.to_vec(), Some(v.to_vec())))
-			.chain(delete.into_iter().map(|k| (k.to_vec(), None)))
+			.chain(delete.into_iter().map(|k| (k.to_vec(), None))),
 	)
 }
 
@@ -176,7 +175,7 @@ pub trait BlockImportOperation<Block: BlockT> {
 		&mut self,
 		_offchain_update: OffchainOverlayedChanges,
 	) -> sp_blockchain::Result<()> {
-		 Ok(())
+		Ok(())
 	}
 
 	/// Inject changes trie data into the database.
@@ -189,7 +188,8 @@ pub trait BlockImportOperation<Block: BlockT> {
 	///
 	/// Values are `None` if should be deleted.
 	fn insert_aux<I>(&mut self, ops: I) -> sp_blockchain::Result<()>
-		where I: IntoIterator<Item=(Vec<u8>, Option<Vec<u8>>)>;
+	where
+		I: IntoIterator<Item = (Vec<u8>, Option<Vec<u8>>)>;
 
 	/// Mark a block as finalized.
 	fn mark_finalized(
@@ -206,9 +206,9 @@ pub trait BlockImportOperation<Block: BlockT> {
 pub trait LockImportRun<Block: BlockT, B: Backend<Block>> {
 	/// Lock the import lock, and run operations inside.
 	fn lock_import_and_run<R, Err, F>(&self, f: F) -> Result<R, Err>
-		where
-			F: FnOnce(&mut ClientImportOperation<Block, B>) -> Result<R, Err>,
-			Err: From<sp_blockchain::Error>;
+	where
+		F: FnOnce(&mut ClientImportOperation<Block, B>) -> Result<R, Err>,
+		Err: From<sp_blockchain::Error>;
 }
 
 /// Finalize Facilities
@@ -230,7 +230,6 @@ pub trait Finalizer<Block: BlockT, B: Backend<Block>> {
 		notify: bool,
 	) -> sp_blockchain::Result<()>;
 
-
 	/// Finalize a block.
 	///
 	/// This will implicitly finalize all blocks up to it and
@@ -250,7 +249,6 @@ pub trait Finalizer<Block: BlockT, B: Backend<Block>> {
 		justification: Option<Justification>,
 		notify: bool,
 	) -> sp_blockchain::Result<()>;
-
 }
 
 /// Provides access to an auxiliary database.
@@ -262,9 +260,13 @@ pub trait AuxStore {
 		'a,
 		'b: 'a,
 		'c: 'a,
-		I: IntoIterator<Item=&'a(&'c [u8], &'c [u8])>,
-		D: IntoIterator<Item=&'a &'b [u8]>,
-	>(&self, insert: I, delete: D) -> sp_blockchain::Result<()>;
+		I: IntoIterator<Item = &'a (&'c [u8], &'c [u8])>,
+		D: IntoIterator<Item = &'a &'b [u8]>,
+	>(
+		&self,
+		insert: I,
+		delete: D,
+	) -> sp_blockchain::Result<()>;
 
 	/// Query auxiliary data from key-value store.
 	fn get_aux(&self, key: &[u8]) -> sp_blockchain::Result<Option<Vec<u8>>>;
@@ -278,33 +280,26 @@ pub struct KeyIterator<'a, State, Block> {
 	_phantom: PhantomData<Block>,
 }
 
-impl <'a, State, Block> KeyIterator<'a, State, Block> {
+impl<'a, State, Block> KeyIterator<'a, State, Block> {
 	/// create a KeyIterator instance
 	pub fn new(state: State, prefix: Option<&'a StorageKey>, current_key: Vec<u8>) -> Self {
-		Self {
-			state,
-			prefix,
-			current_key,
-			_phantom: PhantomData,
-		}
+		Self { state, prefix, current_key, _phantom: PhantomData }
 	}
 }
 
-impl<'a, State, Block> Iterator for KeyIterator<'a, State, Block> where
+impl<'a, State, Block> Iterator for KeyIterator<'a, State, Block>
+where
 	Block: BlockT,
 	State: StateBackend<HashFor<Block>>,
 {
 	type Item = StorageKey;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let next_key = self.state
-			.next_storage_key(&self.current_key)
-			.ok()
-			.flatten()?;
+		let next_key = self.state.next_storage_key(&self.current_key).ok().flatten()?;
 		// this terminates the iterator the first time it fails.
 		if let Some(prefix) = self.prefix {
 			if !next_key.starts_with(&prefix.0[..]) {
-				return None;
+				return None
 			}
 		}
 		self.current_key = next_key.clone();
@@ -315,51 +310,68 @@ impl<'a, State, Block> Iterator for KeyIterator<'a, State, Block> where
 /// Provides acess to storage primitives
 pub trait StorageProvider<Block: BlockT, B: Backend<Block>> {
 	/// Given a `BlockId` and a key, return the value under the key in that block.
-	fn storage(&self, id: &BlockId<Block>, key: &StorageKey) -> sp_blockchain::Result<Option<StorageData>>;
+	fn storage(
+		&self,
+		id: &BlockId<Block>,
+		key: &StorageKey,
+	) -> sp_blockchain::Result<Option<StorageData>>;
 
 	/// Given a `BlockId` and a key prefix, return the matching storage keys in that block.
-	fn storage_keys(&self, id: &BlockId<Block>, key_prefix: &StorageKey) -> sp_blockchain::Result<Vec<StorageKey>>;
+	fn storage_keys(
+		&self,
+		id: &BlockId<Block>,
+		key_prefix: &StorageKey,
+	) -> sp_blockchain::Result<Vec<StorageKey>>;
 
 	/// Given a `BlockId` and a key, return the value under the hash in that block.
-	fn storage_hash(&self, id: &BlockId<Block>, key: &StorageKey) -> sp_blockchain::Result<Option<Block::Hash>>;
+	fn storage_hash(
+		&self,
+		id: &BlockId<Block>,
+		key: &StorageKey,
+	) -> sp_blockchain::Result<Option<Block::Hash>>;
 
-	/// Given a `BlockId` and a key prefix, return the matching child storage keys and values in that block.
+	/// Given a `BlockId` and a key prefix, return the matching child storage keys and values in
+	/// that block.
 	fn storage_pairs(
 		&self,
 		id: &BlockId<Block>,
-		key_prefix: &StorageKey
+		key_prefix: &StorageKey,
 	) -> sp_blockchain::Result<Vec<(StorageKey, StorageData)>>;
 
-	/// Given a `BlockId` and a key prefix, return a `KeyIterator` iterates matching storage keys in that block.
+	/// Given a `BlockId` and a key prefix, return a `KeyIterator` iterates matching storage keys in
+	/// that block.
 	fn storage_keys_iter<'a>(
 		&self,
 		id: &BlockId<Block>,
 		prefix: Option<&'a StorageKey>,
-		start_key: Option<&StorageKey>
+		start_key: Option<&StorageKey>,
 	) -> sp_blockchain::Result<KeyIterator<'a, B::State, Block>>;
 
-	/// Given a `BlockId`, a key and a child storage key, return the value under the key in that block.
+	/// Given a `BlockId`, a key and a child storage key, return the value under the key in that
+	/// block.
 	fn child_storage(
 		&self,
 		id: &BlockId<Block>,
 		child_info: &ChildInfo,
-		key: &StorageKey
+		key: &StorageKey,
 	) -> sp_blockchain::Result<Option<StorageData>>;
 
-	/// Given a `BlockId`, a key prefix, and a child storage key, return the matching child storage keys.
+	/// Given a `BlockId`, a key prefix, and a child storage key, return the matching child storage
+	/// keys.
 	fn child_storage_keys(
 		&self,
 		id: &BlockId<Block>,
 		child_info: &ChildInfo,
-		key_prefix: &StorageKey
+		key_prefix: &StorageKey,
 	) -> sp_blockchain::Result<Vec<StorageKey>>;
 
-	/// Given a `BlockId`, a key and a child storage key, return the hash under the key in that block.
+	/// Given a `BlockId`, a key and a child storage key, return the hash under the key in that
+	/// block.
 	fn child_storage_hash(
 		&self,
 		id: &BlockId<Block>,
 		child_info: &ChildInfo,
-		key: &StorageKey
+		key: &StorageKey,
 	) -> sp_blockchain::Result<Option<Block::Hash>>;
 
 	/// Get longest range within [first; last] that is possible to use in `key_changes`
@@ -381,7 +393,7 @@ pub trait StorageProvider<Block: BlockT, B: Backend<Block>> {
 		first: NumberFor<Block>,
 		last: BlockId<Block>,
 		storage_key: Option<&PrefixedStorageKey>,
-		key: &StorageKey
+		key: &StorageKey,
 	) -> sp_blockchain::Result<Vec<(NumberFor<Block>, u32)>>;
 }
 
@@ -469,10 +481,13 @@ pub trait Backend<Block: BlockT>: AuxStore + Send + Sync {
 		'a,
 		'b: 'a,
 		'c: 'a,
-		I: IntoIterator<Item=&'a(&'c [u8], &'c [u8])>,
-		D: IntoIterator<Item=&'a &'b [u8]>,
-	>(&self, insert: I, delete: D) -> sp_blockchain::Result<()>
-	{
+		I: IntoIterator<Item = &'a (&'c [u8], &'c [u8])>,
+		D: IntoIterator<Item = &'a &'b [u8]>,
+	>(
+		&self,
+		insert: I,
+		delete: D,
+	) -> sp_blockchain::Result<()> {
 		AuxStore::insert_aux(self, insert, delete)
 	}
 	/// Query auxiliary data from key-value store.
@@ -496,12 +511,14 @@ pub trait PrunableStateChangesTrieStorage<Block: BlockT>:
 	/// Get reference to StateChangesTrieStorage.
 	fn storage(&self) -> &dyn StateChangesTrieStorage<HashFor<Block>, NumberFor<Block>>;
 	/// Get configuration at given block.
-	fn configuration_at(&self, at: &BlockId<Block>) -> sp_blockchain::Result<
-		ChangesTrieConfigurationRange<NumberFor<Block>, Block::Hash>
-	>;
+	fn configuration_at(
+		&self,
+		at: &BlockId<Block>,
+	) -> sp_blockchain::Result<ChangesTrieConfigurationRange<NumberFor<Block>, Block::Hash>>;
 	/// Get end block (inclusive) of oldest pruned max-level (or skewed) digest trie blocks range.
 	/// It is guaranteed that we have no any changes tries before (and including) this block.
-	/// It is guaranteed that all existing changes tries after this block are not yet pruned (if created).
+	/// It is guaranteed that all existing changes tries after this block are not yet pruned (if
+	/// created).
 	fn oldest_pruned_digest_range_end(&self) -> NumberFor<Block>;
 }
 
@@ -532,7 +549,8 @@ pub fn changes_tries_state_at_block<'a, Block: BlockT>(
 
 	let config_range = storage.configuration_at(block)?;
 	match config_range.config {
-		Some(config) => Ok(Some(ChangesTrieState::new(config, config_range.zero.0, storage.storage()))),
+		Some(config) =>
+			Ok(Some(ChangesTrieState::new(config, config_range.zero.0, storage.storage()))),
 		None => Ok(None),
 	}
 }
@@ -547,7 +565,8 @@ pub trait ProvideChtRoots<Block: BlockT> {
 		block: NumberFor<Block>,
 	) -> sp_blockchain::Result<Option<Block::Hash>>;
 
-	/// Get changes trie CHT root for given block. Returns None if the block is not a part of any CHT.
+	/// Get changes trie CHT root for given block. Returns None if the block is not a part of any
+	/// CHT.
 	fn changes_trie_cht_root(
 		&self,
 		cht_size: NumberFor<Block>,

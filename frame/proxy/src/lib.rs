@@ -38,36 +38,43 @@
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_std::prelude::*;
-use codec::{Encode, Decode};
-use sp_io::hashing::blake2_256;
-use sp_runtime::{DispatchResult, traits::{Dispatchable, Zero, Hash, Member, Saturating}};
+use codec::{Decode, Encode};
+use frame_support::dispatch::DispatchError;
 use frame_support::{
-	decl_module, decl_event, decl_error, decl_storage, Parameter, ensure, RuntimeDebug, traits::{
-		Get, ReservableCurrency, Currency, InstanceFilter, OriginTrait, IsType,
-	}, weights::{Weight, GetDispatchInfo},
-	dispatch::{PostDispatchInfo, IsSubType}, storage::IterableStorageMap,
+	decl_error, decl_event, decl_module, decl_storage,
+	dispatch::{IsSubType, PostDispatchInfo},
+	ensure,
+	storage::IterableStorageMap,
+	traits::{Currency, Get, InstanceFilter, IsType, OriginTrait, ReservableCurrency},
+	weights::{GetDispatchInfo, Weight},
+	Parameter, RuntimeDebug,
 };
 use frame_system::{self as system, ensure_signed};
-use frame_support::dispatch::DispatchError;
+use sp_io::hashing::blake2_256;
+use sp_runtime::{
+	traits::{Dispatchable, Hash, Member, Saturating, Zero},
+	DispatchResult,
+};
+use sp_std::prelude::*;
 
-mod tests;
 mod benchmarking;
 mod default_weight;
+mod tests;
 
-type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 pub trait WeightInfo {
-	fn proxy_announced(a: u32, p: u32, ) -> Weight;
-	fn remove_announcement(a: u32, p: u32, ) -> Weight;
-	fn reject_announcement(a: u32, p: u32, ) -> Weight;
-	fn announce(a: u32, p: u32, ) -> Weight;
-	fn proxy(p: u32, ) -> Weight;
-	fn add_proxy(p: u32, ) -> Weight;
-	fn remove_proxy(p: u32, ) -> Weight;
-	fn remove_proxies(p: u32, ) -> Weight;
-	fn anonymous(p: u32, ) -> Weight;
-	fn kill_anonymous(p: u32, ) -> Weight;
+	fn proxy_announced(a: u32, p: u32) -> Weight;
+	fn remove_announcement(a: u32, p: u32) -> Weight;
+	fn reject_announcement(a: u32, p: u32) -> Weight;
+	fn announce(a: u32, p: u32) -> Weight;
+	fn proxy(p: u32) -> Weight;
+	fn add_proxy(p: u32) -> Weight;
+	fn remove_proxy(p: u32) -> Weight;
+	fn remove_proxies(p: u32) -> Weight;
+	fn anonymous(p: u32) -> Weight;
+	fn kill_anonymous(p: u32) -> Weight;
 }
 
 /// Configuration trait.
@@ -76,8 +83,11 @@ pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
 	/// The overarching call type.
-	type Call: Parameter + Dispatchable<Origin=Self::Origin, PostInfo=PostDispatchInfo>
-		+ GetDispatchInfo + From<frame_system::Call<Self>> + IsSubType<Call<Self>>
+	type Call: Parameter
+		+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+		+ GetDispatchInfo
+		+ From<frame_system::Call<Self>>
+		+ IsSubType<Call<Self>>
 		+ IsType<<Self as frame_system::Trait>::Call>;
 
 	/// The currency mechanism.
@@ -87,7 +97,11 @@ pub trait Trait: frame_system::Trait {
 	/// The instance filter determines whether a given call may be proxied under this type.
 	///
 	/// IMPORTANT: `Default` must be provided and MUST BE the the *most permissive* value.
-	type ProxyType: Parameter + Member + Ord + PartialOrd + InstanceFilter<<Self as Trait>::Call>
+	type ProxyType: Parameter
+		+ Member
+		+ Ord
+		+ PartialOrd
+		+ InstanceFilter<<Self as Trait>::Call>
 		+ Default;
 
 	/// The base amount of currency needed to reserve for creating a proxy.
@@ -134,8 +148,8 @@ pub struct ProxyDefinition<AccountId, ProxyType, BlockNumber> {
 	delegate: AccountId,
 	/// A value defining the subset of calls that it is allowed to make.
 	proxy_type: ProxyType,
-	/// The number of blocks that an announcement must be in place for before the corresponding call
-	/// may be dispatched. If zero, then no announcement is needed.
+	/// The number of blocks that an announcement must be in place for before the corresponding
+	/// call may be dispatched. If zero, then no announcement is needed.
 	delay: BlockNumber,
 }
 
@@ -539,7 +553,6 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-
 	/// Calculate the address of an anonymous account.
 	///
 	/// - `who`: The spawner account.
@@ -557,10 +570,12 @@ impl<T: Trait> Module<T> {
 		index: u16,
 		maybe_when: Option<(T::BlockNumber, u32)>,
 	) -> T::AccountId {
-		let (height, ext_index) = maybe_when.unwrap_or_else(|| (
-			system::Module::<T>::block_number(),
-			system::Module::<T>::extrinsic_index().unwrap_or_default()
-		));
+		let (height, ext_index) = maybe_when.unwrap_or_else(|| {
+			(
+				system::Module::<T>::block_number(),
+				system::Module::<T>::extrinsic_index().unwrap_or_default(),
+			)
+		});
 		let entropy = (b"modlpy/proxy____", who, height, ext_index, proxy_type, index)
 			.using_encoded(blake2_256);
 		T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
@@ -643,26 +658,22 @@ impl<T: Trait> Module<T> {
 		factor: BalanceOf<T>,
 		len: usize,
 	) -> Result<Option<BalanceOf<T>>, DispatchError> {
-		let new_deposit = if len == 0 {
-			BalanceOf::<T>::zero()
-		} else {
-			base + factor * (len as u32).into()
-		};
+		let new_deposit =
+			if len == 0 { BalanceOf::<T>::zero() } else { base + factor * (len as u32).into() };
 		if new_deposit > old_deposit {
 			T::Currency::reserve(&who, new_deposit - old_deposit)?;
 		} else if new_deposit < old_deposit {
 			T::Currency::unreserve(&who, old_deposit - new_deposit);
 		}
-		Ok(if len == 0 {
-			None
-		} else {
-			Some(new_deposit)
-		})
+		Ok(if len == 0 { None } else { Some(new_deposit) })
 	}
 
 	fn edit_announcements<
-		F: FnMut(&Announcement<T::AccountId, CallHashOf<T>, T::BlockNumber>) -> bool
-	>(delegate: &T::AccountId, f: F) -> DispatchResult {
+		F: FnMut(&Announcement<T::AccountId, CallHashOf<T>, T::BlockNumber>) -> bool,
+	>(
+		delegate: &T::AccountId,
+		f: F,
+	) -> DispatchResult {
 		Announcements::<T>::try_mutate_exists(delegate, |x| {
 			let (mut pending, old_deposit) = x.take().ok_or(Error::<T>::NotFound)?;
 			let orig_pending_len = pending.len();
@@ -674,7 +685,8 @@ impl<T: Trait> Module<T> {
 				T::AnnouncementDepositBase::get(),
 				T::AnnouncementDepositFactor::get(),
 				pending.len(),
-			)?.map(|deposit| (pending, deposit));
+			)?
+			.map(|deposit| (pending, deposit));
 			Ok(())
 		})
 	}
@@ -685,7 +697,8 @@ impl<T: Trait> Module<T> {
 		force_proxy_type: Option<T::ProxyType>,
 	) -> Result<ProxyDefinition<T::AccountId, T::ProxyType, T::BlockNumber>, DispatchError> {
 		let f = |x: &ProxyDefinition<T::AccountId, T::ProxyType, T::BlockNumber>| -> bool {
-			&x.delegate == delegate && force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
+			&x.delegate == delegate &&
+				force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
 		};
 		Ok(Proxies::<T>::get(real).0.into_iter().find(f).ok_or(Error::<T>::NotProxy)?)
 	}
@@ -701,13 +714,17 @@ impl<T: Trait> Module<T> {
 			let c = <T as Trait>::Call::from_ref(c);
 			// We make sure the proxy call does access this pallet to change modify proxies.
 			match c.is_sub_type() {
-				// Proxy call cannot add or remove a proxy with more permissions than it already has.
+				// Proxy call cannot add or remove a proxy with more permissions than it already
+				// has.
 				Some(Call::add_proxy(_, ref pt, _)) | Some(Call::remove_proxy(_, ref pt, _))
-					if !def.proxy_type.is_superset(&pt) => false,
-				// Proxy call cannot remove all proxies or kill anonymous proxies unless it has full permissions.
+					if !def.proxy_type.is_superset(&pt) =>
+					false,
+				// Proxy call cannot remove all proxies or kill anonymous proxies unless it has full
+				// permissions.
 				Some(Call::remove_proxies(..)) | Some(Call::kill_anonymous(..))
-					if def.proxy_type != T::ProxyType::default() => false,
-				_ => def.proxy_type.filter(c)
+					if def.proxy_type != T::ProxyType::default() =>
+					false,
+				_ => def.proxy_type.filter(c),
 			}
 		});
 		let e = call.dispatch(origin);
@@ -729,16 +746,19 @@ pub mod migration {
 	/// struct by setting the delay to zero.
 	pub fn migrate_to_time_delayed_proxies<T: Trait>() -> Weight {
 		Proxies::<T>::translate::<(Vec<(T::AccountId, T::ProxyType)>, BalanceOf<T>), _>(
-			|_, (targets, deposit)| Some((
-				targets.into_iter()
-					.map(|(a, t)| ProxyDefinition {
-						delegate: a,
-						proxy_type: t,
-						delay: Zero::zero(),
-					})
-					.collect::<Vec<_>>(),
-				deposit,
-			))
+			|_, (targets, deposit)| {
+				Some((
+					targets
+						.into_iter()
+						.map(|(a, t)| ProxyDefinition {
+							delegate: a,
+							proxy_type: t,
+							delay: Zero::zero(),
+						})
+						.collect::<Vec<_>>(),
+					deposit,
+				))
+			},
 		);
 		T::MaximumBlockWeight::get()
 	}

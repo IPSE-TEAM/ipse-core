@@ -21,32 +21,36 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod backend;
-mod tests;
 pub mod precompiles;
+mod tests;
 
+pub use crate::backend::{Account, Backend, Log, Vicinity};
 pub use crate::precompiles::{Precompile, Precompiles};
-pub use crate::backend::{Account, Log, Vicinity, Backend};
 
-use sp_std::vec::Vec;
 #[cfg(feature = "std")]
-use codec::{Encode, Decode};
-#[cfg(feature = "std")]
-use serde::{Serialize, Deserialize};
-use frame_support::{debug, ensure, decl_module, decl_storage, decl_event, decl_error};
-use frame_support::weights::{Weight, Pays};
-use frame_support::traits::{Currency, ExistenceRequirement, Get};
-use frame_support::dispatch::DispatchResultWithPostInfo;
-use frame_system::RawOrigin;
-use sp_core::{U256, H256, H160, Hasher};
-use sp_runtime::{AccountId32, traits::{UniqueSaturatedInto, SaturatedConversion, BadOrigin}};
-use sha3::{Digest, Keccak256};
-pub use evm::{ExitReason, ExitSucceed, ExitError, ExitRevert, ExitFatal};
-use evm::Config;
-use evm::executor::StackExecutor;
+use codec::{Decode, Encode};
 use evm::backend::ApplyBackend;
+use evm::executor::StackExecutor;
+use evm::Config;
+pub use evm::{ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed};
+use frame_support::dispatch::DispatchResultWithPostInfo;
+use frame_support::traits::{Currency, ExistenceRequirement, Get};
+use frame_support::weights::{Pays, Weight};
+use frame_support::{debug, decl_error, decl_event, decl_module, decl_storage, ensure};
+use frame_system::RawOrigin;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+use sha3::{Digest, Keccak256};
+use sp_core::{Hasher, H160, H256, U256};
+use sp_runtime::{
+	traits::{BadOrigin, SaturatedConversion, UniqueSaturatedInto},
+	AccountId32,
+};
+use sp_std::vec::Vec;
 
 /// Type alias for currency balance.
-pub type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+pub type BalanceOf<T> =
+	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 /// Trait that outputs the current transaction gas price.
 pub trait FeeCalculator {
@@ -55,7 +59,9 @@ pub trait FeeCalculator {
 }
 
 impl FeeCalculator for () {
-	fn min_gas_price() -> U256 { U256::zero() }
+	fn min_gas_price() -> U256 {
+		U256::zero()
+	}
 }
 
 pub trait EnsureAddressOrigin<OuterOrigin> {
@@ -81,18 +87,16 @@ pub trait EnsureAddressOrigin<OuterOrigin> {
 /// ID is `H160`.
 pub struct EnsureAddressSame;
 
-impl<OuterOrigin> EnsureAddressOrigin<OuterOrigin> for EnsureAddressSame where
+impl<OuterOrigin> EnsureAddressOrigin<OuterOrigin> for EnsureAddressSame
+where
 	OuterOrigin: Into<Result<RawOrigin<H160>, OuterOrigin>> + From<RawOrigin<H160>>,
 {
 	type Success = H160;
 
-	fn try_address_origin(
-		address: &H160,
-		origin: OuterOrigin,
-	) -> Result<H160, OuterOrigin> {
+	fn try_address_origin(address: &H160, origin: OuterOrigin) -> Result<H160, OuterOrigin> {
 		origin.into().and_then(|o| match o {
 			RawOrigin::Signed(who) if &who == address => Ok(who),
-			r => Err(OuterOrigin::from(r))
+			r => Err(OuterOrigin::from(r)),
 		})
 	}
 }
@@ -100,15 +104,13 @@ impl<OuterOrigin> EnsureAddressOrigin<OuterOrigin> for EnsureAddressSame where
 /// Ensure that the origin is root.
 pub struct EnsureAddressRoot<AccountId>(sp_std::marker::PhantomData<AccountId>);
 
-impl<OuterOrigin, AccountId> EnsureAddressOrigin<OuterOrigin> for EnsureAddressRoot<AccountId> where
+impl<OuterOrigin, AccountId> EnsureAddressOrigin<OuterOrigin> for EnsureAddressRoot<AccountId>
+where
 	OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>> + From<RawOrigin<AccountId>>,
 {
 	type Success = ();
 
-	fn try_address_origin(
-		_address: &H160,
-		origin: OuterOrigin,
-	) -> Result<(), OuterOrigin> {
+	fn try_address_origin(_address: &H160, origin: OuterOrigin) -> Result<(), OuterOrigin> {
 		origin.into().and_then(|o| match o {
 			RawOrigin::Root => Ok(()),
 			r => Err(OuterOrigin::from(r)),
@@ -122,10 +124,7 @@ pub struct EnsureAddressNever<AccountId>(sp_std::marker::PhantomData<AccountId>)
 impl<OuterOrigin, AccountId> EnsureAddressOrigin<OuterOrigin> for EnsureAddressNever<AccountId> {
 	type Success = AccountId;
 
-	fn try_address_origin(
-		_address: &H160,
-		origin: OuterOrigin,
-	) -> Result<AccountId, OuterOrigin> {
+	fn try_address_origin(_address: &H160, origin: OuterOrigin) -> Result<AccountId, OuterOrigin> {
 		Err(origin)
 	}
 }
@@ -134,19 +133,17 @@ impl<OuterOrigin, AccountId> EnsureAddressOrigin<OuterOrigin> for EnsureAddressN
 /// `AccountId32`.
 pub struct EnsureAddressTruncated;
 
-impl<OuterOrigin> EnsureAddressOrigin<OuterOrigin> for EnsureAddressTruncated where
+impl<OuterOrigin> EnsureAddressOrigin<OuterOrigin> for EnsureAddressTruncated
+where
 	OuterOrigin: Into<Result<RawOrigin<AccountId32>, OuterOrigin>> + From<RawOrigin<AccountId32>>,
 {
 	type Success = AccountId32;
 
-	fn try_address_origin(
-		address: &H160,
-		origin: OuterOrigin,
-	) -> Result<AccountId32, OuterOrigin> {
+	fn try_address_origin(address: &H160, origin: OuterOrigin) -> Result<AccountId32, OuterOrigin> {
 		origin.into().and_then(|o| match o {
-			RawOrigin::Signed(who)
-				if AsRef::<[u8; 32]>::as_ref(&who)[0..20] == address[0..20] => Ok(who),
-			r => Err(OuterOrigin::from(r))
+			RawOrigin::Signed(who) if AsRef::<[u8; 32]>::as_ref(&who)[0..20] == address[0..20] =>
+				Ok(who),
+			r => Err(OuterOrigin::from(r)),
 		})
 	}
 }
@@ -159,13 +156,15 @@ pub trait AddressMapping<A> {
 pub struct IdentityAddressMapping;
 
 impl AddressMapping<H160> for IdentityAddressMapping {
-	fn into_account_id(address: H160) -> H160 { address }
+	fn into_account_id(address: H160) -> H160 {
+		address
+	}
 }
 
 /// Hashed address mapping.
 pub struct HashedAddressMapping<H>(sp_std::marker::PhantomData<H>);
 
-impl<H: Hasher<Out=H256>> AddressMapping<AccountId32> for HashedAddressMapping<H> {
+impl<H: Hasher<Out = H256>> AddressMapping<AccountId32> for HashedAddressMapping<H> {
 	fn into_account_id(address: H160) -> AccountId32 {
 		let mut data = [0u8; 24];
 		data[0..4].copy_from_slice(b"evm:");
@@ -195,7 +194,7 @@ pub trait Trait: frame_system::Trait + pallet_timestamp::Trait {
 	/// Allow the origin to call on behalf of given address.
 	type CallOrigin: EnsureAddressOrigin<Self::Origin>;
 	/// Allow the origin to withdraw on behalf of given address.
-	type WithdrawOrigin: EnsureAddressOrigin<Self::Origin, Success=Self::AccountId>;
+	type WithdrawOrigin: EnsureAddressOrigin<Self::Origin, Success = Self::AccountId>;
 
 	/// Mapping from address to account id.
 	type AddressMapping: AddressMapping<Self::AccountId>;
@@ -451,9 +450,7 @@ impl<T: Trait> Module<T> {
 		let account = Self::account_basic(address);
 		let code_len = AccountCodes::decode_len(address).unwrap_or(0);
 
-		account.nonce == U256::zero() &&
-			account.balance == U256::zero() &&
-			code_len == 0
+		account.nonce == U256::zero() && account.balance == U256::zero() && code_len == 0
 	}
 
 	/// Remove an account if its empty.
@@ -486,25 +483,10 @@ impl<T: Trait> Module<T> {
 		nonce: Option<U256>,
 		apply_state: bool,
 	) -> Result<(ExitReason, H160, U256, Vec<Log>), Error<T>> {
-		Self::execute_evm(
-			source,
-			value,
-			gas_limit,
-			gas_price,
-			nonce,
-			apply_state,
-			|executor| {
-				let address = executor.create_address(
-					evm::CreateScheme::Legacy { caller: source },
-				);
-				(executor.transact_create(
-					source,
-					value,
-					init,
-					gas_limit as usize,
-				), address)
-			},
-		)
+		Self::execute_evm(source, value, gas_limit, gas_price, nonce, apply_state, |executor| {
+			let address = executor.create_address(evm::CreateScheme::Legacy { caller: source });
+			(executor.transact_create(source, value, init, gas_limit as usize), address)
+		})
 	}
 
 	/// Execute a create2 transaction on behalf of a given sender.
@@ -519,26 +501,14 @@ impl<T: Trait> Module<T> {
 		apply_state: bool,
 	) -> Result<(ExitReason, H160, U256, Vec<Log>), Error<T>> {
 		let code_hash = H256::from_slice(Keccak256::digest(&init).as_slice());
-		Self::execute_evm(
-			source,
-			value,
-			gas_limit,
-			gas_price,
-			nonce,
-			apply_state,
-			|executor| {
-				let address = executor.create_address(
-					evm::CreateScheme::Create2 { caller: source, code_hash, salt },
-				);
-				(executor.transact_create2(
-					source,
-					value,
-					init,
-					salt,
-					gas_limit as usize,
-				), address)
-			},
-		)
+		Self::execute_evm(source, value, gas_limit, gas_price, nonce, apply_state, |executor| {
+			let address = executor.create_address(evm::CreateScheme::Create2 {
+				caller: source,
+				code_hash,
+				salt,
+			});
+			(executor.transact_create2(source, value, init, salt, gas_limit as usize), address)
+		})
 	}
 
 	/// Execute a call transaction on behalf of a given sender.
@@ -552,21 +522,9 @@ impl<T: Trait> Module<T> {
 		nonce: Option<U256>,
 		apply_state: bool,
 	) -> Result<(ExitReason, Vec<u8>, U256, Vec<Log>), Error<T>> {
-		Self::execute_evm(
-			source,
-			value,
-			gas_limit,
-			gas_price,
-			nonce,
-			apply_state,
-			|executor| executor.transact_call(
-				source,
-				target,
-				value,
-				input,
-				gas_limit as usize,
-			),
-		)
+		Self::execute_evm(source, value, gas_limit, gas_price, nonce, apply_state, |executor| {
+			executor.transact_call(source, target, value, input, gas_limit as usize)
+		})
 	}
 
 	/// Execute an EVM operation.
@@ -578,19 +536,16 @@ impl<T: Trait> Module<T> {
 		nonce: Option<U256>,
 		apply_state: bool,
 		f: F,
-	) -> Result<(ExitReason, R, U256, Vec<Log>), Error<T>> where
+	) -> Result<(ExitReason, R, U256, Vec<Log>), Error<T>>
+	where
 		F: FnOnce(&mut StackExecutor<Backend<T>>) -> (ExitReason, R),
 	{
-
 		// Gas price check is skipped when performing a gas estimation.
 		if apply_state {
 			ensure!(gas_price >= T::FeeCalculator::min_gas_price(), Error::<T>::GasPriceTooLow);
 		}
 
-		let vicinity = Vicinity {
-			gas_price,
-			origin: source,
-		};
+		let vicinity = Vicinity { gas_price, origin: source };
 
 		let mut backend = Backend::<T>::new(&vicinity);
 		let mut executor = StackExecutor::new_with_precompile(
@@ -600,8 +555,8 @@ impl<T: Trait> Module<T> {
 			T::Precompiles::execute,
 		);
 
-		let total_fee = gas_price.checked_mul(U256::from(gas_limit))
-			.ok_or(Error::<T>::FeeOverflow)?;
+		let total_fee =
+			gas_price.checked_mul(U256::from(gas_limit)).ok_or(Error::<T>::FeeOverflow)?;
 		let total_payment = value.checked_add(total_fee).ok_or(Error::<T>::PaymentOverflow)?;
 		let source_account = Self::account_basic(&source);
 		ensure!(source_account.balance >= total_payment, Error::<T>::BalanceLow);
@@ -628,14 +583,12 @@ impl<T: Trait> Module<T> {
 		executor.deposit(source, total_fee.saturating_sub(actual_fee));
 
 		let (values, logs) = executor.deconstruct();
-		let logs_data = logs.into_iter().map(|x| x ).collect::<Vec<_>>();
-		let logs_result = logs_data.clone().into_iter().map(|it| {
-			Log {
-				address: it.address,
-				topics: it.topics,
-				data: it.data
-			}
-		}).collect();
+		let logs_data = logs.into_iter().map(|x| x).collect::<Vec<_>>();
+		let logs_result = logs_data
+			.clone()
+			.into_iter()
+			.map(|it| Log { address: it.address, topics: it.topics, data: it.data })
+			.collect();
 		if apply_state {
 			backend.apply(values, logs_data, true);
 		}

@@ -16,15 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{new_worker_and_service, worker::{tests::{TestApi, TestNetwork}, Role}};
+use crate::{
+	new_worker_and_service,
+	worker::{
+		tests::{TestApi, TestNetwork},
+		Role,
+	},
+};
 
 use std::sync::Arc;
 
-use futures::prelude::*;
 use futures::channel::mpsc::channel;
 use futures::executor::LocalPool;
+use futures::prelude::*;
 use futures::task::LocalSpawn;
-use libp2p::core::{multiaddr::{Multiaddr, Protocol}, PeerId};
+use libp2p::core::{
+	multiaddr::{Multiaddr, Protocol},
+	PeerId,
+};
 
 use sp_authority_discovery::AuthorityId;
 use sp_core::crypto::key_types;
@@ -43,13 +52,12 @@ fn get_addresses_and_authority_id() {
 		.into();
 
 	let remote_peer_id = PeerId::random();
-	let remote_addr = "/ip6/2001:db8:0:0:0:0:0:2/tcp/30333".parse::<Multiaddr>()
+	let remote_addr = "/ip6/2001:db8:0:0:0:0:0:2/tcp/30333"
+		.parse::<Multiaddr>()
 		.unwrap()
 		.with(Protocol::P2p(remote_peer_id.clone().into()));
 
-	let test_api = Arc::new(TestApi {
-		authorities: vec![],
-	});
+	let test_api = Arc::new(TestApi { authorities: vec![] });
 
 	let (mut worker, mut service) = new_worker_and_service(
 		test_api,

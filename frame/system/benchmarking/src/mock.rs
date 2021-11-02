@@ -19,11 +19,11 @@
 
 #![cfg(test)]
 
-use sp_runtime::traits::IdentityLookup;
 use frame_support::{
+	dispatch::{DispatchInfo, Dispatchable, PostDispatchInfo},
 	impl_outer_origin,
-	dispatch::{Dispatchable, DispatchInfo, PostDispatchInfo},
 };
+use sp_runtime::traits::IdentityLookup;
 
 type AccountId = u64;
 type AccountIndex = u32;
@@ -41,9 +41,8 @@ impl Dispatchable for Call {
 	type Trait = ();
 	type Info = DispatchInfo;
 	type PostInfo = PostDispatchInfo;
-	fn dispatch(self, _origin: Self::Origin)
-		-> sp_runtime::DispatchResultWithInfo<Self::PostInfo> {
-			panic!("Do not use dummy implementation for dispatch.");
+	fn dispatch(self, _origin: Self::Origin) -> sp_runtime::DispatchResultWithInfo<Self::PostInfo> {
+		panic!("Do not use dummy implementation for dispatch.");
 	}
 }
 

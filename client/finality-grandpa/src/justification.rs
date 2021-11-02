@@ -19,13 +19,13 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use sp_blockchain::{Error as ClientError, HeaderBackend};
-use parity_scale_codec::{Encode, Decode};
 use finality_grandpa::voter_set::VoterSet;
-use finality_grandpa::{Error as GrandpaError};
-use sp_runtime::generic::BlockId;
-use sp_runtime::traits::{NumberFor, Block as BlockT, Header as HeaderT};
+use finality_grandpa::Error as GrandpaError;
+use parity_scale_codec::{Decode, Encode};
+use sp_blockchain::{Error as ClientError, HeaderBackend};
 use sp_finality_grandpa::AuthorityId;
+use sp_runtime::generic::BlockId;
+use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
 
 use crate::{Commit, Error};
 
@@ -51,7 +51,8 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 		client: &Arc<C>,
 		round: u64,
 		commit: Commit<Block>,
-	) -> Result<GrandpaJustification<Block>, Error> where
+	) -> Result<GrandpaJustification<Block>, Error>
+	where
 		C: HeaderBackend<Block>,
 	{
 		let mut votes_ancestries_hashes = HashSet::new();
@@ -65,12 +66,14 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 		for signed in commit.precommits.iter() {
 			let mut current_hash = signed.precommit.target_hash;
 			loop {
-				if current_hash == commit.target_hash { break; }
+				if current_hash == commit.target_hash {
+					break
+				}
 
 				match client.header(BlockId::Hash(current_hash))? {
 					Some(current_header) => {
 						if *current_header.number() <= commit.target_number {
-							return error();
+							return error()
 						}
 
 						let parent_hash = *current_header.parent_hash();
@@ -94,14 +97,16 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 		finalized_target: (Block::Hash, NumberFor<Block>),
 		set_id: u64,
 		voters: &VoterSet<AuthorityId>,
-	) -> Result<GrandpaJustification<Block>, ClientError> where
+	) -> Result<GrandpaJustification<Block>, ClientError>
+	where
 		NumberFor<Block>: finality_grandpa::BlockNumberOps,
 	{
-
 		let justification = GrandpaJustification::<Block>::decode(&mut &*encoded)
 			.map_err(|_| ClientError::JustificationDecode)?;
 
-		if (justification.commit.target_hash, justification.commit.target_number) != finalized_target {
+		if (justification.commit.target_hash, justification.commit.target_number) !=
+			finalized_target
+		{
 			let msg = "invalid commit target in grandpa justification".to_string();
 			Err(ClientError::BadJustification(msg))
 		} else {
@@ -110,7 +115,11 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 	}
 
 	/// Validate the commit and the votes' ancestry proofs.
-	pub(crate) fn verify(&self, set_id: u64, voters: &VoterSet<AuthorityId>) -> Result<(), ClientError>
+	pub(crate) fn verify(
+		&self,
+		set_id: u64,
+		voters: &VoterSet<AuthorityId>,
+	) -> Result<(), ClientError>
 	where
 		NumberFor<Block>: finality_grandpa::BlockNumberOps,
 	{
@@ -118,16 +127,12 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 
 		let ancestry_chain = AncestryChain::<Block>::new(&self.votes_ancestries);
 
-		match finality_grandpa::validate_commit(
-			&self.commit,
-			voters,
-			&ancestry_chain,
-		) {
+		match finality_grandpa::validate_commit(&self.commit, voters, &ancestry_chain) {
 			Ok(ref result) if result.ghost().is_some() => {},
 			_ => {
 				let msg = "invalid commit in grandpa justification".to_string();
-				return Err(ClientError::BadJustification(msg));
-			}
+				return Err(ClientError::BadJustification(msg))
+			},
 		}
 
 		let mut buf = Vec::new();
@@ -142,16 +147,18 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 				&mut buf,
 			) {
 				return Err(ClientError::BadJustification(
-					"invalid signature for precommit in grandpa justification".to_string()));
+					"invalid signature for precommit in grandpa justification".to_string(),
+				))
 			}
 
 			if self.commit.target_hash == signed.precommit.target_hash {
-				continue;
+				continue
 			}
 
 			match ancestry_chain.ancestry(self.commit.target_hash, signed.precommit.target_hash) {
 				Ok(route) => {
-					// ancestry starts from parent hash but the precommit target hash has been visited
+					// ancestry starts from parent hash but the precommit target hash has been
+					// visited
 					visited_hashes.insert(signed.precommit.target_hash);
 					for hash in route {
 						visited_hashes.insert(hash);
@@ -159,19 +166,20 @@ impl<Block: BlockT> GrandpaJustification<Block> {
 				},
 				_ => {
 					return Err(ClientError::BadJustification(
-						"invalid precommit ancestry proof in grandpa justification".to_string()));
+						"invalid precommit ancestry proof in grandpa justification".to_string(),
+					))
 				},
 			}
 		}
 
-		let ancestry_hashes = self.votes_ancestries
-			.iter()
-			.map(|h: &Block::Header| h.hash())
-			.collect();
+		let ancestry_hashes =
+			self.votes_ancestries.iter().map(|h: &Block::Header| h.hash()).collect();
 
 		if visited_hashes != ancestry_hashes {
 			return Err(ClientError::BadJustification(
-				"invalid precommit ancestries in grandpa justification with unused headers".to_string()));
+				"invalid precommit ancestries in grandpa justification with unused headers"
+					.to_string(),
+			))
 		}
 
 		Ok(())
@@ -187,24 +195,28 @@ struct AncestryChain<Block: BlockT> {
 
 impl<Block: BlockT> AncestryChain<Block> {
 	fn new(ancestry: &[Block::Header]) -> AncestryChain<Block> {
-		let ancestry: HashMap<_, _> = ancestry
-			.iter()
-			.cloned()
-			.map(|h: Block::Header| (h.hash(), h))
-			.collect();
+		let ancestry: HashMap<_, _> =
+			ancestry.iter().cloned().map(|h: Block::Header| (h.hash(), h)).collect();
 
 		AncestryChain { ancestry }
 	}
 }
 
-impl<Block: BlockT> finality_grandpa::Chain<Block::Hash, NumberFor<Block>> for AncestryChain<Block> where
-	NumberFor<Block>: finality_grandpa::BlockNumberOps
+impl<Block: BlockT> finality_grandpa::Chain<Block::Hash, NumberFor<Block>> for AncestryChain<Block>
+where
+	NumberFor<Block>: finality_grandpa::BlockNumberOps,
 {
-	fn ancestry(&self, base: Block::Hash, block: Block::Hash) -> Result<Vec<Block::Hash>, GrandpaError> {
+	fn ancestry(
+		&self,
+		base: Block::Hash,
+		block: Block::Hash,
+	) -> Result<Vec<Block::Hash>, GrandpaError> {
 		let mut route = Vec::new();
 		let mut current_hash = block;
 		loop {
-			if current_hash == base { break; }
+			if current_hash == base {
+				break
+			}
 			match self.ancestry.get(&current_hash) {
 				Some(current_header) => {
 					current_hash = *current_header.parent_hash();
@@ -218,7 +230,10 @@ impl<Block: BlockT> finality_grandpa::Chain<Block::Hash, NumberFor<Block>> for A
 		Ok(route)
 	}
 
-	fn best_chain_containing(&self, _block: Block::Hash) -> Option<(Block::Hash, NumberFor<Block>)> {
+	fn best_chain_containing(
+		&self,
+		_block: Block::Hash,
+	) -> Option<(Block::Hash, NumberFor<Block>)> {
 		None
 	}
 }

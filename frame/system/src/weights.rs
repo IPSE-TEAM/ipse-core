@@ -15,8 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::{Encode, Decode};
-use frame_support::weights::{Weight, DispatchClass};
+use codec::{Decode, Encode};
+use frame_support::weights::{DispatchClass, Weight};
 use sp_runtime::RuntimeDebug;
 
 /// An object to track the currently used extrinsic weight in a block.
