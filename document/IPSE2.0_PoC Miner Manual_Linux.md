@@ -86,6 +86,8 @@ sudo  kill -9 1795222
 ## 二、节点方P盘
 linux系统(如ubuntu18.04或ubuntu20.04)进行P盘及出块！
 
+<font color = red>**注：P盘大小建议4TB左右--有利于出块，过大则扫盘超时无法提交出块**</font>
+
 ### 2.1 下载P盘工具并解压
 
 [P盘工具Linux版的下载地址](https://github.com/PoC-Consortium/engraver/releases/download/2.4.0/engraver-2.4.0-x86_64-unknown-linux-gnu-cpu-gpu.tar.xz)
@@ -122,6 +124,8 @@ engraver_gpu
 
 ### 2.2 P盘参数说明
 
+<font color = red>**注：P盘大小建议4TB左右--有利于出块，过大则扫盘超时无法提交出块**</font>
+
 P盘参数说明:
 ```
 engraver_gpu.exe [FLAGS] [OPTIONS] --n <nonces> --id <numeric_ID> --sn <start_nonce> --path <path>
@@ -147,6 +151,7 @@ nonce计算：
 
 用户应注意，重叠的图会减小图的有效大小，因此应谨慎提供这些参数。
 计算起始随机数和绘图随机数的策略可以是：
+
 ```
 对于第一个绘图文件（0）：
 
@@ -186,6 +191,8 @@ nonce计算：
 
 ### 2.3 执行P盘命令
 **注意: --id <numeric_ID>的长度必须小于19位数字**
+
+<font color = red>**注：P盘大小建议4TB左右--有利于出块，过大则扫盘超时无法提交出块**</font>
 
 通过执行以下命令进行P盘:
 ```
