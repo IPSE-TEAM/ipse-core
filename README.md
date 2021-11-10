@@ -1,5 +1,14 @@
 # IPSE Node
 A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacking :rocket:
+## help
+### polkadot.js
+
+* china node`wss://mainnet-china.ipse.io)` [click here](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet-china.ipse.io#/explorer)
+* usa node `wss://mainnet-usa.ipse.io` [click here](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet-usa.ipse.io#/explorer)
+* europe node `wss://mainnet-europe.ipse.io` [click here](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet-europe.ipse.io#/explorer)
+> You can create your own account in the nodes above.
+### explorer
+[ipse explorer](https://scan.ipse.io/IPSE2.0)
 ***
 ## Getting Started
 Follow these steps to get started with the Node Template :hammer_and_wrench:
@@ -144,4 +153,5 @@ If you enter the command and parameters correctly, the node will return a JSON r
 [our Start a Private Network tutorial](https://substrate.dev/docs/en/tutorials/start-a-private-network/).
 
 ***
+
 
