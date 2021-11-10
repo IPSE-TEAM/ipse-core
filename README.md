@@ -13,6 +13,9 @@ A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacki
 
 ### telemetry
 [ipse telemetry](https://telemetry.polkadot.io/#list/0xde335007e3e6452abdce04ce1c1b8aac9f175f502cf3218ec365b7c12ad38766)
+
+### join us
+If you want to build an IPSE main network node and want to get a reward for it, please follow our [documentation](./document).
 ***
 ## Getting Started
 Follow these steps to get started with the Node Template :hammer_and_wrench:
