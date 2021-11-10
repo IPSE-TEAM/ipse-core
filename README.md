@@ -9,6 +9,9 @@ A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacki
 > You can create your own account in the nodes above.
 ### explorer
 [ipse explorer](https://scan.ipse.io/IPSE2.0)
+
+### telemetry
+[ipse telemetry](https://telemetry.polkadot.io/#list/0xde335007e3e6452abdce04ce1c1b8aac9f175f502cf3218ec365b7c12ad38766)
 ***
 ## Getting Started
 Follow these steps to get started with the Node Template :hammer_and_wrench:
