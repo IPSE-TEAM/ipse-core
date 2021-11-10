@@ -1,6 +1,7 @@
 # IPSE Node
 A fresh FRAME-based [Substrate](https://www.substrate.io/) node, ready for hacking :rocket:
-## help
+***
+## About us
 ### polkadot.js
 
 * china node`wss://mainnet-china.ipse.io)` [click here](https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fmainnet-china.ipse.io#/explorer)
