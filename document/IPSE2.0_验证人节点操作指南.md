@@ -1,12 +1,12 @@
 ## 一、部署节点
 
-此步略过，[请参照此文档的第一章搭建本地节点](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC Miner Manual_Linux.md)，部署并同步节点数据完成，返回当前文档。
+此步略过，[请参照此文档的第一章搭建本地节点](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC%20Miner%20Manual_Linux.md)，部署并同步节点数据完成，返回当前文档。
 
 ## 二、成为验证人节点
 
 ### 2.1 浏览器连接节点
 
-浏览器输入https://polkadot.js.org/apps打开网页，左上角点击进行设置连接节点，保存自动刷新网络。
+浏览器输入https://polkadot.js.org/apps 打开网页，左上角点击进行设置连接节点，保存自动刷新网络。
 
 ![](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/validators/page-home.png)
 
