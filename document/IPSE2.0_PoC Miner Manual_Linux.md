@@ -39,14 +39,23 @@ sudo ./IPSE --chain  main --ws-port 9948 --base-path ./db --pruning=archive  --e
 根据当时链的大小，此步可能需要几分钟到几个小时不等。
 如果您想估计还需要再多少时间，服务器日志(通过命令 tail –f ipse.log)显示了您的节点已处理和最新验证的区块。 然后您可以与 Telemetry 或当前 PolkadotJS 区块链浏览器比较。
 
-### 1.3 启动本地节点
+### 1.3 关闭本地节点
+节点同步数据完成，关闭IPSE程序，查看IPSE进程号，并杀掉进程，命令如下:
+```
+ps -ef |grep IPSE                                              
+root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path ./db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
+root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
+
+sudo  kill -9 1795222
+```
+
+### 1.4 启动本地节点
 
 节点同步数据完成，关闭IPSE程序，重新启动本地节点，运行以下命令(写入日志文件及后台运行):
 
 ```
 sudo ./IPSE --chain  main  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path ./db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
 ```
-
 通过tail –f ipse.log查看日志详情.
 ```
 Mar 25 15:31:19.327  WARN It isn't safe to expose RPC publicly without a proxy server that filters available set of RPC methods.
@@ -66,21 +75,12 @@ Mar 25 15:31:21.077  INFO execute_block: staking_poc----当前打印的高度是
 Mar 25 15:31:21.079  INFO execute_block: poc_staking era start_time: 69449, chill end_time: 69499    {block}
 Mar 25 15:31:21.081  INFO execute_block:apply_extrinsic: 节点方: 16c3ab6a5c4213de6a396cb1f899dbcadcc76f6865aae1c2b10e08339990de0a (5CaZ35VM...),  提交出块!, height = 69580, deadline = 494    {ext}
 ```
-
 之后出块程序可以直接连ws://localhost:9948进行出块。
 
-### 1.4 关闭本地节点
-查看IPSE进程号，并杀掉进程，命令如下:
-```
-ps -ef |grep IPSE
-root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path ./db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
-root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
 
-sudo  kill -9 1795222
-```
-如果想成为验证人节点，则参考以下文档:
+#### 如果想成为验证人节点，则参考以下文档:
 
-[设置验证人节点](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/README.md)
+[设置验证人节点](https://github.com/IPSE-TEAM/ipse-core/tree/ipse/document/IPSE2.0_验证人节点操作指南.md)
 
 
 ## 二、节点方P盘
@@ -216,6 +216,8 @@ sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data100648254
 完成P盘后或进行P盘的过程中，接着下一步操作。
 
 ## 三、节点方启动出块程序
+
+### 建议节点方程序放在单独的挂载盘中启动，不要放在系统盘进行启动出块！
 
 ### 3.1 下载出块相关配置文件
 下载最新版本的出块软件poc-mining及出块配置文件config.yaml、miners_config.yaml文件、supervision、update_config，运行以下命令进行下载:
