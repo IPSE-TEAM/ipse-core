@@ -43,8 +43,8 @@ use frame_support::{debug, traits::KeyOwnerProofSystem};
 use sp_finality_grandpa::{EquivocationProof, RoundNumber, SetId};
 use sp_runtime::{
 	transaction_validity::{
-		InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
-		TransactionValidityError, ValidTransaction,
+		InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity, TransactionValidityError,
+		ValidTransaction,
 	},
 	DispatchResult, Perbill,
 };
@@ -64,10 +64,7 @@ pub trait HandleEquivocation<T: Trait> {
 	type Offence: GrandpaOffence<T::KeyOwnerIdentification>;
 
 	/// Report an offence proved by the given reporters.
-	fn report_offence(
-		reporters: Vec<T::AccountId>,
-		offence: Self::Offence,
-	) -> Result<(), OffenceError>;
+	fn report_offence(reporters: Vec<T::AccountId>, offence: Self::Offence) -> Result<(), OffenceError>;
 
 	/// Returns true if all of the offenders at the given time slot have already been reported.
 	fn is_known_offence(
@@ -95,10 +92,7 @@ impl<T: Trait> HandleEquivocation<T> for () {
 		Ok(())
 	}
 
-	fn is_known_offence(
-		_offenders: &[T::KeyOwnerIdentification],
-		_time_slot: &GrandpaTimeSlot,
-	) -> bool {
+	fn is_known_offence(_offenders: &[T::KeyOwnerIdentification], _time_slot: &GrandpaTimeSlot) -> bool {
 		true
 	}
 
@@ -124,15 +118,21 @@ pub struct EquivocationHandler<I, R, O = GrandpaEquivocationOffence<I>> {
 
 impl<I, R, O> Default for EquivocationHandler<I, R, O> {
 	fn default() -> Self {
-		Self { _phantom: Default::default() }
+		Self {
+			_phantom: Default::default(),
+		}
 	}
 }
 
 impl<T, R, O> HandleEquivocation<T> for EquivocationHandler<T::KeyOwnerIdentification, R, O>
 where
-	// We use the authorship pallet to fetch the current block author and use
-	// `offchain::SendTransactionTypes` for unsigned extrinsic creation and
-	// submission.
+	// We use the authorship
+	// pallet to fetch the
+	// current block author and
+	// use `offchain::
+	// SendTransactionTypes` for
+	// unsigned extrinsic
+	// creation and submission.
 	T: Trait + pallet_authorship::Trait + frame_system::offchain::SendTransactionTypes<Call<T>>,
 	// A system for reporting offences after valid equivocation reports are
 	// processed.
@@ -190,15 +190,15 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 		if let Call::report_equivocation_unsigned(equivocation_proof, _) = call {
 			// discard equivocation report not coming from the local node
 			match source {
-				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ },
+				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
 				_ => {
 					debug::warn!(
 						target: "afg",
 						"rejecting unsigned report equivocation transaction because it is not local/in-block."
 					);
 
-					return InvalidTransaction::Call.into()
-				},
+					return InvalidTransaction::Call.into();
+				}
 			}
 
 			ValidTransaction::with_tag_prefix("GrandpaEquivocation")
@@ -228,11 +228,10 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
 			// check if the offence has already been reported,
 			// and if so then we can discard the report.
-			let time_slot =
-				<T::HandleEquivocation as HandleEquivocation<T>>::Offence::new_time_slot(
-					equivocation_proof.set_id(),
-					equivocation_proof.round(),
-				);
+			let time_slot = <T::HandleEquivocation as HandleEquivocation<T>>::Offence::new_time_slot(
+				equivocation_proof.set_id(),
+				equivocation_proof.round(),
+			);
 
 			let is_known_offence = T::HandleEquivocation::is_known_offence(&[offender], &time_slot);
 
@@ -277,9 +276,7 @@ pub trait GrandpaOffence<FullIdentification>: Offence<FullIdentification> {
 	fn new_time_slot(set_id: SetId, round: RoundNumber) -> Self::TimeSlot;
 }
 
-impl<FullIdentification: Clone> GrandpaOffence<FullIdentification>
-	for GrandpaEquivocationOffence<FullIdentification>
-{
+impl<FullIdentification: Clone> GrandpaOffence<FullIdentification> for GrandpaEquivocationOffence<FullIdentification> {
 	fn new(
 		session_index: SessionIndex,
 		validator_set_count: u32,
@@ -300,9 +297,7 @@ impl<FullIdentification: Clone> GrandpaOffence<FullIdentification>
 	}
 }
 
-impl<FullIdentification: Clone> Offence<FullIdentification>
-	for GrandpaEquivocationOffence<FullIdentification>
-{
+impl<FullIdentification: Clone> Offence<FullIdentification> for GrandpaEquivocationOffence<FullIdentification> {
 	const ID: Kind = *b"grandpa:equivoca";
 	type TimeSlot = GrandpaTimeSlot;
 

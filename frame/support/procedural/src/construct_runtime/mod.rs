@@ -81,7 +81,7 @@ fn complete_modules(decl: impl Iterator<Item = ModuleDeclaration>) -> syn::Resul
 			);
 			let mut err = syn::Error::new(used_module.span(), &msg);
 			err.combine(syn::Error::new(module.name.span(), msg));
-			return Err(err)
+			return Err(err);
 		}
 
 		Ok(Module {
@@ -97,22 +97,33 @@ fn complete_modules(decl: impl Iterator<Item = ModuleDeclaration>) -> syn::Resul
 
 pub fn construct_runtime(input: TokenStream) -> TokenStream {
 	let definition = syn::parse_macro_input!(input as RuntimeDefinition);
-	construct_runtime_parsed(definition).unwrap_or_else(|e| e.to_compile_error()).into()
+	construct_runtime_parsed(definition)
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
 }
 
 fn construct_runtime_parsed(definition: RuntimeDefinition) -> Result<TokenStream2> {
 	let RuntimeDefinition {
 		name,
-		where_section: WhereSection { block, node_block, unchecked_extrinsic, .. },
-		modules:
-			ext::Braces { content: ext::Punctuated { inner: modules, .. }, token: modules_token },
+		where_section: WhereSection {
+			block,
+			node_block,
+			unchecked_extrinsic,
+			..
+		},
+		modules: ext::Braces {
+			content: ext::Punctuated { inner: modules, .. },
+			token: modules_token,
+		},
 		..
 	} = definition;
 
 	let modules = complete_modules(modules.into_iter())?;
 
-	let system_module =
-		modules.iter().find(|decl| decl.name == SYSTEM_MODULE_NAME).ok_or_else(|| {
+	let system_module = modules
+		.iter()
+		.find(|decl| decl.name == SYSTEM_MODULE_NAME)
+		.ok_or_else(|| {
 			syn::Error::new(
 				modules_token.span,
 				"`System` module declaration is missing. \
@@ -231,8 +242,7 @@ fn decl_outer_config<'a>(
 	let modules_tokens = module_declarations
 		.filter_map(|module_declaration| {
 			module_declaration.find_part("Config").map(|part| {
-				let transformed_generics: Vec<_> =
-					part.generics.params.iter().map(|param| quote!(<#param>)).collect();
+				let transformed_generics: Vec<_> = part.generics.params.iter().map(|param| quote!(<#param>)).collect();
 				(module_declaration, transformed_generics)
 			})
 		})
@@ -278,8 +288,11 @@ fn decl_runtime_metadata<'a>(
 		.map(|(module_declaration, filtered_names)| {
 			let module = &module_declaration.module;
 			let name = &module_declaration.name;
-			let instance =
-				module_declaration.instance.as_ref().map(|name| quote!(<#name>)).into_iter();
+			let instance = module_declaration
+				.instance
+				.as_ref()
+				.map(|name| quote!(<#name>))
+				.into_iter();
 
 			let index = module_declaration.index;
 
@@ -337,13 +350,13 @@ fn decl_outer_origin<'a>(
 						 be constructed: module `{}` must have generic `Origin`",
 						module_declaration.name
 					);
-					return Err(syn::Error::new(module_declaration.name.span(), msg))
+					return Err(syn::Error::new(module_declaration.name.span(), msg));
 				}
 				let index = module_declaration.index.to_string();
 				let tokens = quote!(#[codec(index = #index)] #module #instance #generics,);
 				modules_tokens.extend(tokens);
-			},
-			None => {},
+			}
+			None => {}
 		}
 	}
 
@@ -380,14 +393,14 @@ fn decl_outer_event<'a>(
 						 be constructed: module `{}` must have generic `Event`",
 						module_declaration.name,
 					);
-					return Err(syn::Error::new(module_declaration.name.span(), msg))
+					return Err(syn::Error::new(module_declaration.name.span(), msg));
 				}
 
 				let index = module_declaration.index.to_string();
 				let tokens = quote!(#[codec(index = #index)] #module #instance #generics,);
 				modules_tokens.extend(tokens);
-			},
-			None => {},
+			}
+			None => {}
 		}
 	}
 
@@ -400,10 +413,7 @@ fn decl_outer_event<'a>(
 	))
 }
 
-fn decl_all_modules<'a>(
-	runtime: &'a Ident,
-	module_declarations: impl Iterator<Item = &'a Module>,
-) -> TokenStream2 {
+fn decl_all_modules<'a>(runtime: &'a Ident, module_declarations: impl Iterator<Item = &'a Module>) -> TokenStream2 {
 	let mut types = TokenStream2::new();
 	let mut names = Vec::new();
 	for module_declaration in module_declarations {
@@ -430,10 +440,7 @@ fn decl_all_modules<'a>(
 	)
 }
 
-fn decl_pallet_runtime_setup(
-	module_declarations: &[Module],
-	scrate: &TokenStream2,
-) -> TokenStream2 {
+fn decl_pallet_runtime_setup(module_declarations: &[Module], scrate: &TokenStream2) -> TokenStream2 {
 	let names = module_declarations.iter().map(|d| &d.name);
 	let names2 = module_declarations.iter().map(|d| &d.name);
 	let name_strings = module_declarations.iter().map(|d| d.name.to_string());

@@ -45,11 +45,11 @@ pub fn with_transaction<R>(f: impl FnOnce() -> TransactionOutcome<R>) -> R {
 		Commit(res) => {
 			commit_transaction();
 			res
-		},
+		}
 		Rollback(res) => {
 			rollback_transaction();
 			res
-		},
+		}
 	}
 }
 
@@ -185,10 +185,7 @@ pub trait StorageMap<K: FullEncode, V: FullCodec> {
 	) -> Result<R, E>;
 
 	/// Mutate the value under a key. Deletes the item if mutated to a `None`.
-	fn mutate_exists<KeyArg: EncodeLike<K>, R, F: FnOnce(&mut Option<V>) -> R>(
-		key: KeyArg,
-		f: F,
-	) -> R;
+	fn mutate_exists<KeyArg: EncodeLike<K>, R, F: FnOnce(&mut Option<V>) -> R>(key: KeyArg, f: F) -> R;
 
 	/// Mutate the item, only if an `Ok` value is returned. Deletes the item if mutated to a `None`.
 	fn try_mutate_exists<KeyArg: EncodeLike<K>, R, E, F: FnOnce(&mut Option<V>) -> Result<R, E>>(
@@ -268,9 +265,7 @@ pub trait IterableStorageMap<K: FullEncode, V: FullCodec>: StorageMap<K, V> {
 }
 
 /// A strongly-typed double map in storage whose secondary keys and values can be iterated over.
-pub trait IterableStorageDoubleMap<K1: FullCodec, K2: FullCodec, V: FullCodec>:
-	StorageDoubleMap<K1, K2, V>
-{
+pub trait IterableStorageDoubleMap<K1: FullCodec, K2: FullCodec, V: FullCodec>: StorageDoubleMap<K1, K2, V> {
 	/// The type that iterates over all `(key2, value)`.
 	type PrefixIterator: Iterator<Item = (K2, V)>;
 
@@ -467,20 +462,16 @@ impl<T> Iterator for PrefixIterator<T> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		loop {
-			let maybe_next = sp_io::storage::next_key(&self.previous_key)
-				.filter(|n| n.starts_with(&self.prefix));
+			let maybe_next = sp_io::storage::next_key(&self.previous_key).filter(|n| n.starts_with(&self.prefix));
 			break match maybe_next {
 				Some(next) => {
 					self.previous_key = next;
 					let raw_value = match unhashed::get_raw(&self.previous_key) {
 						Some(raw_value) => raw_value,
 						None => {
-							crate::debug::error!(
-								"next_key returned a key with no value at {:?}",
-								self.previous_key
-							);
-							continue
-						},
+							crate::debug::error!("next_key returned a key with no value at {:?}", self.previous_key);
+							continue;
+						}
 					};
 					if self.drain {
 						unhashed::kill(&self.previous_key)
@@ -489,19 +480,15 @@ impl<T> Iterator for PrefixIterator<T> {
 					let item = match (self.closure)(raw_key_without_prefix, &raw_value[..]) {
 						Ok(item) => item,
 						Err(e) => {
-							crate::debug::error!(
-								"(key, value) failed to decode at {:?}: {:?}",
-								self.previous_key,
-								e
-							);
-							continue
-						},
+							crate::debug::error!("(key, value) failed to decode at {:?}: {:?}", self.previous_key, e);
+							continue;
+						}
 					};
 
 					Some(item)
-				},
+				}
 				None => None,
-			}
+			};
 		}
 	}
 }
@@ -561,9 +548,7 @@ pub trait StoragePrefixedMap<Value: FullCodec> {
 	fn translate_values<OldValue: Decode, F: Fn(OldValue) -> Option<Value>>(f: F) {
 		let prefix = Self::final_prefix();
 		let mut previous_key = prefix.clone().to_vec();
-		while let Some(next) =
-			sp_io::storage::next_key(&previous_key).filter(|n| n.starts_with(&prefix))
-		{
+		while let Some(next) = sp_io::storage::next_key(&previous_key).filter(|n| n.starts_with(&prefix)) {
 			previous_key = next;
 			let maybe_value = unhashed::get::<OldValue>(&previous_key);
 			match maybe_value {
@@ -573,8 +558,8 @@ pub trait StoragePrefixedMap<Value: FullCodec> {
 				},
 				None => {
 					crate::debug::error!("old key failed to decode at {:?}", previous_key);
-					continue
-				},
+					continue;
+				}
 			}
 		}
 	}

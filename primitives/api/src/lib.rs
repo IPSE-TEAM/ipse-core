@@ -56,8 +56,7 @@ pub use sp_core::{offchain, ExecutionContext};
 pub use sp_runtime::{
 	generic::BlockId,
 	traits::{
-		Block as BlockT, GetNodeBlockType, GetRuntimeBlockType, Hash as HashT, HashFor,
-		Header as HeaderT, NumberFor,
+		Block as BlockT, GetNodeBlockType, GetRuntimeBlockType, Hash as HashT, HashFor, Header as HeaderT, NumberFor,
 	},
 	transaction_validity::TransactionValidity,
 	RuntimeString, TransactionOutcome,
@@ -328,13 +327,11 @@ pub type StorageChanges<SBackend, Block> = sp_state_machine::StorageChanges<
 
 /// Extract the state backend type for a type that implements `ProvideRuntimeApi`.
 #[cfg(feature = "std")]
-pub type StateBackendFor<P, Block> =
-	<<P as ProvideRuntimeApi<Block>>::Api as ApiExt<Block>>::StateBackend;
+pub type StateBackendFor<P, Block> = <<P as ProvideRuntimeApi<Block>>::Api as ApiExt<Block>>::StateBackend;
 
 /// Extract the state backend transaction type for a type that implements `ProvideRuntimeApi`.
 #[cfg(feature = "std")]
-pub type TransactionFor<P, Block> =
-	<StateBackendFor<P, Block> as StateBackend<HashFor<Block>>>::Transaction;
+pub type TransactionFor<P, Block> = <StateBackendFor<P, Block> as StateBackend<HashFor<Block>>>::Transaction;
 
 /// Something that can be constructed to a runtime api.
 #[cfg(feature = "std")]

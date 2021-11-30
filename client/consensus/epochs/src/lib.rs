@@ -57,8 +57,7 @@ pub fn descendent_query<H, Block>(client: &H) -> HeaderBackendDescendentBuilder<
 /// `IsDescendentOfBuilder` for header backends.
 pub struct HeaderBackendDescendentBuilder<H, Block>(H, std::marker::PhantomData<Block>);
 
-impl<'a, H, Block> IsDescendentOfBuilder<Block::Hash>
-	for HeaderBackendDescendentBuilder<&'a H, Block>
+impl<'a, H, Block> IsDescendentOfBuilder<Block::Hash> for HeaderBackendDescendentBuilder<&'a H, Block>
 where
 	H: HeaderBackend<Block> + HeaderMetadata<Block, Error = ClientError>,
 	Block: BlockT,
@@ -66,10 +65,7 @@ where
 	type Error = ClientError;
 	type IsDescendentOf = Box<dyn Fn(&Block::Hash, &Block::Hash) -> Result<bool, ClientError> + 'a>;
 
-	fn build_is_descendent_of(
-		&self,
-		current: Option<(Block::Hash, Block::Hash)>,
-	) -> Self::IsDescendentOf {
+	fn build_is_descendent_of(&self, current: Option<(Block::Hash, Block::Hash)>) -> Self::IsDescendentOf {
 		Box::new(is_descendent_of(self.0, current))
 	}
 }
@@ -95,7 +91,10 @@ pub trait Epoch {
 
 impl<'a, E: Epoch> From<&'a E> for EpochHeader<E> {
 	fn from(epoch: &'a E) -> EpochHeader<E> {
-		Self { start_slot: epoch.start_slot(), end_slot: epoch.end_slot() }
+		Self {
+			start_slot: epoch.start_slot(),
+			end_slot: epoch.end_slot(),
+		}
 	}
 }
 
@@ -111,7 +110,10 @@ pub struct EpochHeader<E: Epoch> {
 
 impl<E: Epoch> Clone for EpochHeader<E> {
 	fn clone(&self) -> Self {
-		Self { start_slot: self.start_slot, end_slot: self.end_slot }
+		Self {
+			start_slot: self.start_slot,
+			end_slot: self.end_slot,
+		}
 	}
 }
 
@@ -199,8 +201,7 @@ where
 	pub fn increment(&self, next_descriptor: E::NextEpochDescriptor) -> IncrementedEpoch<E> {
 		let next = self.as_ref().increment(next_descriptor);
 		let to_persist = match *self {
-			ViableEpoch::UnimportedGenesis(ref epoch_0) =>
-				PersistedEpoch::Genesis(epoch_0.clone(), next),
+			ViableEpoch::UnimportedGenesis(ref epoch_0) => PersistedEpoch::Genesis(epoch_0.clone(), next),
 			ViableEpoch::Signaled(_) => PersistedEpoch::Regular(next),
 		};
 
@@ -239,8 +240,9 @@ pub enum PersistedEpoch<E: Epoch> {
 impl<'a, E: Epoch> From<&'a PersistedEpoch<E>> for PersistedEpochHeader<E> {
 	fn from(epoch: &'a PersistedEpoch<E>) -> Self {
 		match epoch {
-			PersistedEpoch::Genesis(ref epoch_0, ref epoch_1) =>
-				PersistedEpochHeader::Genesis(epoch_0.into(), epoch_1.into()),
+			PersistedEpoch::Genesis(ref epoch_0, ref epoch_1) => {
+				PersistedEpochHeader::Genesis(epoch_0.into(), epoch_1.into())
+			}
 			PersistedEpoch::Regular(ref epoch_n) => PersistedEpochHeader::Regular(epoch_n.into()),
 		}
 	}
@@ -315,7 +317,10 @@ where
 	Number: Ord,
 {
 	fn default() -> Self {
-		EpochChanges { inner: ForkTree::new(), epochs: BTreeMap::new() }
+		EpochChanges {
+			inner: ForkTree::new(),
+			epochs: BTreeMap::new(),
+		}
 	}
 }
 
@@ -344,26 +349,29 @@ where
 		EpochChanges {
 			inner: self.inner.map(&mut |_, _, header| match header {
 				PersistedEpochHeader::Genesis(epoch_0, epoch_1) => PersistedEpochHeader::Genesis(
-					EpochHeader { start_slot: epoch_0.start_slot, end_slot: epoch_0.end_slot },
-					EpochHeader { start_slot: epoch_1.start_slot, end_slot: epoch_1.end_slot },
+					EpochHeader {
+						start_slot: epoch_0.start_slot,
+						end_slot: epoch_0.end_slot,
+					},
+					EpochHeader {
+						start_slot: epoch_1.start_slot,
+						end_slot: epoch_1.end_slot,
+					},
 				),
-				PersistedEpochHeader::Regular(epoch_n) =>
-					PersistedEpochHeader::Regular(EpochHeader {
-						start_slot: epoch_n.start_slot,
-						end_slot: epoch_n.end_slot,
-					}),
+				PersistedEpochHeader::Regular(epoch_n) => PersistedEpochHeader::Regular(EpochHeader {
+					start_slot: epoch_n.start_slot,
+					end_slot: epoch_n.end_slot,
+				}),
 			}),
 			epochs: self
 				.epochs
 				.into_iter()
 				.map(|((hash, number), epoch)| {
 					let bepoch = match epoch {
-						PersistedEpoch::Genesis(epoch_0, epoch_1) => PersistedEpoch::Genesis(
-							f(&hash, &number, epoch_0),
-							f(&hash, &number, epoch_1),
-						),
-						PersistedEpoch::Regular(epoch_n) =>
-							PersistedEpoch::Regular(f(&hash, &number, epoch_n)),
+						PersistedEpoch::Genesis(epoch_0, epoch_1) => {
+							PersistedEpoch::Genesis(f(&hash, &number, epoch_0), f(&hash, &number, epoch_1))
+						}
+						PersistedEpoch::Regular(epoch_n) => PersistedEpoch::Regular(f(&hash, &number, epoch_n)),
 					};
 					((hash, number), bepoch)
 				})
@@ -403,15 +411,13 @@ where
 	/// Get a reference to an epoch with given identifier.
 	pub fn epoch(&self, id: &EpochIdentifier<Hash, Number>) -> Option<&E> {
 		self.epochs.get(&(id.hash, id.number)).and_then(|v| match v {
-			PersistedEpoch::Genesis(ref epoch_0, _)
-				if id.position == EpochIdentifierPosition::Genesis0 =>
-				Some(epoch_0),
-			PersistedEpoch::Genesis(_, ref epoch_1)
-				if id.position == EpochIdentifierPosition::Genesis1 =>
-				Some(epoch_1),
-			PersistedEpoch::Regular(ref epoch_n)
-				if id.position == EpochIdentifierPosition::Regular =>
-				Some(epoch_n),
+			PersistedEpoch::Genesis(ref epoch_0, _) if id.position == EpochIdentifierPosition::Genesis0 => {
+				Some(epoch_0)
+			}
+			PersistedEpoch::Genesis(_, ref epoch_1) if id.position == EpochIdentifierPosition::Genesis1 => {
+				Some(epoch_1)
+			}
+			PersistedEpoch::Regular(ref epoch_n) if id.position == EpochIdentifierPosition::Regular => Some(epoch_n),
 			_ => None,
 		})
 	}
@@ -426,25 +432,25 @@ where
 		G: FnOnce(E::SlotNumber) -> E,
 	{
 		match descriptor {
-			ViableEpochDescriptor::UnimportedGenesis(slot_number) =>
-				Some(ViableEpoch::UnimportedGenesis(make_genesis(*slot_number))),
-			ViableEpochDescriptor::Signaled(identifier, _) =>
-				self.epoch(&identifier).map(ViableEpoch::Signaled),
+			ViableEpochDescriptor::UnimportedGenesis(slot_number) => {
+				Some(ViableEpoch::UnimportedGenesis(make_genesis(*slot_number)))
+			}
+			ViableEpochDescriptor::Signaled(identifier, _) => self.epoch(&identifier).map(ViableEpoch::Signaled),
 		}
 	}
 
 	/// Get a mutable reference to an epoch with given identifier.
 	pub fn epoch_mut(&mut self, id: &EpochIdentifier<Hash, Number>) -> Option<&mut E> {
 		self.epochs.get_mut(&(id.hash, id.number)).and_then(|v| match v {
-			PersistedEpoch::Genesis(ref mut epoch_0, _)
-				if id.position == EpochIdentifierPosition::Genesis0 =>
-				Some(epoch_0),
-			PersistedEpoch::Genesis(_, ref mut epoch_1)
-				if id.position == EpochIdentifierPosition::Genesis1 =>
-				Some(epoch_1),
-			PersistedEpoch::Regular(ref mut epoch_n)
-				if id.position == EpochIdentifierPosition::Regular =>
-				Some(epoch_n),
+			PersistedEpoch::Genesis(ref mut epoch_0, _) if id.position == EpochIdentifierPosition::Genesis0 => {
+				Some(epoch_0)
+			}
+			PersistedEpoch::Genesis(_, ref mut epoch_1) if id.position == EpochIdentifierPosition::Genesis1 => {
+				Some(epoch_1)
+			}
+			PersistedEpoch::Regular(ref mut epoch_n) if id.position == EpochIdentifierPosition::Regular => {
+				Some(epoch_n)
+			}
 			_ => None,
 		})
 	}
@@ -459,10 +465,10 @@ where
 		G: FnOnce(E::SlotNumber) -> E,
 	{
 		match descriptor {
-			ViableEpochDescriptor::UnimportedGenesis(slot_number) =>
-				Some(ViableEpoch::UnimportedGenesis(make_genesis(*slot_number))),
-			ViableEpochDescriptor::Signaled(identifier, _) =>
-				self.epoch_mut(&identifier).map(ViableEpoch::Signaled),
+			ViableEpochDescriptor::UnimportedGenesis(slot_number) => {
+				Some(ViableEpoch::UnimportedGenesis(make_genesis(*slot_number)))
+			}
+			ViableEpochDescriptor::Signaled(identifier, _) => self.epoch_mut(&identifier).map(ViableEpoch::Signaled),
 		}
 	}
 
@@ -470,18 +476,13 @@ where
 	///
 	/// Note that this function ignores the fact that an genesis epoch might need to be imported.
 	/// Mostly useful for testing.
-	pub fn epoch_data<G>(
-		&self,
-		descriptor: &ViableEpochDescriptor<Hash, Number, E>,
-		make_genesis: G,
-	) -> Option<E>
+	pub fn epoch_data<G>(&self, descriptor: &ViableEpochDescriptor<Hash, Number, E>, make_genesis: G) -> Option<E>
 	where
 		G: FnOnce(E::SlotNumber) -> E,
 		E: Clone,
 	{
 		match descriptor {
-			ViableEpochDescriptor::UnimportedGenesis(slot_number) =>
-				Some(make_genesis(*slot_number)),
+			ViableEpochDescriptor::UnimportedGenesis(slot_number) => Some(make_genesis(*slot_number)),
 			ViableEpochDescriptor::Signaled(identifier, _) => self.epoch(&identifier).cloned(),
 		}
 	}
@@ -503,12 +504,8 @@ where
 		G: FnOnce(E::SlotNumber) -> E,
 		E: Clone,
 	{
-		let descriptor = self.epoch_descriptor_for_child_of(
-			descendent_of_builder,
-			parent_hash,
-			parent_number,
-			slot_number,
-		)?;
+		let descriptor =
+			self.epoch_descriptor_for_child_of(descendent_of_builder, parent_hash, parent_number, slot_number)?;
 
 		Ok(descriptor.and_then(|des| self.epoch_data(&des, make_genesis)))
 	}
@@ -530,12 +527,11 @@ where
 		// "descends" from our parent-hash.
 		let fake_head_hash = fake_head_hash(parent_hash);
 
-		let is_descendent_of =
-			descendent_of_builder.build_is_descendent_of(Some((fake_head_hash, *parent_hash)));
+		let is_descendent_of = descendent_of_builder.build_is_descendent_of(Some((fake_head_hash, *parent_hash)));
 
 		if parent_number == Zero::zero() {
 			// need to insert the genesis epoch.
-			return Ok(Some(ViableEpochDescriptor::UnimportedGenesis(slot_number)))
+			return Ok(Some(ViableEpochDescriptor::UnimportedGenesis(slot_number)));
 		}
 
 		// We want to find the deepest node in the tree which is an ancestor
@@ -562,21 +558,27 @@ where
 							// Ok, we found our node.
 							// and here we figure out which of the internal epochs
 							// of a genesis node to use based on their start slot.
-							PersistedEpochHeader::Genesis(ref epoch_0, ref epoch_1) =>
+							PersistedEpochHeader::Genesis(ref epoch_0, ref epoch_1) => {
 								if epoch_1.start_slot <= slot_number {
 									(EpochIdentifierPosition::Genesis1, epoch_1.clone())
 								} else {
 									(EpochIdentifierPosition::Genesis0, epoch_0.clone())
-								},
-							PersistedEpochHeader::Regular(ref epoch_n) =>
-								(EpochIdentifierPosition::Regular, epoch_n.clone()),
+								}
+							}
+							PersistedEpochHeader::Regular(ref epoch_n) => {
+								(EpochIdentifierPosition::Regular, epoch_n.clone())
+							}
 						},
 						node,
 					)
 				})
 				.map(|((position, header), node)| {
 					ViableEpochDescriptor::Signaled(
-						EpochIdentifier { position, hash: node.hash, number: node.number },
+						EpochIdentifier {
+							position,
+							hash: node.hash,
+							number: node.number,
+						},
 						header,
 					)
 				})
@@ -596,8 +598,7 @@ where
 		parent_hash: Hash,
 		epoch: IncrementedEpoch<E>,
 	) -> Result<(), fork_tree::Error<D::Error>> {
-		let is_descendent_of =
-			descendent_of_builder.build_is_descendent_of(Some((hash, parent_hash)));
+		let is_descendent_of = descendent_of_builder.build_is_descendent_of(Some((hash, parent_hash)));
 		let header = PersistedEpochHeader::<E>::from(&epoch.0);
 
 		let res = self.inner.import(hash, number, header, &is_descendent_of);
@@ -606,7 +607,7 @@ where
 			Ok(_) | Err(fork_tree::Error::Duplicate) => {
 				self.epochs.insert((hash, number), epoch.0);
 				Ok(())
-			},
+			}
 			Err(e) => Err(e),
 		}
 	}
@@ -618,8 +619,7 @@ where
 }
 
 /// Type alias to produce the epoch-changes tree from a block type.
-pub type EpochChangesFor<Block, Epoch> =
-	EpochChanges<<Block as BlockT>::Hash, NumberFor<Block>, Epoch>;
+pub type EpochChangesFor<Block, Epoch> = EpochChanges<<Block as BlockT>::Hash, NumberFor<Block>, Epoch>;
 
 /// A shared epoch changes tree.
 pub type SharedEpochChanges<Block, Epoch> = Arc<Mutex<EpochChangesFor<Block, Epoch>>>;
@@ -655,7 +655,7 @@ mod tests {
 				if let Some((ref c_head, ref c_parent)) = current {
 					if head == c_head {
 						if base == c_parent {
-							return Ok(true)
+							return Ok(true);
 						} else {
 							head = c_parent;
 						}
@@ -681,7 +681,10 @@ mod tests {
 		type SlotNumber = SlotNumber;
 
 		fn increment(&self, _: ()) -> Self {
-			Epoch { start_slot: self.start_slot + self.duration, duration: self.duration }
+			Epoch {
+				start_slot: self.start_slot + self.duration,
+				duration: self.duration,
+			}
 		}
 
 		fn end_slot(&self) -> SlotNumber {
@@ -718,7 +721,7 @@ mod tests {
 		match genesis_epoch {
 			ViableEpochDescriptor::UnimportedGenesis(slot_number) => {
 				assert_eq!(slot_number, 10101u64);
-			},
+			}
 			_ => panic!("should be unimported genesis"),
 		};
 
@@ -730,7 +733,7 @@ mod tests {
 		match genesis_epoch_2 {
 			ViableEpochDescriptor::UnimportedGenesis(slot_number) => {
 				assert_eq!(slot_number, 10102u64);
-			},
+			}
 			_ => panic!("should be unimported genesis"),
 		};
 	}
@@ -751,7 +754,10 @@ mod tests {
 			}
 		};
 
-		let make_genesis = |slot| Epoch { start_slot: slot, duration: 100 };
+		let make_genesis = |slot| Epoch {
+			start_slot: slot,
+			duration: 100,
+		};
 
 		let mut epoch_changes = EpochChanges::<_, _, Epoch>::new();
 		let genesis_epoch = epoch_changes
@@ -761,11 +767,15 @@ mod tests {
 
 		assert_eq!(genesis_epoch, ViableEpochDescriptor::UnimportedGenesis(100));
 
-		let import_epoch_1 =
-			epoch_changes.viable_epoch(&genesis_epoch, &make_genesis).unwrap().increment(());
+		let import_epoch_1 = epoch_changes
+			.viable_epoch(&genesis_epoch, &make_genesis)
+			.unwrap()
+			.increment(());
 		let epoch_1 = import_epoch_1.as_ref().clone();
 
-		epoch_changes.import(&is_descendent_of, *b"A", 1, *b"0", import_epoch_1).unwrap();
+		epoch_changes
+			.import(&is_descendent_of, *b"A", 1, *b"0", import_epoch_1)
+			.unwrap();
 		let genesis_epoch = epoch_changes.epoch_data(&genesis_epoch, &make_genesis).unwrap();
 
 		assert!(is_descendent_of(b"0", b"A").unwrap());
@@ -798,13 +808,7 @@ mod tests {
 			// x is now at the next epoch, because the block is now after
 			// start slot of epoch 1.
 			let x = epoch_changes
-				.epoch_data_for_child_of(
-					&is_descendent_of,
-					b"A",
-					1,
-					epoch_1.end_slot() - 1,
-					&make_genesis,
-				)
+				.epoch_data_for_child_of(&is_descendent_of, b"A", 1, epoch_1.end_slot() - 1, &make_genesis)
 				.unwrap()
 				.unwrap();
 
@@ -829,7 +833,10 @@ mod tests {
 
 		let duration = 100;
 
-		let make_genesis = |slot| Epoch { start_slot: slot, duration };
+		let make_genesis = |slot| Epoch {
+			start_slot: slot,
+			duration,
+		};
 
 		let mut epoch_changes = EpochChanges::new();
 		let next_descriptor = ();
@@ -846,7 +853,9 @@ mod tests {
 				.unwrap()
 				.increment(next_descriptor.clone());
 
-			epoch_changes.import(&is_descendent_of, *b"A", 1, *b"0", incremented_epoch).unwrap();
+			epoch_changes
+				.import(&is_descendent_of, *b"A", 1, *b"0", incremented_epoch)
+				.unwrap();
 		}
 
 		// insert genesis epoch for X
@@ -861,7 +870,9 @@ mod tests {
 				.unwrap()
 				.increment(next_descriptor.clone());
 
-			epoch_changes.import(&is_descendent_of, *b"X", 1, *b"0", incremented_epoch).unwrap();
+			epoch_changes
+				.import(&is_descendent_of, *b"X", 1, *b"0", incremented_epoch)
+				.unwrap();
 		}
 
 		// now check that the genesis epochs for our respective block 1s

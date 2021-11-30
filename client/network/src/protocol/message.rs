@@ -20,9 +20,8 @@
 //! payload.
 
 pub use self::generic::{
-	BlockAnnounce, FinalityProofRequest, FinalityProofResponse, FromBlock, RemoteCallRequest,
-	RemoteChangesRequest, RemoteChangesResponse, RemoteHeaderRequest, RemoteHeaderResponse,
-	RemoteReadChildRequest, RemoteReadRequest, Roles,
+	BlockAnnounce, FinalityProofRequest, FinalityProofResponse, FromBlock, RemoteCallRequest, RemoteChangesRequest,
+	RemoteChangesResponse, RemoteHeaderRequest, RemoteHeaderResponse, RemoteReadChildRequest, RemoteReadRequest, Roles,
 };
 use bitflags::bitflags;
 use codec::{Decode, Encode, Error, Input, Output};
@@ -44,12 +43,10 @@ pub type Message<B> = generic::Message<
 >;
 
 /// Type alias for using the block request type using block type parameters.
-pub type BlockRequest<B> =
-	generic::BlockRequest<<B as BlockT>::Hash, <<B as BlockT>::Header as HeaderT>::Number>;
+pub type BlockRequest<B> = generic::BlockRequest<<B as BlockT>::Hash, <<B as BlockT>::Header as HeaderT>::Number>;
 
 /// Type alias for using the BlockData type using block type parameters.
-pub type BlockData<B> =
-	generic::BlockData<<B as BlockT>::Header, <B as BlockT>::Hash, <B as BlockT>::Extrinsic>;
+pub type BlockData<B> = generic::BlockData<<B as BlockT>::Header, <B as BlockT>::Hash, <B as BlockT>::Extrinsic>;
 
 /// Type alias for using the BlockResponse type using block type parameters.
 pub type BlockResponse<B> =
@@ -84,8 +81,7 @@ impl BlockAttributes {
 
 	/// Decodes attributes, encoded with the `encode_to_be_u32()` call.
 	pub fn from_be_u32(encoded: u32) -> Result<Self, Error> {
-		BlockAttributes::from_bits(encoded.to_be_bytes()[0])
-			.ok_or_else(|| Error::from("Invalid BlockAttributes"))
+		BlockAttributes::from_bits(encoded.to_be_bytes()[0]).ok_or_else(|| Error::from("Invalid BlockAttributes"))
 	}
 }
 
@@ -142,8 +138,8 @@ pub struct RemoteReadResponse {
 /// Generic types.
 pub mod generic {
 	use super::{
-		BlockAttributes, BlockState, ConsensusEngineId, Direction, RemoteCallResponse,
-		RemoteReadResponse, RequestId, StorageProof, Transactions,
+		BlockAttributes, BlockState, ConsensusEngineId, Direction, RemoteCallResponse, RemoteReadResponse, RequestId,
+		StorageProof, Transactions,
 	};
 	use bitflags::bitflags;
 	use codec::{Decode, Encode, Input, Output};
@@ -354,12 +350,13 @@ pub mod generic {
 			let compact = CompactStatus::decode(value)?;
 			let chain_status = match <Vec<u8>>::decode(value) {
 				Ok(v) => v,
-				Err(e) =>
+				Err(e) => {
 					if compact.version <= LAST_CHAIN_STATUS_VERSION {
-						return Err(e)
+						return Err(e);
 					} else {
 						Vec::new()
-					},
+					}
+				}
 			};
 
 			let CompactStatus {

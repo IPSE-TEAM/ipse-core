@@ -89,14 +89,14 @@ where
 	let s: &str = Deserialize::deserialize(de)?;
 
 	if s.len() < 2 {
-		return Err(D::Error::invalid_value(Unexpected::Str(s), &"0x..."))
+		return Err(D::Error::invalid_value(Unexpected::Str(s), &"0x..."));
 	}
 	match hex::decode(&s[2..]) {
 		Ok(s_vec) => Ok(s_vec),
 		Err(e) => {
 			debug::error!("{:?}", e);
 			Err(D::Error::invalid_value(Unexpected::Str(s), &""))
-		},
+		}
 	}
 	// Ok(s.as_bytes().to_vec())
 }
@@ -143,7 +143,7 @@ pub fn int_covert_str(inner: u64) -> Vec<u8> {
 		let r = inner / ((10 as u64).pow(x));
 		if r == 0 {
 			s.reverse();
-			return s.join("").as_bytes().to_vec()
+			return s.join("").as_bytes().to_vec();
 		}
 		let r = r % 10;
 		s.push(num_to_char(r));
@@ -153,7 +153,7 @@ pub fn int_covert_str(inner: u64) -> Vec<u8> {
 
 pub fn num_to_char<'a>(n: u64) -> &'a str {
 	if n > 10 {
-		return ""
+		return "";
 	}
 	match n {
 		0 => "0",
@@ -175,7 +175,7 @@ pub fn hex_to_u8(param: &[u8]) -> Vec<u8> {
 	let tx_hex = hex::encode(param);
 	let tx_vec = &[hex_0x, tx_hex.as_bytes()].concat();
 
-	return tx_vec.to_vec()
+	return tx_vec.to_vec();
 }
 
 pub trait AccountIdPublicConver {

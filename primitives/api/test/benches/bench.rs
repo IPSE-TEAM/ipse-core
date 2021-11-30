@@ -57,15 +57,17 @@ fn sp_api_benchmark(c: &mut Criterion) {
 	});
 
 	c.bench_function("calling function by function pointer in wasm", |b| {
-		let client =
-			TestClientBuilder::new().set_execution_strategy(ExecutionStrategy::AlwaysWasm).build();
+		let client = TestClientBuilder::new()
+			.set_execution_strategy(ExecutionStrategy::AlwaysWasm)
+			.build();
 		let block_id = BlockId::Number(client.chain_info().best_number);
 		b.iter(|| client.runtime_api().benchmark_indirect_call(&block_id).unwrap())
 	});
 
 	c.bench_function("calling function in wasm", |b| {
-		let client =
-			TestClientBuilder::new().set_execution_strategy(ExecutionStrategy::AlwaysWasm).build();
+		let client = TestClientBuilder::new()
+			.set_execution_strategy(ExecutionStrategy::AlwaysWasm)
+			.build();
 		let block_id = BlockId::Number(client.chain_info().best_number);
 		b.iter(|| client.runtime_api().benchmark_direct_call(&block_id).unwrap())
 	});

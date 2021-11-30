@@ -118,7 +118,7 @@ impl Order {
 	/// `MIN_POSSIBLE_ALLOCATION <= size <= MAX_POSSIBLE_ALLOCATION`
 	fn from_size(size: u32) -> Result<Self, Error> {
 		let clamped_size = if size > MAX_POSSIBLE_ALLOCATION {
-			return Err(Error::RequestedAllocationTooLarge)
+			return Err(Error::RequestedAllocationTooLarge);
 		} else if size < MIN_POSSIBLE_ALLOCATION {
 			MIN_POSSIBLE_ALLOCATION
 		} else {
@@ -322,11 +322,7 @@ impl FreeingBumpHeapAllocator {
 	///
 	/// - `mem` - a slice representing the linear memory on which this allocator operates.
 	/// - `size` - size in bytes of the allocation request
-	pub fn allocate<M: Memory + ?Sized>(
-		&mut self,
-		mem: &mut M,
-		size: WordSize,
-	) -> Result<Pointer<u8>, Error> {
+	pub fn allocate<M: Memory + ?Sized>(&mut self, mem: &mut M, size: WordSize) -> Result<Pointer<u8>, Error> {
 		let order = Order::from_size(size)?;
 
 		let header_ptr: u32 = match self.free_lists[order] {
@@ -344,11 +340,11 @@ impl FreeingBumpHeapAllocator {
 				self.free_lists[order] = next_free;
 
 				header_ptr
-			},
+			}
 			Link::Null => {
 				// Corresponding free list is empty. Allocate a new item.
 				self.bump(order.size() + HEADER_SIZE, mem.size())?
-			},
+			}
 		};
 
 		// Write the order in the occupied header.
@@ -366,11 +362,7 @@ impl FreeingBumpHeapAllocator {
 	///
 	/// - `mem` - a slice representing the linear memory on which this allocator operates.
 	/// - `ptr` - pointer to the allocated chunk
-	pub fn deallocate<M: Memory + ?Sized>(
-		&mut self,
-		mem: &mut M,
-		ptr: Pointer<u8>,
-	) -> Result<(), Error> {
+	pub fn deallocate<M: Memory + ?Sized>(&mut self, mem: &mut M, ptr: Pointer<u8>) -> Result<(), Error> {
 		let header_ptr = u32::from(ptr)
 			.checked_sub(HEADER_SIZE)
 			.ok_or_else(|| error("Invalid pointer for deallocation"))?;
@@ -400,7 +392,7 @@ impl FreeingBumpHeapAllocator {
 	/// would exhaust the heap.
 	fn bump(&mut self, size: u32, heap_end: u32) -> Result<u32, Error> {
 		if self.bumper + size > heap_end {
-			return Err(Error::AllocatorOutOfSpace)
+			return Err(Error::AllocatorOutOfSpace);
 		}
 
 		let res = self.bumper;
@@ -421,15 +413,14 @@ pub trait Memory {
 
 impl Memory for [u8] {
 	fn read_le_u64(&self, ptr: u32) -> Result<u64, Error> {
-		let range =
-			heap_range(ptr, 8, self.len()).ok_or_else(|| error("read out of heap bounds"))?;
-		let bytes =
-			self[range].try_into().expect("[u8] slice of length 8 must be convertible to [u8; 8]");
+		let range = heap_range(ptr, 8, self.len()).ok_or_else(|| error("read out of heap bounds"))?;
+		let bytes = self[range]
+			.try_into()
+			.expect("[u8] slice of length 8 must be convertible to [u8; 8]");
 		Ok(u64::from_le_bytes(bytes))
 	}
 	fn write_le_u64(&mut self, ptr: u32, val: u64) -> Result<(), Error> {
-		let range =
-			heap_range(ptr, 8, self.len()).ok_or_else(|| error("write out of heap bounds"))?;
+		let range = heap_range(ptr, 8, self.len()).ok_or_else(|| error("write out of heap bounds"))?;
 		let bytes = val.to_le_bytes();
 		&mut self[range].copy_from_slice(&bytes[..]);
 		Ok(())
@@ -596,7 +587,7 @@ mod tests {
 
 		// then
 		match ptr.unwrap_err() {
-			Error::AllocatorOutOfSpace => {},
+			Error::AllocatorOutOfSpace => {}
 			e => panic!("Expected allocator out of space error, got: {:?}", e),
 		}
 	}
@@ -615,7 +606,7 @@ mod tests {
 		// then
 		// there is no room for another half page incl. its 8 byte prefix
 		match ptr2.unwrap_err() {
-			Error::AllocatorOutOfSpace => {},
+			Error::AllocatorOutOfSpace => {}
 			e => panic!("Expected allocator out of space error, got: {:?}", e),
 		}
 	}
@@ -644,7 +635,7 @@ mod tests {
 
 		// then
 		match ptr.unwrap_err() {
-			Error::RequestedAllocationTooLarge => {},
+			Error::RequestedAllocationTooLarge => {}
 			e => panic!("Expected allocation size too large error, got: {:?}", e),
 		}
 	}
@@ -676,7 +667,7 @@ mod tests {
 
 		// then
 		match ptr.unwrap_err() {
-			Error::AllocatorOutOfSpace => {},
+			Error::AllocatorOutOfSpace => {}
 			e => panic!("Expected allocator out of space error, got: {:?}", e),
 		}
 	}
@@ -769,11 +760,16 @@ mod tests {
 		let mut heap = FreeingBumpHeapAllocator::new(0);
 
 		// Allocate and free some pointers
-		let ptrs = (0..4).map(|_| heap.allocate(&mut mem[..], 8).unwrap()).collect::<Vec<_>>();
-		ptrs.into_iter().for_each(|ptr| heap.deallocate(&mut mem[..], ptr).unwrap());
+		let ptrs = (0..4)
+			.map(|_| heap.allocate(&mut mem[..], 8).unwrap())
+			.collect::<Vec<_>>();
+		ptrs.into_iter()
+			.for_each(|ptr| heap.deallocate(&mut mem[..], ptr).unwrap());
 
 		// Second time we should be able to allocate all of them again.
-		let _ = (0..4).map(|_| heap.allocate(&mut mem[..], 8).unwrap()).collect::<Vec<_>>();
+		let _ = (0..4)
+			.map(|_| heap.allocate(&mut mem[..], 8).unwrap())
+			.collect::<Vec<_>>();
 	}
 
 	#[test]

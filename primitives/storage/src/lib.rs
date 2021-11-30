@@ -33,9 +33,7 @@ use sp_std::{
 /// Storage key.
 #[derive(PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash, PartialOrd, Ord, Clone))]
-pub struct StorageKey(
-	#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] pub Vec<u8>,
-);
+pub struct StorageKey(#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] pub Vec<u8>);
 
 /// Storage key with read/write tracking information.
 #[derive(PartialEq, Eq, RuntimeDebug, Clone, Encode, Decode)]
@@ -49,7 +47,11 @@ pub struct TrackedStorageKey {
 // Easily convert a key to a `TrackedStorageKey` that has been read and written to.
 impl From<Vec<u8>> for TrackedStorageKey {
 	fn from(key: Vec<u8>) -> Self {
-		Self { key, has_been_read: true, has_been_written: true }
+		Self {
+			key,
+			has_been_read: true,
+			has_been_written: true,
+		}
 	}
 }
 
@@ -58,9 +60,7 @@ impl From<Vec<u8>> for TrackedStorageKey {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash, PartialOrd, Ord, Clone))]
 #[repr(transparent)]
 #[derive(RefCast)]
-pub struct PrefixedStorageKey(
-	#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] Vec<u8>,
-);
+pub struct PrefixedStorageKey(#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] Vec<u8>);
 
 impl Deref for PrefixedStorageKey {
 	type Target = Vec<u8>;
@@ -100,9 +100,7 @@ impl PrefixedStorageKey {
 /// Storage data associated to a [`StorageKey`].
 #[derive(PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize, Hash, PartialOrd, Ord, Clone))]
-pub struct StorageData(
-	#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] pub Vec<u8>,
-);
+pub struct StorageData(#[cfg_attr(feature = "std", serde(with = "impl_serde::serialize"))] pub Vec<u8>);
 
 /// Map of data to use in a storage, it is a collection of
 /// byte key and values.
@@ -230,8 +228,9 @@ impl ChildInfo {
 	/// this trie.
 	pub fn prefixed_storage_key(&self) -> PrefixedStorageKey {
 		match self {
-			ChildInfo::ParentKeyId(ChildTrieParentKeyId { data }) =>
-				ChildType::ParentKeyId.new_prefixed_key(data.as_slice()),
+			ChildInfo::ParentKeyId(ChildTrieParentKeyId { data }) => {
+				ChildType::ParentKeyId.new_prefixed_key(data.as_slice())
+			}
 		}
 	}
 
@@ -242,7 +241,7 @@ impl ChildInfo {
 			ChildInfo::ParentKeyId(ChildTrieParentKeyId { mut data }) => {
 				ChildType::ParentKeyId.do_prefix_key(&mut data);
 				PrefixedStorageKey(data)
-			},
+			}
 		}
 	}
 

@@ -58,7 +58,7 @@ pub fn balance<AccountId: IdentifierT>(
 	tolerance: ExtendedBalance,
 ) -> usize {
 	if iterations == 0 {
-		return 0
+		return 0;
 	}
 
 	let mut iter = 0;
@@ -73,7 +73,7 @@ pub fn balance<AccountId: IdentifierT>(
 
 		iter += 1;
 		if max_diff <= tolerance || iter >= iterations {
-			break iter
+			break iter;
 		}
 	}
 }
@@ -92,21 +92,30 @@ pub(crate) fn balance_voter<AccountId: IdentifierT>(
 
 	// Either empty, or a self vote. Not much to do in either case.
 	if elected_edges.len() <= 1 {
-		return Zero::zero()
+		return Zero::zero();
 	}
 
 	// amount of stake from this voter that is used in edges.
-	let stake_used =
-		elected_edges.iter().fold(0, |a: ExtendedBalance, e| a.saturating_add(e.weight));
+	let stake_used = elected_edges
+		.iter()
+		.fold(0, |a: ExtendedBalance, e| a.saturating_add(e.weight));
 
 	// backed stake of each of the elected edges.
-	let backed_stakes =
-		elected_edges.iter().map(|e| e.candidate.borrow().backed_stake).collect::<Vec<_>>();
+	let backed_stakes = elected_edges
+		.iter()
+		.map(|e| e.candidate.borrow().backed_stake)
+		.collect::<Vec<_>>();
 
 	// backed stake of all the edges for whom we've spent some stake.
 	let backing_backed_stake = elected_edges
 		.iter()
-		.filter_map(|e| if e.weight > 0 { Some(e.candidate.borrow().backed_stake) } else { None })
+		.filter_map(|e| {
+			if e.weight > 0 {
+				Some(e.candidate.borrow().backed_stake)
+			} else {
+				None
+			}
+		})
 		.collect::<Vec<_>>();
 
 	let difference = if backing_backed_stake.len() > 0 {
@@ -114,12 +123,14 @@ pub(crate) fn balance_voter<AccountId: IdentifierT>(
 			.iter()
 			.max()
 			.expect("vector with positive length will have a max; qed");
-		let min_stake =
-			backed_stakes.iter().min().expect("iterator with positive length will have a min; qed");
+		let min_stake = backed_stakes
+			.iter()
+			.min()
+			.expect("iterator with positive length will have a min; qed");
 		let mut difference = max_stake.saturating_sub(*min_stake);
 		difference = difference.saturating_add(voter.budget.saturating_sub(stake_used));
 		if difference < tolerance {
-			return difference
+			return difference;
 		}
 		difference
 	} else {
@@ -145,7 +156,7 @@ pub(crate) fn balance_voter<AccountId: IdentifierT>(
 		if temp.saturating_sub(cumulative_backed_stake) > voter.budget {
 			// defensive only. length of elected_edges is checked to be above 1.
 			last_index = index.saturating_sub(1) as usize;
-			break
+			break;
 		}
 		cumulative_backed_stake = cumulative_backed_stake.saturating_add(backed_stake);
 	}

@@ -34,7 +34,10 @@ const MAX_FINALITY_WATCHERS: usize = 512;
 
 impl<H: hash::Hash + Eq + Debug, C: ChainApi> Default for Listener<H, C> {
 	fn default() -> Self {
-		Listener { watchers: Default::default(), finality_watchers: Default::default() }
+		Listener {
+			watchers: Default::default(),
+			finality_watchers: Default::default(),
+		}
 	}
 }
 
@@ -59,7 +62,10 @@ impl<H: hash::Hash + traits::Member + Serialize, C: ChainApi> Listener<H, C> {
 	///
 	/// The watcher can be used to subscribe to life-cycle events of that extrinsic.
 	pub fn create_watcher(&mut self, hash: H) -> watcher::Watcher<H, ExtrinsicHash<C>> {
-		let sender = self.watchers.entry(hash.clone()).or_insert_with(watcher::Sender::default);
+		let sender = self
+			.watchers
+			.entry(hash.clone())
+			.or_insert_with(watcher::Sender::default);
 		sender.new_watcher(hash)
 	}
 
@@ -107,7 +113,10 @@ impl<H: hash::Hash + traits::Member + Serialize, C: ChainApi> Listener<H, C> {
 	pub fn pruned(&mut self, block_hash: BlockHash<C>, tx: &H) {
 		debug!(target: "txpool", "[{:?}] Pruned at {:?}", tx, block_hash);
 		self.fire(tx, |s| s.in_block(block_hash));
-		self.finality_watchers.entry(block_hash).or_insert(vec![]).push(tx.clone());
+		self.finality_watchers
+			.entry(block_hash)
+			.or_insert(vec![])
+			.push(tx.clone());
 
 		while self.finality_watchers.len() > MAX_FINALITY_WATCHERS {
 			if let Some((hash, txs)) = self.finality_watchers.pop_front() {

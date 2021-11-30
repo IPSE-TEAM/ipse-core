@@ -50,7 +50,7 @@ pub fn lowest_common_ancestor<Block: BlockT, T: HeaderMetadata<Block> + ?Sized>(
 		if ancestor_one.number >= header_two.number {
 			header_one = ancestor_one;
 		} else {
-			break
+			break;
 		}
 	}
 
@@ -60,7 +60,7 @@ pub fn lowest_common_ancestor<Block: BlockT, T: HeaderMetadata<Block> + ?Sized>(
 		if ancestor_two.number >= header_one.number {
 			header_two = ancestor_two;
 		} else {
-			break
+			break;
 		}
 	}
 
@@ -86,7 +86,10 @@ pub fn lowest_common_ancestor<Block: BlockT, T: HeaderMetadata<Block> + ?Sized>(
 		backend.insert_header_metadata(orig_header_two.hash, orig_header_two);
 	}
 
-	Ok(HashAndNumber { hash: header_one.hash, number: header_one.number })
+	Ok(HashAndNumber {
+		hash: header_one.hash,
+		number: header_one.number,
+	})
 }
 
 /// Compute a tree-route between two blocks. See tree-route docs for more details.
@@ -102,33 +105,51 @@ pub fn tree_route<Block: BlockT, T: HeaderMetadata<Block>>(
 	let mut to_branch = Vec::new();
 
 	while to.number > from.number {
-		to_branch.push(HashAndNumber { number: to.number, hash: to.hash });
+		to_branch.push(HashAndNumber {
+			number: to.number,
+			hash: to.hash,
+		});
 
 		to = backend.header_metadata(to.parent)?;
 	}
 
 	while from.number > to.number {
-		from_branch.push(HashAndNumber { number: from.number, hash: from.hash });
+		from_branch.push(HashAndNumber {
+			number: from.number,
+			hash: from.hash,
+		});
 		from = backend.header_metadata(from.parent)?;
 	}
 
 	// numbers are equal now. walk backwards until the block is the same
 
 	while to.hash != from.hash {
-		to_branch.push(HashAndNumber { number: to.number, hash: to.hash });
+		to_branch.push(HashAndNumber {
+			number: to.number,
+			hash: to.hash,
+		});
 		to = backend.header_metadata(to.parent)?;
 
-		from_branch.push(HashAndNumber { number: from.number, hash: from.hash });
+		from_branch.push(HashAndNumber {
+			number: from.number,
+			hash: from.hash,
+		});
 		from = backend.header_metadata(from.parent)?;
 	}
 
 	// add the pivot block. and append the reversed to-branch
 	// (note that it's reverse order originals)
 	let pivot = from_branch.len();
-	from_branch.push(HashAndNumber { number: to.number, hash: to.hash });
+	from_branch.push(HashAndNumber {
+		number: to.number,
+		hash: to.hash,
+	});
 	from_branch.extend(to_branch.into_iter().rev());
 
-	Ok(TreeRoute { route: from_branch, pivot })
+	Ok(TreeRoute {
+		route: from_branch,
+		pivot,
+	})
 }
 
 /// Hash and number of a block.
@@ -201,15 +222,8 @@ pub trait HeaderMetadata<Block: BlockT> {
 	/// Error used in case the header metadata is not found.
 	type Error;
 
-	fn header_metadata(
-		&self,
-		hash: Block::Hash,
-	) -> Result<CachedHeaderMetadata<Block>, Self::Error>;
-	fn insert_header_metadata(
-		&self,
-		hash: Block::Hash,
-		header_metadata: CachedHeaderMetadata<Block>,
-	);
+	fn header_metadata(&self, hash: Block::Hash) -> Result<CachedHeaderMetadata<Block>, Self::Error>;
+	fn insert_header_metadata(&self, hash: Block::Hash, header_metadata: CachedHeaderMetadata<Block>);
 	fn remove_header_metadata(&self, hash: Block::Hash);
 }
 
@@ -221,13 +235,17 @@ pub struct HeaderMetadataCache<Block: BlockT> {
 impl<Block: BlockT> HeaderMetadataCache<Block> {
 	/// Creates a new LRU header metadata cache with `capacity`.
 	pub fn new(capacity: usize) -> Self {
-		HeaderMetadataCache { cache: RwLock::new(LruCache::new(capacity)) }
+		HeaderMetadataCache {
+			cache: RwLock::new(LruCache::new(capacity)),
+		}
 	}
 }
 
 impl<Block: BlockT> Default for HeaderMetadataCache<Block> {
 	fn default() -> Self {
-		HeaderMetadataCache { cache: RwLock::new(LruCache::new(LRU_CACHE_SIZE)) }
+		HeaderMetadataCache {
+			cache: RwLock::new(LruCache::new(LRU_CACHE_SIZE)),
+		}
 	}
 }
 

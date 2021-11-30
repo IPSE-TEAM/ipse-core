@@ -15,9 +15,7 @@
 // along with Substrate. If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{exec::ExecError, Trait};
-use frame_support::dispatch::{
-	DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo,
-};
+use frame_support::dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo};
 use sp_runtime::traits::Zero;
 use sp_std::marker::PhantomData;
 
@@ -112,16 +110,14 @@ impl<T: Trait> GasMeter<T> {
 	/// NOTE that amount is always consumed, i.e. if there is not enough gas
 	/// then the counter will be set to zero.
 	#[inline]
-	pub fn charge<Tok: Token<T>>(
-		&mut self,
-		metadata: &Tok::Metadata,
-		token: Tok,
-	) -> GasMeterResult {
+	pub fn charge<Tok: Token<T>>(&mut self, metadata: &Tok::Metadata, token: Tok) -> GasMeterResult {
 		#[cfg(test)]
 		{
 			// Unconditionally add the token to the storage.
-			let erased_tok =
-				ErasedToken { description: format!("{:?}", token), token: Box::new(token) };
+			let erased_tok = ErasedToken {
+				description: format!("{:?}", token),
+				token: Box::new(token),
+			};
 			self.tokens.push(erased_tok);
 		}
 
@@ -155,11 +151,7 @@ impl<T: Trait> GasMeter<T> {
 	/// with `None`, if this gas meter has not enough gas to allocate given `amount`.
 	///
 	/// All unused gas in the nested gas meter is returned to this gas meter.
-	pub fn with_nested<R, F: FnOnce(Option<&mut GasMeter<T>>) -> R>(
-		&mut self,
-		amount: Gas,
-		f: F,
-	) -> R {
+	pub fn with_nested<R, F: FnOnce(Option<&mut GasMeter<T>>) -> R>(&mut self, amount: Gas, f: F) -> R {
 		// NOTE that it is ok to allocate all available gas since it still ensured
 		// by `charge` that it doesn't reach zero.
 		if self.gas_left < amount {
@@ -196,9 +188,10 @@ impl<T: Trait> GasMeter<T> {
 			pays_fee: Default::default(),
 		};
 
-		result
-			.map(|_| post_info)
-			.map_err(|e| DispatchErrorWithPostInfo { post_info, error: e.into().error })
+		result.map(|_| post_info).map_err(|e| DispatchErrorWithPostInfo {
+			post_info,
+			error: e.into().error,
+		})
 	}
 
 	#[cfg(test)]
@@ -286,8 +279,7 @@ mod tests {
 	fn simple() {
 		let mut gas_meter = GasMeter::<Test>::new(50000);
 
-		let result =
-			gas_meter.charge(&MultiplierTokenMetadata { multiplier: 3 }, MultiplierToken(10));
+		let result = gas_meter.charge(&MultiplierTokenMetadata { multiplier: 3 }, MultiplierToken(10));
 		assert!(!result.is_out_of_gas());
 
 		assert_eq!(gas_meter.gas_left(), 49_970);

@@ -117,9 +117,9 @@ pub fn prune_older_than<T: Trait>(first_to_keep: SessionIndex) {
 					let _ = StorageValueRef::persistent(derived_key.as_ref()).clear();
 				}
 			}
-		},
-		Ok(Err(_)) => {}, // failed to store the value calculated with the given closure
-		Err(_) => {},     // failed to calculate the value to store with the given closure
+		}
+		Ok(Err(_)) => {} // failed to store the value calculated with the given closure
+		Err(_) => {}     // failed to calculate the value to store with the given closure
 	}
 }
 
@@ -136,9 +136,7 @@ pub fn keep_newest<T: Trait>(n_to_keep: usize) {
 mod tests {
 	use super::super::{onchain, Module};
 	use super::*;
-	use crate::mock::{
-		force_new_session, set_next_validators, Session, System, Test, NEXT_VALIDATORS,
-	};
+	use crate::mock::{force_new_session, set_next_validators, Session, System, Test, NEXT_VALIDATORS};
 	use codec::Encode;
 	use frame_support::traits::{KeyOwnerProofSystem, OnInitialize};
 	use sp_core::crypto::key_types::DUMMY;
@@ -155,7 +153,11 @@ mod tests {
 
 		crate::GenesisConfig::<Test> {
 			keys: NEXT_VALIDATORS.with(|l| {
-				l.borrow().iter().cloned().map(|i| (i, i, UintAuthorityId(i).into())).collect()
+				l.borrow()
+					.iter()
+					.cloned()
+					.map(|i| (i, i, UintAuthorityId(i).into()))
+					.collect()
 			}),
 		}
 		.assimilate_storage(&mut ext)
@@ -202,9 +204,8 @@ mod tests {
 		ext.persist_offchain_overlay();
 
 		ext.execute_with(|| {
-			let data = b"alphaomega"[..].using_encoded(|key| {
-				sp_io::offchain::local_storage_get(StorageKind::PERSISTENT, key)
-			});
+			let data =
+				b"alphaomega"[..].using_encoded(|key| sp_io::offchain::local_storage_get(StorageKind::PERSISTENT, key));
 			assert_eq!(data, Some(DATA.to_vec()));
 		});
 	}

@@ -27,8 +27,8 @@ use impl_trait_for_tuples::impl_for_tuples;
 use sp_core::u32_trait::Value as U32;
 use sp_runtime::{
 	traits::{
-		AtLeast32Bit, AtLeast32BitUnsigned, BadOrigin, Bounded, MaybeSerializeDeserialize,
-		Saturating, TrailingZeroInput, Zero,
+		AtLeast32Bit, AtLeast32BitUnsigned, BadOrigin, Bounded, MaybeSerializeDeserialize, Saturating,
+		TrailingZeroInput, Zero,
 	},
 	ConsensusEngineId, DispatchError, DispatchResult, RuntimeDebug,
 };
@@ -138,7 +138,7 @@ macro_rules! impl_filter_stack {
 		mod $module {
 			#[allow(unused_imports)]
 			use super::*;
-			use $crate::traits::{swap, take, RefCell, Vec, Box, Filter, FilterStack};
+			use $crate::traits::{swap, take, Box, Filter, FilterStack, RefCell, Vec};
 
 			thread_local! {
 				static FILTER: RefCell<Vec<Box<dyn Fn(&$call) -> bool + 'static>>> = RefCell::new(Vec::new());
@@ -146,8 +146,7 @@ macro_rules! impl_filter_stack {
 
 			impl Filter<$call> for $target {
 				fn filter(call: &$call) -> bool {
-					<$base>::filter(call) &&
-						FILTER.with(|filter| filter.borrow().iter().all(|f| f(call)))
+					<$base>::filter(call) && FILTER.with(|filter| filter.borrow().iter().all(|f| f(call)))
 				}
 			}
 
@@ -172,7 +171,7 @@ macro_rules! impl_filter_stack {
 		mod $module {
 			#[allow(unused_imports)]
 			use super::*;
-			use $crate::traits::{swap, take, RefCell, Vec, Box, Filter, FilterStack};
+			use $crate::traits::{swap, take, Box, Filter, FilterStack, RefCell, Vec};
 
 			struct ThisFilter(RefCell<Vec<Box<dyn Fn(&$call) -> bool + 'static>>>);
 			// NOTE: Safe only in wasm (guarded above) because there's only one thread.
@@ -203,7 +202,7 @@ macro_rules! impl_filter_stack {
 				}
 			}
 		}
-	}
+	};
 }
 
 /// Type that provide some integrity tests.
@@ -332,10 +331,7 @@ pub trait StoredMap<K, T> {
 	fn mutate_exists<R>(k: &K, f: impl FnOnce(&mut Option<T>) -> R) -> R;
 	/// Maybe mutate the item only if an `Ok` value is returned from `f`. Do nothing if an `Err` is
 	/// returned. It is removed or reset to default value if it has been mutated to `None`
-	fn try_mutate_exists<R, E>(
-		k: &K,
-		f: impl FnOnce(&mut Option<T>) -> Result<R, E>,
-	) -> Result<R, E>;
+	fn try_mutate_exists<R, E>(k: &K, f: impl FnOnce(&mut Option<T>) -> Result<R, E>) -> Result<R, E>;
 	/// Set the item to something new.
 	fn insert(k: &K, t: T) {
 		Self::mutate(k, |i| *i = t);
@@ -365,16 +361,9 @@ impl<T> Happened<T> for () {
 /// be the default value), or where the account is being removed or reset back to the default value
 /// where previously it did exist (though may have been in a default state). This works well with
 /// system module's `CallOnCreatedAccount` and `CallKillAccount`.
-pub struct StorageMapShim<S, Created, Removed, K, T>(
-	sp_std::marker::PhantomData<(S, Created, Removed, K, T)>,
-);
-impl<
-		S: StorageMap<K, T, Query = T>,
-		Created: Happened<K>,
-		Removed: Happened<K>,
-		K: FullCodec,
-		T: FullCodec,
-	> StoredMap<K, T> for StorageMapShim<S, Created, Removed, K, T>
+pub struct StorageMapShim<S, Created, Removed, K, T>(sp_std::marker::PhantomData<(S, Created, Removed, K, T)>);
+impl<S: StorageMap<K, T, Query = T>, Created: Happened<K>, Removed: Happened<K>, K: FullCodec, T: FullCodec>
+	StoredMap<K, T> for StorageMapShim<S, Created, Removed, K, T>
 {
 	fn get(k: &K) -> T {
 		S::get(k)
@@ -417,10 +406,7 @@ impl<
 		}
 		r
 	}
-	fn try_mutate_exists<R, E>(
-		k: &K,
-		f: impl FnOnce(&mut Option<T>) -> Result<R, E>,
-	) -> Result<R, E> {
+	fn try_mutate_exists<R, E>(k: &K, f: impl FnOnce(&mut Option<T>) -> Result<R, E>) -> Result<R, E> {
 		S::try_mutate_exists(k, |maybe_value| {
 			let existed = maybe_value.is_some();
 			f(maybe_value).map(|v| (existed, maybe_value.is_some(), v))
@@ -857,16 +843,19 @@ impl<
 	/// both.
 	pub fn merge(self, other: Self) -> Self {
 		match (self, other) {
-			(SignedImbalance::Positive(one), SignedImbalance::Positive(other)) =>
-				SignedImbalance::Positive(one.merge(other)),
-			(SignedImbalance::Negative(one), SignedImbalance::Negative(other)) =>
-				SignedImbalance::Negative(one.merge(other)),
-			(SignedImbalance::Positive(one), SignedImbalance::Negative(other)) =>
+			(SignedImbalance::Positive(one), SignedImbalance::Positive(other)) => {
+				SignedImbalance::Positive(one.merge(other))
+			}
+			(SignedImbalance::Negative(one), SignedImbalance::Negative(other)) => {
+				SignedImbalance::Negative(one.merge(other))
+			}
+			(SignedImbalance::Positive(one), SignedImbalance::Negative(other)) => {
 				if one.peek() > other.peek() {
 					SignedImbalance::Positive(one.offset(other).ok().unwrap_or_else(P::zero))
 				} else {
 					SignedImbalance::Negative(other.offset(one).ok().unwrap_or_else(N::zero))
-				},
+				}
+			}
 			(one, other) => other.merge(one),
 		}
 	}
@@ -898,12 +887,7 @@ impl<
 /// Abstraction over a fungible assets system.
 pub trait Currency<AccountId> {
 	/// The balance of an account.
-	type Balance: AtLeast32BitUnsigned
-		+ FullCodec
-		+ Copy
-		+ MaybeSerializeDeserialize
-		+ Debug
-		+ Default;
+	type Balance: AtLeast32BitUnsigned + FullCodec + Copy + MaybeSerializeDeserialize + Debug + Default;
 
 	/// The opaque token type for an imbalance. This is returned by unbalanced operations
 	/// and must be dealt with. It may be dropped but cannot be cloned.
@@ -1088,10 +1072,7 @@ pub trait ReservableCurrency<AccountId>: Currency<AccountId> {
 	///
 	/// As much funds up to `value` will be deducted as possible. If the reserve balance of `who`
 	/// is less than `value`, then a non-zero second item will be returned.
-	fn slash_reserved(
-		who: &AccountId,
-		value: Self::Balance,
-	) -> (Self::NegativeImbalance, Self::Balance);
+	fn slash_reserved(who: &AccountId, value: Self::Balance) -> (Self::NegativeImbalance, Self::Balance);
 
 	/// The amount of the balance of a given account that is externally reserved; this can still get
 	/// slashed, but gets slashed last of all.
@@ -1157,12 +1138,7 @@ pub trait LockableCurrency<AccountId>: Currency<AccountId> {
 	/// the `Locks` vec in storage. Note that you can lock more funds than a user has.
 	///
 	/// If the lock `id` already exists, this will update it.
-	fn set_lock(
-		id: LockIdentifier,
-		who: &AccountId,
-		amount: Self::Balance,
-		reasons: WithdrawReasons,
-	);
+	fn set_lock(id: LockIdentifier, who: &AccountId, amount: Self::Balance, reasons: WithdrawReasons);
 
 	/// Changes a balance lock (selected by `id`) so that it becomes less liquid in all
 	/// parameters or creates a new one if it does not exist.
@@ -1172,26 +1148,11 @@ pub trait LockableCurrency<AccountId>: Currency<AccountId> {
 	/// with the new parameters. As in, `extend_lock` will set:
 	/// - maximum `amount`
 	/// - bitwise mask of all `reasons`
-	fn extend_lock(
-		id: LockIdentifier,
-		who: &AccountId,
-		amount: Self::Balance,
-		reasons: WithdrawReasons,
-	);
+	fn extend_lock(id: LockIdentifier, who: &AccountId, amount: Self::Balance, reasons: WithdrawReasons);
 
-	fn lock_sub_amount(
-		id: LockIdentifier,
-		who: &AccountId,
-		amount: Self::Balance,
-		reasons: WithdrawReasons,
-	);
+	fn lock_sub_amount(id: LockIdentifier, who: &AccountId, amount: Self::Balance, reasons: WithdrawReasons);
 
-	fn lock_add_amount(
-		id: LockIdentifier,
-		who: &AccountId,
-		amount: Self::Balance,
-		reasons: WithdrawReasons,
-	);
+	fn lock_add_amount(id: LockIdentifier, who: &AccountId, amount: Self::Balance, reasons: WithdrawReasons);
 
 	/// Remove an existing lock.
 	fn remove_lock(id: LockIdentifier, who: &AccountId);
@@ -1208,8 +1169,7 @@ pub trait VestingSchedule<AccountId> {
 
 	/// Get the amount that is currently being vested and cannot be transferred out of this account.
 	/// Returns `None` if the account has no vesting schedule.
-	fn vesting_balance(who: &AccountId)
-		-> Option<<Self::Currency as Currency<AccountId>>::Balance>;
+	fn vesting_balance(who: &AccountId) -> Option<<Self::Currency as Currency<AccountId>>::Balance>;
 
 	/// Adds a vesting schedule to a given account.
 	///
@@ -1301,11 +1261,7 @@ pub trait ChangeMembers<AccountId: Clone + Ord> {
 	/// NOTE: This is the only function that needs to be implemented in `ChangeMembers`.
 	///
 	/// This resets any previous value of prime.
-	fn change_members_sorted(
-		incoming: &[AccountId],
-		outgoing: &[AccountId],
-		sorted_new: &[AccountId],
-	);
+	fn change_members_sorted(incoming: &[AccountId], outgoing: &[AccountId], sorted_new: &[AccountId]);
 
 	/// Set the new members; they **must already be sorted**. This will compute the diff and use it
 	/// to call `change_members_sorted`.
@@ -1318,10 +1274,7 @@ pub trait ChangeMembers<AccountId: Clone + Ord> {
 
 	/// Set the new members; they **must already be sorted**. This will compute the diff and use it
 	/// to call `change_members_sorted`.
-	fn compute_members_diff(
-		new_members: &[AccountId],
-		old_members: &[AccountId],
-	) -> (Vec<AccountId>, Vec<AccountId>) {
+	fn compute_members_diff(new_members: &[AccountId], old_members: &[AccountId]) -> (Vec<AccountId>, Vec<AccountId>) {
 		let mut old_iter = old_members.iter();
 		let mut new_iter = new_members.iter();
 		let mut incoming = Vec::new();
@@ -1334,19 +1287,19 @@ pub trait ChangeMembers<AccountId: Clone + Ord> {
 				(Some(old), Some(new)) if old == new => {
 					old_i = old_iter.next();
 					new_i = new_iter.next();
-				},
+				}
 				(Some(old), Some(new)) if old < new => {
 					outgoing.push(old.clone());
 					old_i = old_iter.next();
-				},
+				}
 				(Some(old), None) => {
 					outgoing.push(old.clone());
 					old_i = old_iter.next();
-				},
+				}
 				(_, Some(new)) => {
 					incoming.push(new.clone());
 					new_i = new_iter.next();
-				},
+				}
 			}
 		}
 		(incoming, outgoing)
@@ -1669,10 +1622,7 @@ pub trait UnfilteredDispatchable {
 	type Origin;
 
 	/// Dispatch this call but do not check the filter in origin.
-	fn dispatch_bypass_filter(
-		self,
-		origin: Self::Origin,
-	) -> crate::dispatch::DispatchResultWithPostInfo;
+	fn dispatch_bypass_filter(self, origin: Self::Origin) -> crate::dispatch::DispatchResultWithPostInfo;
 }
 
 /// Methods available on `frame_system::Trait::Origin`.

@@ -27,8 +27,8 @@ use sp_core::sandbox as sandbox_primitives;
 use sp_wasm_interface::{FunctionContext, Pointer, WordSize};
 use std::{collections::HashMap, rc::Rc};
 use wasmi::{
-	memory_units::Pages, Externals, ImportResolver, MemoryInstance, MemoryRef, Module,
-	ModuleInstance, ModuleRef, RuntimeArgs, RuntimeValue, Trap, TrapKind,
+	memory_units::Pages, Externals, ImportResolver, MemoryInstance, MemoryRef, Module, ModuleInstance, ModuleRef,
+	RuntimeArgs, RuntimeValue, Trap, TrapKind,
 };
 
 /// Index of a function inside the supervisor.
@@ -84,9 +84,10 @@ impl ImportResolver for Imports {
 		signature: &::wasmi::Signature,
 	) -> std::result::Result<wasmi::FuncRef, wasmi::Error> {
 		let key = (module_name.as_bytes().to_owned(), field_name.as_bytes().to_owned());
-		let idx = *self.func_map.get(&key).ok_or_else(|| {
-			wasmi::Error::Instantiation(format!("Export {}:{} not found", module_name, field_name))
-		})?;
+		let idx = *self
+			.func_map
+			.get(&key)
+			.ok_or_else(|| wasmi::Error::Instantiation(format!("Export {}:{} not found", module_name, field_name)))?;
 		Ok(wasmi::FuncInstance::alloc_host(signature.clone(), idx.0))
 	}
 
@@ -100,12 +101,7 @@ impl ImportResolver for Imports {
 		let mem = self
 			.memories_map
 			.get(&key)
-			.ok_or_else(|| {
-				wasmi::Error::Instantiation(format!(
-					"Export {}:{} not found",
-					module_name, field_name
-				))
-			})?
+			.ok_or_else(|| wasmi::Error::Instantiation(format!("Export {}:{} not found", module_name, field_name)))?
 			.clone();
 		Ok(mem)
 	}
@@ -116,7 +112,10 @@ impl ImportResolver for Imports {
 		field_name: &str,
 		_global_type: &::wasmi::GlobalDescriptor,
 	) -> std::result::Result<wasmi::GlobalRef, wasmi::Error> {
-		Err(wasmi::Error::Instantiation(format!("Export {}:{} not found", module_name, field_name)))
+		Err(wasmi::Error::Instantiation(format!(
+			"Export {}:{} not found",
+			module_name, field_name
+		)))
 	}
 
 	fn resolve_table(
@@ -125,7 +124,10 @@ impl ImportResolver for Imports {
 		field_name: &str,
 		_table_type: &::wasmi::TableDescriptor,
 	) -> std::result::Result<wasmi::TableRef, wasmi::Error> {
-		Err(wasmi::Error::Instantiation(format!("Export {}:{} not found", module_name, field_name)))
+		Err(wasmi::Error::Instantiation(format!(
+			"Export {}:{} not found",
+			module_name, field_name
+		)))
 	}
 }
 
@@ -176,9 +178,8 @@ fn trap(msg: &'static str) -> Trap {
 fn deserialize_result(serialized_result: &[u8]) -> std::result::Result<Option<RuntimeValue>, Trap> {
 	use self::sandbox_primitives::HostError;
 	use sp_wasm_interface::ReturnValue;
-	let result_val =
-		std::result::Result::<ReturnValue, HostError>::decode(&mut &serialized_result[..])
-			.map_err(|_| trap("Decoding Result<ReturnValue, HostError> failed!"))?;
+	let result_val = std::result::Result::<ReturnValue, HostError>::decode(&mut &serialized_result[..])
+		.map_err(|_| trap("Decoding Result<ReturnValue, HostError> failed!"))?;
 
 	match result_val {
 		Ok(return_value) => Ok(match return_value {
@@ -190,22 +191,19 @@ fn deserialize_result(serialized_result: &[u8]) -> std::result::Result<Option<Ru
 }
 
 impl<'a, FE: SandboxCapabilities + 'a> Externals for GuestExternals<'a, FE> {
-	fn invoke_index(
-		&mut self,
-		index: usize,
-		args: RuntimeArgs,
-	) -> std::result::Result<Option<RuntimeValue>, Trap> {
+	fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> std::result::Result<Option<RuntimeValue>, Trap> {
 		// Make `index` typesafe again.
 		let index = GuestFuncIndex(index);
 
-		let func_idx = self.sandbox_instance
+		let func_idx = self
+			.sandbox_instance
 			.guest_to_supervisor_mapping
 			.func_by_guest_index(index)
 			.expect(
 				"`invoke_index` is called with indexes registered via `FuncInstance::alloc_host`;
 					`FuncInstance::alloc_host` is called with indexes that was obtained from `guest_to_supervisor_mapping`;
 					`func_by_guest_index` called with `index` can't return `None`;
-					qed"
+					qed",
 			);
 
 		// Serialize arguments into a byte vector.
@@ -228,16 +226,22 @@ impl<'a, FE: SandboxCapabilities + 'a> Externals for GuestExternals<'a, FE> {
 			.map_err(|_| trap("Can't allocate memory in supervisor for the arguments"))?;
 
 		let deallocate = |this: &mut GuestExternals<FE>, ptr, fail_msg| {
-			this.supervisor_externals.deallocate_memory(ptr).map_err(|_| trap(fail_msg))
+			this.supervisor_externals
+				.deallocate_memory(ptr)
+				.map_err(|_| trap(fail_msg))
 		};
 
-		if self.supervisor_externals.write_memory(invoke_args_ptr, &invoke_args_data).is_err() {
+		if self
+			.supervisor_externals
+			.write_memory(invoke_args_ptr, &invoke_args_data)
+			.is_err()
+		{
 			deallocate(
 				self,
 				invoke_args_ptr,
 				"Failed dealloction after failed write of invoke arguments",
 			)?;
-			return Err(trap("Can't write invoke args into memory"))
+			return Err(trap("Can't write invoke args into memory"));
 		}
 
 		let result = self.supervisor_externals.invoke(
@@ -290,7 +294,11 @@ where
 	FE: SandboxCapabilities,
 	F: FnOnce(&mut GuestExternals<FE>) -> R,
 {
-	let mut guest_externals = GuestExternals { supervisor_externals, sandbox_instance, state };
+	let mut guest_externals = GuestExternals {
+		supervisor_externals,
+		sandbox_instance,
+		state,
+	};
 	f(&mut guest_externals)
 }
 
@@ -376,10 +384,9 @@ fn decode_environment_definition(
 
 		match entry.entity {
 			sandbox_primitives::ExternEntity::Function(func_idx) => {
-				let externals_idx =
-					guest_to_supervisor_mapping.define(SupervisorFuncIndex(func_idx as usize));
+				let externals_idx = guest_to_supervisor_mapping.define(SupervisorFuncIndex(func_idx as usize));
 				func_map.insert((module, field), externals_idx);
-			},
+			}
 			sandbox_primitives::ExternEntity::Memory(memory_idx) => {
 				let memory_ref = memories
 					.get(memory_idx as usize)
@@ -387,7 +394,7 @@ fn decode_environment_definition(
 					.ok_or_else(|| InstantiationError::EnvironmentDefinitionCorrupted)?
 					.ok_or_else(|| InstantiationError::EnvironmentDefinitionCorrupted)?;
 				memories_map.insert((module, field), memory_ref);
-			},
+			}
 		}
 	}
 
@@ -404,13 +411,12 @@ impl GuestEnvironment {
 	/// Decodes an environment definition from the given raw bytes.
 	///
 	/// Returns `Err` if the definition cannot be decoded.
-	pub fn decode<FR>(
-		store: &Store<FR>,
-		raw_env_def: &[u8],
-	) -> std::result::Result<Self, InstantiationError> {
-		let (imports, guest_to_supervisor_mapping) =
-			decode_environment_definition(raw_env_def, &store.memories)?;
-		Ok(Self { imports, guest_to_supervisor_mapping })
+	pub fn decode<FR>(store: &Store<FR>, raw_env_def: &[u8]) -> std::result::Result<Self, InstantiationError> {
+		let (imports, guest_to_supervisor_mapping) = decode_environment_definition(raw_env_def, &store.memories)?;
+		Ok(Self {
+			imports,
+			guest_to_supervisor_mapping,
+		})
 	}
 }
 
@@ -453,8 +459,7 @@ pub fn instantiate<'a, FE: SandboxCapabilities>(
 	state: u32,
 ) -> std::result::Result<UnregisteredInstance<FE::SupervisorFuncRef>, InstantiationError> {
 	let module = Module::from_buffer(wasm).map_err(|_| InstantiationError::ModuleDecoding)?;
-	let instance = ModuleInstance::new(&module, &host_env.imports)
-		.map_err(|_| InstantiationError::Instantiation)?;
+	let instance = ModuleInstance::new(&module, &host_env.imports).map_err(|_| InstantiationError::Instantiation)?;
 
 	let sandbox_instance = Rc::new(SandboxInstance {
 		// In general, it's not a very good idea to use `.not_started_instance()` for anything
@@ -466,7 +471,9 @@ pub fn instantiate<'a, FE: SandboxCapabilities>(
 	});
 
 	with_guest_externals(supervisor_externals, &sandbox_instance, state, |guest_externals| {
-		instance.run_start(guest_externals).map_err(|_| InstantiationError::StartTrapped)
+		instance
+			.run_start(guest_externals)
+			.map_err(|_| InstantiationError::StartTrapped)
 	})?;
 
 	Ok(UnregisteredInstance { sandbox_instance })
@@ -484,7 +491,10 @@ pub struct Store<FR> {
 impl<FR> Store<FR> {
 	/// Create a new empty sandbox store.
 	pub fn new() -> Self {
-		Store { instances: Vec::new(), memories: Vec::new() }
+		Store {
+			instances: Vec::new(),
+			memories: Vec::new(),
+		}
 	}
 
 	/// Create a new memory instance and return it's index.
@@ -547,7 +557,7 @@ impl<FR> Store<FR> {
 			Some(memory) => {
 				*memory = None;
 				Ok(())
-			},
+			}
 		}
 	}
 
@@ -564,7 +574,7 @@ impl<FR> Store<FR> {
 			Some(instance) => {
 				*instance = None;
 				Ok(())
-			},
+			}
 		}
 	}
 

@@ -30,14 +30,11 @@
 //! are feature-gated, so that one is compiled for the native and the other for the wasm side.
 
 use crate::utils::{
-	create_exchangeable_host_function_ident, create_function_ident_with_version,
-	generate_crate_access, get_function_argument_names, get_function_arguments,
-	get_runtime_interface,
+	create_exchangeable_host_function_ident, create_function_ident_with_version, generate_crate_access,
+	get_function_argument_names, get_function_arguments, get_runtime_interface,
 };
 
-use syn::{
-	parse_quote, spanned::Spanned, FnArg, Ident, ItemTrait, Result, Signature, TraitItemMethod,
-};
+use syn::{parse_quote, spanned::Spanned, FnArg, Ident, ItemTrait, Result, Signature, TraitItemMethod};
 
 use proc_macro2::{Span, TokenStream};
 
@@ -52,32 +49,33 @@ pub fn generate(trait_def: &ItemTrait, is_wasm_only: bool, tracing: bool) -> Res
 	let runtime_interface = get_runtime_interface(trait_def)?;
 
 	// latest version dispatch
-	let token_stream: Result<TokenStream> = runtime_interface.latest_versions().try_fold(
-		TokenStream::new(),
-		|mut t, (latest_version, method)| {
-			t.extend(function_for_method(method, latest_version, is_wasm_only)?);
-			Ok(t)
-		},
-	);
+	let token_stream: Result<TokenStream> =
+		runtime_interface
+			.latest_versions()
+			.try_fold(TokenStream::new(), |mut t, (latest_version, method)| {
+				t.extend(function_for_method(method, latest_version, is_wasm_only)?);
+				Ok(t)
+			});
 
 	// earlier versions compatibility dispatch (only std variant)
 	let result: Result<TokenStream> =
-		runtime_interface.all_versions().try_fold(token_stream?, |mut t, (version, method)| {
-			t.extend(function_std_impl(trait_name, method, version, is_wasm_only, tracing)?);
-			Ok(t)
-		});
+		runtime_interface
+			.all_versions()
+			.try_fold(token_stream?, |mut t, (version, method)| {
+				t.extend(function_std_impl(trait_name, method, version, is_wasm_only, tracing)?);
+				Ok(t)
+			});
 
 	result
 }
 
 /// Generates the bare function implementation for the given method for the host and wasm side.
-fn function_for_method(
-	method: &TraitItemMethod,
-	latest_version: u32,
-	is_wasm_only: bool,
-) -> Result<TokenStream> {
-	let std_impl =
-		if !is_wasm_only { function_std_latest_impl(method, latest_version)? } else { quote!() };
+fn function_for_method(method: &TraitItemMethod, latest_version: u32, is_wasm_only: bool) -> Result<TokenStream> {
+	let std_impl = if !is_wasm_only {
+		function_std_latest_impl(method, latest_version)?
+	} else {
+		quote!()
+	};
 
 	let no_std_impl = function_no_std_impl(method)?;
 
@@ -116,8 +114,7 @@ fn function_std_latest_impl(method: &TraitItemMethod, latest_version: u32) -> Re
 	let arg_names = get_function_argument_names(&method.sig).collect::<Vec<_>>();
 	let return_value = &method.sig.output;
 	let attrs = method.attrs.iter().filter(|a| !a.path.is_ident("version"));
-	let latest_function_name =
-		create_function_ident_with_version(&method.sig.ident, latest_version);
+	let latest_function_name = create_function_ident_with_version(&method.sig.ident, latest_version);
 
 	Ok(quote_spanned! { method.span() =>
 		#[cfg(feature = "std")]
@@ -187,8 +184,10 @@ fn generate_call_to_trait(
 ) -> TokenStream {
 	let crate_ = generate_crate_access();
 	let method_name = create_function_ident_with_version(&method.sig.ident, version);
-	let expect_msg =
-		format!("`{}` called outside of an Externalities-provided environment.", method_name,);
+	let expect_msg = format!(
+		"`{}` called outside of an Externalities-provided environment.",
+		method_name,
+	);
 	let arg_names = get_function_argument_names(&method.sig);
 
 	if takes_self_argument(&method.sig) {

@@ -268,9 +268,7 @@ use frame_support::{
 use frame_system::{ensure_root, ensure_signed};
 use sp_runtime::{
 	traits::{Bounded, DispatchInfoOf, SaturatedConversion, SignedExtension},
-	transaction_validity::{
-		InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
-	},
+	transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
 };
 use sp_std::marker::PhantomData;
 use sp_std::prelude::*;
@@ -639,7 +637,7 @@ where
 	) -> TransactionValidity {
 		// if the transaction is too big, just drop it.
 		if len > 200 {
-			return InvalidTransaction::ExhaustsResources.into()
+			return InvalidTransaction::ExhaustsResources.into();
 		}
 
 		// check for `set_dummy`
@@ -650,7 +648,7 @@ where
 				let mut valid_tx = ValidTransaction::default();
 				valid_tx.priority = Bounded::max_value();
 				Ok(valid_tx)
-			},
+			}
 			_ => Ok(Default::default()),
 		}
 	}
@@ -803,7 +801,9 @@ mod tests {
 	pub fn new_test_ext() -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		// We use default for brevity, but you can configure as desired if needed.
-		pallet_balances::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
+		pallet_balances::GenesisConfig::<Test>::default()
+			.assimilate_storage(&mut t)
+			.unwrap();
 		GenesisConfig::<Test> {
 			dummy: 42,
 			// we configure the map with (key, value) pairs.
@@ -852,7 +852,10 @@ mod tests {
 			let info = DispatchInfo::default();
 
 			assert_eq!(
-				WatchDummy::<Test>(PhantomData).validate(&1, &call, &info, 150).unwrap().priority,
+				WatchDummy::<Test>(PhantomData)
+					.validate(&1, &call, &info, 150)
+					.unwrap()
+					.priority,
 				u64::max_value(),
 			);
 			assert_eq!(

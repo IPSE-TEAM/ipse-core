@@ -87,7 +87,11 @@ pub enum ConnectionError<TSinkErr> {
 impl<TTrans: Transport> Node<TTrans> {
 	/// Builds a new node handler.
 	pub fn new(transport: TTrans, addr: Multiaddr) -> Self {
-		Node { addr, socket: NodeSocket::ReconnectNow, transport }
+		Node {
+			addr,
+			socket: NodeSocket::ReconnectNow,
+			transport,
+		}
 	}
 
 	/// Returns the address that was passed to `new`.
@@ -100,8 +104,7 @@ impl<TTrans: Transport, TSinkErr> Node<TTrans>
 where
 	TTrans: Clone + Unpin,
 	TTrans::Dial: Unpin,
-	TTrans::Output:
-		Sink<Vec<u8>, Error = TSinkErr> + Stream<Item = Result<Vec<u8>, TSinkErr>> + Unpin,
+	TTrans::Output: Sink<Vec<u8>, Error = TSinkErr> + Stream<Item = Result<Vec<u8>, TSinkErr>> + Unpin,
 	TSinkErr: fmt::Debug,
 {
 	/// Sends a WebSocket frame to the node. Returns an error if we are not connected to the node.
@@ -136,10 +139,10 @@ where
 							warn!(target: "telemetry", "⚠️  Disconnected from {}: {:?}", self.addr, err);
 							let timeout = gen_rand_reconnect_delay();
 							self.socket = NodeSocket::WaitingReconnect(timeout);
-							return Poll::Ready(NodeEvent::Disconnected(err))
-						},
+							return Poll::Ready(NodeEvent::Disconnected(err));
+						}
 					}
-				},
+				}
 				NodeSocket::Dialing(mut s) => match Future::poll(Pin::new(&mut s), cx) {
 					Poll::Ready(Ok(sink)) => {
 						debug!(target: "telemetry", "✅ Connected to {}", self.addr);
@@ -150,36 +153,37 @@ where
 							timeout: None,
 						};
 						self.socket = NodeSocket::Connected(conn);
-						return Poll::Ready(NodeEvent::Connected)
-					},
+						return Poll::Ready(NodeEvent::Connected);
+					}
 					Poll::Pending => break NodeSocket::Dialing(s),
 					Poll::Ready(Err(err)) => {
 						warn!(target: "telemetry", "❌ Error while dialing {}: {:?}", self.addr, err);
 						let timeout = gen_rand_reconnect_delay();
 						socket = NodeSocket::WaitingReconnect(timeout);
-					},
+					}
 				},
 				NodeSocket::ReconnectNow => match self.transport.clone().dial(self.addr.clone()) {
 					Ok(d) => {
 						debug!(target: "telemetry", "Started dialing {}", self.addr);
 						socket = NodeSocket::Dialing(d);
-					},
+					}
 					Err(err) => {
 						warn!(target: "telemetry", "❌ Error while dialing {}: {:?}", self.addr, err);
 						let timeout = gen_rand_reconnect_delay();
 						socket = NodeSocket::WaitingReconnect(timeout);
-					},
+					}
 				},
-				NodeSocket::WaitingReconnect(mut s) =>
+				NodeSocket::WaitingReconnect(mut s) => {
 					if let Poll::Ready(_) = Future::poll(Pin::new(&mut s), cx) {
 						socket = NodeSocket::ReconnectNow;
 					} else {
-						break NodeSocket::WaitingReconnect(s)
-					},
+						break NodeSocket::WaitingReconnect(s);
+					}
+				}
 				NodeSocket::Poisoned => {
 					error!(target: "telemetry", "‼️ Poisoned connection with {}", self.addr);
-					break NodeSocket::Poisoned
-				},
+					break NodeSocket::Poisoned;
+				}
 			}
 		};
 
@@ -198,8 +202,7 @@ fn gen_rand_reconnect_delay() -> Delay {
 
 impl<TTrans: Transport, TSinkErr> NodeSocketConnected<TTrans>
 where
-	TTrans::Output:
-		Sink<Vec<u8>, Error = TSinkErr> + Stream<Item = Result<Vec<u8>, TSinkErr>> + Unpin,
+	TTrans::Output: Sink<Vec<u8>, Error = TSinkErr> + Stream<Item = Result<Vec<u8>, TSinkErr>> + Unpin,
 {
 	/// Processes the queue of messages for the connected socket.
 	///
@@ -212,12 +215,12 @@ where
 		while let Some(item) = self.pending.pop_front() {
 			if let Poll::Ready(result) = Sink::poll_ready(Pin::new(&mut self.sink), cx) {
 				if let Err(err) = result {
-					return Poll::Ready(Err(ConnectionError::Sink(err)))
+					return Poll::Ready(Err(ConnectionError::Sink(err)));
 				}
 
 				let item_len = item.len();
 				if let Err(err) = Sink::start_send(Pin::new(&mut self.sink), item) {
-					return Poll::Ready(Err(ConnectionError::Sink(err)))
+					return Poll::Ready(Err(ConnectionError::Sink(err)));
 				}
 				trace!(
 					target: "telemetry", "Successfully sent {:?} bytes message to {}",
@@ -229,34 +232,35 @@ where
 				if self.timeout.is_none() {
 					self.timeout = Some(Delay::new(Duration::from_secs(10)));
 				}
-				break
+				break;
 			}
 		}
 
 		if self.need_flush {
 			match Sink::poll_flush(Pin::new(&mut self.sink), cx) {
-				Poll::Pending =>
+				Poll::Pending => {
 					if self.timeout.is_none() {
 						self.timeout = Some(Delay::new(Duration::from_secs(10)));
-					},
+					}
+				}
 				Poll::Ready(Err(err)) => {
 					self.timeout = None;
-					return Poll::Ready(Err(ConnectionError::Sink(err)))
-				},
+					return Poll::Ready(Err(ConnectionError::Sink(err)));
+				}
 				Poll::Ready(Ok(())) => {
 					self.timeout = None;
 					self.need_flush = false;
-				},
+				}
 			}
 		}
 
 		if let Some(timeout) = self.timeout.as_mut() {
 			match Future::poll(Pin::new(timeout), cx) {
-				Poll::Pending => {},
+				Poll::Pending => {}
 				Poll::Ready(()) => {
 					self.timeout = None;
-					return Poll::Ready(Err(ConnectionError::Timeout))
-				},
+					return Poll::Ready(Err(ConnectionError::Timeout));
+				}
 			}
 		}
 
@@ -265,10 +269,10 @@ where
 				// We poll the telemetry `Stream` because the underlying implementation relies on
 				// this in order to answer PINGs.
 				// We don't do anything with incoming messages, however.
-			},
+			}
 			Poll::Ready(Some(Err(err))) => return Poll::Ready(Err(ConnectionError::Sink(err))),
 			Poll::Ready(None) => return Poll::Ready(Err(ConnectionError::Closed)),
-			Poll::Pending => {},
+			Poll::Pending => {}
 		}
 
 		Poll::Pending
@@ -285,6 +289,9 @@ impl<TTrans: Transport> fmt::Debug for Node<TTrans> {
 			NodeSocket::Poisoned => "Poisoned",
 		};
 
-		f.debug_struct("Node").field("addr", &self.addr).field("state", &state).finish()
+		f.debug_struct("Node")
+			.field("addr", &self.addr)
+			.field("state", &state)
+			.finish()
 	}
 }

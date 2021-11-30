@@ -197,8 +197,7 @@ fn knows_how_to_mock_several_http_calls() {
 
 #[test]
 fn should_submit_signed_transaction_on_chain() {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
@@ -229,8 +228,7 @@ fn should_submit_signed_transaction_on_chain() {
 
 #[test]
 fn should_submit_unsigned_transaction_on_chain_for_any_account() {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 
@@ -248,8 +246,12 @@ fn should_submit_unsigned_transaction_on_chain_for_any_account() {
 
 	price_oracle_response(&mut offchain_state.write());
 
-	let public_key =
-		keystore.read().sr25519_public_keys(crate::crypto::Public::ID).get(0).unwrap().clone();
+	let public_key = keystore
+		.read()
+		.sr25519_public_keys(crate::crypto::Public::ID)
+		.get(0)
+		.unwrap()
+		.clone();
 
 	let price_payload = PricePayload {
 		block_number: 1,
@@ -268,11 +270,10 @@ fn should_submit_unsigned_transaction_on_chain_for_any_account() {
 		if let Call::submit_price_unsigned_with_signed_payload(body, signature) = tx.call {
 			assert_eq!(body, price_payload);
 
-			let signature_valid =
-				<PricePayload<
-					<Test as SigningTypes>::Public,
-					<Test as frame_system::Trait>::BlockNumber,
-				> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
+			let signature_valid = <PricePayload<
+				<Test as SigningTypes>::Public,
+				<Test as frame_system::Trait>::BlockNumber,
+			> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
 
 			assert!(signature_valid);
 		}
@@ -281,8 +282,7 @@ fn should_submit_unsigned_transaction_on_chain_for_any_account() {
 
 #[test]
 fn should_submit_unsigned_transaction_on_chain_for_all_accounts() {
-	const PHRASE: &str =
-		"news slush supreme milk chapter athlete soap sausage put clutch what kitten";
+	const PHRASE: &str = "news slush supreme milk chapter athlete soap sausage put clutch what kitten";
 	let (offchain, offchain_state) = testing::TestOffchainExt::new();
 	let (pool, pool_state) = testing::TestTransactionPoolExt::new();
 
@@ -300,8 +300,12 @@ fn should_submit_unsigned_transaction_on_chain_for_all_accounts() {
 
 	price_oracle_response(&mut offchain_state.write());
 
-	let public_key =
-		keystore.read().sr25519_public_keys(crate::crypto::Public::ID).get(0).unwrap().clone();
+	let public_key = keystore
+		.read()
+		.sr25519_public_keys(crate::crypto::Public::ID)
+		.get(0)
+		.unwrap()
+		.clone();
 
 	let price_payload = PricePayload {
 		block_number: 1,
@@ -320,11 +324,10 @@ fn should_submit_unsigned_transaction_on_chain_for_all_accounts() {
 		if let Call::submit_price_unsigned_with_signed_payload(body, signature) = tx.call {
 			assert_eq!(body, price_payload);
 
-			let signature_valid =
-				<PricePayload<
-					<Test as SigningTypes>::Public,
-					<Test as frame_system::Trait>::BlockNumber,
-				> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
+			let signature_valid = <PricePayload<
+				<Test as SigningTypes>::Public,
+				<Test as frame_system::Trait>::BlockNumber,
+			> as SignedPayload<Test>>::verify::<crypto::TestAuthId>(&price_payload, signature);
 
 			assert!(signature_valid);
 		}

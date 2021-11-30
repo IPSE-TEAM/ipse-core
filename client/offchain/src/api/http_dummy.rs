@@ -59,12 +59,7 @@ impl HttpApi {
 	}
 
 	/// Mimics the corresponding method in the offchain API.
-	pub fn request_write_body(
-		&mut self,
-		_: HttpRequestId,
-		_: &[u8],
-		_: Option<Timestamp>,
-	) -> Result<(), HttpError> {
+	pub fn request_write_body(&mut self, _: HttpRequestId, _: &[u8], _: Option<Timestamp>) -> Result<(), HttpError> {
 		unreachable!(
 			"Creating a request always fails, thus this function will \
 			never be called; qed"
@@ -72,11 +67,7 @@ impl HttpApi {
 	}
 
 	/// Mimics the corresponding method in the offchain API.
-	pub fn response_wait(
-		&mut self,
-		requests: &[HttpRequestId],
-		_: Option<Timestamp>,
-	) -> Vec<HttpRequestStatus> {
+	pub fn response_wait(&mut self, requests: &[HttpRequestId], _: Option<Timestamp>) -> Vec<HttpRequestStatus> {
 		if requests.is_empty() {
 			Vec::new()
 		} else {

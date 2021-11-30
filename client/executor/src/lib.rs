@@ -38,9 +38,7 @@ mod integration_tests;
 mod wasm_runtime;
 
 pub use codec::Codec;
-pub use native_executor::{
-	with_externalities_safe, NativeExecutionDispatch, NativeExecutor, WasmExecutor,
-};
+pub use native_executor::{with_externalities_safe, NativeExecutionDispatch, NativeExecutor, WasmExecutor};
 #[doc(hidden)]
 pub use sp_core::traits::{CallInWasm, Externalities};
 pub use sp_version::{NativeVersion, RuntimeVersion};

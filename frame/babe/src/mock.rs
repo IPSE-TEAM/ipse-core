@@ -245,13 +245,10 @@ impl Trait for Test {
 
 	type KeyOwnerProofSystem = Historical;
 
-	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::Proof;
+	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::Proof;
 
-	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		AuthorityId,
-	)>>::IdentificationTuple;
+	type KeyOwnerIdentification =
+		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::IdentificationTuple;
 
 	type HandleEquivocation = super::EquivocationHandler<Self::KeyOwnerIdentification, Offences>;
 	type WeightInfo = ();
@@ -323,14 +320,12 @@ pub fn make_pre_digest(
 	vrf_output: VRFOutput,
 	vrf_proof: VRFProof,
 ) -> Digest {
-	let digest_data = sp_consensus_babe::digests::PreDigest::Primary(
-		sp_consensus_babe::digests::PrimaryPreDigest {
-			authority_index,
-			slot_number,
-			vrf_output,
-			vrf_proof,
-		},
-	);
+	let digest_data = sp_consensus_babe::digests::PreDigest::Primary(sp_consensus_babe::digests::PrimaryPreDigest {
+		authority_index,
+		slot_number,
+		vrf_output,
+		vrf_proof,
+	});
 	let log = DigestItem::PreRuntime(sp_consensus_babe::BABE_ENGINE_ID, digest_data.encode());
 	Digest { logs: vec![log] }
 }
@@ -339,9 +334,11 @@ pub fn make_secondary_plain_pre_digest(
 	authority_index: sp_consensus_babe::AuthorityIndex,
 	slot_number: sp_consensus_babe::SlotNumber,
 ) -> Digest {
-	let digest_data = sp_consensus_babe::digests::PreDigest::SecondaryPlain(
-		sp_consensus_babe::digests::SecondaryPlainPreDigest { authority_index, slot_number },
-	);
+	let digest_data =
+		sp_consensus_babe::digests::PreDigest::SecondaryPlain(sp_consensus_babe::digests::SecondaryPlainPreDigest {
+			authority_index,
+			slot_number,
+		});
 	let log = DigestItem::PreRuntime(sp_consensus_babe::BABE_ENGINE_ID, digest_data.encode());
 	Digest { logs: vec![log] }
 }
@@ -350,9 +347,7 @@ pub fn new_test_ext(authorities_len: usize) -> sp_io::TestExternalities {
 	new_test_ext_with_pairs(authorities_len).1
 }
 
-pub fn new_test_ext_with_pairs(
-	authorities_len: usize,
-) -> (Vec<AuthorityPair>, sp_io::TestExternalities) {
+pub fn new_test_ext_with_pairs(authorities_len: usize) -> (Vec<AuthorityPair>, sp_io::TestExternalities) {
 	let pairs = (0..authorities_len)
 		.map(|i| AuthorityPair::from_seed(&U256::from(i).into()))
 		.collect::<Vec<_>>();
@@ -370,14 +365,25 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<AuthorityId>) -> sp_io::Tes
 		.iter()
 		.enumerate()
 		.map(|(i, k)| {
-			(i as u64, i as u64, MockSessionKeys { babe_authority: AuthorityId::from(k.clone()) })
+			(
+				i as u64,
+				i as u64,
+				MockSessionKeys {
+					babe_authority: AuthorityId::from(k.clone()),
+				},
+			)
 		})
 		.collect();
 
 	// controllers are the index + 1000
 	let stakers: Vec<_> = (0..authorities.len())
 		.map(|i| {
-			(i as u64, i as u64 + 1000, 10_000, pallet_staking::StakerStatus::<u64>::Validator)
+			(
+				i as u64,
+				i as u64 + 1000,
+				10_000,
+				pallet_staking::StakerStatus::<u64>::Validator,
+			)
 		})
 		.collect();
 
@@ -389,7 +395,9 @@ pub fn new_test_ext_raw_authorities(authorities: Vec<AuthorityId>) -> sp_io::Tes
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-	pallet_balances::GenesisConfig::<Test> { balances }.assimilate_storage(&mut t).unwrap();
+	pallet_balances::GenesisConfig::<Test> { balances }
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 	let staking_config = pallet_staking::GenesisConfig::<Test> {
 		stakers,
@@ -435,9 +443,7 @@ pub fn generate_equivocation_proof(
 	// digest item
 	let seal_header = |header: &mut Header| {
 		let prehash = header.hash();
-		let seal = <DigestItem as CompatibleDigestItem>::babe_seal(
-			offender_authority_pair.sign(prehash.as_ref()),
-		);
+		let seal = <DigestItem as CompatibleDigestItem>::babe_seal(offender_authority_pair.sign(prehash.as_ref()));
 		header.digest_mut().push(seal);
 	};
 

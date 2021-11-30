@@ -59,8 +59,5 @@ pub trait FromFFIValue: RIType {
 	type SelfInstance;
 
 	/// Create `SelfInstance` from the given
-	fn from_ffi_value(
-		context: &mut dyn FunctionContext,
-		arg: Self::FFIType,
-	) -> Result<Self::SelfInstance>;
+	fn from_ffi_value(context: &mut dyn FunctionContext, arg: Self::FFIType) -> Result<Self::SelfInstance>;
 }

@@ -44,12 +44,14 @@ impl AddrCache {
 	/// [`AuthorityId`] or [`PeerId`].
 	pub fn insert(&mut self, authority_id: AuthorityId, mut addresses: Vec<Multiaddr>) {
 		if addresses.is_empty() {
-			return
+			return;
 		}
 
 		// Insert into `self.peer_id_to_authority_id`.
-		let peer_ids =
-			addresses.iter().map(|a| peer_id_from_multiaddr(a)).filter_map(|peer_id| peer_id);
+		let peer_ids = addresses
+			.iter()
+			.map(|a| peer_id_from_multiaddr(a))
+			.filter_map(|peer_id| peer_id);
 		for peer_id in peer_ids {
 			self.peer_id_to_authority_id.insert(peer_id, authority_id.clone());
 		}
@@ -65,10 +67,7 @@ impl AddrCache {
 	}
 
 	/// Returns the addresses for the given [`AuthorityId`].
-	pub fn get_addresses_by_authority_id(
-		&self,
-		authority_id: &AuthorityId,
-	) -> Option<&Vec<Multiaddr>> {
+	pub fn get_addresses_by_authority_id(&self, authority_id: &AuthorityId) -> Option<&Vec<Multiaddr>> {
 		self.authority_id_to_addresses.get(&authority_id)
 	}
 
@@ -94,7 +93,10 @@ impl AddrCache {
 		addresses.sort_unstable_by(|a, b| a.as_ref().cmp(b.as_ref()));
 		addresses.dedup();
 
-		addresses.choose_multiple(&mut rng, MAX_NUM_AUTHORITY_CONN).map(|a| (**a).clone()).collect()
+		addresses
+			.choose_multiple(&mut rng, MAX_NUM_AUTHORITY_CONN)
+			.map(|a| (**a).clone())
+			.collect()
 	}
 
 	/// Removes all [`PeerId`]s and [`Multiaddr`]s from the cache that are not related to the given
@@ -165,8 +167,7 @@ mod tests {
 	impl Arbitrary for TestMultiaddr {
 		fn arbitrary<G: Gen>(g: &mut G) -> Self {
 			let seed: [u8; 32] = g.gen();
-			let peer_id =
-				PeerId::from_multihash(multihash::wrap(multihash::Code::Sha2_256, &seed)).unwrap();
+			let peer_id = PeerId::from_multihash(multihash::wrap(multihash::Code::Sha2_256, &seed)).unwrap();
 			let multiaddr = "/ip6/2001:db8:0:0:0:0:0:2/tcp/30333"
 				.parse::<Multiaddr>()
 				.unwrap()
@@ -195,9 +196,7 @@ mod tests {
 
 			let subset = cache.get_random_subset();
 			assert!(
-				subset.contains(&first.1) &&
-					subset.contains(&second.1) &&
-					subset.contains(&third.1),
+				subset.contains(&first.1) && subset.contains(&second.1) && subset.contains(&third.1),
 				"Expect initial subset to contain all authorities.",
 			);
 			assert_eq!(
@@ -218,7 +217,10 @@ mod tests {
 				subset.contains(&first.1) || subset.contains(&second.1),
 				"Expected both first and second authority."
 			);
-			assert!(!subset.contains(&third.1), "Did not expect address from third authority");
+			assert!(
+				!subset.contains(&third.1),
+				"Did not expect address from third authority"
+			);
 			assert_eq!(
 				None,
 				cache.get_addresses_by_authority_id(&third.0),
@@ -233,6 +235,8 @@ mod tests {
 			TestResult::passed()
 		}
 
-		QuickCheck::new().max_tests(10).quickcheck(property as fn(_, _, _) -> TestResult)
+		QuickCheck::new()
+			.max_tests(10)
+			.quickcheck(property as fn(_, _, _) -> TestResult)
 	}
 }

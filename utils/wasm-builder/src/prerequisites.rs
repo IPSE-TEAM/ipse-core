@@ -35,7 +35,7 @@ fn print_error_message(message: &str) -> String {
 /// Returns `None` if everything was found and `Some(ERR_MSG)` if something could not be found.
 pub fn check() -> Option<String> {
 	if !check_nightly_installed() {
-		return Some(print_error_message("Rust nightly not installed, please install it!"))
+		return Some(print_error_message("Rust nightly not installed, please install it!"));
 	}
 
 	check_wasm_toolchain_installed()
@@ -94,8 +94,9 @@ fn check_wasm_toolchain_installed() -> Option<String> {
 				Ok(())
 			} else {
 				match String::from_utf8(s.stderr) {
-					Ok(ref err) if err.contains("linker `rust-lld` not found") =>
-						Err(print_error_message("`rust-lld` not found, please install it!")),
+					Ok(ref err) if err.contains("linker `rust-lld` not found") => {
+						Err(print_error_message("`rust-lld` not found, please install it!"))
+					}
 					Ok(ref err) => Err(format!(
 						"{}\n\n{}\n{}\n{}{}\n",
 						err_msg,

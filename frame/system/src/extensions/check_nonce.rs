@@ -21,8 +21,7 @@ use frame_support::{weights::DispatchInfo, StorageMap};
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, One, SignedExtension},
 	transaction_validity::{
-		InvalidTransaction, TransactionLongevity, TransactionValidity, TransactionValidityError,
-		ValidTransaction,
+		InvalidTransaction, TransactionLongevity, TransactionValidity, TransactionValidityError, ValidTransaction,
 	},
 };
 use sp_std::vec;
@@ -81,7 +80,7 @@ where
 			} else {
 				InvalidTransaction::Future
 			}
-			.into())
+			.into());
 		}
 		account.nonce += T::Index::one();
 		crate::Account::<T>::insert(who, account);
@@ -98,7 +97,7 @@ where
 		// check index
 		let account = crate::Account::<T>::get(who);
 		if self.0 < account.nonce {
-			return InvalidTransaction::Stale.into()
+			return InvalidTransaction::Stale.into();
 		}
 
 		let provides = vec![Encode::encode(&(who, self.0))];
@@ -128,7 +127,11 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			crate::Account::<Test>::insert(
 				1,
-				crate::AccountInfo { nonce: 1, refcount: 0, data: 0 },
+				crate::AccountInfo {
+					nonce: 1,
+					refcount: 0,
+					data: 0,
+				},
 			);
 			let info = DispatchInfo::default();
 			let len = 0_usize;

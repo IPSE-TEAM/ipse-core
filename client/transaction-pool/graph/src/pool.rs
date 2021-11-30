@@ -25,9 +25,7 @@ use futures::Future;
 use sp_runtime::{
 	generic::BlockId,
 	traits::{self, Block as BlockT, SaturatedConversion},
-	transaction_validity::{
-		TransactionSource, TransactionTag as Tag, TransactionValidity, TransactionValidityError,
-	},
+	transaction_validity::{TransactionSource, TransactionTag as Tag, TransactionValidity, TransactionValidityError},
 };
 use sp_transaction_pool::error;
 use wasm_timer::Instant;
@@ -49,8 +47,7 @@ pub type NumberFor<A> = traits::NumberFor<<A as ChainApi>::Block>;
 /// A type of transaction stored in the pool
 pub type TransactionFor<A> = Arc<base::Transaction<ExtrinsicHash<A>, ExtrinsicFor<A>>>;
 /// A type of validated transaction stored in the pool.
-pub type ValidatedTransactionFor<A> =
-	ValidatedTransaction<ExtrinsicHash<A>, ExtrinsicFor<A>, <A as ChainApi>::Error>;
+pub type ValidatedTransactionFor<A> = ValidatedTransaction<ExtrinsicHash<A>, ExtrinsicFor<A>, <A as ChainApi>::Error>;
 
 /// Concrete extrinsic validation and query logic.
 pub trait ChainApi: Send + Sync {
@@ -75,16 +72,11 @@ pub trait ChainApi: Send + Sync {
 	) -> Self::ValidationFuture;
 
 	/// Returns a block number given the block id.
-	fn block_id_to_number(
-		&self,
-		at: &BlockId<Self::Block>,
-	) -> Result<Option<NumberFor<Self>>, Self::Error>;
+	fn block_id_to_number(&self, at: &BlockId<Self::Block>) -> Result<Option<NumberFor<Self>>, Self::Error>;
 
 	/// Returns a block hash given the block id.
-	fn block_id_to_hash(
-		&self,
-		at: &BlockId<Self::Block>,
-	) -> Result<Option<<Self::Block as BlockT>::Hash>, Self::Error>;
+	fn block_id_to_hash(&self, at: &BlockId<Self::Block>)
+		-> Result<Option<<Self::Block as BlockT>::Hash>, Self::Error>;
 
 	/// Returns hash and encoding length of the extrinsic.
 	fn hash_and_length(&self, uxt: &ExtrinsicFor<Self>) -> (ExtrinsicHash<Self>, usize);
@@ -107,8 +99,14 @@ pub struct Options {
 impl Default for Options {
 	fn default() -> Self {
 		Options {
-			ready: base::Limit { count: 8192, total_bytes: 20 * 1024 * 1024 },
-			future: base::Limit { count: 512, total_bytes: 1 * 1024 * 1024 },
+			ready: base::Limit {
+				count: 8192,
+				total_bytes: 20 * 1024 * 1024,
+			},
+			future: base::Limit {
+				count: 512,
+				total_bytes: 1 * 1024 * 1024,
+			},
 			reject_future_transactions: false,
 		}
 	}
@@ -140,7 +138,9 @@ where
 impl<B: ChainApi> Pool<B> {
 	/// Create a new transaction pool.
 	pub fn new(options: Options, api: Arc<B>) -> Self {
-		Pool { validated_pool: Arc::new(ValidatedPool::new(options, api)) }
+		Pool {
+			validated_pool: Arc::new(ValidatedPool::new(options, api)),
+		}
 	}
 
 	/// Imports a bunch of unverified extrinsics to the pool
@@ -152,7 +152,9 @@ impl<B: ChainApi> Pool<B> {
 	) -> Result<Vec<Result<ExtrinsicHash<B>, B::Error>>, B::Error> {
 		let xts = xts.into_iter().map(|xt| (source, xt));
 		let validated_transactions = self.verify(at, xts, CheckBannedBeforeVerify::Yes).await?;
-		Ok(self.validated_pool.submit(validated_transactions.into_iter().map(|(_, tx)| tx)))
+		Ok(self
+			.validated_pool
+			.submit(validated_transactions.into_iter().map(|(_, tx)| tx)))
 	}
 
 	/// Resubmit the given extrinsics to the pool.
@@ -166,7 +168,9 @@ impl<B: ChainApi> Pool<B> {
 	) -> Result<Vec<Result<ExtrinsicHash<B>, B::Error>>, B::Error> {
 		let xts = xts.into_iter().map(|xt| (source, xt));
 		let validated_transactions = self.verify(at, xts, CheckBannedBeforeVerify::No).await?;
-		Ok(self.validated_pool.submit(validated_transactions.into_iter().map(|(_, tx)| tx)))
+		Ok(self
+			.validated_pool
+			.submit(validated_transactions.into_iter().map(|(_, tx)| tx)))
 	}
 
 	/// Imports one unverified extrinsic to the pool
@@ -188,16 +192,14 @@ impl<B: ChainApi> Pool<B> {
 		xt: ExtrinsicFor<B>,
 	) -> Result<Watcher<ExtrinsicHash<B>, ExtrinsicHash<B>>, B::Error> {
 		let block_number = self.resolve_block_number(at)?;
-		let (_, tx) =
-			self.verify_one(at, block_number, source, xt, CheckBannedBeforeVerify::Yes).await;
+		let (_, tx) = self
+			.verify_one(at, block_number, source, xt, CheckBannedBeforeVerify::Yes)
+			.await;
 		self.validated_pool.submit_and_watch(tx)
 	}
 
 	/// Resubmit some transaction that were validated elsewhere.
-	pub fn resubmit(
-		&self,
-		revalidated_transactions: HashMap<ExtrinsicHash<B>, ValidatedTransactionFor<B>>,
-	) {
+	pub fn resubmit(&self, revalidated_transactions: HashMap<ExtrinsicHash<B>, ValidatedTransactionFor<B>>) {
 		let now = Instant::now();
 		self.validated_pool.resubmit(revalidated_transactions);
 		log::debug!(target: "txpool",
@@ -212,11 +214,7 @@ impl<B: ChainApi> Pool<B> {
 	/// Used to clear the pool from transactions that were part of recently imported block.
 	/// The main difference from the `prune` is that we do not revalidate any transactions
 	/// and ignore unknown passed hashes.
-	pub fn prune_known(
-		&self,
-		at: &BlockId<B::Block>,
-		hashes: &[ExtrinsicHash<B>],
-	) -> Result<(), B::Error> {
+	pub fn prune_known(&self, at: &BlockId<B::Block>, hashes: &[ExtrinsicHash<B>]) -> Result<(), B::Error> {
 		// Get details of all extrinsics that are already in the pool
 		let in_pool_tags = self
 			.validated_pool
@@ -227,8 +225,10 @@ impl<B: ChainApi> Pool<B> {
 
 		// Prune all transactions that provide given tags
 		let prune_status = self.validated_pool.prune_tags(in_pool_tags)?;
-		let pruned_transactions =
-			hashes.into_iter().cloned().chain(prune_status.pruned.iter().map(|tx| tx.hash.clone()));
+		let pruned_transactions = hashes
+			.into_iter()
+			.cloned()
+			.chain(prune_status.pruned.iter().map(|tx| tx.hash.clone()));
 		self.validated_pool.fire_pruned(at, pruned_transactions)
 	}
 
@@ -251,8 +251,10 @@ impl<B: ChainApi> Pool<B> {
 			extrinsics.len()
 		);
 		// Get details of all extrinsics that are already in the pool
-		let in_pool_hashes =
-			extrinsics.iter().map(|extrinsic| self.hash_of(extrinsic)).collect::<Vec<_>>();
+		let in_pool_hashes = extrinsics
+			.iter()
+			.map(|extrinsic| self.hash_of(extrinsic))
+			.collect::<Vec<_>>();
 		let in_pool_tags = self.validated_pool.extrinsics_tags(&in_pool_hashes);
 
 		// Zip the ones from the pool with the full list (we get pairs `(Extrinsic,
@@ -276,7 +278,7 @@ impl<B: ChainApi> Pool<B> {
 					if let Ok(Ok(validity)) = validity {
 						future_tags.extend(validity.provides);
 					}
-				},
+				}
 			}
 		}
 
@@ -320,17 +322,17 @@ impl<B: ChainApi> Pool<B> {
 		// Make sure that we don't revalidate extrinsics that were part of the recently
 		// imported block. This is especially important for UTXO-like chains cause the
 		// inputs are pruned so such transaction would go to future again.
-		self.validated_pool.ban(&Instant::now(), known_imported_hashes.clone().into_iter());
+		self.validated_pool
+			.ban(&Instant::now(), known_imported_hashes.clone().into_iter());
 
 		// Try to re-validate pruned transactions since some of them might be still valid.
 		// note that `known_imported_hashes` will be rejected here due to temporary ban.
-		let pruned_hashes =
-			prune_status.pruned.iter().map(|tx| tx.hash.clone()).collect::<Vec<_>>();
-		let pruned_transactions =
-			prune_status.pruned.into_iter().map(|tx| (tx.source, tx.data.clone()));
+		let pruned_hashes = prune_status.pruned.iter().map(|tx| tx.hash.clone()).collect::<Vec<_>>();
+		let pruned_transactions = prune_status.pruned.into_iter().map(|tx| (tx.source, tx.data.clone()));
 
-		let reverified_transactions =
-			self.verify(at, pruned_transactions, CheckBannedBeforeVerify::Yes).await?;
+		let reverified_transactions = self
+			.verify(at, pruned_transactions, CheckBannedBeforeVerify::Yes)
+			.await?;
 
 		log::trace!(target: "txpool", "Pruning at {:?}. Resubmitting transactions.", at);
 		// And finally - submit reverified transactions back to the pool
@@ -350,9 +352,10 @@ impl<B: ChainApi> Pool<B> {
 
 	/// Resolves block number by id.
 	fn resolve_block_number(&self, at: &BlockId<B::Block>) -> Result<NumberFor<B>, B::Error> {
-		self.validated_pool.api().block_id_to_number(at).and_then(|number| {
-			number.ok_or_else(|| error::Error::InvalidBlockId(format!("{:?}", at)).into())
-		})
+		self.validated_pool
+			.api()
+			.block_id_to_number(at)
+			.and_then(|number| number.ok_or_else(|| error::Error::InvalidBlockId(format!("{:?}", at)).into()))
 	}
 
 	/// Returns future that validates a bunch of transactions at given block.
@@ -389,11 +392,14 @@ impl<B: ChainApi> Pool<B> {
 
 		let ignore_banned = matches!(check, CheckBannedBeforeVerify::No);
 		if let Err(err) = self.validated_pool.check_is_known(&hash, ignore_banned) {
-			return (hash.clone(), ValidatedTransaction::Invalid(hash, err.into()))
+			return (hash.clone(), ValidatedTransaction::Invalid(hash, err.into()));
 		}
 
-		let validation_result =
-			self.validated_pool.api().validate_transaction(block_id, source, xt.clone()).await;
+		let validation_result = self
+			.validated_pool
+			.api()
+			.validate_transaction(block_id, source, xt.clone())
+			.await;
 
 		let status = match validation_result {
 			Ok(status) => status,
@@ -401,7 +407,7 @@ impl<B: ChainApi> Pool<B> {
 		};
 
 		let validity = match status {
-			Ok(validity) =>
+			Ok(validity) => {
 				if validity.provides.is_empty() {
 					ValidatedTransaction::Invalid(hash.clone(), error::Error::NoTagsProvided.into())
 				} else {
@@ -413,15 +419,14 @@ impl<B: ChainApi> Pool<B> {
 						bytes,
 						validity,
 					)
-				},
-			Err(TransactionValidityError::Invalid(e)) => ValidatedTransaction::Invalid(
-				hash.clone(),
-				error::Error::InvalidTransaction(e).into(),
-			),
-			Err(TransactionValidityError::Unknown(e)) => ValidatedTransaction::Unknown(
-				hash.clone(),
-				error::Error::UnknownTransaction(e).into(),
-			),
+				}
+			}
+			Err(TransactionValidityError::Invalid(e)) => {
+				ValidatedTransaction::Invalid(hash.clone(), error::Error::InvalidTransaction(e).into())
+			}
+			Err(TransactionValidityError::Unknown(e)) => {
+				ValidatedTransaction::Unknown(hash.clone(), error::Error::UnknownTransaction(e).into())
+			}
 		};
 
 		(hash, validity)
@@ -435,7 +440,9 @@ impl<B: ChainApi> Pool<B> {
 
 impl<B: ChainApi> Clone for Pool<B> {
 	fn clone(&self) -> Self {
-		Self { validated_pool: self.validated_pool.clone() }
+		Self {
+			validated_pool: self.validated_pool.clone(),
+		}
 	}
 }
 
@@ -495,7 +502,7 @@ mod tests {
 			}
 
 			if self.invalidate.lock().contains(&hash) {
-				return futures::future::ready(Ok(InvalidTransaction::Custom(0).into()))
+				return futures::future::ready(Ok(InvalidTransaction::Custom(0).into()));
 			}
 
 			futures::future::ready(if nonce < block_number {
@@ -508,7 +515,11 @@ mod tests {
 					} else {
 						vec![]
 					},
-					provides: if nonce == INVALID_NONCE { vec![] } else { vec![vec![nonce as u8]] },
+					provides: if nonce == INVALID_NONCE {
+						vec![]
+					} else {
+						vec![vec![nonce as u8]]
+					},
 					longevity: 3,
 					propagate: true,
 				};
@@ -526,10 +537,7 @@ mod tests {
 		}
 
 		/// Returns a block number given the block id.
-		fn block_id_to_number(
-			&self,
-			at: &BlockId<Self::Block>,
-		) -> Result<Option<NumberFor<Self>>, Self::Error> {
+		fn block_id_to_number(&self, at: &BlockId<Self::Block>) -> Result<Option<NumberFor<Self>>, Self::Error> {
 			Ok(match at {
 				BlockId::Number(num) => Some(*num),
 				BlockId::Hash(_) => None,
@@ -590,7 +598,10 @@ mod tests {
 		.unwrap();
 
 		// then
-		assert_eq!(pool.validated_pool().ready().map(|v| v.hash).collect::<Vec<_>>(), vec![hash]);
+		assert_eq!(
+			pool.validated_pool().ready().map(|v| v.hash).collect::<Vec<_>>(),
+			vec![hash]
+		);
 	}
 
 	#[test]
@@ -605,7 +616,9 @@ mod tests {
 		});
 
 		// when
-		pool.validated_pool.rotator().ban(&Instant::now(), vec![pool.hash_of(&uxt)]);
+		pool.validated_pool
+			.rotator()
+			.ban(&Instant::now(), vec![pool.hash_of(&uxt)]);
 		let res = block_on(pool.submit_one(&BlockId::Number(0), SOURCE, uxt));
 		assert_eq!(pool.validated_pool().status().ready, 0);
 		assert_eq!(pool.validated_pool().status().future, 0);
@@ -747,9 +760,16 @@ mod tests {
 	#[test]
 	fn should_limit_futures() {
 		// given
-		let limit = Limit { count: 100, total_bytes: 200 };
+		let limit = Limit {
+			count: 100,
+			total_bytes: 200,
+		};
 		let pool = Pool::new(
-			Options { ready: limit.clone(), future: limit.clone(), ..Default::default() },
+			Options {
+				ready: limit.clone(),
+				future: limit.clone(),
+				..Default::default()
+			},
 			TestApi::default().into(),
 		);
 
@@ -788,9 +808,16 @@ mod tests {
 	#[test]
 	fn should_error_if_reject_immediately() {
 		// given
-		let limit = Limit { count: 100, total_bytes: 10 };
+		let limit = Limit {
+			count: 100,
+			total_bytes: 10,
+		};
 		let pool = Pool::new(
-			Options { ready: limit.clone(), future: limit.clone(), ..Default::default() },
+			Options {
+				ready: limit.clone(),
+				future: limit.clone(),
+				..Default::default()
+			},
 			TestApi::default().into(),
 		);
 
@@ -890,12 +917,7 @@ mod tests {
 			assert_eq!(pool.validated_pool().status().future, 0);
 
 			// when
-			block_on(pool.prune_tags(
-				&BlockId::Number(2),
-				vec![vec![0u8]],
-				vec![watcher.hash().clone()],
-			))
-			.unwrap();
+			block_on(pool.prune_tags(&BlockId::Number(2), vec![vec![0u8]], vec![watcher.hash().clone()])).unwrap();
 			assert_eq!(pool.validated_pool().status().ready, 0);
 			assert_eq!(pool.validated_pool().status().future, 0);
 
@@ -956,8 +978,7 @@ mod tests {
 				amount: 5,
 				nonce: 0,
 			});
-			let watcher =
-				block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, uxt)).unwrap();
+			let watcher = block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, uxt)).unwrap();
 			assert_eq!(pool.validated_pool().status().ready, 1);
 
 			// when
@@ -980,8 +1001,7 @@ mod tests {
 				amount: 5,
 				nonce: 0,
 			});
-			let watcher =
-				block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, uxt)).unwrap();
+			let watcher = block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, uxt)).unwrap();
 			assert_eq!(pool.validated_pool().status().ready, 1);
 
 			// when
@@ -999,9 +1019,16 @@ mod tests {
 		#[test]
 		fn should_trigger_dropped() {
 			// given
-			let limit = Limit { count: 1, total_bytes: 1000 };
+			let limit = Limit {
+				count: 1,
+				total_bytes: 1000,
+			};
 			let pool = Pool::new(
-				Options { ready: limit.clone(), future: limit.clone(), ..Default::default() },
+				Options {
+					ready: limit.clone(),
+					future: limit.clone(),
+					..Default::default()
+				},
 				TestApi::default().into(),
 			);
 

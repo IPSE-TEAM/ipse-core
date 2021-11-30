@@ -42,8 +42,7 @@ impl StorageChangeSet {
 	/// Convert the change set into iterator over storage items.
 	pub fn iter<'a>(
 		&'a self,
-	) -> impl Iterator<Item = (Option<&'a StorageKey>, &'a StorageKey, Option<&'a StorageData>)> + 'a
-	{
+	) -> impl Iterator<Item = (Option<&'a StorageKey>, &'a StorageKey, Option<&'a StorageData>)> + 'a {
 		let top = self
 			.changes
 			.iter()
@@ -93,10 +92,7 @@ pub struct StorageNotifications<Block: BlockT> {
 	next_id: SubscriberId,
 	wildcard_listeners: FnvHashSet<SubscriberId>,
 	listeners: HashMap<StorageKey, FnvHashSet<SubscriberId>>,
-	child_listeners: HashMap<
-		StorageKey,
-		(HashMap<StorageKey, FnvHashSet<SubscriberId>>, FnvHashSet<SubscriberId>),
-	>,
+	child_listeners: HashMap<StorageKey, (HashMap<StorageKey, FnvHashSet<SubscriberId>>, FnvHashSet<SubscriberId>)>,
 	sinks: FnvHashMap<
 		SubscriberId,
 		(
@@ -153,15 +149,13 @@ impl<Block: BlockT> StorageNotifications<Block> {
 		&mut self,
 		hash: &Block::Hash,
 		changeset: impl Iterator<Item = (Vec<u8>, Option<Vec<u8>>)>,
-		child_changeset: impl Iterator<
-			Item = (Vec<u8>, impl Iterator<Item = (Vec<u8>, Option<Vec<u8>>)>),
-		>,
+		child_changeset: impl Iterator<Item = (Vec<u8>, impl Iterator<Item = (Vec<u8>, Option<Vec<u8>>)>)>,
 	) {
 		let has_wildcard = !self.wildcard_listeners.is_empty();
 
 		// early exit if no listeners
 		if !has_wildcard && self.listeners.is_empty() && self.child_listeners.is_empty() {
-			return
+			return;
 		}
 
 		let mut subscribers = self.wildcard_listeners.clone();
@@ -207,7 +201,7 @@ impl<Block: BlockT> StorageNotifications<Block> {
 
 		// Don't send empty notifications
 		if changes.is_empty() && child_changes.is_empty() {
-			return
+			return;
 		}
 
 		let changes = Arc::new(changes);
@@ -257,41 +251,32 @@ impl<Block: BlockT> StorageNotifications<Block> {
 		match filters {
 			None => {
 				wildcards.remove(subscriber);
-			},
-			Some(filters) =>
+			}
+			Some(filters) => {
 				for key in filters.iter() {
 					let remove_key = match listeners.get_mut(key) {
 						Some(ref mut set) => {
 							set.remove(subscriber);
 							set.is_empty()
-						},
+						}
 						None => false,
 					};
 
 					if remove_key {
 						listeners.remove(key);
 					}
-				},
+				}
+			}
 		}
 	}
 
 	fn remove_subscriber(&mut self, subscriber: SubscriberId) {
 		if let Some((_, filters, child_filters)) = self.sinks.remove(&subscriber) {
-			Self::remove_subscriber_from(
-				&subscriber,
-				&filters,
-				&mut self.listeners,
-				&mut self.wildcard_listeners,
-			);
+			Self::remove_subscriber_from(&subscriber, &filters, &mut self.listeners, &mut self.wildcard_listeners);
 			if let Some(child_filters) = child_filters.as_ref() {
 				for (c_key, filters) in child_filters {
 					if let Some((listeners, wildcards)) = self.child_listeners.get_mut(&c_key) {
-						Self::remove_subscriber_from(
-							&subscriber,
-							&filters,
-							&mut *listeners,
-							&mut *wildcards,
-						);
+						Self::remove_subscriber_from(&subscriber, &filters, &mut *listeners, &mut *wildcards);
 
 						if listeners.is_empty() && wildcards.is_empty() {
 							self.child_listeners.remove(&c_key);
@@ -315,7 +300,7 @@ impl<Block: BlockT> StorageNotifications<Block> {
 			None => {
 				wildcards.insert(current_id);
 				None
-			},
+			}
 			Some(keys) => Some(
 				keys.as_ref()
 					.iter()
@@ -351,8 +336,10 @@ impl<Block: BlockT> StorageNotifications<Block> {
 			filter_child_keys
 				.iter()
 				.map(|(c_key, o_keys)| {
-					let (c_listeners, c_wildcards) =
-						self.child_listeners.entry(c_key.clone()).or_insert_with(Default::default);
+					let (c_listeners, c_wildcards) = self
+						.child_listeners
+						.entry(c_key.clone())
+						.or_insert_with(Default::default);
 
 					(
 						c_key.clone(),
@@ -418,8 +405,7 @@ mod tests {
 		// given
 		let mut notifications = StorageNotifications::<Block>::default();
 		let child_filter = [(StorageKey(vec![4]), None)];
-		let mut recv =
-			futures::executor::block_on_stream(notifications.listen(None, Some(&child_filter[..])));
+		let mut recv = futures::executor::block_on_stream(notifications.listen(None, Some(&child_filter[..])));
 
 		// when
 		let changeset = vec![(vec![2], Some(vec![3])), (vec![3], None)];
@@ -459,15 +445,9 @@ mod tests {
 		// given
 		let mut notifications = StorageNotifications::<Block>::default();
 		let child_filter = [(StorageKey(vec![4]), Some(vec![StorageKey(vec![5])]))];
-		let mut recv1 = futures::executor::block_on_stream(
-			notifications.listen(Some(&[StorageKey(vec![1])]), None),
-		);
-		let mut recv2 = futures::executor::block_on_stream(
-			notifications.listen(Some(&[StorageKey(vec![2])]), None),
-		);
-		let mut recv3 = futures::executor::block_on_stream(
-			notifications.listen(Some(&[]), Some(&child_filter)),
-		);
+		let mut recv1 = futures::executor::block_on_stream(notifications.listen(Some(&[StorageKey(vec![1])]), None));
+		let mut recv2 = futures::executor::block_on_stream(notifications.listen(Some(&[StorageKey(vec![2])]), None));
+		let mut recv3 = futures::executor::block_on_stream(notifications.listen(Some(&[]), Some(&child_filter)));
 
 		// when
 		let changeset = vec![(vec![2], Some(vec![3])), (vec![1], None)];
@@ -483,7 +463,10 @@ mod tests {
 		// then
 		assert_eq!(
 			recv1.next().unwrap(),
-			(Hash::from_low_u64_be(1), (vec![(StorageKey(vec![1]), None),], vec![]).into())
+			(
+				Hash::from_low_u64_be(1),
+				(vec![(StorageKey(vec![1]), None),], vec![]).into()
+			)
 		);
 		assert_eq!(
 			recv2.next().unwrap(),
@@ -514,15 +497,10 @@ mod tests {
 		let mut notifications = StorageNotifications::<Block>::default();
 		{
 			let child_filter = [(StorageKey(vec![4]), Some(vec![StorageKey(vec![5])]))];
-			let _recv1 = futures::executor::block_on_stream(
-				notifications.listen(Some(&[StorageKey(vec![1])]), None),
-			);
-			let _recv2 = futures::executor::block_on_stream(
-				notifications.listen(Some(&[StorageKey(vec![2])]), None),
-			);
+			let _recv1 = futures::executor::block_on_stream(notifications.listen(Some(&[StorageKey(vec![1])]), None));
+			let _recv2 = futures::executor::block_on_stream(notifications.listen(Some(&[StorageKey(vec![2])]), None));
 			let _recv3 = futures::executor::block_on_stream(notifications.listen(None, None));
-			let _recv4 =
-				futures::executor::block_on_stream(notifications.listen(None, Some(&child_filter)));
+			let _recv4 = futures::executor::block_on_stream(notifications.listen(None, Some(&child_filter)));
 			assert_eq!(notifications.listeners.len(), 2);
 			assert_eq!(notifications.wildcard_listeners.len(), 2);
 			assert_eq!(notifications.child_listeners.len(), 1);

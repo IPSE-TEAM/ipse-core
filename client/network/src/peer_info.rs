@@ -68,7 +68,12 @@ impl NodeInfo {
 	fn new(endpoint: ConnectedPoint) -> Self {
 		let mut endpoints = SmallVec::new();
 		endpoints.push(endpoint);
-		NodeInfo { info_expire: None, endpoints, client_version: None, latest_ping: None }
+		NodeInfo {
+			info_expire: None,
+			endpoints,
+			client_version: None,
+			latest_ping: None,
+		}
 	}
 }
 
@@ -178,18 +183,13 @@ impl NetworkBehaviour for PeerInfoBehaviour {
 		self.identify.inject_connected(peer_id);
 	}
 
-	fn inject_connection_established(
-		&mut self,
-		peer_id: &PeerId,
-		conn: &ConnectionId,
-		endpoint: &ConnectedPoint,
-	) {
+	fn inject_connection_established(&mut self, peer_id: &PeerId, conn: &ConnectionId, endpoint: &ConnectedPoint) {
 		self.ping.inject_connection_established(peer_id, conn, endpoint);
 		self.identify.inject_connection_established(peer_id, conn, endpoint);
 		match self.nodes_info.entry(peer_id.clone()) {
 			Entry::Vacant(e) => {
 				e.insert(NodeInfo::new(endpoint.clone()));
-			},
+			}
 			Entry::Occupied(e) => {
 				let e = e.into_mut();
 				if e.info_expire.as_ref().map(|exp| *exp < Instant::now()).unwrap_or(false) {
@@ -198,16 +198,11 @@ impl NetworkBehaviour for PeerInfoBehaviour {
 				}
 				e.info_expire = None;
 				e.endpoints.push(endpoint.clone());
-			},
+			}
 		}
 	}
 
-	fn inject_connection_closed(
-		&mut self,
-		peer_id: &PeerId,
-		conn: &ConnectionId,
-		endpoint: &ConnectedPoint,
-	) {
+	fn inject_connection_closed(&mut self, peer_id: &PeerId, conn: &ConnectionId, endpoint: &ConnectedPoint) {
 		self.ping.inject_connection_closed(peer_id, conn, endpoint);
 		self.identify.inject_connection_closed(peer_id, conn, endpoint);
 
@@ -243,12 +238,7 @@ impl NetworkBehaviour for PeerInfoBehaviour {
 		}
 	}
 
-	fn inject_addr_reach_failure(
-		&mut self,
-		peer_id: Option<&PeerId>,
-		addr: &Multiaddr,
-		error: &dyn std::error::Error,
-	) {
+	fn inject_addr_reach_failure(&mut self, peer_id: Option<&PeerId>, addr: &Multiaddr, error: &dyn std::error::Error) {
 		self.ping.inject_addr_reach_failure(peer_id, addr, error);
 		self.identify.inject_addr_reach_failure(peer_id, addr, error);
 	}
@@ -286,33 +276,45 @@ impl NetworkBehaviour for PeerInfoBehaviour {
 	fn poll(
 		&mut self,
 		cx: &mut Context,
-		params: &mut impl PollParameters
+		params: &mut impl PollParameters,
 	) -> Poll<
 		NetworkBehaviourAction<
 			<<Self::ProtocolsHandler as IntoProtocolsHandler>::Handler as ProtocolsHandler>::InEvent,
-			Self::OutEvent
-		>
->{
+			Self::OutEvent,
+		>,
+	> {
 		loop {
 			match self.ping.poll(cx, params) {
 				Poll::Pending => break,
 				Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev)) => {
-					if let PingEvent { peer, result: Ok(PingSuccess::Ping { rtt }) } = ev {
+					if let PingEvent {
+						peer,
+						result: Ok(PingSuccess::Ping { rtt }),
+					} = ev
+					{
 						self.handle_ping_report(&peer, rtt)
 					}
-				},
-				Poll::Ready(NetworkBehaviourAction::DialAddress { address }) =>
-					return Poll::Ready(NetworkBehaviourAction::DialAddress { address }),
-				Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition }) =>
-					return Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition }),
-				Poll::Ready(NetworkBehaviourAction::NotifyHandler { peer_id, handler, event }) =>
+				}
+				Poll::Ready(NetworkBehaviourAction::DialAddress { address }) => {
+					return Poll::Ready(NetworkBehaviourAction::DialAddress { address })
+				}
+				Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition }) => {
+					return Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition })
+				}
+				Poll::Ready(NetworkBehaviourAction::NotifyHandler {
+					peer_id,
+					handler,
+					event,
+				}) => {
 					return Poll::Ready(NetworkBehaviourAction::NotifyHandler {
 						peer_id,
 						handler,
 						event: EitherOutput::First(event),
-					}),
-				Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address }) =>
-					return Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address }),
+					})
+				}
+				Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address }) => {
+					return Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address })
+				}
 			}
 		}
 
@@ -323,30 +325,42 @@ impl NetworkBehaviour for PeerInfoBehaviour {
 					IdentifyEvent::Received { peer_id, info, .. } => {
 						self.handle_identify_report(&peer_id, &info);
 						let event = PeerInfoEvent::Identified { peer_id, info };
-						return Poll::Ready(NetworkBehaviourAction::GenerateEvent(event))
-					},
-					IdentifyEvent::Error { peer_id, error } =>
-						debug!(target: "sub-libp2p", "Identification with peer {:?} failed => {}", peer_id, error),
-					IdentifyEvent::Sent { .. } => {},
+						return Poll::Ready(NetworkBehaviourAction::GenerateEvent(event));
+					}
+					IdentifyEvent::Error { peer_id, error } => {
+						debug!(target: "sub-libp2p", "Identification with peer {:?} failed => {}", peer_id, error)
+					}
+					IdentifyEvent::Sent { .. } => {}
 				},
-				Poll::Ready(NetworkBehaviourAction::DialAddress { address }) =>
-					return Poll::Ready(NetworkBehaviourAction::DialAddress { address }),
-				Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition }) =>
-					return Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition }),
-				Poll::Ready(NetworkBehaviourAction::NotifyHandler { peer_id, handler, event }) =>
+				Poll::Ready(NetworkBehaviourAction::DialAddress { address }) => {
+					return Poll::Ready(NetworkBehaviourAction::DialAddress { address })
+				}
+				Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition }) => {
+					return Poll::Ready(NetworkBehaviourAction::DialPeer { peer_id, condition })
+				}
+				Poll::Ready(NetworkBehaviourAction::NotifyHandler {
+					peer_id,
+					handler,
+					event,
+				}) => {
 					return Poll::Ready(NetworkBehaviourAction::NotifyHandler {
 						peer_id,
 						handler,
 						event: EitherOutput::Second(event),
-					}),
-				Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address }) =>
-					return Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address }),
+					})
+				}
+				Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address }) => {
+					return Poll::Ready(NetworkBehaviourAction::ReportObservedAddr { address })
+				}
 			}
 		}
 
 		while let Poll::Ready(Some(())) = self.garbage_collect.poll_next_unpin(cx) {
 			self.nodes_info.retain(|_, node| {
-				node.info_expire.as_ref().map(|exp| *exp >= Instant::now()).unwrap_or(true)
+				node.info_expire
+					.as_ref()
+					.map(|exp| *exp >= Instant::now())
+					.unwrap_or(true)
 			});
 		}
 

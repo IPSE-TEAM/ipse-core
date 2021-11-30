@@ -42,16 +42,16 @@ use libp2p::{
 		ConnectedPoint, Multiaddr, PeerId,
 	},
 	swarm::{
-		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler,
-		OneShotHandler, OneShotHandlerConfig, PollParameters, SubstreamProtocol,
+		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler, OneShotHandler,
+		OneShotHandlerConfig, PollParameters, SubstreamProtocol,
 	},
 };
 use nohash_hasher::IntMap;
 use prost::Message;
 use sc_client_api::{
 	light::{
-		self, ChangesProof, RemoteBodyRequest, RemoteCallRequest, RemoteChangesRequest,
-		RemoteHeaderRequest, RemoteReadRequest,
+		self, ChangesProof, RemoteBodyRequest, RemoteCallRequest, RemoteChangesRequest, RemoteHeaderRequest,
+		RemoteReadRequest,
 	},
 	StorageProof,
 };
@@ -255,7 +255,11 @@ struct PeerInfo<B: Block> {
 
 impl<B: Block> Default for PeerInfo<B> {
 	fn default() -> Self {
-		PeerInfo { connections: SmallVec::new(), best_block: None, status: PeerStatus::Idle }
+		PeerInfo {
+			connections: SmallVec::new(),
+			best_block: None,
+			status: PeerStatus::Idle,
+		}
 	}
 }
 
@@ -328,7 +332,7 @@ where
 	/// Issue a new light client request.
 	pub fn request(&mut self, req: Request<B>) -> Result<(), Error> {
 		if self.pending_requests.len() >= self.config.max_pending_requests {
-			return Err(Error::TooManyRequests)
+			return Err(Error::TooManyRequests);
 		}
 		let rw = RequestWrapper {
 			timestamp: Instant::now(),
@@ -352,7 +356,11 @@ where
 	/// If we have a request to this peer in flight, we move it back to
 	/// the pending requests queue.
 	fn remove_peer(&mut self, peer: &PeerId) {
-		if let Some(id) = self.outstanding.iter().find(|(_, rw)| &rw.peer == peer).map(|(k, _)| *k)
+		if let Some(id) = self
+			.outstanding
+			.iter()
+			.find(|(_, rw)| &rw.peer == peer)
+			.map(|(k, _)| *k)
 		{
 			let rw = self.outstanding.remove(&id).expect("key belongs to entry in this map");
 			let rw = RequestWrapper {
@@ -381,11 +389,12 @@ where
 		for (peer_id, peer_info) in self.peers.iter() {
 			if peer_info.status == PeerStatus::Idle {
 				match peer_info.best_block {
-					Some(n) =>
+					Some(n) => {
 						if n >= number {
 							peer = Some((peer_id, peer_info));
-							break
-						},
+							break;
+						}
+					}
 					None => peer = Some((peer_id, peer_info)),
 				}
 			}
@@ -410,12 +419,7 @@ where
 	///
 	/// If successful, this will give us the actual, checked data we should be
 	/// sending back to the client, otherwise an error.
-	fn on_response(
-		&mut self,
-		peer: &PeerId,
-		request: &Request<B>,
-		response: Response,
-	) -> Result<Reply<B>, Error> {
+	fn on_response(&mut self, peer: &PeerId, request: &Request<B>, response: Response) -> Result<Reply<B>, Error> {
 		log::trace!("response from {}", peer);
 		match response {
 			Response::Light(r) => self.on_response_light(peer, request, r),
@@ -431,28 +435,29 @@ where
 	) -> Result<Reply<B>, Error> {
 		use schema::v1::light::response::Response;
 		match response.response {
-			Some(Response::RemoteCallResponse(response)) =>
+			Some(Response::RemoteCallResponse(response)) => {
 				if let Request::Call { request, .. } = request {
 					let proof = Decode::decode(&mut response.proof.as_ref())?;
 					let reply = self.checker.check_execution_proof(request, proof)?;
 					Ok(Reply::VecU8(reply))
 				} else {
 					Err(Error::UnexpectedResponse)
-				},
+				}
+			}
 			Some(Response::RemoteReadResponse(response)) => match request {
 				Request::Read { request, .. } => {
 					let proof = Decode::decode(&mut response.proof.as_ref())?;
 					let reply = self.checker.check_read_proof(&request, proof)?;
 					Ok(Reply::MapVecU8OptVecU8(reply))
-				},
+				}
 				Request::ReadChild { request, .. } => {
 					let proof = Decode::decode(&mut response.proof.as_ref())?;
 					let reply = self.checker.check_read_child_proof(&request, proof)?;
 					Ok(Reply::MapVecU8OptVecU8(reply))
-				},
+				}
 				_ => Err(Error::UnexpectedResponse),
 			},
-			Some(Response::RemoteChangesResponse(response)) =>
+			Some(Response::RemoteChangesResponse(response)) => {
 				if let Request::Changes { request, .. } = request {
 					let max_block = Decode::decode(&mut response.max.as_ref())?;
 					let roots_proof = Decode::decode(&mut response.roots_proof.as_ref())?;
@@ -477,8 +482,9 @@ where
 					Ok(Reply::VecNumberU32(reply))
 				} else {
 					Err(Error::UnexpectedResponse)
-				},
-			Some(Response::RemoteHeaderResponse(response)) =>
+				}
+			}
+			Some(Response::RemoteHeaderResponse(response)) => {
 				if let Request::Header { request, .. } = request {
 					let header = if response.header.is_empty() {
 						None
@@ -490,7 +496,8 @@ where
 					Ok(Reply::Header(reply))
 				} else {
 					Err(Error::UnexpectedResponse)
-				},
+				}
+			}
 			None => Err(Error::UnexpectedResponse),
 		}
 	}
@@ -504,7 +511,7 @@ where
 		let request = if let Request::Body { request, .. } = &request {
 			request
 		} else {
-			return Err(Error::UnexpectedResponse)
+			return Err(Error::UnexpectedResponse);
 		};
 
 		let body: Vec<_> = match response.blocks.into_iter().next() {
@@ -535,28 +542,31 @@ where
 
 		let block = Decode::decode(&mut request.block.as_ref())?;
 
-		let proof =
-			match self.chain.execution_proof(&BlockId::Hash(block), &request.method, &request.data)
-			{
-				Ok((_, proof)) => proof,
-				Err(e) => {
-					log::trace!(
-						"remote call request from {} ({} at {:?}) failed with: {}",
-						peer,
-						request.method,
-						request.block,
-						e,
-					);
-					StorageProof::empty()
-				},
-			};
+		let proof = match self
+			.chain
+			.execution_proof(&BlockId::Hash(block), &request.method, &request.data)
+		{
+			Ok((_, proof)) => proof,
+			Err(e) => {
+				log::trace!(
+					"remote call request from {} ({} at {:?}) failed with: {}",
+					peer,
+					request.method,
+					request.block,
+					e,
+				);
+				StorageProof::empty()
+			}
+		};
 
 		let response = {
 			let r = schema::v1::light::RemoteCallResponse { proof: proof.encode() };
 			schema::v1::light::response::Response::RemoteCallResponse(r)
 		};
 
-		Ok(schema::v1::light::Response { response: Some(response) })
+		Ok(schema::v1::light::Response {
+			response: Some(response),
+		})
 	}
 
 	fn on_remote_read_request(
@@ -566,7 +576,7 @@ where
 	) -> Result<schema::v1::light::Response, Error> {
 		if request.keys.is_empty() {
 			log::debug!("invalid remote read request sent by {}", peer);
-			return Err(Error::BadRequest("remote read request without keys"))
+			return Err(Error::BadRequest("remote read request without keys"));
 		}
 
 		log::trace!(
@@ -592,7 +602,7 @@ where
 					error
 				);
 				StorageProof::empty()
-			},
+			}
 		};
 
 		let response = {
@@ -600,7 +610,9 @@ where
 			schema::v1::light::response::Response::RemoteReadResponse(r)
 		};
 
-		Ok(schema::v1::light::Response { response: Some(response) })
+		Ok(schema::v1::light::Response {
+			response: Some(response),
+		})
 	}
 
 	fn on_remote_read_child_request(
@@ -610,7 +622,7 @@ where
 	) -> Result<schema::v1::light::Response, Error> {
 		if request.keys.is_empty() {
 			log::debug!("invalid remote child read request sent by {}", peer);
-			return Err(Error::BadRequest("remove read child request without keys"))
+			return Err(Error::BadRequest("remove read child request without keys"));
 		}
 
 		log::trace!(
@@ -646,7 +658,7 @@ where
 					error
 				);
 				StorageProof::empty()
-			},
+			}
 		};
 
 		let response = {
@@ -654,7 +666,9 @@ where
 			schema::v1::light::response::Response::RemoteReadResponse(r)
 		};
 
-		Ok(schema::v1::light::Response { response: Some(response) })
+		Ok(schema::v1::light::Response {
+			response: Some(response),
+		})
 	}
 
 	fn on_remote_header_request(
@@ -675,15 +689,20 @@ where
 					error
 				);
 				(Default::default(), StorageProof::empty())
-			},
+			}
 		};
 
 		let response = {
-			let r = schema::v1::light::RemoteHeaderResponse { header, proof: proof.encode() };
+			let r = schema::v1::light::RemoteHeaderResponse {
+				header,
+				proof: proof.encode(),
+			};
 			schema::v1::light::response::Response::RemoteHeaderResponse(r)
 		};
 
-		Ok(schema::v1::light::Response { response: Some(response) })
+		Ok(schema::v1::light::Response {
+			response: Some(response),
+		})
 	}
 
 	fn on_remote_changes_request(
@@ -718,25 +737,30 @@ where
 			Some(PrefixedStorageKey::new_ref(&request.storage_key))
 		};
 
-		let proof =
-			match self.chain.key_changes_proof(first, last, min, max, storage_key, &key) {
-				Ok(proof) => proof,
-				Err(error) => {
-					log::trace!("remote changes proof request from {} for key {} ({:?}..{:?}) failed with: {}",
+		let proof = match self.chain.key_changes_proof(first, last, min, max, storage_key, &key) {
+			Ok(proof) => proof,
+			Err(error) => {
+				log::trace!(
+					"remote changes proof request from {} for key {} ({:?}..{:?}) failed with: {}",
 					peer,
-					format!("{} : {}", HexDisplay::from(&request.storage_key), HexDisplay::from(&key.0)),
+					format!(
+						"{} : {}",
+						HexDisplay::from(&request.storage_key),
+						HexDisplay::from(&key.0)
+					),
 					request.first,
 					request.last,
-					error);
+					error
+				);
 
-					light::ChangesProof::<B::Header> {
-						max_block: Zero::zero(),
-						proof: Vec::new(),
-						roots: BTreeMap::new(),
-						roots_proof: StorageProof::empty(),
-					}
-				},
-			};
+				light::ChangesProof::<B::Header> {
+					max_block: Zero::zero(),
+					proof: Vec::new(),
+					roots: BTreeMap::new(),
+					roots_proof: StorageProof::empty(),
+				}
+			}
+		};
 
 		let response = {
 			let r = schema::v1::light::RemoteChangesResponse {
@@ -745,14 +769,19 @@ where
 				roots: proof
 					.roots
 					.into_iter()
-					.map(|(k, v)| schema::v1::light::Pair { fst: k.encode(), snd: v.encode() })
+					.map(|(k, v)| schema::v1::light::Pair {
+						fst: k.encode(),
+						snd: v.encode(),
+					})
 					.collect(),
 				roots_proof: proof.roots_proof.encode(),
 			};
 			schema::v1::light::response::Response::RemoteChangesResponse(r)
 		};
 
-		Ok(schema::v1::light::Response { response: Some(response) })
+		Ok(schema::v1::light::Response {
+			response: Some(response),
+		})
 	}
 }
 
@@ -760,8 +789,7 @@ impl<B> NetworkBehaviour for LightClientHandler<B>
 where
 	B: Block,
 {
-	type ProtocolsHandler =
-		OneShotHandler<InboundProtocol, OutboundProtocol, Event<NegotiatedSubstream>>;
+	type ProtocolsHandler = OneShotHandler<InboundProtocol, OutboundProtocol, Event<NegotiatedSubstream>>;
 	type OutEvent = Void;
 
 	fn new_handler(&mut self) -> Self::ProtocolsHandler {
@@ -783,12 +811,7 @@ where
 
 	fn inject_connected(&mut self, peer: &PeerId) {}
 
-	fn inject_connection_established(
-		&mut self,
-		peer: &PeerId,
-		conn: &ConnectionId,
-		info: &ConnectedPoint,
-	) {
+	fn inject_connection_established(&mut self, peer: &PeerId, conn: &ConnectionId, info: &ConnectedPoint) {
 		let peer_address = match info {
 			ConnectedPoint::Listener { send_back_addr, .. } => send_back_addr.clone(),
 			ConnectedPoint::Dialer { address } => address.clone(),
@@ -805,12 +828,7 @@ where
 		self.remove_peer(peer)
 	}
 
-	fn inject_connection_closed(
-		&mut self,
-		peer: &PeerId,
-		conn: &ConnectionId,
-		info: &ConnectedPoint,
-	) {
+	fn inject_connection_closed(&mut self, peer: &PeerId, conn: &ConnectionId, info: &ConnectedPoint) {
 		let peer_address = match info {
 			ConnectedPoint::Listener { send_back_addr, .. } => send_back_addr,
 			ConnectedPoint::Dialer { address } => address,
@@ -842,31 +860,31 @@ where
 		}
 	}
 
-	fn inject_event(
-		&mut self,
-		peer: PeerId,
-		conn: ConnectionId,
-		event: Event<NegotiatedSubstream>,
-	) {
+	fn inject_event(&mut self, peer: PeerId, conn: ConnectionId, event: Event<NegotiatedSubstream>) {
 		match event {
 			// An incoming request from remote has been received.
 			Event::Request(request, mut stream) => {
 				log::trace!("incoming request from {}", peer);
 				let result = match &request.request {
-					Some(schema::v1::light::request::Request::RemoteCallRequest(r)) =>
-						self.on_remote_call_request(&peer, r),
-					Some(schema::v1::light::request::Request::RemoteReadRequest(r)) =>
-						self.on_remote_read_request(&peer, r),
-					Some(schema::v1::light::request::Request::RemoteHeaderRequest(r)) =>
-						self.on_remote_header_request(&peer, r),
-					Some(schema::v1::light::request::Request::RemoteReadChildRequest(r)) =>
-						self.on_remote_read_child_request(&peer, r),
-					Some(schema::v1::light::request::Request::RemoteChangesRequest(r)) =>
-						self.on_remote_changes_request(&peer, r),
+					Some(schema::v1::light::request::Request::RemoteCallRequest(r)) => {
+						self.on_remote_call_request(&peer, r)
+					}
+					Some(schema::v1::light::request::Request::RemoteReadRequest(r)) => {
+						self.on_remote_read_request(&peer, r)
+					}
+					Some(schema::v1::light::request::Request::RemoteHeaderRequest(r)) => {
+						self.on_remote_header_request(&peer, r)
+					}
+					Some(schema::v1::light::request::Request::RemoteReadChildRequest(r)) => {
+						self.on_remote_read_child_request(&peer, r)
+					}
+					Some(schema::v1::light::request::Request::RemoteChangesRequest(r)) => {
+						self.on_remote_changes_request(&peer, r)
+					}
 					None => {
 						log::debug!("ignoring request without request data from peer {}", peer);
-						return
-					},
+						return;
+					}
 				};
 				match result {
 					Ok(response) => {
@@ -882,15 +900,15 @@ where
 							};
 							self.responses.push(future.boxed())
 						}
-					},
+					}
 					Err(Error::BadRequest(_)) => {
 						self.remove_peer(&peer);
 						self.peerset
 							.report_peer(peer, ReputationChange::new(-(1 << 12), "bad request"))
-					},
+					}
 					Err(e) => log::debug!("error handling request from peer {}: {}", peer, e),
 				}
-			},
+			}
 			// A response to one of our own requests has been received.
 			Event::Response(id, response) => {
 				if let Some(request) = self.outstanding.remove(&id) {
@@ -900,11 +918,9 @@ where
 						log::debug!("Expected response from {} instead of {}.", request.peer, peer);
 						self.outstanding.insert(id, request);
 						self.remove_peer(&peer);
-						self.peerset.report_peer(
-							peer,
-							ReputationChange::new_fatal("response from unexpected peer"),
-						);
-						return
+						self.peerset
+							.report_peer(peer, ReputationChange::new_fatal("response from unexpected peer"));
+						return;
 					}
 
 					if let Some(info) = self.peers.get_mut(&peer) {
@@ -926,10 +942,8 @@ where
 							Err(Error::UnexpectedResponse) => {
 								log::debug!("unexpected response {} from peer {}", id, peer);
 								self.remove_peer(&peer);
-								self.peerset.report_peer(
-									peer,
-									ReputationChange::new_fatal("unexpected response from peer"),
-								);
+								self.peerset
+									.report_peer(peer, ReputationChange::new_fatal("unexpected response from peer"));
 								let rw = RequestWrapper {
 									timestamp: request.timestamp,
 									retries: request.retries,
@@ -938,19 +952,12 @@ where
 									connection: None,
 								};
 								self.pending_requests.push_back(rw);
-							},
+							}
 							Err(other) => {
-								log::debug!(
-									"error handling response {} from peer {}: {}",
-									id,
-									peer,
-									other
-								);
+								log::debug!("error handling response {} from peer {}: {}", id, peer, other);
 								self.remove_peer(&peer);
-								self.peerset.report_peer(
-									peer,
-									ReputationChange::new_fatal("invalid response from peer"),
-								);
+								self.peerset
+									.report_peer(peer, ReputationChange::new_fatal("invalid response from peer"));
 								if request.retries > 0 {
 									let rw = RequestWrapper {
 										timestamp: request.timestamp,
@@ -963,7 +970,7 @@ where
 								} else {
 									send_reply(Err(ClientError::RemoteFetchFailed), request.request)
 								}
-							},
+							}
 						}
 					} else {
 						// If we get here, something is wrong with our internal handling of peers.
@@ -976,12 +983,10 @@ where
 				} else {
 					log::debug!("unexpected response {} from peer {}", id, peer);
 					self.remove_peer(&peer);
-					self.peerset.report_peer(
-						peer,
-						ReputationChange::new_fatal("response from unexpected peer"),
-					);
+					self.peerset
+						.report_peer(peer, ReputationChange::new_fatal("response from unexpected peer"));
 				}
-			},
+			}
 		}
 	}
 
@@ -999,7 +1004,7 @@ where
 			if now > request.timestamp + self.config.request_timeout {
 				if request.retries == 0 {
 					send_reply(Err(ClientError::RemoteFetchFailed), request.request);
-					continue
+					continue;
 				}
 				request.timestamp = Instant::now();
 				request.retries -= 1
@@ -1009,21 +1014,20 @@ where
 				Err(request) => {
 					self.pending_requests.push_front(request);
 					log::debug!("no peer available to send request to");
-					break
-				},
+					break;
+				}
 				Ok((peer, request)) => {
 					let request_bytes = match serialize_request(&request.request) {
 						Ok(bytes) => bytes,
 						Err(error) => {
 							log::debug!("failed to serialize request: {}", error);
 							send_reply(Err(ClientError::RemoteFetchFailed), request.request);
-							continue
-						},
+							continue;
+						}
 					};
 
 					let (expected, protocol) = match request.request {
-						Request::Body { .. } =>
-							(ExpectedResponseTy::Block, self.config.block_protocol.clone()),
+						Request::Body { .. } => (ExpectedResponseTy::Block, self.config.block_protocol.clone()),
 						_ => (ExpectedResponseTy::Light, self.config.light_protocol.clone()),
 					};
 
@@ -1050,8 +1054,8 @@ where
 						peer_id,
 						handler,
 						event,
-					})
-				},
+					});
+				}
 			}
 		}
 
@@ -1072,7 +1076,7 @@ where
 				);
 				if rw.retries == 0 {
 					send_reply(Err(ClientError::RemoteFetchFailed), rw.request);
-					continue
+					continue;
 				}
 				let rw = RequestWrapper {
 					timestamp: Instant::now(),
@@ -1124,19 +1128,21 @@ fn serialize_request<B: Block>(request: &Request<B>) -> Result<Vec<u8>, prost::E
 			);
 			let mut buf = Vec::with_capacity(rq.encoded_len());
 			rq.encode(&mut buf)?;
-			return Ok(buf)
-		},
+			return Ok(buf);
+		}
 		Request::Header { request, .. } => {
-			let r = schema::v1::light::RemoteHeaderRequest { block: request.block.encode() };
+			let r = schema::v1::light::RemoteHeaderRequest {
+				block: request.block.encode(),
+			};
 			schema::v1::light::request::Request::RemoteHeaderRequest(r)
-		},
+		}
 		Request::Read { request, .. } => {
 			let r = schema::v1::light::RemoteReadRequest {
 				block: request.block.encode(),
 				keys: request.keys.clone(),
 			};
 			schema::v1::light::request::Request::RemoteReadRequest(r)
-		},
+		}
 		Request::ReadChild { request, .. } => {
 			let r = schema::v1::light::RemoteReadChildRequest {
 				block: request.block.encode(),
@@ -1144,7 +1150,7 @@ fn serialize_request<B: Block>(request: &Request<B>) -> Result<Vec<u8>, prost::E
 				keys: request.keys.clone(),
 			};
 			schema::v1::light::request::Request::RemoteReadChildRequest(r)
-		},
+		}
 		Request::Call { request, .. } => {
 			let r = schema::v1::light::RemoteCallRequest {
 				block: request.block.encode(),
@@ -1152,22 +1158,18 @@ fn serialize_request<B: Block>(request: &Request<B>) -> Result<Vec<u8>, prost::E
 				data: request.call_data.clone(),
 			};
 			schema::v1::light::request::Request::RemoteCallRequest(r)
-		},
+		}
 		Request::Changes { request, .. } => {
 			let r = schema::v1::light::RemoteChangesRequest {
 				first: request.first_block.1.encode(),
 				last: request.last_block.1.encode(),
 				min: request.tries_roots.1.encode(),
 				max: request.max_block.1.encode(),
-				storage_key: request
-					.storage_key
-					.clone()
-					.map(|s| s.into_inner())
-					.unwrap_or_default(),
+				storage_key: request.storage_key.clone().map(|s| s.into_inner()).unwrap_or_default(),
 				key: request.key.clone(),
 			};
 			schema::v1::light::request::Request::RemoteChangesRequest(r)
-		},
+		}
 	};
 
 	let rq = schema::v1::light::Request { request: Some(request) };
@@ -1199,8 +1201,7 @@ fn send_reply<B: Block>(result: Result<Reply<B>, ClientError>, request: Request<
 		Request::ReadChild { request, sender } => match result {
 			Err(e) => send(Err(e), sender),
 			Ok(Reply::MapVecU8OptVecU8(x)) => send(Ok(x), sender),
-			reply =>
-				log::error!("invalid reply for read child request: {:?}, {:?}", reply, request),
+			reply => log::error!("invalid reply for read child request: {:?}, {:?}", reply, request),
 		},
 		Request::Call { request, sender } => match result {
 			Err(e) => send(Err(e), sender),
@@ -1382,8 +1383,7 @@ mod tests {
 	};
 	use void::Void;
 
-	type Block =
-		sp_runtime::generic::Block<Header<u64, BlakeTwo256>, substrate_test_runtime::Extrinsic>;
+	type Block = sp_runtime::generic::Block<Header<u64, BlakeTwo256>, substrate_test_runtime::Extrinsic>;
 	type Handler = LightClientHandler<Block>;
 	type Swarm = libp2p::swarm::Swarm<Handler>;
 
@@ -1393,7 +1393,10 @@ mod tests {
 
 	fn make_swarm(ok: bool, ps: sc_peerset::PeersetHandle, cf: super::Config) -> Swarm {
 		let client = Arc::new(substrate_test_runtime_client::new());
-		let checker = Arc::new(DummyFetchChecker { ok, _mark: std::marker::PhantomData });
+		let checker = Arc::new(DummyFetchChecker {
+			ok,
+			_mark: std::marker::PhantomData,
+		});
 		let id_key = identity::Keypair::generate_ed25519();
 		let dh_key = Keypair::<X25519>::new().into_authentic(&id_key).unwrap();
 		let local_peer = id_key.public().into_peer_id();
@@ -1530,23 +1533,22 @@ mod tests {
 		sc_peerset::Peerset::from_config(cfg)
 	}
 
-	fn make_behaviour(
-		ok: bool,
-		ps: sc_peerset::PeersetHandle,
-		cf: super::Config,
-	) -> LightClientHandler<Block> {
+	fn make_behaviour(ok: bool, ps: sc_peerset::PeersetHandle, cf: super::Config) -> LightClientHandler<Block> {
 		let client = Arc::new(substrate_test_runtime_client::new());
-		let checker = Arc::new(DummyFetchChecker { ok, _mark: std::marker::PhantomData });
+		let checker = Arc::new(DummyFetchChecker {
+			ok,
+			_mark: std::marker::PhantomData,
+		});
 		LightClientHandler::new(cf, client, checker, ps)
 	}
 
 	fn empty_dialer() -> ConnectedPoint {
-		ConnectedPoint::Dialer { address: Multiaddr::empty() }
+		ConnectedPoint::Dialer {
+			address: Multiaddr::empty(),
+		}
 	}
 
-	fn poll(
-		mut b: &mut LightClientHandler<Block>,
-	) -> Poll<NetworkBehaviourAction<OutboundProtocol, Void>> {
+	fn poll(mut b: &mut LightClientHandler<Block>) -> Poll<NetworkBehaviourAction<OutboundProtocol, Void>> {
 		let mut p = EmptyPollParams(PeerId::random());
 		match future::poll_fn(|cx| Pin::new(&mut b).poll(cx, &mut p)).now_or_never() {
 			Some(a) => Poll::Ready(a),
@@ -1600,7 +1602,12 @@ mod tests {
 			call_data: vec![],
 			retry_count: Some(1),
 		};
-		behaviour.request(Request::Call { request, sender: chan.0 }).unwrap();
+		behaviour
+			.request(Request::Call {
+				request,
+				sender: chan.0,
+			})
+			.unwrap();
 		assert_eq!(1, behaviour.pending_requests.len());
 
 		// The behaviour should now attempt to send the request.
@@ -1610,12 +1617,15 @@ mod tests {
 
 		// And we should have one busy peer.
 		assert!({
-			let (idle, busy): (Vec<_>, Vec<_>) =
-				behaviour.peers.iter().partition(|(_, info)| info.status == PeerStatus::Idle);
+			let (idle, busy): (Vec<_>, Vec<_>) = behaviour
+				.peers
+				.iter()
+				.partition(|(_, info)| info.status == PeerStatus::Idle);
 
-			idle.len() == 1 &&
-				busy.len() == 1 && (idle[0].0 == &peer0 || busy[0].0 == &peer0) &&
-				(idle[0].0 == &peer1 || busy[0].0 == &peer1)
+			idle.len() == 1
+				&& busy.len() == 1
+				&& (idle[0].0 == &peer0 || busy[0].0 == &peer0)
+				&& (idle[0].0 == &peer1 || busy[0].0 == &peer1)
 		});
 
 		// No more pending requests, but one should be outstanding.
@@ -1657,7 +1667,12 @@ mod tests {
 			call_data: vec![],
 			retry_count: Some(1),
 		};
-		behaviour.request(Request::Call { request, sender: chan.0 }).unwrap();
+		behaviour
+			.request(Request::Call {
+				request,
+				sender: chan.0,
+			})
+			.unwrap();
 
 		assert_eq!(1, behaviour.pending_requests.len());
 		assert_eq!(0, behaviour.outstanding.len());
@@ -1740,7 +1755,12 @@ mod tests {
 			call_data: vec![],
 			retry_count: Some(1),
 		};
-		behaviour.request(Request::Call { request, sender: chan.0 }).unwrap();
+		behaviour
+			.request(Request::Call {
+				request,
+				sender: chan.0,
+			})
+			.unwrap();
 
 		assert_eq!(1, behaviour.pending_requests.len());
 		assert_eq!(0, behaviour.outstanding.len());
@@ -1803,7 +1823,12 @@ mod tests {
 			call_data: vec![],
 			retry_count: Some(3), // Attempt up to three retries.
 		};
-		behaviour.request(Request::Call { request, sender: chan.0 }).unwrap();
+		behaviour
+			.request(Request::Call {
+				request,
+				sender: chan.0,
+			})
+			.unwrap();
 
 		assert_eq!(1, behaviour.pending_requests.len());
 		assert_eq!(0, behaviour.outstanding.len());
@@ -1874,25 +1899,25 @@ mod tests {
 				schema::v1::light::Response {
 					response: Some(schema::v1::light::response::Response::RemoteHeaderResponse(r)),
 				}
-			},
+			}
 			Request::Read { .. } => {
 				let r = schema::v1::light::RemoteReadResponse { proof: empty_proof() };
 				schema::v1::light::Response {
 					response: Some(schema::v1::light::response::Response::RemoteReadResponse(r)),
 				}
-			},
+			}
 			Request::ReadChild { .. } => {
 				let r = schema::v1::light::RemoteReadResponse { proof: empty_proof() };
 				schema::v1::light::Response {
 					response: Some(schema::v1::light::response::Response::RemoteReadResponse(r)),
 				}
-			},
+			}
 			Request::Call { .. } => {
 				let r = schema::v1::light::RemoteCallResponse { proof: empty_proof() };
 				schema::v1::light::Response {
 					response: Some(schema::v1::light::response::Response::RemoteCallResponse(r)),
 				}
-			},
+			}
 			Request::Changes { .. } => {
 				let r = schema::v1::light::RemoteChangesResponse {
 					max: iter::repeat(1).take(32).collect(),
@@ -1903,7 +1928,7 @@ mod tests {
 				schema::v1::light::Response {
 					response: Some(schema::v1::light::response::Response::RemoteChangesResponse(r)),
 				}
-			},
+			}
 		};
 
 		behaviour.request(request).unwrap();
@@ -1936,7 +1961,10 @@ mod tests {
 			call_data: vec![],
 			retry_count: None,
 		};
-		issue_request(Request::Call { request, sender: chan.0 });
+		issue_request(Request::Call {
+			request,
+			sender: chan.0,
+		});
 		assert_matches!(chan.1.try_recv(), Ok(Some(Ok(_))))
 	}
 
@@ -1949,7 +1977,10 @@ mod tests {
 			keys: vec![b":key".to_vec()],
 			retry_count: None,
 		};
-		issue_request(Request::Read { request, sender: chan.0 });
+		issue_request(Request::Read {
+			request,
+			sender: chan.0,
+		});
 		assert_matches!(chan.1.try_recv(), Ok(Some(Ok(_))))
 	}
 
@@ -1964,7 +1995,10 @@ mod tests {
 			keys: vec![b":key".to_vec()],
 			retry_count: None,
 		};
-		issue_request(Request::ReadChild { request, sender: chan.0 });
+		issue_request(Request::ReadChild {
+			request,
+			sender: chan.0,
+		});
 		assert_matches!(chan.1.try_recv(), Ok(Some(Ok(_))))
 	}
 
@@ -1976,7 +2010,10 @@ mod tests {
 			block: 1,
 			retry_count: None,
 		};
-		issue_request(Request::Header { request, sender: chan.0 });
+		issue_request(Request::Header {
+			request,
+			sender: chan.0,
+		});
 		assert_matches!(chan.1.try_recv(), Ok(Some(Ok(_))))
 	}
 
@@ -1997,15 +2034,17 @@ mod tests {
 			storage_key: None,
 			retry_count: None,
 		};
-		issue_request(Request::Changes { request, sender: chan.0 });
+		issue_request(Request::Changes {
+			request,
+			sender: chan.0,
+		});
 		assert_matches!(chan.1.try_recv(), Ok(Some(Ok(_))))
 	}
 
 	fn send_receive(request: Request<Block>) {
 		// We start a swarm on the listening side which awaits incoming requests and answers them:
 		let local_pset = peerset();
-		let local_listen_addr: libp2p::Multiaddr =
-			libp2p::multiaddr::Protocol::Memory(rand::random()).into();
+		let local_listen_addr: libp2p::Multiaddr = libp2p::multiaddr::Protocol::Memory(rand::random()).into();
 		let mut local_swarm = make_swarm(true, local_pset.1, make_config());
 		Swarm::listen_on(&mut local_swarm, local_listen_addr.clone()).unwrap();
 
@@ -2036,7 +2075,10 @@ mod tests {
 			call_data: vec![],
 			retry_count: None,
 		};
-		send_receive(Request::Call { request, sender: chan.0 });
+		send_receive(Request::Call {
+			request,
+			sender: chan.0,
+		});
 		assert_eq!(vec![42], task::block_on(chan.1).unwrap().unwrap());
 		//              ^--- from `DummyFetchChecker::check_execution_proof`
 	}
@@ -2050,7 +2092,10 @@ mod tests {
 			keys: vec![b":key".to_vec()],
 			retry_count: None,
 		};
-		send_receive(Request::Read { request, sender: chan.0 });
+		send_receive(Request::Read {
+			request,
+			sender: chan.0,
+		});
 		assert_eq!(
 			Some(vec![42]),
 			task::block_on(chan.1).unwrap().unwrap().remove(&b":key"[..]).unwrap()
@@ -2069,7 +2114,10 @@ mod tests {
 			keys: vec![b":key".to_vec()],
 			retry_count: None,
 		};
-		send_receive(Request::ReadChild { request, sender: chan.0 });
+		send_receive(Request::ReadChild {
+			request,
+			sender: chan.0,
+		});
 		assert_eq!(
 			Some(vec![42]),
 			task::block_on(chan.1).unwrap().unwrap().remove(&b":key"[..]).unwrap()
@@ -2086,7 +2134,10 @@ mod tests {
 			block: 1,
 			retry_count: None,
 		};
-		send_receive(Request::Header { request, sender: chan.0 });
+		send_receive(Request::Header {
+			request,
+			sender: chan.0,
+		});
 		// The remote does not know block 1:
 		assert_matches!(task::block_on(chan.1).unwrap(), Err(ClientError::RemoteFetchFailed));
 	}
@@ -2108,7 +2159,10 @@ mod tests {
 			storage_key: None,
 			retry_count: None,
 		};
-		send_receive(Request::Changes { request, sender: chan.0 });
+		send_receive(Request::Changes {
+			request,
+			sender: chan.0,
+		});
 		assert_eq!(vec![(100, 2)], task::block_on(chan.1).unwrap().unwrap());
 		//              ^--- from `DummyFetchChecker::check_changes_proof`
 	}
@@ -2117,12 +2171,14 @@ mod tests {
 	fn body_request_fields_encoded_properly() {
 		let (sender, _) = oneshot::channel();
 		let serialized_request = serialize_request::<Block>(&Request::Body {
-			request: RemoteBodyRequest { header: dummy_header(), retry_count: None },
+			request: RemoteBodyRequest {
+				header: dummy_header(),
+				retry_count: None,
+			},
 			sender,
 		})
 		.unwrap();
-		let deserialized_request =
-			schema::v1::BlockRequest::decode(&serialized_request[..]).unwrap();
+		let deserialized_request = schema::v1::BlockRequest::decode(&serialized_request[..]).unwrap();
 		assert!(BlockAttributes::from_be_u32(deserialized_request.fields)
 			.unwrap()
 			.contains(BlockAttributes::BODY));

@@ -17,16 +17,11 @@ pub fn calculate_scoop(height: u64, gensig: &[u8; 32]) -> u32 {
 	(u32::from(new_gensig[30] & 0x0F) << 8) | u32::from(new_gensig[31])
 }
 
-pub fn find_best_deadline_rust(
-	data: &[u8],
-	number_of_nonces: u64,
-	gensig: &[u8; 32],
-) -> (u64, u64) {
+pub fn find_best_deadline_rust(data: &[u8], number_of_nonces: u64, gensig: &[u8; 32]) -> (u64, u64) {
 	let mut best_deadline = u64::MAX;
 	let mut best_offset = 0;
 	for i in 0..number_of_nonces as usize {
-		let result =
-			shabal256_deadline_fast(&data[i * SCOOP_SIZE..i * SCOOP_SIZE + SCOOP_SIZE], &gensig);
+		let result = shabal256_deadline_fast(&data[i * SCOOP_SIZE..i * SCOOP_SIZE + SCOOP_SIZE], &gensig);
 		if result < best_deadline {
 			best_deadline = result;
 			best_offset = i;

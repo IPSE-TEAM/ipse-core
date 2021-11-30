@@ -32,7 +32,10 @@ struct Observed {
 impl Observed {
 	fn new() -> Observed {
 		let now = Instant::now();
-		Observed { last_round_end: now, offline_since: now }
+		Observed {
+			last_round_end: now,
+			offline_since: now,
+		}
 	}
 
 	fn note_round_end(&mut self, was_online: bool) {
@@ -47,7 +50,7 @@ impl Observed {
 	fn is_active(&self) -> bool {
 		// can happen if clocks are not monotonic
 		if self.offline_since > self.last_round_end {
-			return true
+			return true;
 		}
 		self.last_round_end.duration_since(self.offline_since) < REPORT_TIME
 	}
@@ -61,7 +64,9 @@ pub struct OfflineTracker<AuthorityId> {
 impl<AuthorityId: Eq + Clone + std::hash::Hash> OfflineTracker<AuthorityId> {
 	/// Create a new tracker.
 	pub fn new() -> Self {
-		OfflineTracker { observed: HashMap::new() }
+		OfflineTracker {
+			observed: HashMap::new(),
+		}
 	}
 
 	/// Note new consensus is starting with the given set of validators.
@@ -74,7 +79,10 @@ impl<AuthorityId: Eq + Clone + std::hash::Hash> OfflineTracker<AuthorityId> {
 
 	/// Note that a round has ended.
 	pub fn note_round_end(&mut self, validator: AuthorityId, was_online: bool) {
-		self.observed.entry(validator).or_insert_with(Observed::new).note_round_end(was_online);
+		self.observed
+			.entry(validator)
+			.or_insert_with(Observed::new)
+			.note_round_end(was_online);
 	}
 
 	/// Generate a vector of indices for offline account IDs.

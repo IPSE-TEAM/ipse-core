@@ -204,10 +204,7 @@ mod tests {
 
 	#[test]
 	fn macro_unmarshall_then_body_then_marshall_value_or_trap() {
-		fn test_value(
-			_ctx: &mut u32,
-			args: &[sp_sandbox::Value],
-		) -> Result<ReturnValue, sp_sandbox::HostError> {
+		fn test_value(_ctx: &mut u32, args: &[sp_sandbox::Value]) -> Result<ReturnValue, sp_sandbox::HostError> {
 			let mut args = args.iter();
 			unmarshall_then_body_then_marshall!(
 				args,
@@ -232,10 +229,7 @@ mod tests {
 
 	#[test]
 	fn macro_unmarshall_then_body_then_marshall_unit() {
-		fn test_unit(
-			ctx: &mut u32,
-			args: &[sp_sandbox::Value],
-		) -> Result<ReturnValue, sp_sandbox::HostError> {
+		fn test_unit(ctx: &mut u32, args: &[sp_sandbox::Value]) -> Result<ReturnValue, sp_sandbox::HostError> {
 			let mut args = args.iter();
 			unmarshall_then_body_then_marshall!(
 				args,
@@ -316,7 +310,10 @@ mod tests {
 			},
 		);
 
-		assert!(Env::can_satisfy(b"seal_gas", &FunctionType::new(vec![ValueType::I32], None)));
+		assert!(Env::can_satisfy(
+			b"seal_gas",
+			&FunctionType::new(vec![ValueType::I32], None)
+		));
 		assert!(!Env::can_satisfy(b"not_exists", &FunctionType::new(vec![], None)));
 	}
 }

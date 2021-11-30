@@ -62,27 +62,16 @@ pub trait MaybeDebugHash: sp_std::hash::Hash {}
 impl<T: sp_std::hash::Hash> MaybeDebugHash for T {}
 
 /// A application's public key.
-pub trait AppPublic:
-	AppKey + Public + Ord + PartialOrd + Eq + PartialEq + Debug + MaybeHash + codec::Codec
-{
+pub trait AppPublic: AppKey + Public + Ord + PartialOrd + Eq + PartialEq + Debug + MaybeHash + codec::Codec {
 	/// The wrapped type which is just a plain instance of `Public`.
-	type Generic: IsWrappedBy<Self>
-		+ Public
-		+ Ord
-		+ PartialOrd
-		+ Eq
-		+ PartialEq
-		+ Debug
-		+ MaybeHash
-		+ codec::Codec;
+	type Generic: IsWrappedBy<Self> + Public + Ord + PartialOrd + Eq + PartialEq + Debug + MaybeHash + codec::Codec;
 }
 
 /// A application's key pair.
 #[cfg(feature = "full_crypto")]
 pub trait AppPair: AppKey + Pair<Public = <Self as AppKey>::Public> {
 	/// The wrapped type which is just a plain instance of `Pair`.
-	type Generic: IsWrappedBy<Self>
-		+ Pair<Public = <<Self as AppKey>::Public as AppPublic>::Generic>;
+	type Generic: IsWrappedBy<Self> + Pair<Public = <<Self as AppKey>::Public as AppPublic>::Generic>;
 }
 
 /// A application's signature.

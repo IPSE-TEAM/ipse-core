@@ -84,20 +84,17 @@ enum Verdict<T: Trait> {
 ///
 /// This function accounts for the storage rent deposit. I.e. if the contract possesses enough funds
 /// then the fee can drop to zero.
-fn compute_fee_per_block<T: Trait>(
-	free_balance: &BalanceOf<T>,
-	contract: &AliveContractInfo<T>,
-) -> BalanceOf<T> {
-	let free_storage =
-		free_balance.checked_div(&T::RentDepositOffset::get()).unwrap_or_else(Zero::zero);
+fn compute_fee_per_block<T: Trait>(free_balance: &BalanceOf<T>, contract: &AliveContractInfo<T>) -> BalanceOf<T> {
+	let free_storage = free_balance
+		.checked_div(&T::RentDepositOffset::get())
+		.unwrap_or_else(Zero::zero);
 
 	// For now, we treat every empty KV pair as if it was one byte long.
 	let empty_pairs_equivalent = contract.empty_pair_count;
 
-	let effective_storage_size = <BalanceOf<T>>::from(
-		contract.storage_size + T::StorageSizeOffset::get() + empty_pairs_equivalent,
-	)
-	.saturating_sub(free_storage);
+	let effective_storage_size =
+		<BalanceOf<T>>::from(contract.storage_size + T::StorageSizeOffset::get() + empty_pairs_equivalent)
+			.saturating_sub(free_storage);
 
 	effective_storage_size
 		.checked_mul(&T::RentByteFee::get())
@@ -119,7 +116,7 @@ fn rent_budget<T: Trait>(
 	// Reserved balance contributes towards the subsistence threshold to stay consistent
 	// with the existential deposit where the reserved balance is also counted.
 	if *total_balance < subsistence_threshold {
-		return None
+		return None;
 	}
 
 	// However, reserved balance cannot be charged so we need to use the free balance
@@ -146,7 +143,7 @@ fn consider_case<T: Trait>(
 	};
 	if blocks_passed.is_zero() {
 		// Rent has already been paid
-		return Verdict::Exempt
+		return Verdict::Exempt;
 	}
 
 	let total_balance = T::Currency::total_balance(account);
@@ -157,7 +154,7 @@ fn consider_case<T: Trait>(
 	if fee_per_block.is_zero() {
 		// The rent deposit offset reduced the fee to 0. This means that the contract
 		// gets the rent for free.
-		return Verdict::Exempt
+		return Verdict::Exempt;
 	}
 
 	let rent_budget = match rent_budget::<T>(&total_balance, &free_balance, contract) {
@@ -167,8 +164,8 @@ fn consider_case<T: Trait>(
 			// indicates that the contract cannot afford to leave a tombstone.
 			//
 			// So cleanly wipe the contract.
-			return Verdict::Kill
-		},
+			return Verdict::Kill;
+		}
 	};
 
 	let dues = fee_per_block
@@ -194,15 +191,18 @@ fn consider_case<T: Trait>(
 	if insufficient_rent || !can_withdraw_rent {
 		// The contract cannot afford the rent payment and has a balance above the subsistence
 		// threshold, so it leaves a tombstone.
-		let amount =
-			if can_withdraw_rent { Some(OutstandingAmount::new(dues_limited)) } else { None };
-		return Verdict::Evict { amount }
+		let amount = if can_withdraw_rent {
+			Some(OutstandingAmount::new(dues_limited))
+		} else {
+			None
+		};
+		return Verdict::Evict { amount };
 	}
 
 	return Verdict::Charge {
 		// We choose to use `dues_limited` here instead of `dues` just to err on the safer side.
 		amount: OutstandingAmount::new(dues_limited),
-	}
+	};
 }
 
 /// Enacts the given verdict and returns the updated `ContractInfo`.
@@ -221,7 +221,7 @@ fn enact_verdict<T: Trait>(
 			child::kill_storage(&alive_contract_info.child_trie_info());
 			<Module<T>>::deposit_event(RawEvent::Evicted(account.clone(), false));
 			None
-		},
+		}
 		Verdict::Evict { amount } => {
 			if let Some(amount) = amount {
 				amount.withdraw(account);
@@ -230,10 +230,7 @@ fn enact_verdict<T: Trait>(
 			// Note: this operation is heavy.
 			let child_storage_root = child::root(&alive_contract_info.child_trie_info());
 
-			let tombstone = <TombstoneContractInfo<T>>::new(
-				&child_storage_root[..],
-				alive_contract_info.code_hash,
-			);
+			let tombstone = <TombstoneContractInfo<T>>::new(&child_storage_root[..], alive_contract_info.code_hash);
 			let tombstone_info = ContractInfo::Tombstone(tombstone);
 			<ContractInfoOf<T>>::insert(account, &tombstone_info);
 
@@ -241,7 +238,7 @@ fn enact_verdict<T: Trait>(
 
 			<Module<T>>::deposit_event(RawEvent::Evicted(account.clone(), true));
 			Some(tombstone_info)
-		},
+		}
 		Verdict::Charge { amount } => {
 			let contract_info = ContractInfo::Alive(AliveContractInfo::<T> {
 				rent_allowance: alive_contract_info.rent_allowance - amount.peek(),
@@ -252,7 +249,7 @@ fn enact_verdict<T: Trait>(
 
 			amount.withdraw(account);
 			Some(contract_info)
-		},
+		}
 	}
 }
 
@@ -268,8 +265,7 @@ pub fn collect_rent<T: Trait>(account: &T::AccountId) -> Option<ContractInfo<T>>
 	};
 
 	let current_block_number = <frame_system::Module<T>>::block_number();
-	let verdict =
-		consider_case::<T>(account, current_block_number, Zero::zero(), &alive_contract_info);
+	let verdict = consider_case::<T>(account, current_block_number, Zero::zero(), &alive_contract_info);
 	enact_verdict(account, alive_contract_info, current_block_number, verdict)
 }
 
@@ -285,10 +281,7 @@ pub fn collect_rent<T: Trait>(account: &T::AccountId) -> Option<ContractInfo<T>>
 ///
 /// NOTE this function performs eviction eagerly. All changes are read and written directly to
 /// storage.
-pub fn snitch_contract_should_be_evicted<T: Trait>(
-	account: &T::AccountId,
-	handicap: T::BlockNumber,
-) -> bool {
+pub fn snitch_contract_should_be_evicted<T: Trait>(account: &T::AccountId, handicap: T::BlockNumber) -> bool {
 	let contract_info = <ContractInfoOf<T>>::get(account);
 	let alive_contract_info = match contract_info {
 		None | Some(ContractInfo::Tombstone(_)) => return false,
@@ -302,7 +295,7 @@ pub fn snitch_contract_should_be_evicted<T: Trait>(
 		Verdict::Kill | Verdict::Evict { .. } => {
 			enact_verdict(account, alive_contract_info, current_block_number, verdict);
 			true
-		},
+		}
 		_ => false,
 	}
 }
@@ -318,19 +311,15 @@ pub fn snitch_contract_should_be_evicted<T: Trait>(
 /// NOTE that this is not a side-effect free function! It will actually collect rent and then
 /// compute the projection. This function is only used for implementation of an RPC method through
 /// `RuntimeApi` meaning that the changes will be discarded anyway.
-pub fn compute_rent_projection<T: Trait>(
-	account: &T::AccountId,
-) -> RentProjectionResult<T::BlockNumber> {
+pub fn compute_rent_projection<T: Trait>(account: &T::AccountId) -> RentProjectionResult<T::BlockNumber> {
 	let contract_info = <ContractInfoOf<T>>::get(account);
 	let alive_contract_info = match contract_info {
 		None | Some(ContractInfo::Tombstone(_)) => return Err(ContractAccessError::IsTombstone),
 		Some(ContractInfo::Alive(contract)) => contract,
 	};
 	let current_block_number = <frame_system::Module<T>>::block_number();
-	let verdict =
-		consider_case::<T>(account, current_block_number, Zero::zero(), &alive_contract_info);
-	let new_contract_info =
-		enact_verdict(account, alive_contract_info, current_block_number, verdict);
+	let verdict = consider_case::<T>(account, current_block_number, Zero::zero(), &alive_contract_info);
+	let new_contract_info = enact_verdict(account, alive_contract_info, current_block_number, verdict);
 
 	// Check what happened after enaction of the verdict.
 	let alive_contract_info = match new_contract_info {
@@ -343,7 +332,7 @@ pub fn compute_rent_projection<T: Trait>(
 	let free_balance = T::Currency::free_balance(account);
 	let fee_per_block = compute_fee_per_block::<T>(&free_balance, &alive_contract_info);
 	if fee_per_block.is_zero() {
-		return Ok(RentProjection::NoEviction)
+		return Ok(RentProjection::NoEviction);
 	}
 
 	// Then compute how much the contract will sustain under these circumstances.
@@ -360,8 +349,8 @@ pub fn compute_rent_projection<T: Trait>(
 			// `fee_per_block` is not zero here, so `checked_div` can return `None` if
 			// there is an overflow. This cannot happen with integers though. Return
 			// `NoEviction` here just in case.
-			return Ok(RentProjection::NoEviction)
-		},
+			return Ok(RentProjection::NoEviction);
+		}
 	};
 
 	let blocks_left = blocks_left.saturated_into::<u32>().into();
@@ -395,15 +384,18 @@ pub fn restore_to<T: Trait>(
 	let current_block = <frame_system::Module<T>>::block_number();
 
 	if origin_contract.last_write == Some(current_block) {
-		return Err("Origin TrieId written in the current block")
+		return Err("Origin TrieId written in the current block");
 	}
 
 	let dest_tombstone = <ContractInfoOf<T>>::get(&dest)
 		.and_then(|c| c.get_tombstone())
 		.ok_or("Cannot restore to inexisting or alive contract")?;
 
-	let last_write =
-		if !delta.is_empty() { Some(current_block) } else { origin_contract.last_write };
+	let last_write = if !delta.is_empty() {
+		Some(current_block)
+	} else {
+		origin_contract.last_write
+	};
 
 	let key_values_taken = delta
 		.iter()
@@ -427,11 +419,13 @@ pub fn restore_to<T: Trait>(
 			child::put_raw(&child_trie_info, &blake2_256(key), &value);
 		}
 
-		return Err("Tombstones don't match")
+		return Err("Tombstones don't match");
 	}
 
-	origin_contract.storage_size -=
-		key_values_taken.iter().map(|(_, value)| value.len() as u32).sum::<u32>();
+	origin_contract.storage_size -= key_values_taken
+		.iter()
+		.map(|(_, value)| value.len() as u32)
+		.sum::<u32>();
 
 	<ContractInfoOf<T>>::remove(&origin);
 	<ContractInfoOf<T>>::insert(

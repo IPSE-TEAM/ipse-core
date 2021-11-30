@@ -74,7 +74,10 @@ pub fn make_changeset(inserted: &[u64], deleted: &[u64]) -> ChangeSet<H256> {
 }
 
 pub fn make_commit(inserted: &[u64], deleted: &[u64]) -> CommitSet<H256> {
-	CommitSet { data: make_changeset(inserted, deleted), meta: ChangeSet::default() }
+	CommitSet {
+		data: make_changeset(inserted, deleted),
+		meta: ChangeSet::default(),
+	}
 }
 
 pub fn make_db(inserted: &[u64]) -> TestDb {

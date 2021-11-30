@@ -83,5 +83,8 @@ pub type Header = sp_runtime::generic::Header<BlockNumber, BlakeTwo256>;
 
 /// Changes trie configuration (optionally) used in tests.
 pub fn changes_trie_config() -> sp_core::ChangesTrieConfiguration {
-	sp_core::ChangesTrieConfiguration { digest_interval: 4, digest_levels: 2 }
+	sp_core::ChangesTrieConfiguration {
+		digest_interval: 4,
+		digest_levels: 2,
+	}
 }

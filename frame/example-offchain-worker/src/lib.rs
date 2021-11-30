@@ -42,14 +42,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use frame_support::{
-	debug, decl_event, decl_module, decl_storage, dispatch::DispatchResult, traits::Get,
-};
+use frame_support::{debug, decl_event, decl_module, decl_storage, dispatch::DispatchResult, traits::Get};
 use frame_system::{
 	self as system, ensure_none, ensure_signed,
 	offchain::{
-		AppCrypto, CreateSignedTransaction, SendSignedTransaction, SendUnsignedTransaction,
-		SignedPayload, Signer, SigningTypes, SubmitTransaction,
+		AppCrypto, CreateSignedTransaction, SendSignedTransaction, SendUnsignedTransaction, SignedPayload, Signer,
+		SigningTypes, SubmitTransaction,
 	},
 };
 use lite_json::json::JsonValue;
@@ -58,8 +56,7 @@ use sp_runtime::{
 	offchain::{http, storage::StorageValueRef, Duration},
 	traits::Zero,
 	transaction_validity::{
-		InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
-		ValidTransaction,
+		InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity, ValidTransaction,
 	},
 	RuntimeDebug,
 };
@@ -90,9 +87,7 @@ pub mod crypto {
 	app_crypto!(sr25519, KEY_TYPE);
 
 	pub struct TestAuthId;
-	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature>
-		for TestAuthId
-	{
+	impl frame_system::offchain::AppCrypto<<Sr25519Signature as Verify>::Signer, Sr25519Signature> for TestAuthId {
 		type RuntimeAppPublic = Public;
 		type GenericSignature = sp_core::sr25519::Signature;
 		type GenericPublic = sp_core::sr25519::Public;
@@ -341,8 +336,7 @@ impl<T: Trait> Module<T> {
 			match last_send {
 				// If we already have a value in storage and the block number is recent enough
 				// we avoid sending another transaction at this time.
-				Some(Some(block)) if block_number < block + T::GracePeriod::get() =>
-					Err(RECENTLY_SENT),
+				Some(Some(block)) if block_number < block + T::GracePeriod::get() => Err(RECENTLY_SENT),
 				// In every other case we attempt to acquire the lock and send a transaction.
 				_ => Ok(block_number),
 			}
@@ -375,7 +369,7 @@ impl<T: Trait> Module<T> {
 				} else {
 					TransactionType::Raw
 				}
-			},
+			}
 			// We are in the grace period, we should not send a transaction this time.
 			Err(RECENTLY_SENT) => TransactionType::None,
 			// We wanted to send a transaction, but failed to write the block number (acquire a
@@ -391,9 +385,7 @@ impl<T: Trait> Module<T> {
 	fn fetch_price_and_send_signed() -> Result<(), &'static str> {
 		let signer = Signer::<T, T::AuthorityId>::all_accounts();
 		if !signer.can_sign() {
-			return Err(
-				"No local accounts available. Consider adding one via `author_insertKey` RPC.",
-			)?
+			return Err("No local accounts available. Consider adding one via `author_insertKey` RPC.")?;
 		}
 		// Make an external HTTP request to fetch the current price.
 		// Note this call will block until response is received.
@@ -426,7 +418,7 @@ impl<T: Trait> Module<T> {
 		// anyway.
 		let next_unsigned_at = <NextUnsignedAt<T>>::get();
 		if next_unsigned_at > block_number {
-			return Err("Too early to send unsigned transaction")
+			return Err("Too early to send unsigned transaction");
 		}
 
 		// Make an external HTTP request to fetch the current price.
@@ -453,14 +445,12 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// A helper function to fetch the price, sign payload and send an unsigned transaction
-	fn fetch_price_and_send_unsigned_for_any_account(
-		block_number: T::BlockNumber,
-	) -> Result<(), &'static str> {
+	fn fetch_price_and_send_unsigned_for_any_account(block_number: T::BlockNumber) -> Result<(), &'static str> {
 		// Make sure we don't fetch the price if unsigned transaction is going to be rejected
 		// anyway.
 		let next_unsigned_at = <NextUnsignedAt<T>>::get();
 		if next_unsigned_at > block_number {
-			return Err("Too early to send unsigned transaction")
+			return Err("Too early to send unsigned transaction");
 		}
 
 		// Make an external HTTP request to fetch the current price.
@@ -470,10 +460,12 @@ impl<T: Trait> Module<T> {
 		// -- Sign using any account
 		let (_, result) = Signer::<T, T::AuthorityId>::any_account()
 			.send_unsigned_transaction(
-				|account| PricePayload { price, block_number, public: account.public.clone() },
-				|payload, signature| {
-					Call::submit_price_unsigned_with_signed_payload(payload, signature)
+				|account| PricePayload {
+					price,
+					block_number,
+					public: account.public.clone(),
 				},
+				|payload, signature| Call::submit_price_unsigned_with_signed_payload(payload, signature),
 			)
 			.ok_or("No local accounts accounts available.")?;
 		result.map_err(|()| "Unable to submit transaction")?;
@@ -482,14 +474,12 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// A helper function to fetch the price, sign payload and send an unsigned transaction
-	fn fetch_price_and_send_unsigned_for_all_accounts(
-		block_number: T::BlockNumber,
-	) -> Result<(), &'static str> {
+	fn fetch_price_and_send_unsigned_for_all_accounts(block_number: T::BlockNumber) -> Result<(), &'static str> {
 		// Make sure we don't fetch the price if unsigned transaction is going to be rejected
 		// anyway.
 		let next_unsigned_at = <NextUnsignedAt<T>>::get();
 		if next_unsigned_at > block_number {
-			return Err("Too early to send unsigned transaction")
+			return Err("Too early to send unsigned transaction");
 		}
 
 		// Make an external HTTP request to fetch the current price.
@@ -497,16 +487,17 @@ impl<T: Trait> Module<T> {
 		let price = Self::fetch_price().map_err(|_| "Failed to fetch price")?;
 
 		// -- Sign using all accounts
-		let transaction_results = Signer::<T, T::AuthorityId>::all_accounts()
-			.send_unsigned_transaction(
-				|account| PricePayload { price, block_number, public: account.public.clone() },
-				|payload, signature| {
-					Call::submit_price_unsigned_with_signed_payload(payload, signature)
-				},
-			);
+		let transaction_results = Signer::<T, T::AuthorityId>::all_accounts().send_unsigned_transaction(
+			|account| PricePayload {
+				price,
+				block_number,
+				public: account.public.clone(),
+			},
+			|payload, signature| Call::submit_price_unsigned_with_signed_payload(payload, signature),
+		);
 		for (_account_id, result) in transaction_results.into_iter() {
 			if result.is_err() {
-				return Err("Unable to submit transaction")
+				return Err("Unable to submit transaction");
 			}
 		}
 
@@ -525,8 +516,7 @@ impl<T: Trait> Module<T> {
 		// you can find in `sp_io`. The API is trying to be similar to `reqwest`, but
 		// since we are running in a custom WASM execution environment we can't simply
 		// import the library here.
-		let request =
-			http::Request::get("https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD");
+		let request = http::Request::get("https://min-api.cryptocompare.com/data/price?fsym=BTC&tsyms=USD");
 		// We set the deadline for sending of the request, note that awaiting response can
 		// have a separate deadline. Next we send the request, before that it's also possible
 		// to alter request headers or stream body content in case of non-GET requests.
@@ -542,7 +532,7 @@ impl<T: Trait> Module<T> {
 		// Let's check the status code before we proceed to reading the response.
 		if response.code != 200 {
 			debug::warn!("Unexpected status code: {}", response.code);
-			return Err(http::Error::Unknown)
+			return Err(http::Error::Unknown);
 		}
 
 		// Next we want to fully read the response body and collect it to a vector of bytes.
@@ -561,7 +551,7 @@ impl<T: Trait> Module<T> {
 			None => {
 				debug::warn!("Unable to extract price from the response: {:?}", body_str);
 				Err(http::Error::Unknown)
-			},
+			}
 		}?;
 
 		debug::warn!("Got price: {} cents", price);
@@ -577,13 +567,13 @@ impl<T: Trait> Module<T> {
 		let price = val.ok().and_then(|v| match v {
 			JsonValue::Object(obj) => {
 				let mut chars = "USD".chars();
-				obj.into_iter().find(|(k, _)| k.iter().all(|k| Some(*k) == chars.next())).and_then(
-					|v| match v.1 {
+				obj.into_iter()
+					.find(|(k, _)| k.iter().all(|k| Some(*k) == chars.next()))
+					.and_then(|v| match v.1 {
 						JsonValue::Number(number) => Some(number),
 						_ => None,
-					},
-				)
-			},
+					})
+			}
 			_ => None,
 		})?;
 
@@ -604,8 +594,7 @@ impl<T: Trait> Module<T> {
 			}
 		});
 
-		let average = Self::average_price()
-			.expect("The average is not empty, because it was just mutated; qed");
+		let average = Self::average_price().expect("The average is not empty, because it was just mutated; qed");
 		debug::info!("Current average price is: {}", average);
 		// here we are raising the NewPrice event
 		Self::deposit_event(RawEvent::NewPrice(price, who));
@@ -621,19 +610,16 @@ impl<T: Trait> Module<T> {
 		}
 	}
 
-	fn validate_transaction_parameters(
-		block_number: &T::BlockNumber,
-		new_price: &u32,
-	) -> TransactionValidity {
+	fn validate_transaction_parameters(block_number: &T::BlockNumber, new_price: &u32) -> TransactionValidity {
 		// Now let's check if the transaction has any chance to succeed.
 		let next_unsigned_at = <NextUnsignedAt<T>>::get();
 		if &next_unsigned_at > block_number {
-			return InvalidTransaction::Stale.into()
+			return InvalidTransaction::Stale.into();
 		}
 		// Let's make sure to reject transactions from the future.
 		let current_block = <system::Module<T>>::block_number();
 		if &current_block < block_number {
-			return InvalidTransaction::Future.into()
+			return InvalidTransaction::Future.into();
 		}
 
 		// We prioritize transactions that are more far away from current average.
@@ -642,7 +628,13 @@ impl<T: Trait> Module<T> {
 		// is here mostly to show off offchain workers capabilities, not about building an
 		// oracle.
 		let avg_price = Self::average_price()
-			.map(|price| if &price > new_price { price - new_price } else { new_price - price })
+			.map(|price| {
+				if &price > new_price {
+					price - new_price
+				} else {
+					new_price - price
+				}
+			})
 			.unwrap_or(0);
 
 		ValidTransaction::with_tag_prefix("ExampleOffchainWorker")
@@ -686,10 +678,9 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 	fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
 		// Firstly let's check that we call the right function.
 		if let Call::submit_price_unsigned_with_signed_payload(ref payload, ref signature) = call {
-			let signature_valid =
-				SignedPayload::<T>::verify::<T::AuthorityId>(payload, signature.clone());
+			let signature_valid = SignedPayload::<T>::verify::<T::AuthorityId>(payload, signature.clone());
 			if !signature_valid {
-				return InvalidTransaction::BadProof.into()
+				return InvalidTransaction::BadProof.into();
 			}
 			Self::validate_transaction_parameters(&payload.block_number, &payload.price)
 		} else if let Call::submit_price_unsigned(block_number, new_price) = call {

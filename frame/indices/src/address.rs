@@ -75,11 +75,8 @@ where
 	fn decode<I: Input>(input: &mut I) -> Result<Self, Error> {
 		Ok(match input.read_byte()? {
 			x @ 0x00..=0xef => Address::Index(AccountIndex::from(x as u32)),
-			0xfc => Address::Index(AccountIndex::from(
-				need_more_than(0xef, u16::decode(input)?)? as u32
-			)),
-			0xfd =>
-				Address::Index(AccountIndex::from(need_more_than(0xffff, u32::decode(input)?)?)),
+			0xfc => Address::Index(AccountIndex::from(need_more_than(0xef, u16::decode(input)?)? as u32)),
+			0xfd => Address::Index(AccountIndex::from(need_more_than(0xffff, u32::decode(input)?)?)),
 			0xfe => Address::Index(need_more_than(0xffffffffu32.into(), Decode::decode(input)?)?),
 			0xff => Address::Id(Decode::decode(input)?),
 			_ => return Err("Invalid address variant".into()),
@@ -90,15 +87,14 @@ where
 impl<AccountId, AccountIndex> Encode for Address<AccountId, AccountIndex>
 where
 	AccountId: Member + Encode,
-	AccountIndex:
-		Member + Encode + PartialOrd<AccountIndex> + Ord + Copy + From<u32> + TryInto<u32>,
+	AccountIndex: Member + Encode + PartialOrd<AccountIndex> + Ord + Copy + From<u32> + TryInto<u32>,
 {
 	fn encode_to<T: Output>(&self, dest: &mut T) {
 		match *self {
 			Address::Id(ref i) => {
 				dest.push_byte(255);
 				dest.push(i);
-			},
+			}
 			Address::Index(i) => {
 				let maybe_u32: Result<u32, _> = i.try_into();
 				if let Ok(x) = maybe_u32 {
@@ -115,7 +111,7 @@ where
 					dest.push_byte(254);
 					dest.push(&i);
 				}
-			},
+			}
 		}
 	}
 }
@@ -123,8 +119,7 @@ where
 impl<AccountId, AccountIndex> codec::EncodeLike for Address<AccountId, AccountIndex>
 where
 	AccountId: Member + Encode,
-	AccountIndex:
-		Member + Encode + PartialOrd<AccountIndex> + Ord + Copy + From<u32> + TryInto<u32>,
+	AccountIndex: Member + Encode + PartialOrd<AccountIndex> + Ord + Copy + From<u32> + TryInto<u32>,
 {
 }
 

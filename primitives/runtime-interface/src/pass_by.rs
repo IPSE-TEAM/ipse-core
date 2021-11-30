@@ -159,10 +159,7 @@ impl<T: PassBy> RIType for T {
 
 #[cfg(feature = "std")]
 impl<T: PassBy> IntoFFIValue for T {
-	fn into_ffi_value(
-		self,
-		context: &mut dyn FunctionContext,
-	) -> Result<<T::PassBy as RIType>::FFIType> {
+	fn into_ffi_value(self, context: &mut dyn FunctionContext) -> Result<<T::PassBy as RIType>::FFIType> {
 		T::PassBy::into_ffi_value(self, context)
 	}
 }
@@ -171,10 +168,7 @@ impl<T: PassBy> IntoFFIValue for T {
 impl<T: PassBy> FromFFIValue for T {
 	type SelfInstance = Self;
 
-	fn from_ffi_value(
-		context: &mut dyn FunctionContext,
-		arg: <T::PassBy as RIType>::FFIType,
-	) -> Result<Self> {
+	fn from_ffi_value(context: &mut dyn FunctionContext, arg: <T::PassBy as RIType>::FFIType) -> Result<Self> {
 		T::PassBy::from_ffi_value(context, arg)
 	}
 }
@@ -229,8 +223,7 @@ impl<T: codec::Codec> PassByImpl<T> for Codec<T> {
 	fn from_ffi_value(context: &mut dyn FunctionContext, arg: Self::FFIType) -> Result<T> {
 		let (ptr, len) = unpack_ptr_and_len(arg);
 		let vec = context.read_memory(Pointer::new(ptr), len)?;
-		T::decode(&mut &vec[..])
-			.map_err(|e| format!("Could not decode value from wasm: {}", e.what()))
+		T::decode(&mut &vec[..]).map_err(|e| format!("Could not decode value from wasm: {}", e.what()))
 	}
 }
 

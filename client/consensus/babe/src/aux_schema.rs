@@ -41,9 +41,7 @@ where
 	B: AuxStore,
 	T: Decode,
 {
-	let corrupt = |e: codec::Error| {
-		ClientError::Backend(format!("BABE DB is corrupted. Decode error: {}", e.what()))
-	};
+	let corrupt = |e: codec::Error| ClientError::Backend(format!("BABE DB is corrupted. Decode error: {}", e.what()));
 	match backend.get_aux(key)? {
 		None => Ok(None),
 		Some(t) => T::decode(&mut &t[..]).map(Some).map_err(corrupt),
@@ -58,16 +56,19 @@ pub fn load_epoch_changes<Block: BlockT, B: AuxStore>(
 	let version = load_decode::<_, u32>(backend, BABE_EPOCH_CHANGES_VERSION)?;
 
 	let maybe_epoch_changes = match version {
-		None =>
-			load_decode::<_, EpochChangesForV0<Block, EpochV0>>(backend, BABE_EPOCH_CHANGES_KEY)?
-				.map(|v0| v0.migrate().map(|_, _, epoch| epoch.migrate(config))),
-		Some(1) =>
-			load_decode::<_, EpochChangesFor<Block, EpochV0>>(backend, BABE_EPOCH_CHANGES_KEY)?
-				.map(|v1| v1.map(|_, _, epoch| epoch.migrate(config))),
-		Some(BABE_EPOCH_CHANGES_CURRENT_VERSION) =>
-			load_decode::<_, EpochChangesFor<Block, Epoch>>(backend, BABE_EPOCH_CHANGES_KEY)?,
-		Some(other) =>
-			return Err(ClientError::Backend(format!("Unsupported BABE DB version: {:?}", other))),
+		None => load_decode::<_, EpochChangesForV0<Block, EpochV0>>(backend, BABE_EPOCH_CHANGES_KEY)?
+			.map(|v0| v0.migrate().map(|_, _, epoch| epoch.migrate(config))),
+		Some(1) => load_decode::<_, EpochChangesFor<Block, EpochV0>>(backend, BABE_EPOCH_CHANGES_KEY)?
+			.map(|v1| v1.map(|_, _, epoch| epoch.migrate(config))),
+		Some(BABE_EPOCH_CHANGES_CURRENT_VERSION) => {
+			load_decode::<_, EpochChangesFor<Block, Epoch>>(backend, BABE_EPOCH_CHANGES_KEY)?
+		}
+		Some(other) => {
+			return Err(ClientError::Backend(format!(
+				"Unsupported BABE DB version: {:?}",
+				other
+			)))
+		}
 	};
 
 	let epoch_changes = Arc::new(Mutex::new(maybe_epoch_changes.unwrap_or_else(|| {
@@ -87,10 +88,7 @@ pub fn load_epoch_changes<Block: BlockT, B: AuxStore>(
 }
 
 /// Update the epoch changes on disk after a change.
-pub(crate) fn write_epoch_changes<Block: BlockT, F, R>(
-	epoch_changes: &EpochChangesFor<Block, Epoch>,
-	write_aux: F,
-) -> R
+pub(crate) fn write_epoch_changes<Block: BlockT, F, R>(epoch_changes: &EpochChangesFor<Block, Epoch>, write_aux: F) -> R
 where
 	F: FnOnce(&[(&'static [u8], &[u8])]) -> R,
 {
@@ -104,11 +102,7 @@ where
 }
 
 /// Write the cumulative chain-weight of a block ot aux storage.
-pub(crate) fn write_block_weight<H: Encode, F, R>(
-	block_hash: H,
-	block_weight: BabeBlockWeight,
-	write_aux: F,
-) -> R
+pub(crate) fn write_block_weight<H: Encode, F, R>(block_hash: H, block_weight: BabeBlockWeight, write_aux: F) -> R
 where
 	F: FnOnce(&[(Vec<u8>, &[u8])]) -> R,
 {
@@ -167,7 +161,10 @@ mod test {
 			)
 			.unwrap();
 
-		assert_eq!(load_decode::<_, u32>(&client, BABE_EPOCH_CHANGES_VERSION).unwrap(), None,);
+		assert_eq!(
+			load_decode::<_, u32>(&client, BABE_EPOCH_CHANGES_VERSION).unwrap(),
+			None,
+		);
 
 		let epoch_changes = load_epoch_changes::<TestBlock, _>(
 			&client,
@@ -188,8 +185,8 @@ mod test {
 				.tree()
 				.iter()
 				.map(|(_, _, epoch)| epoch.clone())
-				.collect::<Vec<_>>() ==
-				vec![PersistedEpochHeader::Regular(EpochHeader {
+				.collect::<Vec<_>>()
+				== vec![PersistedEpochHeader::Regular(EpochHeader {
 					start_slot: 0,
 					end_slot: 100,
 				})],
@@ -199,6 +196,9 @@ mod test {
 			client.insert_aux(values, &[]).unwrap();
 		});
 
-		assert_eq!(load_decode::<_, u32>(&client, BABE_EPOCH_CHANGES_VERSION).unwrap(), Some(2),);
+		assert_eq!(
+			load_decode::<_, u32>(&client, BABE_EPOCH_CHANGES_VERSION).unwrap(),
+			Some(2),
+		);
 	}
 }

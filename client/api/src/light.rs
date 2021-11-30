@@ -25,8 +25,8 @@ use crate::{
 	ProvideChtRoots, UsageInfo,
 };
 use sp_blockchain::{
-	well_known_cache_keys, Cache as BlockchainCache, Error as ClientError, HeaderBackend,
-	HeaderMetadata, Result as ClientResult,
+	well_known_cache_keys, Cache as BlockchainCache, Error as ClientError, HeaderBackend, HeaderMetadata,
+	Result as ClientResult,
 };
 use sp_core::{storage::PrefixedStorageKey, ChangesTrieConfigurationRange};
 use sp_runtime::{
@@ -141,10 +141,7 @@ pub struct RemoteBodyRequest<Header: HeaderT> {
 /// is correct (see FetchedDataChecker) and return already checked data.
 pub trait Fetcher<Block: BlockT>: Send + Sync {
 	/// Remote header future.
-	type RemoteHeaderResult: Future<Output = Result<Block::Header, ClientError>>
-		+ Unpin
-		+ Send
-		+ 'static;
+	type RemoteHeaderResult: Future<Output = Result<Block::Header, ClientError>> + Unpin + Send + 'static;
 	/// Remote storage read future.
 	type RemoteReadResult: Future<Output = Result<HashMap<Vec<u8>, Option<Vec<u8>>>, ClientError>>
 		+ Unpin
@@ -158,31 +155,19 @@ pub trait Fetcher<Block: BlockT>: Send + Sync {
 		+ Send
 		+ 'static;
 	/// Remote block body result future.
-	type RemoteBodyResult: Future<Output = Result<Vec<Block::Extrinsic>, ClientError>>
-		+ Unpin
-		+ Send
-		+ 'static;
+	type RemoteBodyResult: Future<Output = Result<Vec<Block::Extrinsic>, ClientError>> + Unpin + Send + 'static;
 
 	/// Fetch remote header.
-	fn remote_header(
-		&self,
-		request: RemoteHeaderRequest<Block::Header>,
-	) -> Self::RemoteHeaderResult;
+	fn remote_header(&self, request: RemoteHeaderRequest<Block::Header>) -> Self::RemoteHeaderResult;
 	/// Fetch remote storage value.
 	fn remote_read(&self, request: RemoteReadRequest<Block::Header>) -> Self::RemoteReadResult;
 	/// Fetch remote storage child value.
-	fn remote_read_child(
-		&self,
-		request: RemoteReadChildRequest<Block::Header>,
-	) -> Self::RemoteReadResult;
+	fn remote_read_child(&self, request: RemoteReadChildRequest<Block::Header>) -> Self::RemoteReadResult;
 	/// Fetch remote call result.
 	fn remote_call(&self, request: RemoteCallRequest<Block::Header>) -> Self::RemoteCallResult;
 	/// Fetch remote changes ((block number, extrinsic index)) where given key has been changed
 	/// at a given blocks range.
-	fn remote_changes(
-		&self,
-		request: RemoteChangesRequest<Block::Header>,
-	) -> Self::RemoteChangesResult;
+	fn remote_changes(&self, request: RemoteChangesRequest<Block::Header>) -> Self::RemoteChangesResult;
 	/// Fetch remote block body
 	fn remote_body(&self, request: RemoteBodyRequest<Block::Header>) -> Self::RemoteBodyResult;
 }
@@ -233,10 +218,7 @@ pub trait FetchChecker<Block: BlockT>: Send + Sync {
 
 /// Light client blockchain storage.
 pub trait Storage<Block: BlockT>:
-	AuxStore
-	+ HeaderBackend<Block>
-	+ HeaderMetadata<Block, Error = ClientError>
-	+ ProvideChtRoots<Block>
+	AuxStore + HeaderBackend<Block> + HeaderMetadata<Block, Error = ClientError> + ProvideChtRoots<Block>
 {
 	/// Store new header. Should refuse to revert any finalized blocks.
 	///
@@ -296,8 +278,9 @@ pub fn future_header<Block: BlockT, F: Fetcher<Block>>(
 	use futures::future::{ready, Either, FutureExt};
 
 	match blockchain.header(id) {
-		Ok(LocalOrRemote::Remote(request)) =>
-			Either::Left(fetcher.remote_header(request).then(|header| ready(header.map(Some)))),
+		Ok(LocalOrRemote::Remote(request)) => {
+			Either::Left(fetcher.remote_header(request).then(|header| ready(header.map(Some))))
+		}
 		Ok(LocalOrRemote::Unknown) => Either::Right(ready(Ok(None))),
 		Ok(LocalOrRemote::Local(local_header)) => Either::Right(ready(Ok(Some(local_header)))),
 		Err(err) => Either::Right(ready(Err(err))),
@@ -336,10 +319,7 @@ pub mod tests {
 			not_implemented_in_tests()
 		}
 
-		fn remote_read_child(
-			&self,
-			_request: RemoteReadChildRequest<Header>,
-		) -> Self::RemoteReadResult {
+		fn remote_read_child(&self, _request: RemoteReadChildRequest<Header>) -> Self::RemoteReadResult {
 			not_implemented_in_tests()
 		}
 
@@ -347,10 +327,7 @@ pub mod tests {
 			futures::future::ready(Ok((*self.lock()).clone()))
 		}
 
-		fn remote_changes(
-			&self,
-			_request: RemoteChangesRequest<Header>,
-		) -> Self::RemoteChangesResult {
+		fn remote_changes(&self, _request: RemoteChangesRequest<Header>) -> Self::RemoteChangesResult {
 			not_implemented_in_tests()
 		}
 

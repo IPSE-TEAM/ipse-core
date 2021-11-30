@@ -118,7 +118,10 @@ pub struct ExtBuilder {
 }
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { existential_deposit: 1, monied: false }
+		Self {
+			existential_deposit: 1,
+			monied: false,
+		}
 	}
 }
 impl ExtBuilder {

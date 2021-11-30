@@ -72,8 +72,7 @@ impl KeystoreParams {
 			#[cfg(not(target_os = "unknown"))]
 			{
 				let mut password = input_keystore_password()?;
-				let secret = std::str::FromStr::from_str(password.as_str())
-					.map_err(|()| "Error reading password")?;
+				let secret = std::str::FromStr::from_str(password.as_str()).map_err(|()| "Error reading password")?;
 				password.zeroize();
 				Some(secret)
 			}
@@ -81,8 +80,7 @@ impl KeystoreParams {
 			None
 		} else if let Some(ref file) = self.password_filename {
 			let mut password = fs::read_to_string(file).map_err(|e| format!("{}", e))?;
-			let secret = std::str::FromStr::from_str(password.as_str())
-				.map_err(|()| "Error reading password")?;
+			let secret = std::str::FromStr::from_str(password.as_str()).map_err(|()| "Error reading password")?;
 			password.zeroize();
 			Some(secret)
 		} else {
@@ -116,6 +114,5 @@ impl KeystoreParams {
 
 #[cfg(not(target_os = "unknown"))]
 fn input_keystore_password() -> Result<String> {
-	rpassword::read_password_from_tty(Some("Keystore password: "))
-		.map_err(|e| format!("{:?}", e).into())
+	rpassword::read_password_from_tty(Some("Keystore password: ")).map_err(|e| format!("{:?}", e).into())
 }

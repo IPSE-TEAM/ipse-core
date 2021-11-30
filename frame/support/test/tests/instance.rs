@@ -20,8 +20,8 @@
 use codec::{Codec, Decode, Encode, EncodeLike};
 use frame_support::{
 	metadata::{
-		DecodeDifferent, DefaultByteGetter, StorageEntryMetadata, StorageEntryModifier,
-		StorageEntryType, StorageHasher, StorageMetadata,
+		DecodeDifferent, DefaultByteGetter, StorageEntryMetadata, StorageEntryModifier, StorageEntryType,
+		StorageHasher, StorageMetadata,
 	},
 	parameter_types,
 	traits::Get,
@@ -119,10 +119,7 @@ mod module1 {
 			unimplemented!();
 		}
 
-		fn check_inherent(
-			_: &Self::Call,
-			_: &InherentData,
-		) -> std::result::Result<(), Self::Error> {
+		fn check_inherent(_: &Self::Call, _: &InherentData) -> std::result::Result<(), Self::Error> {
 			unimplemented!();
 		}
 	}
@@ -182,10 +179,7 @@ mod module2 {
 			unimplemented!();
 		}
 
-		fn check_inherent(
-			_call: &Self::Call,
-			_data: &InherentData,
-		) -> std::result::Result<(), Self::Error> {
+		fn check_inherent(_call: &Self::Call, _data: &InherentData) -> std::result::Result<(), Self::Error> {
 			unimplemented!();
 		}
 	}
@@ -423,11 +417,9 @@ const EXPECTED_METADATA: StorageMetadata = StorageMetadata {
 				key2: DecodeDifferent::Encode("u64"),
 				value: DecodeDifferent::Encode("u64"),
 			},
-			default: DecodeDifferent::Encode(DefaultByteGetter(
-				&module2::__GetByteStructDoubleMap(
-					std::marker::PhantomData::<(Runtime, module2::Instance2)>,
-				),
-			)),
+			default: DecodeDifferent::Encode(DefaultByteGetter(&module2::__GetByteStructDoubleMap(
+				std::marker::PhantomData::<(Runtime, module2::Instance2)>,
+			))),
 			documentation: DecodeDifferent::Encode(&[]),
 		},
 	]),

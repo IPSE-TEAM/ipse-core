@@ -21,9 +21,7 @@ use frame_support::StorageMap;
 use sp_runtime::{
 	generic::Era,
 	traits::{DispatchInfoOf, SaturatedConversion, SignedExtension},
-	transaction_validity::{
-		InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction,
-	},
+	transaction_validity::{InvalidTransaction, TransactionValidity, TransactionValidityError, ValidTransaction},
 };
 
 /// Check for transaction mortality.
@@ -94,22 +92,30 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			// future
 			assert_eq!(
-				CheckMortality::<Test>::from(Era::mortal(4, 2)).additional_signed().err().unwrap(),
+				CheckMortality::<Test>::from(Era::mortal(4, 2))
+					.additional_signed()
+					.err()
+					.unwrap(),
 				InvalidTransaction::AncientBirthBlock.into(),
 			);
 
 			// correct
 			System::set_block_number(13);
 			<BlockHash<Test>>::insert(12, H256::repeat_byte(1));
-			assert!(CheckMortality::<Test>::from(Era::mortal(4, 12)).additional_signed().is_ok());
+			assert!(CheckMortality::<Test>::from(Era::mortal(4, 12))
+				.additional_signed()
+				.is_ok());
 		})
 	}
 
 	#[test]
 	fn signed_ext_check_era_should_change_longevity() {
 		new_test_ext().execute_with(|| {
-			let normal =
-				DispatchInfo { weight: 100, class: DispatchClass::Normal, pays_fee: Pays::Yes };
+			let normal = DispatchInfo {
+				weight: 100,
+				class: DispatchClass::Normal,
+				pays_fee: Pays::Yes,
+			};
 			let len = 0_usize;
 			let ext = (
 				crate::CheckWeight::<Test>::default(),

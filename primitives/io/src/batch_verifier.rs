@@ -58,14 +58,10 @@ impl BatchVerifier {
 	///
 	/// Returns `false` if there was already an invalid verification or if
 	/// the verification could not be spawned.
-	fn spawn_verification_task(
-		&mut self,
-		f: impl FnOnce() -> bool + Send + 'static,
-		name: &'static str,
-	) -> bool {
+	fn spawn_verification_task(&mut self, f: impl FnOnce() -> bool + Send + 'static, name: &'static str) -> bool {
 		// there is already invalid transaction encountered
 		if self.invalid.load(AtomicOrdering::Relaxed) {
-			return false
+			return false;
 		}
 
 		let invalid_clone = self.invalid.clone();
@@ -94,12 +90,7 @@ impl BatchVerifier {
 	///
 	/// Returns false if some of the pushed signatures before already failed the check
 	/// (in this case it won't verify anything else)
-	pub fn push_ed25519(
-		&mut self,
-		signature: ed25519::Signature,
-		pub_key: ed25519::Public,
-		message: Vec<u8>,
-	) -> bool {
+	pub fn push_ed25519(&mut self, signature: ed25519::Signature, pub_key: ed25519::Public, message: Vec<u8>) -> bool {
 		self.spawn_verification_task(
 			move || ed25519::Pair::verify(&signature, &message, &pub_key),
 			"substrate_ed25519_verify",
@@ -110,23 +101,19 @@ impl BatchVerifier {
 	///
 	/// Returns false if some of the pushed signatures before already failed the check.
 	/// (in this case it won't verify anything else)
-	pub fn push_sr25519(
-		&mut self,
-		signature: sr25519::Signature,
-		pub_key: sr25519::Public,
-		message: Vec<u8>,
-	) -> bool {
+	pub fn push_sr25519(&mut self, signature: sr25519::Signature, pub_key: sr25519::Public, message: Vec<u8>) -> bool {
 		if self.invalid.load(AtomicOrdering::Relaxed) {
-			return false
+			return false;
 		}
-		self.sr25519_items.push(Sr25519BatchItem { signature, pub_key, message });
+		self.sr25519_items.push(Sr25519BatchItem {
+			signature,
+			pub_key,
+			message,
+		});
 
 		if self.sr25519_items.len() >= 128 {
 			let items = std::mem::take(&mut self.sr25519_items);
-			self.spawn_verification_task(
-				move || Self::verify_sr25519_batch(items),
-				"substrate_sr25519_verify",
-			)
+			self.spawn_verification_task(move || Self::verify_sr25519_batch(items), "substrate_sr25519_verify")
 		} else {
 			true
 		}
@@ -136,12 +123,7 @@ impl BatchVerifier {
 	///
 	/// Returns false if some of the pushed signatures before already failed the check
 	/// (in this case it won't verify anything else)
-	pub fn push_ecdsa(
-		&mut self,
-		signature: ecdsa::Signature,
-		pub_key: ecdsa::Public,
-		message: Vec<u8>,
-	) -> bool {
+	pub fn push_ecdsa(&mut self, signature: ecdsa::Signature, pub_key: ecdsa::Public, message: Vec<u8>) -> bool {
 		self.spawn_verification_task(
 			move || ecdsa::Pair::verify(&signature, &message, &pub_key),
 			"substrate_ecdsa_verify",
@@ -171,7 +153,7 @@ impl BatchVerifier {
 		);
 
 		if !Self::verify_sr25519_batch(std::mem::take(&mut self.sr25519_items)) {
-			return false
+			return false;
 		}
 
 		if pending.len() > 0 {
@@ -194,7 +176,7 @@ impl BatchVerifier {
 					"Haven't received async result from verification task. Returning false.",
 				);
 
-				return false
+				return false;
 			}
 		}
 

@@ -45,7 +45,10 @@ impl GlobalsSnapshot {
 			.enumerate()
 			.filter_map(|(index, export)| {
 				if export.name().starts_with("exported_internal_global") {
-					export.into_global().map(|g| SavedValue { index, value: into_value(g.get()) })
+					export.into_global().map(|g| SavedValue {
+						index,
+						value: into_value(g.get()),
+					})
 				} else {
 					None
 				}
@@ -65,27 +68,29 @@ impl GlobalsSnapshot {
 		let mut current = 0;
 		for (index, export) in instance_wrapper.instance.exports().enumerate() {
 			if current >= self.0.len() {
-				break
+				break;
 			}
 			let current_saved = &self.0[current];
 			if index < current_saved.index {
-				continue
+				continue;
 			} else if index > current_saved.index {
 				current += 1;
-				continue
+				continue;
 			} else {
 				export
 					.into_global()
 					.ok_or_else(|| {
 						Error::Other(
-						"Wrong instance in GlobalsSnapshot::apply: what should be global is not global.".to_string()
-					)
+							"Wrong instance in GlobalsSnapshot::apply: what should be global is not global."
+								.to_string(),
+						)
 					})?
 					.set(into_wasmtime_val(current_saved.value))
 					.map_err(|_e| {
 						Error::Other(
-						"Wrong instance in GlobalsSnapshot::apply: global saved type does not matched applied.".to_string()
-					)
+							"Wrong instance in GlobalsSnapshot::apply: global saved type does not matched applied."
+								.to_string(),
+						)
 					})?;
 			}
 		}

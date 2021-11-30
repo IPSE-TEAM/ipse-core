@@ -23,8 +23,8 @@ use super::*;
 
 use crate as utility;
 use frame_support::{
-	assert_noop, assert_ok, dispatch::DispatchError, impl_outer_dispatch, impl_outer_event,
-	impl_outer_origin, parameter_types, storage, traits::Filter, weights::Weight,
+	assert_noop, assert_ok, dispatch::DispatchError, impl_outer_dispatch, impl_outer_event, impl_outer_origin,
+	parameter_types, storage, traits::Filter, weights::Weight,
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -143,7 +143,10 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 fn last_event() -> TestEvent {
-	frame_system::Module::<Test>::events().pop().map(|e| e.event).expect("Event expected")
+	frame_system::Module::<Test>::events()
+		.pop()
+		.map(|e| e.event)
+		.expect("Event expected")
 }
 
 fn expect_event<E: Into<TestEvent>>(e: E) {

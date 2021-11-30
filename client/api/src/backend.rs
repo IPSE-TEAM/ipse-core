@@ -31,8 +31,8 @@ use sp_core::ChangesTrieConfigurationRange;
 use sp_runtime::traits::{Block as BlockT, HashFor, NumberFor};
 use sp_runtime::{generic::BlockId, Justification, Storage};
 use sp_state_machine::{
-	ChangesTrieState, ChangesTrieStorage as StateChangesTrieStorage, ChangesTrieTransaction,
-	ChildStorageCollection, StorageCollection,
+	ChangesTrieState, ChangesTrieStorage as StateChangesTrieStorage, ChangesTrieTransaction, ChildStorageCollection,
+	StorageCollection,
 };
 use sp_storage::{ChildInfo, PrefixedStorageKey, StorageData, StorageKey};
 use std::collections::{HashMap, HashSet};
@@ -155,10 +155,7 @@ pub trait BlockImportOperation<Block: BlockT> {
 	fn update_cache(&mut self, cache: HashMap<well_known_cache_keys::Id, Vec<u8>>);
 
 	/// Inject storage data into the database.
-	fn update_db_storage(
-		&mut self,
-		update: TransactionForSB<Self::State, Block>,
-	) -> sp_blockchain::Result<()>;
+	fn update_db_storage(&mut self, update: TransactionForSB<Self::State, Block>) -> sp_blockchain::Result<()>;
 
 	/// Inject storage data into the database replacing any existing data.
 	fn reset_storage(&mut self, storage: Storage) -> sp_blockchain::Result<Block::Hash>;
@@ -171,10 +168,7 @@ pub trait BlockImportOperation<Block: BlockT> {
 	) -> sp_blockchain::Result<()>;
 
 	/// Write offchain storage changes to the database.
-	fn update_offchain_storage(
-		&mut self,
-		_offchain_update: OffchainOverlayedChanges,
-	) -> sp_blockchain::Result<()> {
+	fn update_offchain_storage(&mut self, _offchain_update: OffchainOverlayedChanges) -> sp_blockchain::Result<()> {
 		Ok(())
 	}
 
@@ -192,11 +186,8 @@ pub trait BlockImportOperation<Block: BlockT> {
 		I: IntoIterator<Item = (Vec<u8>, Option<Vec<u8>>)>;
 
 	/// Mark a block as finalized.
-	fn mark_finalized(
-		&mut self,
-		id: BlockId<Block>,
-		justification: Option<Justification>,
-	) -> sp_blockchain::Result<()>;
+	fn mark_finalized(&mut self, id: BlockId<Block>, justification: Option<Justification>)
+		-> sp_blockchain::Result<()>;
 	/// Mark a block as new head. If both block import and set head are specified, set head
 	/// overrides block import's best block rule.
 	fn mark_head(&mut self, id: BlockId<Block>) -> sp_blockchain::Result<()>;
@@ -283,7 +274,12 @@ pub struct KeyIterator<'a, State, Block> {
 impl<'a, State, Block> KeyIterator<'a, State, Block> {
 	/// create a KeyIterator instance
 	pub fn new(state: State, prefix: Option<&'a StorageKey>, current_key: Vec<u8>) -> Self {
-		Self { state, prefix, current_key, _phantom: PhantomData }
+		Self {
+			state,
+			prefix,
+			current_key,
+			_phantom: PhantomData,
+		}
 	}
 }
 
@@ -299,7 +295,7 @@ where
 		// this terminates the iterator the first time it fails.
 		if let Some(prefix) = self.prefix {
 			if !next_key.starts_with(&prefix.0[..]) {
-				return None
+				return None;
 			}
 		}
 		self.current_key = next_key.clone();
@@ -310,25 +306,13 @@ where
 /// Provides acess to storage primitives
 pub trait StorageProvider<Block: BlockT, B: Backend<Block>> {
 	/// Given a `BlockId` and a key, return the value under the key in that block.
-	fn storage(
-		&self,
-		id: &BlockId<Block>,
-		key: &StorageKey,
-	) -> sp_blockchain::Result<Option<StorageData>>;
+	fn storage(&self, id: &BlockId<Block>, key: &StorageKey) -> sp_blockchain::Result<Option<StorageData>>;
 
 	/// Given a `BlockId` and a key prefix, return the matching storage keys in that block.
-	fn storage_keys(
-		&self,
-		id: &BlockId<Block>,
-		key_prefix: &StorageKey,
-	) -> sp_blockchain::Result<Vec<StorageKey>>;
+	fn storage_keys(&self, id: &BlockId<Block>, key_prefix: &StorageKey) -> sp_blockchain::Result<Vec<StorageKey>>;
 
 	/// Given a `BlockId` and a key, return the value under the hash in that block.
-	fn storage_hash(
-		&self,
-		id: &BlockId<Block>,
-		key: &StorageKey,
-	) -> sp_blockchain::Result<Option<Block::Hash>>;
+	fn storage_hash(&self, id: &BlockId<Block>, key: &StorageKey) -> sp_blockchain::Result<Option<Block::Hash>>;
 
 	/// Given a `BlockId` and a key prefix, return the matching child storage keys and values in
 	/// that block.
@@ -430,19 +414,12 @@ pub trait Backend<Block: BlockT>: AuxStore + Send + Sync {
 	) -> sp_blockchain::Result<()>;
 
 	/// Commit block insertion.
-	fn commit_operation(
-		&self,
-		transaction: Self::BlockImportOperation,
-	) -> sp_blockchain::Result<()>;
+	fn commit_operation(&self, transaction: Self::BlockImportOperation) -> sp_blockchain::Result<()>;
 
 	/// Finalize block with given Id.
 	///
 	/// This should only be called if the parent of the given block has been finalized.
-	fn finalize_block(
-		&self,
-		block: BlockId<Block>,
-		justification: Option<Justification>,
-	) -> sp_blockchain::Result<()>;
+	fn finalize_block(&self, block: BlockId<Block>, justification: Option<Justification>) -> sp_blockchain::Result<()>;
 
 	/// Returns reference to blockchain backend.
 	fn blockchain(&self) -> &Self::Blockchain;
@@ -549,8 +526,11 @@ pub fn changes_tries_state_at_block<'a, Block: BlockT>(
 
 	let config_range = storage.configuration_at(block)?;
 	match config_range.config {
-		Some(config) =>
-			Ok(Some(ChangesTrieState::new(config, config_range.zero.0, storage.storage()))),
+		Some(config) => Ok(Some(ChangesTrieState::new(
+			config,
+			config_range.zero.0,
+			storage.storage(),
+		))),
 		None => Ok(None),
 	}
 }

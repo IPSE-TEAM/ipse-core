@@ -87,7 +87,7 @@ impl<T: Trait> Module<T> {
 			let up_to = sp_std::cmp::min(up_to, end);
 
 			if up_to < start {
-				return // out of bounds. harmless.
+				return; // out of bounds. harmless.
 			}
 
 			(start..up_to).for_each(<Self as Store>::HistoricalSessions::remove);
@@ -104,9 +104,7 @@ impl<T: Trait> Module<T> {
 
 /// Specialization of the crate-level `SessionManager` which returns the set of full identification
 /// when creating a new session.
-pub trait SessionManager<ValidatorId, FullIdentification>:
-	crate::SessionManager<ValidatorId>
-{
+pub trait SessionManager<ValidatorId, FullIdentification>: crate::SessionManager<ValidatorId> {
 	/// If there was a validator set change, its returns the set of new validators along with their
 	/// full identifications.
 	fn new_session(new_index: SessionIndex) -> Option<Vec<(ValidatorId, FullIdentification)>>;
@@ -139,7 +137,7 @@ where
 				Err(reason) => {
 					print("Failed to generate historical ancestry-inclusion proof.");
 					print(reason);
-				},
+				}
 			};
 		} else {
 			let previous_index = new_index.saturating_sub(1);
@@ -162,8 +160,7 @@ where
 }
 
 /// A tuple of the validator's ID and their full identification.
-pub type IdentificationTuple<T> =
-	(<T as crate::Trait>::ValidatorId, <T as Trait>::FullIdentification);
+pub type IdentificationTuple<T> = (<T as crate::Trait>::ValidatorId, <T as Trait>::FullIdentification);
 
 /// A trie instance for checking and generating proofs.
 pub struct ProvingTrie<T: Trait> {
@@ -193,8 +190,7 @@ impl<T: Trait> ProvingTrie<T> {
 				// map each key to the owner index.
 				for key_id in T::Keys::key_ids() {
 					let key = keys.get_raw(*key_id);
-					let res =
-						(key_id, key).using_encoded(|k| i.using_encoded(|v| trie.insert(k, v)));
+					let res = (key_id, key).using_encoded(|k| i.using_encoded(|v| trie.insert(k, v)));
 
 					let _ = res.map_err(|_| "failed to insert into trie")?;
 				}
@@ -225,7 +221,9 @@ impl<T: Trait> ProvingTrie<T> {
 		let trie = TrieDB::new(&self.db, &self.root).ok()?;
 		let mut recorder = Recorder::new();
 		let val_idx = (key_id, key_data).using_encoded(|s| {
-			trie.get_with(s, &mut recorder).ok()?.and_then(|raw| u32::decode(&mut &*raw).ok())
+			trie.get_with(s, &mut recorder)
+				.ok()?
+				.and_then(|raw| u32::decode(&mut &*raw).ok())
 		})?;
 
 		val_idx.using_encoded(|s| {
@@ -258,9 +256,7 @@ impl<T: Trait> ProvingTrie<T> {
 	}
 }
 
-impl<T: Trait, D: AsRef<[u8]>> frame_support::traits::KeyOwnerProofSystem<(KeyTypeId, D)>
-	for Module<T>
-{
+impl<T: Trait, D: AsRef<[u8]>> frame_support::traits::KeyOwnerProofSystem<(KeyTypeId, D)> for Module<T> {
 	type Proof = MembershipProof;
 	type IdentificationTuple = IdentificationTuple<T>;
 
@@ -269,8 +265,7 @@ impl<T: Trait, D: AsRef<[u8]>> frame_support::traits::KeyOwnerProofSystem<(KeyTy
 		let validators = <SessionModule<T>>::validators()
 			.into_iter()
 			.filter_map(|validator| {
-				T::FullIdentificationOf::convert(validator.clone())
-					.map(|full_id| (validator, full_id))
+				T::FullIdentificationOf::convert(validator.clone()).map(|full_id| (validator, full_id))
 			})
 			.collect::<Vec<_>>();
 
@@ -295,7 +290,7 @@ impl<T: Trait, D: AsRef<[u8]>> frame_support::traits::KeyOwnerProofSystem<(KeyTy
 					let count = <SessionModule<T>>::validators().len() as ValidatorCount;
 
 					if count != proof.validator_count {
-						return None
+						return None;
 					}
 
 					Some((owner, id))
@@ -305,7 +300,7 @@ impl<T: Trait, D: AsRef<[u8]>> frame_support::traits::KeyOwnerProofSystem<(KeyTy
 			let (root, count) = <HistoricalSessions<T>>::get(&proof.session)?;
 
 			if count != proof.validator_count {
-				return None
+				return None;
 			}
 
 			let trie = ProvingTrie::<T>::from_nodes(root, &proof.trie_nodes);
@@ -317,9 +312,7 @@ impl<T: Trait, D: AsRef<[u8]>> frame_support::traits::KeyOwnerProofSystem<(KeyTy
 #[cfg(test)]
 pub(crate) mod tests {
 	use super::*;
-	use crate::mock::{
-		force_new_session, set_next_validators, Session, System, Test, NEXT_VALIDATORS,
-	};
+	use crate::mock::{force_new_session, set_next_validators, Session, System, Test, NEXT_VALIDATORS};
 	use frame_support::traits::{KeyOwnerProofSystem, OnInitialize};
 	use sp_runtime::key_types::DUMMY;
 	use sp_runtime::testing::UintAuthorityId;
@@ -330,7 +323,11 @@ pub(crate) mod tests {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		crate::GenesisConfig::<Test> {
 			keys: NEXT_VALIDATORS.with(|l| {
-				l.borrow().iter().cloned().map(|i| (i, i, UintAuthorityId(i).into())).collect()
+				l.borrow()
+					.iter()
+					.cloned()
+					.map(|i| (i, i, UintAuthorityId(i).into()))
+					.collect()
 			}),
 		}
 		.assimilate_storage(&mut t)

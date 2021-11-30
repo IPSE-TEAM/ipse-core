@@ -45,11 +45,7 @@ pub struct RegisteredProtocol {
 
 impl RegisteredProtocol {
 	/// Creates a new `RegisteredProtocol`.
-	pub fn new(
-		protocol: impl Into<ProtocolId>,
-		versions: &[u8],
-		handshake_message: Arc<RwLock<Vec<u8>>>,
-	) -> Self {
+	pub fn new(protocol: impl Into<ProtocolId>, versions: &[u8], handshake_message: Arc<RwLock<Vec<u8>>>) -> Self {
 		let protocol = protocol.into();
 		let mut base_name = b"/substrate/".to_vec();
 		base_name.extend_from_slice(protocol.as_ref().as_bytes());
@@ -149,7 +145,7 @@ where
 		// Flushing the local queue.
 		while !self.send_queue.is_empty() {
 			match Pin::new(&mut self.inner).poll_ready(cx) {
-				Poll::Ready(Ok(())) => {},
+				Poll::Ready(Ok(())) => {}
 				Poll::Ready(Err(err)) => return Poll::Ready(Some(Err(err))),
 				Poll::Pending => break,
 			}
@@ -166,7 +162,7 @@ where
 				Poll::Pending => Poll::Pending,
 				Poll::Ready(Ok(_)) => Poll::Ready(None),
 				Poll::Ready(Err(err)) => Poll::Ready(Some(Err(err))),
-			}
+			};
 		}
 
 		// Indicating that the remote is clogged if that's the case.
@@ -176,7 +172,7 @@ where
 				// 	if you remove the fuse, then we will always return early from this function and
 				//	thus never read any message from the network.
 				self.clogged_fuse = true;
-				return Poll::Ready(Some(Ok(RegisteredProtocolEvent::Clogged)))
+				return Poll::Ready(Some(Ok(RegisteredProtocolEvent::Clogged)));
 			}
 		} else {
 			self.clogged_fuse = false;
@@ -192,14 +188,14 @@ where
 		// Receiving incoming packets.
 		// Note that `inner` is wrapped in a `Fuse`, therefore we can poll it forever.
 		match Pin::new(&mut self.inner).poll_next(cx)? {
-			Poll::Ready(Some(data)) =>
-				Poll::Ready(Some(Ok(RegisteredProtocolEvent::Message(data)))),
-			Poll::Ready(None) =>
+			Poll::Ready(Some(data)) => Poll::Ready(Some(Ok(RegisteredProtocolEvent::Message(data)))),
+			Poll::Ready(None) => {
 				if !self.requires_poll_flush && self.send_queue.is_empty() {
 					Poll::Ready(None)
 				} else {
 					Poll::Pending
-				},
+				}
+			}
 			Poll::Pending => Poll::Pending,
 		}
 	}
@@ -259,8 +255,7 @@ where
 
 			let handshake = BytesMut::from(&self.handshake_message.read()[..]);
 			framed.send(handshake).await?;
-			let received_handshake =
-				framed.next().await.ok_or_else(|| io::ErrorKind::UnexpectedEof)??;
+			let received_handshake = framed.next().await.ok_or_else(|| io::ErrorKind::UnexpectedEof)??;
 
 			Ok((
 				RegisteredProtocolSubstream {
@@ -296,9 +291,10 @@ where
 
 			let handshake = BytesMut::from(&self.handshake_message.read()[..]);
 			framed.send(handshake).await?;
-			let received_handshake = framed.next().await.ok_or_else(|| {
-				io::Error::new(io::ErrorKind::UnexpectedEof, "Failed to receive handshake")
-			})??;
+			let received_handshake = framed
+				.next()
+				.await
+				.ok_or_else(|| io::Error::new(io::ErrorKind::UnexpectedEof, "Failed to receive handshake"))??;
 
 			Ok((
 				RegisteredProtocolSubstream {

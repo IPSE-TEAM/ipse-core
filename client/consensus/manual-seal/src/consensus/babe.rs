@@ -23,8 +23,8 @@ use crate::Error;
 
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{
-	authorship, register_babe_inherent_data_provider, BabeIntermediate, CompatibleDigestItem,
-	Config, Epoch, INTERMEDIATE_KEY,
+	authorship, register_babe_inherent_data_provider, BabeIntermediate, CompatibleDigestItem, Config, Epoch,
+	INTERMEDIATE_KEY,
 };
 use sc_consensus_epochs::{descendent_query, SharedEpochChanges};
 use sc_keystore::KeyStorePtr;
@@ -80,26 +80,24 @@ where
 		provider.register_provider(timestamp_provider)?;
 		register_babe_inherent_data_provider(provider, config.slot_duration)?;
 
-		Ok(Self { config, client, keystore, epoch_changes })
+		Ok(Self {
+			config,
+			client,
+			keystore,
+			epoch_changes,
+		})
 	}
 }
 
 impl<B, C> ConsensusDataProvider<B> for BabeConsensusDataProvider<B, C>
 where
 	B: BlockT,
-	C: AuxStore
-		+ HeaderBackend<B>
-		+ HeaderMetadata<B, Error = sp_blockchain::Error>
-		+ ProvideRuntimeApi<B>,
+	C: AuxStore + HeaderBackend<B> + HeaderMetadata<B, Error = sp_blockchain::Error> + ProvideRuntimeApi<B>,
 	C::Api: BabeApi<B, Error = sp_blockchain::Error>,
 {
 	type Transaction = TransactionFor<C, B>;
 
-	fn create_digest(
-		&self,
-		parent: &B::Header,
-		inherents: &InherentData,
-	) -> Result<DigestFor<B>, Error> {
+	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error> {
 		let slot_number = inherents.babe_inherent_data()?;
 
 		let epoch_changes = self.epoch_changes.lock();
@@ -172,7 +170,10 @@ impl SlotTimestampProvider {
 		let duration = now
 			.duration_since(SystemTime::UNIX_EPOCH)
 			.map_err(|err| Error::StringError(format!("{}", err)))?;
-		Ok(Self { time: atomic::AtomicU64::new(duration.as_millis() as u64), slot_duration })
+		Ok(Self {
+			time: atomic::AtomicU64::new(duration.as_millis() as u64),
+			slot_duration,
+		})
 	}
 }
 
@@ -181,13 +182,9 @@ impl ProvideInherentData for SlotTimestampProvider {
 		&INHERENT_IDENTIFIER
 	}
 
-	fn provide_inherent_data(
-		&self,
-		inherent_data: &mut InherentData,
-	) -> Result<(), sp_inherents::Error> {
+	fn provide_inherent_data(&self, inherent_data: &mut InherentData) -> Result<(), sp_inherents::Error> {
 		// we update the time here.
-		let duration: InherentType =
-			self.time.fetch_add(self.slot_duration, atomic::Ordering::SeqCst);
+		let duration: InherentType = self.time.fetch_add(self.slot_duration, atomic::Ordering::SeqCst);
 		inherent_data.put_data(INHERENT_IDENTIFIER, &duration)?;
 		Ok(())
 	}

@@ -63,21 +63,21 @@ pub fn evaluate_initial<Block: BlockT>(
 	let proposal = Block::decode(&mut &encoded[..]).map_err(|e| Error::BadProposalFormat(e))?;
 
 	if encoded.len() > MAX_BLOCK_SIZE {
-		return Err(Error::ProposalTooLarge(encoded.len()))
+		return Err(Error::ProposalTooLarge(encoded.len()));
 	}
 
 	if *parent_hash != *proposal.header().parent_hash() {
 		return Err(Error::WrongParentHash {
 			expected: format!("{:?}", *parent_hash),
 			got: format!("{:?}", proposal.header().parent_hash()),
-		})
+		});
 	}
 
 	if parent_number + One::one() != *proposal.header().number() {
 		return Err(Error::WrongNumber {
 			expected: parent_number.checked_into::<u128>().map(|x| x + 1),
 			got: (*proposal.header().number()).checked_into::<u128>(),
-		})
+		});
 	}
 
 	Ok(())

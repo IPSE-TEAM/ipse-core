@@ -97,9 +97,7 @@ pub trait Lockable: Sized {
 	/// Note that `deadline` is only passed to allow optimizations
 	/// for `Lockables` which have a time based component.
 	fn snooze(_deadline: &Self::Deadline) {
-		sp_io::offchain::sleep_until(
-			offchain::timestamp().add(STORAGE_LOCK_PER_CHECK_ITERATION_SNOOZE_MAX),
-		);
+		sp_io::offchain::sleep_until(offchain::timestamp().add(STORAGE_LOCK_PER_CHECK_ITERATION_SNOOZE_MAX));
 	}
 }
 
@@ -113,7 +111,9 @@ pub struct Time {
 
 impl Default for Time {
 	fn default() -> Self {
-		Self { expiration_duration: STORAGE_LOCK_DEFAULT_EXPIRY_DURATION }
+		Self {
+			expiration_duration: STORAGE_LOCK_DEFAULT_EXPIRY_DURATION,
+		}
 	}
 }
 
@@ -153,7 +153,10 @@ pub struct BlockAndTimeDeadline<B: BlockNumberProvider> {
 
 impl<B: BlockNumberProvider> Clone for BlockAndTimeDeadline<B> {
 	fn clone(&self) -> Self {
-		Self { block_number: self.block_number.clone(), timestamp: self.timestamp.clone() }
+		Self {
+			block_number: self.block_number.clone(),
+			timestamp: self.timestamp.clone(),
+		}
 	}
 }
 
@@ -207,8 +210,8 @@ impl<B: BlockNumberProvider> Lockable for BlockAndTime<B> {
 	type Deadline = BlockAndTimeDeadline<B>;
 
 	fn deadline(&self) -> Self::Deadline {
-		let block_number = <B as BlockNumberProvider>::current_block_number() +
-			self.expiration_block_number_offset.into();
+		let block_number =
+			<B as BlockNumberProvider>::current_block_number() + self.expiration_block_number_offset.into();
 		BlockAndTimeDeadline {
 			timestamp: offchain::timestamp().add(self.expiration_duration),
 			block_number,
@@ -216,8 +219,8 @@ impl<B: BlockNumberProvider> Lockable for BlockAndTime<B> {
 	}
 
 	fn has_expired(deadline: &Self::Deadline) -> bool {
-		offchain::timestamp() > deadline.timestamp &&
-			<B as BlockNumberProvider>::current_block_number() > deadline.block_number
+		offchain::timestamp() > deadline.timestamp
+			&& <B as BlockNumberProvider>::current_block_number() > deadline.block_number
 	}
 
 	fn snooze(deadline: &Self::Deadline) {
@@ -253,7 +256,10 @@ impl<'a, L: Lockable + Default> StorageLock<'a, L> {
 impl<'a, L: Lockable> StorageLock<'a, L> {
 	/// Create a new storage lock with an explicit instance of a lockable `L`.
 	pub fn with_lockable(key: &'a [u8], lockable: L) -> Self {
-		Self { value_ref: StorageValueRef::<'a>::persistent(key), lockable }
+		Self {
+			value_ref: StorageValueRef::<'a>::persistent(key),
+			lockable,
+		}
 	}
 
 	/// Extend active lock's deadline
@@ -262,8 +268,7 @@ impl<'a, L: Lockable> StorageLock<'a, L> {
 			|s: Option<Option<L::Deadline>>| -> Result<<L as Lockable>::Deadline, ()> {
 				match s {
 					// lock is present and is still active, extend the lock.
-					Some(Some(deadline)) if !<L as Lockable>::has_expired(&deadline) =>
-						Ok(self.lockable.deadline()),
+					Some(Some(deadline)) if !<L as Lockable>::has_expired(&deadline) => Ok(self.lockable.deadline()),
 					// other cases
 					_ => Err(()),
 				}
@@ -277,21 +282,16 @@ impl<'a, L: Lockable> StorageLock<'a, L> {
 	}
 
 	/// Internal lock helper to avoid lifetime conflicts.
-	fn try_lock_inner(
-		&mut self,
-		new_deadline: L::Deadline,
-	) -> Result<(), <L as Lockable>::Deadline> {
+	fn try_lock_inner(&mut self, new_deadline: L::Deadline) -> Result<(), <L as Lockable>::Deadline> {
 		let res = self.value_ref.mutate(
-			|s: Option<Option<L::Deadline>>|
-			-> Result<<L as Lockable>::Deadline, <L as Lockable>::Deadline> {
+			|s: Option<Option<L::Deadline>>| -> Result<<L as Lockable>::Deadline, <L as Lockable>::Deadline> {
 				match s {
 					// no lock set, we can safely acquire it
 					None => Ok(new_deadline),
 					// write was good, but read failed
 					Some(None) => Ok(new_deadline),
 					// lock is set, but it is expired. We can re-acquire it.
-					Some(Some(deadline)) if <L as Lockable>::has_expired(&deadline) =>
-						Ok(new_deadline),
+					Some(Some(deadline)) if <L as Lockable>::has_expired(&deadline) => Ok(new_deadline),
 					// lock is present and is still active
 					Some(Some(deadline)) => Err(deadline),
 				}

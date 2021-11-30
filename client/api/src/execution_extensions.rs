@@ -85,8 +85,7 @@ pub struct ExecutionExtensions<Block: traits::Block> {
 	// extension to be a `Weak` reference.
 	// That's also the reason why it's being registered lazily instead of
 	// during initialization.
-	transaction_pool:
-		RwLock<Option<Weak<dyn sp_transaction_pool::OffchainSubmitTransaction<Block>>>>,
+	transaction_pool: RwLock<Option<Weak<dyn sp_transaction_pool::OffchainSubmitTransaction<Block>>>>,
 	extensions_factory: RwLock<Box<dyn ExtensionsFactory>>,
 }
 
@@ -145,8 +144,9 @@ impl<Block: traits::Block> ExecutionExtensions<Block> {
 			ExecutionContext::BlockConstruction => self.strategies.block_construction.get_manager(),
 			ExecutionContext::Syncing => self.strategies.syncing.get_manager(),
 			ExecutionContext::Importing => self.strategies.importing.get_manager(),
-			ExecutionContext::OffchainCall(Some((_, capabilities))) if capabilities.has_all() =>
-				self.strategies.offchain_worker.get_manager(),
+			ExecutionContext::OffchainCall(Some((_, capabilities))) if capabilities.has_all() => {
+				self.strategies.offchain_worker.get_manager()
+			}
 			ExecutionContext::OffchainCall(_) => self.strategies.other.get_manager(),
 		};
 
@@ -162,10 +162,9 @@ impl<Block: traits::Block> ExecutionExtensions<Block> {
 
 		if capabilities.has(offchain::Capability::TransactionPool) {
 			if let Some(pool) = self.transaction_pool.read().as_ref().and_then(|x| x.upgrade()) {
-				extensions
-					.register(TransactionPoolExt(
-						Box::new(TransactionPoolAdapter { at: *at, pool }) as _,
-					));
+				extensions.register(TransactionPoolExt(
+					Box::new(TransactionPoolAdapter { at: *at, pool }) as _
+				));
 			}
 		}
 
@@ -192,8 +191,8 @@ impl<Block: traits::Block> offchain::TransactionPool for TransactionPoolAdapter<
 			Ok(xt) => xt,
 			Err(e) => {
 				log::warn!("Unable to decode extrinsic: {:?}: {}", data, e.what());
-				return Err(())
-			},
+				return Err(());
+			}
 		};
 
 		self.pool.submit_at(&self.at, xt)

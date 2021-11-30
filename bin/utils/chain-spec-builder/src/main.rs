@@ -113,12 +113,13 @@ fn generate_chain_spec(
 	sudo_account: String,
 ) -> Result<String, String> {
 	let parse_account = |address: &String| {
-		AccountId::from_string(address)
-			.map_err(|err| format!("Failed to parse account address: {:?}", err))
+		AccountId::from_string(address).map_err(|err| format!("Failed to parse account address: {:?}", err))
 	};
 
-	let endowed_accounts =
-		endowed_accounts.iter().map(parse_account).collect::<Result<Vec<_>, String>>()?;
+	let endowed_accounts = endowed_accounts
+		.iter()
+		.map(parse_account)
+		.collect::<Result<Vec<_>, String>>()?;
 
 	let sudo_account = parse_account(&sudo_account)?;
 
@@ -139,11 +140,10 @@ fn generate_chain_spec(
 
 fn generate_authority_keys_and_store(seeds: &[String], keystore_path: &Path) -> Result<(), String> {
 	for (n, seed) in seeds.into_iter().enumerate() {
-		let keystore = Keystore::open(keystore_path.join(format!("auth-{}", n)), None)
-			.map_err(|err| err.to_string())?;
+		let keystore =
+			Keystore::open(keystore_path.join(format!("auth-{}", n)), None).map_err(|err| err.to_string())?;
 
-		let (_, _, grandpa, babe, im_online, authority_discovery) =
-			chain_spec::authority_keys_from_seed(seed);
+		let (_, _, grandpa, babe, im_online, authority_discovery) = chain_spec::authority_keys_from_seed(seed);
 
 		let insert_key = |key_type, public| {
 			keystore
@@ -204,7 +204,12 @@ fn main() -> Result<(), String> {
 	let chain_spec_path = builder.chain_spec_path().to_path_buf();
 
 	let (authority_seeds, endowed_accounts, sudo_account) = match builder {
-		ChainSpecBuilder::Generate { authorities, endowed, keystore_path, .. } => {
+		ChainSpecBuilder::Generate {
+			authorities,
+			endowed,
+			keystore_path,
+			..
+		} => {
 			let authorities = authorities.max(1);
 			let rand_str = || -> String { OsRng.sample_iter(&Alphanumeric).take(32).collect() };
 
@@ -220,18 +225,19 @@ fn main() -> Result<(), String> {
 
 			let endowed_accounts = endowed_seeds
 				.iter()
-				.map(|seed| {
-					chain_spec::get_account_id_from_seed::<sr25519::Public>(seed).to_ss58check()
-				})
+				.map(|seed| chain_spec::get_account_id_from_seed::<sr25519::Public>(seed).to_ss58check())
 				.collect();
 
-			let sudo_account =
-				chain_spec::get_account_id_from_seed::<sr25519::Public>(&sudo_seed).to_ss58check();
+			let sudo_account = chain_spec::get_account_id_from_seed::<sr25519::Public>(&sudo_seed).to_ss58check();
 
 			(authority_seeds, endowed_accounts, sudo_account)
-		},
-		ChainSpecBuilder::New { authority_seeds, endowed_accounts, sudo_account, .. } =>
-			(authority_seeds, endowed_accounts, sudo_account),
+		}
+		ChainSpecBuilder::New {
+			authority_seeds,
+			endowed_accounts,
+			sudo_account,
+			..
+		} => (authority_seeds, endowed_accounts, sudo_account),
 	};
 
 	let json = generate_chain_spec(authority_seeds, endowed_accounts, sudo_account)?;

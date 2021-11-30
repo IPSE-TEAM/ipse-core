@@ -57,7 +57,10 @@ pub struct OutputFormat {
 
 impl Default for OutputFormat {
 	fn default() -> Self {
-		Self { enable_color: true, prefix: String::new() }
+		Self {
+			enable_color: true,
+			prefix: String::new(),
+		}
 	}
 }
 
@@ -135,8 +138,7 @@ where
 		// detect and log reorganizations.
 		if let Some((ref last_num, ref last_hash)) = last_best {
 			if n.header.parent_hash() != last_hash && n.is_new_best {
-				let maybe_ancestor =
-					sp_blockchain::lowest_common_ancestor(&*client, last_hash.clone(), n.hash);
+				let maybe_ancestor = sp_blockchain::lowest_common_ancestor(&*client, last_hash.clone(), n.hash);
 
 				match maybe_ancestor {
 					Ok(ref ancestor) if ancestor.hash != *last_hash => info!(
@@ -149,7 +151,7 @@ where
 						Colour::White.bold().paint(format!("{}", ancestor.number)),
 						ancestor.hash,
 					),
-					Ok(_) => {},
+					Ok(_) => {}
 					Err(e) => warn!("Error computing tree route: {}", e),
 				}
 			}

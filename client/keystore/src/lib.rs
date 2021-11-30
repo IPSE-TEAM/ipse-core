@@ -20,10 +20,7 @@
 use parking_lot::RwLock;
 use sp_application_crypto::{ecdsa, ed25519, sr25519, AppKey, AppPair, AppPublic};
 use sp_core::{
-	crypto::{
-		CryptoTypePublicPair, ExposeSecret, IsWrappedBy, KeyTypeId, Pair as PairT, Public,
-		SecretString,
-	},
+	crypto::{CryptoTypePublicPair, ExposeSecret, IsWrappedBy, KeyTypeId, Pair as PairT, Public, SecretString},
 	sr25519::{Pair as Sr25519Pair, Public as Sr25519Public},
 	traits::{BareCryptoStore, Error as TraitError},
 	vrf::{make_transcript, VRFSignature, VRFTranscriptData},
@@ -75,8 +72,9 @@ impl From<Error> for TraitError {
 		match error {
 			Error::KeyNotSupported(id) => TraitError::KeyNotSupported(id),
 			Error::PairNotFound(e) => TraitError::PairNotFound(e),
-			Error::InvalidSeed | Error::InvalidPhrase | Error::InvalidPassword =>
-				TraitError::ValidationError(error.to_string()),
+			Error::InvalidSeed | Error::InvalidPhrase | Error::InvalidPassword => {
+				TraitError::ValidationError(error.to_string())
+			}
 			Error::Unavailable => TraitError::Unavailable,
 			Error::Io(e) => TraitError::Other(e.to_string()),
 			Error::Json(e) => TraitError::Other(e.to_string()),
@@ -114,13 +112,21 @@ impl Store {
 		let path = path.into();
 		fs::create_dir_all(&path)?;
 
-		let instance = Self { path: Some(path), additional: HashMap::new(), password };
+		let instance = Self {
+			path: Some(path),
+			additional: HashMap::new(),
+			password,
+		};
 		Ok(Arc::new(RwLock::new(instance)))
 	}
 
 	/// Create a new in-memory store.
 	pub fn new_in_memory() -> KeyStorePtr {
-		Arc::new(RwLock::new(Self { path: None, additional: HashMap::new(), password: None }))
+		Arc::new(RwLock::new(Self {
+			path: None,
+			additional: HashMap::new(),
+			password: None,
+		}))
 	}
 
 	/// Get the key phrase for the given public key and key type from the in-memory store.
@@ -189,11 +195,7 @@ impl Store {
 	/// Create a new key from seed.
 	///
 	/// Does not place it into the file system store.
-	pub fn insert_ephemeral_from_seed_by_type<Pair: PairT>(
-		&mut self,
-		seed: &str,
-		key_type: KeyTypeId,
-	) -> Result<Pair> {
+	pub fn insert_ephemeral_from_seed_by_type<Pair: PairT>(&mut self, seed: &str, key_type: KeyTypeId) -> Result<Pair> {
 		let pair = Pair::from_string(seed, None).map_err(|_| Error::InvalidSeed)?;
 		self.insert_ephemeral_pair(&pair, seed, key_type);
 		Ok(pair)
@@ -203,13 +205,14 @@ impl Store {
 	///
 	/// Does not place it into the file system store.
 	pub fn insert_ephemeral_from_seed<Pair: AppPair>(&mut self, seed: &str) -> Result<Pair> {
-		self.insert_ephemeral_from_seed_by_type::<Pair::Generic>(seed, Pair::ID).map(Into::into)
+		self.insert_ephemeral_from_seed_by_type::<Pair::Generic>(seed, Pair::ID)
+			.map(Into::into)
 	}
 
 	/// Get the key phrase for a given public key and key type.
 	fn key_phrase_by_type(&self, public: &[u8], key_type: KeyTypeId) -> Result<String> {
 		if let Some(phrase) = self.get_additional_pair(public, key_type) {
-			return Ok(phrase.clone())
+			return Ok(phrase.clone());
 		}
 
 		let path = self.key_file_path(public, key_type).ok_or_else(|| Error::Unavailable)?;
@@ -219,11 +222,7 @@ impl Store {
 	}
 
 	/// Get a key pair for the given public key and key type.
-	pub fn key_pair_by_type<Pair: PairT>(
-		&self,
-		public: &Pair::Public,
-		key_type: KeyTypeId,
-	) -> Result<Pair> {
+	pub fn key_pair_by_type<Pair: PairT>(&self, public: &Pair::Public, key_type: KeyTypeId) -> Result<Pair> {
 		let phrase = self.key_phrase_by_type(public.as_slice(), key_type)?;
 		let pair = Pair::from_string(&phrase, self.password()).map_err(|_| Error::InvalidPhrase)?;
 
@@ -279,11 +278,11 @@ impl Store {
 					match hex::decode(name) {
 						Ok(ref hex) if hex.len() > 4 => {
 							if &hex[0..4] != &id.0 {
-								continue
+								continue;
 							}
 							let public = hex[4..].to_vec();
 							public_keys.push(public);
-						},
+						}
 						_ => continue,
 					}
 				}
@@ -311,7 +310,10 @@ impl BareCryptoStore for Store {
 		keys: Vec<CryptoTypePublicPair>,
 	) -> std::result::Result<Vec<CryptoTypePublicPair>, TraitError> {
 		let all_keys = self.keys(id)?.into_iter().collect::<HashSet<_>>();
-		Ok(keys.into_iter().filter(|key| all_keys.contains(key)).collect::<Vec<_>>())
+		Ok(keys
+			.into_iter()
+			.filter(|key| all_keys.contains(key))
+			.collect::<Vec<_>>())
 	}
 
 	fn sign_with(
@@ -327,28 +329,32 @@ impl BareCryptoStore for Store {
 					.key_pair_by_type::<ed25519::Pair>(&pub_key, id)
 					.map_err(|e| TraitError::from(e))?;
 				Ok(key_pair.sign(msg).encode())
-			},
+			}
 			sr25519::CRYPTO_ID => {
 				let pub_key = sr25519::Public::from_slice(key.1.as_slice());
 				let key_pair: sr25519::Pair = self
 					.key_pair_by_type::<sr25519::Pair>(&pub_key, id)
 					.map_err(|e| TraitError::from(e))?;
 				Ok(key_pair.sign(msg).encode())
-			},
+			}
 			ecdsa::CRYPTO_ID => {
 				let pub_key = ecdsa::Public::from_slice(key.1.as_slice());
 				let key_pair: ecdsa::Pair = self
 					.key_pair_by_type::<ecdsa::Pair>(&pub_key, id)
 					.map_err(|e| TraitError::from(e))?;
 				Ok(key_pair.sign(msg).encode())
-			},
+			}
 			_ => Err(TraitError::KeyNotSupported(id)),
 		}
 	}
 
 	fn sr25519_public_keys(&self, key_type: KeyTypeId) -> Vec<sr25519::Public> {
 		self.raw_public_keys(key_type)
-			.map(|v| v.into_iter().map(|k| sr25519::Public::from_slice(k.as_slice())).collect())
+			.map(|v| {
+				v.into_iter()
+					.map(|k| sr25519::Public::from_slice(k.as_slice()))
+					.collect()
+			})
 			.unwrap_or_default()
 	}
 
@@ -368,7 +374,11 @@ impl BareCryptoStore for Store {
 
 	fn ed25519_public_keys(&self, key_type: KeyTypeId) -> Vec<ed25519::Public> {
 		self.raw_public_keys(key_type)
-			.map(|v| v.into_iter().map(|k| ed25519::Public::from_slice(k.as_slice())).collect())
+			.map(|v| {
+				v.into_iter()
+					.map(|k| ed25519::Public::from_slice(k.as_slice()))
+					.collect()
+			})
 			.unwrap_or_default()
 	}
 
@@ -406,12 +416,7 @@ impl BareCryptoStore for Store {
 		Ok(pair.public())
 	}
 
-	fn insert_unknown(
-		&mut self,
-		key_type: KeyTypeId,
-		suri: &str,
-		public: &[u8],
-	) -> std::result::Result<(), ()> {
+	fn insert_unknown(&mut self, key_type: KeyTypeId, suri: &str, public: &[u8]) -> std::result::Result<(), ()> {
 		Store::insert_unknown(self, key_type, suri, public).map_err(|_| ())
 	}
 
@@ -435,7 +440,10 @@ impl BareCryptoStore for Store {
 			.map_err(|e| TraitError::PairNotFound(e.to_string()))?;
 
 		let (inout, proof, _) = pair.as_ref().vrf_sign(transcript);
-		Ok(VRFSignature { output: inout.to_output(), proof })
+		Ok(VRFSignature {
+			output: inout.to_output(),
+			proof,
+		})
 	}
 }
 
@@ -458,7 +466,10 @@ mod tests {
 
 		assert_eq!(key.public(), key2.public());
 
-		assert_eq!(store.read().public_keys::<ed25519::AppPublic>().unwrap()[0], key.public());
+		assert_eq!(
+			store.read().public_keys::<ed25519::AppPublic>().unwrap()[0],
+			key.public()
+		);
 	}
 
 	#[test]
@@ -468,9 +479,7 @@ mod tests {
 
 		let pair: ed25519::AppPair = store
 			.write()
-			.insert_ephemeral_from_seed(
-				"0x3d97c819d68f9bafa7d6e79cb991eebcd77d966c5334c0b94d9e1fa7ad0869dc",
-			)
+			.insert_ephemeral_from_seed("0x3d97c819d68f9bafa7d6e79cb991eebcd77d966c5334c0b94d9e1fa7ad0869dc")
 			.unwrap();
 		assert_eq!(
 			"5DKUrgFqCPV8iAXx9sjy1nyBygQCeiUYRFWurZGhnrn3HJCA",
@@ -487,26 +496,30 @@ mod tests {
 	fn password_being_used() {
 		let password = String::from("password");
 		let temp_dir = TempDir::new().unwrap();
-		let store =
-			Store::open(temp_dir.path(), Some(FromStr::from_str(password.as_str()).unwrap()))
-				.unwrap();
+		let store = Store::open(temp_dir.path(), Some(FromStr::from_str(password.as_str()).unwrap())).unwrap();
 
 		let pair: ed25519::AppPair = store.write().generate().unwrap();
 		assert_eq!(
 			pair.public(),
-			store.read().key_pair::<ed25519::AppPair>(&pair.public()).unwrap().public(),
+			store
+				.read()
+				.key_pair::<ed25519::AppPair>(&pair.public())
+				.unwrap()
+				.public(),
 		);
 
 		// Without the password the key should not be retrievable
 		let store = Store::open(temp_dir.path(), None).unwrap();
 		assert!(store.read().key_pair::<ed25519::AppPair>(&pair.public()).is_err());
 
-		let store =
-			Store::open(temp_dir.path(), Some(FromStr::from_str(password.as_str()).unwrap()))
-				.unwrap();
+		let store = Store::open(temp_dir.path(), Some(FromStr::from_str(password.as_str()).unwrap())).unwrap();
 		assert_eq!(
 			pair.public(),
-			store.read().key_pair::<ed25519::AppPair>(&pair.public()).unwrap().public(),
+			store
+				.read()
+				.key_pair::<ed25519::AppPair>(&pair.public())
+				.unwrap()
+				.public(),
 		);
 	}
 

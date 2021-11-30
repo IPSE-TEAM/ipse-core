@@ -93,7 +93,10 @@ where
 		.enumerate()
 		.map(|(idx, who)| {
 			c_idx_cache.insert(who.clone(), idx);
-			_Candidate { who, ..Default::default() }
+			_Candidate {
+				who,
+				..Default::default()
+			}
 		})
 		.collect::<Vec<_Candidate<A>>>();
 
@@ -103,10 +106,19 @@ where
 		for v in votes {
 			if let Some(idx) = c_idx_cache.get(&v) {
 				candidates[*idx].approval_stake = candidates[*idx].approval_stake + voter_stake;
-				edges.push(_Edge { who: v.clone(), candidate_index: *idx, ..Default::default() });
+				edges.push(_Edge {
+					who: v.clone(),
+					candidate_index: *idx,
+					..Default::default()
+				});
 			}
 		}
-		_Voter { who, edges, budget: voter_stake, load: 0f64 }
+		_Voter {
+			who,
+			edges,
+			budget: voter_stake,
+			load: 0f64,
+		}
 	}));
 
 	let to_elect = candidate_count.min(candidates.len());
@@ -145,16 +157,14 @@ where
 
 			elected_candidates.push((winner.who.clone(), winner.approval_stake as ExtendedBalance));
 		} else {
-			break
+			break;
 		}
 	}
 
 	for n in &mut voters {
 		let mut assignment = (n.who.clone(), vec![]);
 		for e in &mut n.edges {
-			if let Some(c) =
-				elected_candidates.iter().cloned().map(|(c, _)| c).find(|c| *c == e.who)
-			{
+			if let Some(c) = elected_candidates.iter().cloned().map(|(c, _)| c).find(|c| *c == e.who) {
 				if c != n.who {
 					let ratio = e.load / n.load;
 					assignment.1.push((e.who.clone(), ratio));
@@ -166,7 +176,10 @@ where
 		}
 	}
 
-	Some(_ElectionResult { winners: elected_candidates, assignments: assigned })
+	Some(_ElectionResult {
+		winners: elected_candidates,
+		assignments: assigned,
+	})
 }
 
 pub(crate) fn equalize_float<A, FS>(
@@ -190,7 +203,7 @@ pub(crate) fn equalize_float<A, FS>(
 		}
 
 		if max_diff < tolerance {
-			break
+			break;
 		}
 	}
 }
@@ -207,13 +220,15 @@ where
 {
 	let budget = budget_balance as f64;
 	if elected_edges.is_empty() {
-		return 0.0
+		return 0.0;
 	}
 
 	let stake_used = elected_edges.iter().fold(0.0, |s, e| s + e.1);
 
-	let backed_stakes_iter =
-		elected_edges.iter().filter_map(|e| support_map.get(&e.0)).map(|e| e.total);
+	let backed_stakes_iter = elected_edges
+		.iter()
+		.filter_map(|e| support_map.get(&e.0))
+		.map(|e| e.total);
 
 	let backing_backed_stake = elected_edges
 		.iter()
@@ -235,7 +250,7 @@ where
 		difference = max_stake - min_stake;
 		difference = difference + budget - stake_used;
 		if difference < tolerance {
-			return difference
+			return difference;
 		}
 	} else {
 		difference = budget;
@@ -266,7 +281,7 @@ where
 			let stake_sub = stake_mul - cumulative_stake;
 			if stake_sub > budget {
 				last_index = idx.checked_sub(1).unwrap_or(0);
-				return
+				return;
 			}
 			cumulative_stake = cumulative_stake + stake;
 		}
@@ -286,9 +301,7 @@ where
 	difference
 }
 
-pub(crate) fn create_stake_of(
-	stakes: &[(AccountId, VoteWeight)],
-) -> Box<dyn Fn(&AccountId) -> VoteWeight> {
+pub(crate) fn create_stake_of(stakes: &[(AccountId, VoteWeight)]) -> Box<dyn Fn(&AccountId) -> VoteWeight> {
 	let mut storage = BTreeMap::<AccountId, VoteWeight>::new();
 	stakes.iter().for_each(|s| {
 		storage.insert(s.0, s.1);
@@ -300,7 +313,9 @@ pub(crate) fn create_stake_of(
 pub fn check_assignments_sum<T: PerThing>(assignments: Vec<Assignment<AccountId, T>>) {
 	for Assignment { distribution, .. } in assignments {
 		let mut sum: u128 = Zero::zero();
-		distribution.iter().for_each(|(_, p)| sum += p.deconstruct().saturated_into());
+		distribution
+			.iter()
+			.for_each(|(_, p)| sum += p.deconstruct().saturated_into());
 		assert_eq!(sum, T::ACCURACY.saturated_into(), "Assignment ratio sum is not 100%");
 	}
 }
@@ -337,9 +352,7 @@ pub(crate) fn run_and_compare<Output: PerThing>(
 	for Assignment { who, distribution } in assignments.clone() {
 		if let Some(float_assignments) = truth_value.assignments.iter().find(|x| x.0 == who) {
 			for (candidate, per_thingy) in distribution {
-				if let Some(float_assignment) =
-					float_assignments.1.iter().find(|x| x.0 == candidate)
-				{
+				if let Some(float_assignment) = float_assignments.1.iter().find(|x| x.0 == candidate) {
 					assert_eq_error_rate!(
 						Output::from_fraction(float_assignment.1).deconstruct(),
 						per_thingy.deconstruct(),
@@ -368,10 +381,18 @@ where
 	for<'r> FS: Fn(&'r AccountId) -> VoteWeight,
 {
 	let mut supports = <_SupportMap<AccountId>>::new();
-	result.winners.iter().map(|(e, _)| (e, stake_of(e) as f64)).for_each(|(e, s)| {
-		let item = _Support { own: s, total: s, ..Default::default() };
-		supports.insert(e.clone(), item);
-	});
+	result
+		.winners
+		.iter()
+		.map(|(e, _)| (e, stake_of(e) as f64))
+		.for_each(|(e, s)| {
+			let item = _Support {
+				own: s,
+				total: s,
+				..Default::default()
+			};
+			supports.insert(e.clone(), item);
+		});
 
 	for (n, assignment) in result.assignments.iter_mut() {
 		for (c, r) in assignment.iter_mut() {

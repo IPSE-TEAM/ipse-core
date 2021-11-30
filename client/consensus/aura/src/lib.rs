@@ -63,9 +63,8 @@ use sp_consensus::import_queue::{
 	BasicQueue, BoxFinalityProofImport, BoxJustificationImport, DefaultImportQueue, Verifier,
 };
 use sp_consensus::{
-	self, BlockCheckParams, BlockImport, BlockImportParams, BlockOrigin, CanAuthorWith,
-	Environment, Error as ConsensusError, ForkChoiceStrategy, ImportResult, Proposer, SelectChain,
-	SlotData,
+	self, BlockCheckParams, BlockImport, BlockImportParams, BlockOrigin, CanAuthorWith, Environment,
+	Error as ConsensusError, ForkChoiceStrategy, ImportResult, Proposer, SelectChain, SlotData,
 };
 use sp_core::crypto::Public;
 use sp_core::{crypto::Pair, traits::BareCryptoStore};
@@ -75,13 +74,9 @@ use sp_runtime::{
 	generic::{BlockId, OpaqueDigestItemId},
 	Justification,
 };
-use sp_timestamp::{
-	InherentError as TIError, InherentType as TimestampInherent, TimestampInherentData,
-};
+use sp_timestamp::{InherentError as TIError, InherentType as TimestampInherent, TimestampInherentData};
 
-use sc_consensus_slots::{
-	check_equivocation, CheckedHeader, SlotCompatible, SlotInfo, SlotWorker, StorageChanges,
-};
+use sc_consensus_slots::{check_equivocation, CheckedHeader, SlotCompatible, SlotInfo, SlotWorker, StorageChanges};
 
 use sc_keystore::KeyStorePtr;
 use sp_api::ApiExt;
@@ -89,9 +84,7 @@ use sp_api::ApiExt;
 pub use digests::CompatibleDigestItem;
 pub use sp_consensus::SyncOracle;
 pub use sp_consensus_aura::{
-	inherents::{
-		AuraInherentData, InherentDataProvider, InherentType as AuraInherent, INHERENT_IDENTIFIER,
-	},
+	inherents::{AuraInherentData, InherentDataProvider, InherentType as AuraInherent, INHERENT_IDENTIFIER},
 	AuraApi, ConsensusLog, AURA_ENGINE_ID,
 };
 
@@ -116,7 +109,7 @@ where
 /// Get slot author for given block along with authorities.
 fn slot_author<P: Pair>(slot_num: u64, authorities: &[AuthorityId<P>]) -> Option<&AuthorityId<P>> {
 	if authorities.is_empty() {
-		return None
+		return None;
 	}
 
 	let idx = slot_num % (authorities.len() as u64);
@@ -187,7 +180,15 @@ where
 		_key_type: PhantomData::<P>,
 	};
 	register_aura_inherent_data_provider(&inherent_data_providers, slot_duration.slot_duration())?;
-	Ok(sc_consensus_slots::start_slot_worker::<_, _, _, _, _, AuraSlotCompatible, _>(
+	Ok(sc_consensus_slots::start_slot_worker::<
+		_,
+		_,
+		_,
+		_,
+		_,
+		AuraSlotCompatible,
+		_,
+	>(
 		slot_duration,
 		select_chain,
 		worker,
@@ -208,8 +209,7 @@ struct AuraWorker<C, E, I, P, SO> {
 	_key_type: PhantomData<P>,
 }
 
-impl<B, C, E, I, P, Error, SO> sc_consensus_slots::SimpleSlotWorker<B>
-	for AuraWorker<C, E, I, P, SO>
+impl<B, C, E, I, P, Error, SO> sc_consensus_slots::SimpleSlotWorker<B> for AuraWorker<C, E, I, P, SO>
 where
 	B: BlockT,
 	C: ProvideRuntimeApi<B> + BlockOf + ProvideCache<B> + Sync,
@@ -225,8 +225,7 @@ where
 {
 	type BlockImport = I;
 	type SyncOracle = SO;
-	type CreateProposer =
-		Pin<Box<dyn Future<Output = Result<E::Proposer, sp_consensus::Error>> + Send + 'static>>;
+	type CreateProposer = Pin<Box<dyn Future<Output = Result<E::Proposer, sp_consensus::Error>> + Send + 'static>>;
 	type Proposer = E::Proposer;
 	type Claim = P::Public;
 	type EpochData = Vec<AuthorityId<P>>;
@@ -239,11 +238,7 @@ where
 		self.block_import.clone()
 	}
 
-	fn epoch_data(
-		&self,
-		header: &B::Header,
-		_slot_number: u64,
-	) -> Result<Self::EpochData, sp_consensus::Error> {
+	fn epoch_data(&self, header: &B::Header, _slot_number: u64) -> Result<Self::EpochData, sp_consensus::Error> {
 		authorities(self.client.as_ref(), &BlockId::Hash(header.hash()))
 	}
 
@@ -251,12 +246,7 @@ where
 		Some(epoch_data.len())
 	}
 
-	fn claim_slot(
-		&self,
-		_header: &B::Header,
-		slot_number: u64,
-		epoch_data: &Self::EpochData,
-	) -> Option<Self::Claim> {
+	fn claim_slot(&self, _header: &B::Header, slot_number: u64, epoch_data: &Self::EpochData) -> Option<Self::Claim> {
 		let expected_author = slot_author::<P>(slot_number, epoch_data);
 		expected_author
 			.and_then(|p| {
@@ -268,12 +258,10 @@ where
 			.and_then(|p| Some(p.public()))
 	}
 
-	fn pre_digest_data(
-		&self,
-		slot_number: u64,
-		_claim: &Self::Claim,
-	) -> Vec<sp_runtime::DigestItem<B::Hash>> {
-		vec![<DigestItemFor<B> as CompatibleDigestItem<P>>::aura_pre_digest(slot_number)]
+	fn pre_digest_data(&self, slot_number: u64, _claim: &Self::Claim) -> Vec<sp_runtime::DigestItem<B::Hash>> {
+		vec![<DigestItemFor<B> as CompatibleDigestItem<P>>::aura_pre_digest(
+			slot_number,
+		)]
 	}
 
 	fn block_import_params(
@@ -286,10 +274,8 @@ where
 				StorageChanges<sp_api::TransactionFor<C, B>, B>,
 				Self::Claim,
 				Self::EpochData,
-			) -> Result<
-				sp_consensus::BlockImportParams<B, sp_api::TransactionFor<C, B>>,
-				sp_consensus::Error,
-			> + Send
+			) -> Result<sp_consensus::BlockImportParams<B, sp_api::TransactionFor<C, B>>, sp_consensus::Error>
+			+ Send
 			+ 'static,
 	> {
 		let keystore = self.keystore.clone();
@@ -307,8 +293,7 @@ where
 				.try_into()
 				.map_err(|_| sp_consensus::Error::InvalidSignature(signature, public))?;
 
-			let signature_digest_item =
-				<DigestItemFor<B> as CompatibleDigestItem<P>>::aura_seal(signature);
+			let signature_digest_item = <DigestItemFor<B> as CompatibleDigestItem<P>>::aura_seal(signature);
 
 			let mut import_block = BlockImportParams::new(BlockOrigin::Own, header);
 			import_block.post_digests.push(signature_digest_item);
@@ -336,11 +321,7 @@ where
 		)
 	}
 
-	fn proposing_remaining_duration(
-		&self,
-		head: &B::Header,
-		slot_info: &SlotInfo,
-	) -> Option<std::time::Duration> {
+	fn proposing_remaining_duration(&self, head: &B::Header, slot_info: &SlotInfo) -> Option<std::time::Duration> {
 		let slot_remaining = self.slot_remaining_duration(slot_info);
 
 		let parent_slot = match find_pre_digest::<B, P>(head) {
@@ -348,9 +329,7 @@ where
 			Ok(d) => d,
 		};
 
-		if let Some(slot_lenience) =
-			sc_consensus_slots::slot_lenience_exponential(parent_slot, slot_info)
-		{
+		if let Some(slot_lenience) = sc_consensus_slots::slot_lenience_exponential(parent_slot, slot_info) {
 			debug!(target: "aura",
 				"No block for {} slots. Applying linear lenience of {}s",
 				slot_info.number.saturating_sub(parent_slot + 1),
@@ -428,7 +407,7 @@ where
 	P::Public: Encode + Decode + PartialEq + Clone,
 {
 	if header.number().is_zero() {
-		return Ok(0)
+		return Ok(0);
 	}
 
 	let mut pre_digest: Option<u64> = None;
@@ -467,7 +446,9 @@ where
 		None => return Err(Error::HeaderUnsealed(hash)),
 	};
 
-	let sig = seal.as_aura_seal().ok_or_else(|| aura_err(Error::HeaderBadSeal(hash)))?;
+	let sig = seal
+		.as_aura_seal()
+		.ok_or_else(|| aura_err(Error::HeaderBadSeal(hash)))?;
 
 	let slot_num = find_pre_digest::<B, _>(&header)?;
 
@@ -486,8 +467,7 @@ where
 
 		if P::verify(&sig, pre_hash.as_ref(), expected_author) {
 			if let Some(equivocation_proof) =
-				check_equivocation(client, slot_now, slot_num, &header, expected_author)
-					.map_err(Error::Client)?
+				check_equivocation(client, slot_now, slot_num, &header, expected_author).map_err(Error::Client)?
 			{
 				info!(
 					"Slot author is equivocating at slot {} with headers {:?} and {:?}",
@@ -538,7 +518,7 @@ where
 				e,
 			);
 
-			return Ok(())
+			return Ok(());
 		}
 
 		let inherent_res = self
@@ -548,30 +528,33 @@ where
 			.map_err(Error::Client)?;
 
 		if !inherent_res.ok() {
-			inherent_res.into_errors().try_for_each(|(i, e)| match TIError::try_from(&i, &e) {
-				Some(TIError::ValidAtTimestamp(timestamp)) => {
-					// halt import until timestamp is valid.
-					// reject when too far ahead.
-					if timestamp > timestamp_now + MAX_TIMESTAMP_DRIFT_SECS {
-						return Err(Error::TooFarInFuture)
-					}
+			inherent_res
+				.into_errors()
+				.try_for_each(|(i, e)| match TIError::try_from(&i, &e) {
+					Some(TIError::ValidAtTimestamp(timestamp)) => {
+						// halt import until timestamp is valid.
+						// reject when too far ahead.
+						if timestamp > timestamp_now + MAX_TIMESTAMP_DRIFT_SECS {
+							return Err(Error::TooFarInFuture);
+						}
 
-					let diff = timestamp.saturating_sub(timestamp_now);
-					info!(
-						target: "aura",
-						"halting for block {} seconds in the future",
-						diff
-					);
-					telemetry!(CONSENSUS_INFO; "aura.halting_for_future_block";
-						"diff" => ?diff
-					);
-					thread::sleep(Duration::from_secs(diff));
-					Ok(())
-				},
-				Some(TIError::Other(e)) => Err(Error::Runtime(e.into())),
-				None =>
-					Err(Error::DataProvider(self.inherent_data_providers.error_to_string(&i, &e))),
-			})
+						let diff = timestamp.saturating_sub(timestamp_now);
+						info!(
+							target: "aura",
+							"halting for block {} seconds in the future",
+							diff
+						);
+						telemetry!(CONSENSUS_INFO; "aura.halting_for_future_block";
+							"diff" => ?diff
+						);
+						thread::sleep(Duration::from_secs(diff));
+						Ok(())
+					}
+					Some(TIError::Other(e)) => Err(Error::Runtime(e.into())),
+					None => Err(Error::DataProvider(
+						self.inherent_data_providers.error_to_string(&i, &e),
+					)),
+				})
 		} else {
 			Ok(())
 		}
@@ -581,14 +564,8 @@ where
 #[forbid(deprecated)]
 impl<B: BlockT, C, P, CAW> Verifier<B> for AuraVerifier<C, P, CAW>
 where
-	C: ProvideRuntimeApi<B>
-		+ Send
-		+ Sync
-		+ sc_client_api::backend::AuxStore
-		+ ProvideCache<B>
-		+ BlockOf,
-	C::Api:
-		BlockBuilderApi<B> + AuraApi<B, AuthorityId<P>> + ApiExt<B, Error = sp_blockchain::Error>,
+	C: ProvideRuntimeApi<B> + Send + Sync + sc_client_api::backend::AuxStore + ProvideCache<B> + BlockOf,
+	C::Api: BlockBuilderApi<B> + AuraApi<B, AuthorityId<P>> + ApiExt<B, Error = sp_blockchain::Error>,
 	DigestItemFor<B>: CompatibleDigestItem<P>,
 	P: Pair + Send + Sync + 'static,
 	P::Public: Send + Sync + Hash + Eq + Clone + Decode + Encode + Debug + 'static,
@@ -602,8 +579,10 @@ where
 		justification: Option<Justification>,
 		mut body: Option<Vec<B::Extrinsic>>,
 	) -> Result<(BlockImportParams<B, ()>, Option<Vec<(CacheKeyId, Vec<u8>)>>), String> {
-		let mut inherent_data =
-			self.inherent_data_providers.create_inherent_data().map_err(|e| e.into_string())?;
+		let mut inherent_data = self
+			.inherent_data_providers
+			.create_inherent_data()
+			.map_err(|e| e.into_string())?;
 		let (timestamp_now, slot_now, _) = AuraSlotCompatible
 			.extract_timestamp_and_slot(&inherent_data)
 			.map_err(|e| format!("Could not extract timestamp and slot: {:?}", e))?;
@@ -615,9 +594,8 @@ where
 		// we add one to allow for some small drift.
 		// FIXME #1019 in the future, alter this queue to allow deferring of
 		// headers
-		let checked_header =
-			check_header::<C, B, P>(&self.client, slot_now + 1, header, hash, &authorities[..])
-				.map_err(|e| e.to_string())?;
+		let checked_header = check_header::<C, B, P>(&self.client, slot_now + 1, header, hash, &authorities[..])
+			.map_err(|e| e.to_string())?;
 		match checked_header {
 			CheckedHeader::Checked(pre_header, (slot_num, seal)) => {
 				// if the body is passed through, we need to use the runtime
@@ -631,19 +609,11 @@ where
 					if self
 						.client
 						.runtime_api()
-						.has_api_with::<dyn BlockBuilderApi<B, Error = ()>, _>(
-							&BlockId::Hash(parent_hash),
-							|v| v >= 2,
-						)
+						.has_api_with::<dyn BlockBuilderApi<B, Error = ()>, _>(&BlockId::Hash(parent_hash), |v| v >= 2)
 						.map_err(|e| format!("{:?}", e))?
 					{
-						self.check_inherents(
-							block.clone(),
-							BlockId::Hash(parent_hash),
-							inherent_data,
-							timestamp_now,
-						)
-						.map_err(|e| e.to_string())?;
+						self.check_inherents(block.clone(), BlockId::Hash(parent_hash), inherent_data, timestamp_now)
+							.map_err(|e| e.to_string())?;
 					}
 
 					let (_, inner_body) = block.deconstruct();
@@ -659,13 +629,12 @@ where
 					.logs()
 					.iter()
 					.filter_map(|l| {
-						l.try_to::<ConsensusLog<AuthorityId<P>>>(OpaqueDigestItemId::Consensus(
-							&AURA_ENGINE_ID,
-						))
+						l.try_to::<ConsensusLog<AuthorityId<P>>>(OpaqueDigestItemId::Consensus(&AURA_ENGINE_ID))
 					})
 					.find_map(|l| match l {
-						ConsensusLog::AuthoritiesChange(a) =>
-							Some(vec![(well_known_cache_keys::AUTHORITIES, a.encode())]),
+						ConsensusLog::AuthoritiesChange(a) => {
+							Some(vec![(well_known_cache_keys::AUTHORITIES, a.encode())])
+						}
 						_ => None,
 					});
 
@@ -677,14 +646,14 @@ where
 				import_block.post_hash = Some(hash);
 
 				Ok((import_block, maybe_keys))
-			},
+			}
 			CheckedHeader::Deferred(a, b) => {
 				debug!(target: "aura", "Checking {:?} failed; {:?}, {:?}.", hash, a, b);
 				telemetry!(CONSENSUS_DEBUG; "aura.header_too_far_in_future";
 					"hash" => ?hash, "a" => ?a, "b" => ?b
 				);
 				Err(format!("Header {:?} rejected: too far in the future", hash))
-			},
+			}
 		}
 	}
 }
@@ -716,7 +685,7 @@ where
 		.unwrap_or(None)
 		.and_then(|(_, _, v)| Decode::decode(&mut &v[..]).ok());
 	if genesis_authorities.is_some() {
-		return Ok(())
+		return Ok(());
 	}
 
 	let genesis_authorities = authorities(client, &genesis_id)?;
@@ -782,7 +751,11 @@ impl<Block: BlockT, C, I: Clone + BlockImport<Block>, P> Clone for AuraBlockImpo
 impl<Block: BlockT, C, I: BlockImport<Block>, P> AuraBlockImport<Block, C, I, P> {
 	/// New aura block import.
 	pub fn new(inner: I, client: Arc<C>) -> Self {
-		Self { inner, client, _phantom: PhantomData }
+		Self {
+			inner,
+			client,
+			_phantom: PhantomData,
+		}
 	}
 }
 
@@ -819,9 +792,7 @@ where
 			.header(BlockId::Hash(parent_hash))
 			.map_err(|e| ConsensusError::ChainLookup(e.to_string()))?
 			.ok_or_else(|| {
-				ConsensusError::ChainLookup(
-					aura_err(Error::<Block>::ParentUnavailable(parent_hash, hash)).into(),
-				)
+				ConsensusError::ChainLookup(aura_err(Error::<Block>::ParentUnavailable(parent_hash, hash)).into())
 			})?;
 
 		let parent_slot = find_pre_digest::<Block, P>(&parent_header).expect(
@@ -833,7 +804,7 @@ where
 		if slot_number <= parent_slot {
 			return Err(ConsensusError::ClientImport(
 				aura_err(Error::<Block>::SlotNumberMustIncrease(parent_slot, slot_number)).into(),
-			))
+			));
 		}
 
 		self.inner.import_block(block, new_cache).map_err(Into::into)
@@ -854,20 +825,9 @@ pub fn import_queue<B, I, C, P, S, CAW>(
 ) -> Result<DefaultImportQueue<B, C>, sp_consensus::Error>
 where
 	B: BlockT,
-	C::Api:
-		BlockBuilderApi<B> + AuraApi<B, AuthorityId<P>> + ApiExt<B, Error = sp_blockchain::Error>,
-	C: 'static
-		+ ProvideRuntimeApi<B>
-		+ BlockOf
-		+ ProvideCache<B>
-		+ Send
-		+ Sync
-		+ AuxStore
-		+ HeaderBackend<B>,
-	I: BlockImport<B, Error = ConsensusError, Transaction = sp_api::TransactionFor<C, B>>
-		+ Send
-		+ Sync
-		+ 'static,
+	C::Api: BlockBuilderApi<B> + AuraApi<B, AuthorityId<P>> + ApiExt<B, Error = sp_blockchain::Error>,
+	C: 'static + ProvideRuntimeApi<B> + BlockOf + ProvideCache<B> + Send + Sync + AuxStore + HeaderBackend<B>,
+	I: BlockImport<B, Error = ConsensusError, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync + 'static,
 	DigestItemFor<B>: CompatibleDigestItem<P>,
 	P: Pair + Send + Sync + 'static,
 	P::Public: Clone + Eq + Send + Sync + Hash + Debug + Encode + Decode,
@@ -878,8 +838,12 @@ where
 	register_aura_inherent_data_provider(&inherent_data_providers, slot_duration.get())?;
 	initialize_authorities_cache(&*client)?;
 
-	let verifier =
-		AuraVerifier { client, inherent_data_providers, phantom: PhantomData, can_author_with };
+	let verifier = AuraVerifier {
+		client,
+		inherent_data_providers,
+		phantom: PhantomData,
+		can_author_with,
+	};
 
 	Ok(BasicQueue::new(
 		verifier,
@@ -932,8 +896,7 @@ mod tests {
 
 	impl Proposer<TestBlock> for DummyProposer {
 		type Error = Error;
-		type Transaction =
-			sc_client_api::TransactionFor<substrate_test_runtime_client::Backend, TestBlock>;
+		type Transaction = sc_client_api::TransactionFor<substrate_test_runtime_client::Backend, TestBlock>;
 		type Proposal = future::Ready<Result<Proposal<TestBlock, Self::Transaction>, Error>>;
 
 		fn propose(
@@ -968,21 +931,13 @@ mod tests {
 			AuraTestNet { peers: Vec::new() }
 		}
 
-		fn make_verifier(
-			&self,
-			client: PeersClient,
-			_cfg: &ProtocolConfig,
-			_peer_data: &(),
-		) -> Self::Verifier {
+		fn make_verifier(&self, client: PeersClient, _cfg: &ProtocolConfig, _peer_data: &()) -> Self::Verifier {
 			match client {
 				PeersClient::Full(client, _) => {
 					let slot_duration = slot_duration(&*client).expect("slot duration available");
 					let inherent_data_providers = InherentDataProviders::new();
-					register_aura_inherent_data_provider(
-						&inherent_data_providers,
-						slot_duration.get(),
-					)
-					.expect("Registers aura inherent data provider");
+					register_aura_inherent_data_provider(&inherent_data_providers, slot_duration.get())
+						.expect("Registers aura inherent data provider");
 
 					assert_eq!(slot_duration.get(), SLOT_DURATION);
 					AuraVerifier {
@@ -991,7 +946,7 @@ mod tests {
 						phantom: Default::default(),
 						can_author_with: AlwaysCanAuthor,
 					}
-				},
+				}
 				PeersClient::Light(_, _) => unreachable!("No (yet) tests for light client + Aura"),
 			}
 		}
@@ -1028,8 +983,7 @@ mod tests {
 			let client = peer.client().as_full().expect("full clients are created").clone();
 			let select_chain = peer.select_chain().expect("full client has a select chain");
 			let keystore_path = tempfile::tempdir().expect("Creates keystore path");
-			let keystore =
-				sc_keystore::Store::open(keystore_path.path(), None).expect("Creates keystore.");
+			let keystore = sc_keystore::Store::open(keystore_path.path(), None).expect("Creates keystore.");
 
 			keystore
 				.write()
@@ -1041,9 +995,7 @@ mod tests {
 			import_notifications.push(
 				client
 					.import_notification_stream()
-					.take_while(|n| {
-						future::ready(!(n.origin != BlockOrigin::Own && n.header.number() < &5))
-					})
+					.take_while(|n| future::ready(!(n.origin != BlockOrigin::Own && n.header.number() < &5)))
 					.for_each(move |_| future::ready(())),
 			);
 
@@ -1105,8 +1057,7 @@ mod tests {
 		];
 
 		let keystore_path = tempfile::tempdir().expect("Creates keystore path");
-		let keystore =
-			sc_keystore::Store::open(keystore_path.path(), None).expect("Creates keystore.");
+		let keystore = sc_keystore::Store::open(keystore_path.path(), None).expect("Creates keystore.");
 		let my_key = keystore
 			.write()
 			.generate_by_type::<AuthorityPair>(AuthorityPair::ID)

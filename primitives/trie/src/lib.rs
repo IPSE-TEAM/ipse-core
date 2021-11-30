@@ -40,8 +40,7 @@ pub use trie_db::proof::VerifyError;
 use trie_db::proof::{generate_proof, verify_proof};
 /// Various re-exports from the `trie-db` crate.
 pub use trie_db::{
-	nibble_ops, CError, DBValue, Query, Recorder, Trie, TrieConfiguration, TrieDBIterator,
-	TrieLayout, TrieMut,
+	nibble_ops, CError, DBValue, Query, Recorder, Trie, TrieConfiguration, TrieDBIterator, TrieLayout, TrieMut,
 };
 /// The Substrate format implementation of `TrieStream`.
 pub use trie_stream::TrieStream;
@@ -96,8 +95,7 @@ pub type HashDB<'a, H> = dyn hash_db::HashDB<H, trie_db::DBValue> + 'a;
 /// Reexport from `hash_db`, with genericity set for `Hasher` trait.
 /// This uses a `KeyFunction` for prefixing keys internally (avoiding
 /// key conflict for non random keys).
-pub type PrefixedMemoryDB<H> =
-	memory_db::MemoryDB<H, memory_db::PrefixedKey<H>, trie_db::DBValue, MemTracker>;
+pub type PrefixedMemoryDB<H> = memory_db::MemoryDB<H, memory_db::PrefixedKey<H>, trie_db::DBValue, MemTracker>;
 /// Reexport from `hash_db`, with genericity set for `Hasher` trait.
 /// This uses a noops `KeyFunction` (key addressing must be hashed or using
 /// an encoding scheme that avoid key conflict).
@@ -207,7 +205,9 @@ pub fn read_trie_value<L: TrieConfiguration, DB: hash_db::HashDBRef<L::Hash, tri
 	root: &TrieHash<L>,
 	key: &[u8],
 ) -> Result<Option<Vec<u8>>, Box<TrieError<L>>> {
-	Ok(TrieDB::<L>::new(&*db, root)?.get(key).map(|x| x.map(|val| val.to_vec()))?)
+	Ok(TrieDB::<L>::new(&*db, root)?
+		.get(key)
+		.map(|x| x.map(|val| val.to_vec()))?)
 }
 
 /// Read a value from the trie with given Query.
@@ -221,7 +221,9 @@ pub fn read_trie_value_with<
 	key: &[u8],
 	query: Q,
 ) -> Result<Option<Vec<u8>>, Box<TrieError<L>>> {
-	Ok(TrieDB::<L>::new(&*db, root)?.get_with(key, query).map(|x| x.map(|val| val.to_vec()))?)
+	Ok(TrieDB::<L>::new(&*db, root)?
+		.get_with(key, query)
+		.map(|x| x.map(|val| val.to_vec()))?)
 }
 
 /// Determine the empty child trie root.
@@ -329,7 +331,9 @@ where
 	root.as_mut().copy_from_slice(root_slice);
 
 	let db = KeySpacedDB::new(&*db, keyspace);
-	Ok(TrieDB::<L>::new(&db, &root)?.get(key).map(|x| x.map(|val| val.to_vec()))?)
+	Ok(TrieDB::<L>::new(&db, &root)?
+		.get(key)
+		.map(|x| x.map(|val| val.to_vec()))?)
 }
 
 /// Read a value from the child trie with given query.
@@ -348,7 +352,9 @@ where
 	root.as_mut().copy_from_slice(root_slice);
 
 	let db = KeySpacedDB::new(&*db, keyspace);
-	Ok(TrieDB::<L>::new(&db, &root)?.get_with(key, query).map(|x| x.map(|val| val.to_vec()))?)
+	Ok(TrieDB::<L>::new(&db, &root)?
+		.get_with(key, query)
+		.map(|x| x.map(|val| val.to_vec()))?)
 }
 
 /// `HashDB` implementation that append a encoded prefix (unique id bytes) in addition to the
@@ -550,16 +556,14 @@ mod tests {
 
 	#[test]
 	fn branch_is_equivalent() {
-		let input: Vec<(&[u8], &[u8])> =
-			vec![(&[0xaa][..], &[0x10][..]), (&[0xba][..], &[0x11][..])];
+		let input: Vec<(&[u8], &[u8])> = vec![(&[0xaa][..], &[0x10][..]), (&[0xba][..], &[0x11][..])];
 		check_equivalent::<Layout>(&input);
 		check_iteration::<Layout>(&input);
 	}
 
 	#[test]
 	fn extension_and_branch_is_equivalent() {
-		let input: Vec<(&[u8], &[u8])> =
-			vec![(&[0xaa][..], &[0x10][..]), (&[0xab][..], &[0x11][..])];
+		let input: Vec<(&[u8], &[u8])> = vec![(&[0xaa][..], &[0x10][..]), (&[0xab][..], &[0x11][..])];
 		check_equivalent::<Layout>(&input);
 		check_iteration::<Layout>(&input);
 	}
@@ -648,10 +652,7 @@ mod tests {
 		t
 	}
 
-	fn unpopulate_trie<'db, T: TrieConfiguration>(
-		t: &mut TrieDBMut<'db, T>,
-		v: &[(Vec<u8>, Vec<u8>)],
-	) {
+	fn unpopulate_trie<'db, T: TrieConfiguration>(t: &mut TrieDBMut<'db, T>, v: &[(Vec<u8>, Vec<u8>)]) {
 		for i in v {
 			let key: &[u8] = &i.0;
 			t.remove(key).unwrap();
@@ -792,17 +793,12 @@ mod tests {
 		populate_trie::<Layout>(&mut memdb, &mut root, &pairs);
 
 		let non_included_key: Vec<u8> = hex!("0909").to_vec();
-		let proof =
-			generate_trie_proof::<Layout, _, _, _>(&memdb, root, &[non_included_key.clone()])
-				.unwrap();
+		let proof = generate_trie_proof::<Layout, _, _, _>(&memdb, root, &[non_included_key.clone()]).unwrap();
 
 		// Verifying that the K was not included into the trie should work.
-		assert!(verify_trie_proof::<Layout, _, _, Vec<u8>>(
-			&root,
-			&proof,
-			&[(non_included_key.clone(), None)],
-		)
-		.is_ok());
+		assert!(
+			verify_trie_proof::<Layout, _, _, Vec<u8>>(&root, &proof, &[(non_included_key.clone(), None)],).is_ok()
+		);
 
 		// Verifying that the K was included into the trie should fail.
 		assert!(verify_trie_proof::<Layout, _, _, Vec<u8>>(
@@ -824,24 +820,16 @@ mod tests {
 		let mut root = Default::default();
 		populate_trie::<Layout>(&mut memdb, &mut root, &pairs);
 
-		let proof =
-			generate_trie_proof::<Layout, _, _, _>(&memdb, root, &[pairs[0].0.clone()]).unwrap();
+		let proof = generate_trie_proof::<Layout, _, _, _>(&memdb, root, &[pairs[0].0.clone()]).unwrap();
 
 		// Check that a K, V included into the proof are verified.
-		assert!(verify_trie_proof::<Layout, _, _, _>(
-			&root,
-			&proof,
-			&[(pairs[0].0.clone(), Some(pairs[0].1.clone()))]
-		)
-		.is_ok());
+		assert!(
+			verify_trie_proof::<Layout, _, _, _>(&root, &proof, &[(pairs[0].0.clone(), Some(pairs[0].1.clone()))])
+				.is_ok()
+		);
 
 		// Absence of the V is not verified with the proof that has K, V included.
-		assert!(verify_trie_proof::<Layout, _, _, Vec<u8>>(
-			&root,
-			&proof,
-			&[(pairs[0].0.clone(), None)]
-		)
-		.is_err());
+		assert!(verify_trie_proof::<Layout, _, _, Vec<u8>>(&root, &proof, &[(pairs[0].0.clone(), None)]).is_err());
 
 		// K not included into the trie is not verified.
 		assert!(verify_trie_proof::<Layout, _, _, _>(
@@ -852,43 +840,30 @@ mod tests {
 		.is_err());
 
 		// K included into the trie but not included into the proof is not verified.
-		assert!(verify_trie_proof::<Layout, _, _, _>(
-			&root,
-			&proof,
-			&[(pairs[1].0.clone(), Some(pairs[1].1.clone()))]
-		)
-		.is_err());
+		assert!(
+			verify_trie_proof::<Layout, _, _, _>(&root, &proof, &[(pairs[1].0.clone(), Some(pairs[1].1.clone()))])
+				.is_err()
+		);
 	}
 
 	#[test]
 	fn generate_storage_root_with_proof_works_independently_from_the_delta_order() {
 		let proof = StorageProof::decode(&mut &include_bytes!("../test-res/proof")[..]).unwrap();
-		let storage_root =
-			sp_core::H256::decode(&mut &include_bytes!("../test-res/storage_root")[..]).unwrap();
+		let storage_root = sp_core::H256::decode(&mut &include_bytes!("../test-res/storage_root")[..]).unwrap();
 		// Delta order that is "invalid" so that it would require a different proof.
-		let invalid_delta = Vec::<(Vec<u8>, Option<Vec<u8>>)>::decode(
-			&mut &include_bytes!("../test-res/invalid-delta-order")[..],
-		)
-		.unwrap();
+		let invalid_delta =
+			Vec::<(Vec<u8>, Option<Vec<u8>>)>::decode(&mut &include_bytes!("../test-res/invalid-delta-order")[..])
+				.unwrap();
 		// Delta order that is "valid"
-		let valid_delta = Vec::<(Vec<u8>, Option<Vec<u8>>)>::decode(
-			&mut &include_bytes!("../test-res/valid-delta-order")[..],
-		)
-		.unwrap();
+		let valid_delta =
+			Vec::<(Vec<u8>, Option<Vec<u8>>)>::decode(&mut &include_bytes!("../test-res/valid-delta-order")[..])
+				.unwrap();
 
 		let proof_db = proof.into_memory_db::<Blake2Hasher>();
-		let first_storage_root = delta_trie_root::<Layout, _, _, _, _, _>(
-			&mut proof_db.clone(),
-			storage_root,
-			valid_delta,
-		)
-		.unwrap();
-		let second_storage_root = delta_trie_root::<Layout, _, _, _, _, _>(
-			&mut proof_db.clone(),
-			storage_root,
-			invalid_delta,
-		)
-		.unwrap();
+		let first_storage_root =
+			delta_trie_root::<Layout, _, _, _, _, _>(&mut proof_db.clone(), storage_root, valid_delta).unwrap();
+		let second_storage_root =
+			delta_trie_root::<Layout, _, _, _, _, _>(&mut proof_db.clone(), storage_root, invalid_delta).unwrap();
 
 		assert_eq!(first_storage_root, second_storage_root);
 	}

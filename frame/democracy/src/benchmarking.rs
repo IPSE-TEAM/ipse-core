@@ -21,9 +21,7 @@ use super::*;
 
 use frame_benchmarking::{account, benchmarks, whitelist_account};
 use frame_support::{
-	traits::{
-		schedule::DispatchTime, Currency, EnsureOrigin, Get, OnInitialize, UnfilteredDispatchable,
-	},
+	traits::{schedule::DispatchTime, Currency, EnsureOrigin, Get, OnInitialize, UnfilteredDispatchable},
 	IterableStorageMap,
 };
 use frame_system::{self, EventRecord, Module as System, RawOrigin};
@@ -64,12 +62,7 @@ fn add_referendum<T: Trait>(n: u32) -> Result<ReferendumIndex, &'static str> {
 	let proposal_hash: T::Hash = T::Hashing::hash_of(&n);
 	let vote_threshold = VoteThreshold::SimpleMajority;
 
-	Democracy::<T>::inject_referendum(
-		T::LaunchPeriod::get(),
-		proposal_hash,
-		vote_threshold,
-		0.into(),
-	);
+	Democracy::<T>::inject_referendum(T::LaunchPeriod::get(), proposal_hash, vote_threshold, 0.into());
 	let referendum_index: ReferendumIndex = ReferendumCount::get() - 1;
 	T::Scheduler::schedule_named(
 		(DEMOCRACY_ID, referendum_index).encode(),
@@ -84,7 +77,10 @@ fn add_referendum<T: Trait>(n: u32) -> Result<ReferendumIndex, &'static str> {
 }
 
 fn account_vote<T: Trait>(b: BalanceOf<T>) -> AccountVote<BalanceOf<T>> {
-	let v = Vote { aye: true, conviction: Conviction::Locked1x };
+	let v = Vote {
+		aye: true,
+		conviction: Conviction::Locked1x,
+	};
 
 	AccountVote::Standard { vote: v, balance: b }
 }

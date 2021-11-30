@@ -181,7 +181,9 @@ fn ensure_task_manager_future_ends_when_task_manager_terminated() {
 	runtime.block_on(async { tokio::time::delay_for(Duration::from_secs(1)).await });
 	assert_eq!(drop_tester, 2);
 	task_manager.terminate();
-	runtime.block_on(task_manager.future()).expect("future has ended without error");
+	runtime
+		.block_on(task_manager.future())
+		.expect("future has ended without error");
 	runtime.block_on(task_manager.clean_shutdown());
 	assert_eq!(drop_tester, 0);
 }
@@ -203,7 +205,9 @@ fn ensure_task_manager_future_ends_with_error_when_essential_task_fails() {
 	runtime.block_on(async { tokio::time::delay_for(Duration::from_secs(1)).await });
 	assert_eq!(drop_tester, 2);
 	spawn_essential_handle.spawn("task3", async { panic!("task failed") });
-	runtime.block_on(task_manager.future()).expect_err("future()'s Result must be Err");
+	runtime
+		.block_on(task_manager.future())
+		.expect_err("future()'s Result must be Err");
 	assert_eq!(drop_tester, 2);
 	runtime.block_on(task_manager.clean_shutdown());
 	assert_eq!(drop_tester, 0);
@@ -233,7 +237,9 @@ fn ensure_children_tasks_ends_when_task_manager_terminated() {
 	runtime.block_on(async { tokio::time::delay_for(Duration::from_secs(1)).await });
 	assert_eq!(drop_tester, 4);
 	task_manager.terminate();
-	runtime.block_on(task_manager.future()).expect("future has ended without error");
+	runtime
+		.block_on(task_manager.future())
+		.expect("future has ended without error");
 	runtime.block_on(task_manager.clean_shutdown());
 	assert_eq!(drop_tester, 0);
 }
@@ -263,7 +269,9 @@ fn ensure_task_manager_future_ends_with_error_when_childs_essential_task_fails()
 	runtime.block_on(async { tokio::time::delay_for(Duration::from_secs(1)).await });
 	assert_eq!(drop_tester, 4);
 	spawn_essential_handle_child_1.spawn("task5", async { panic!("task failed") });
-	runtime.block_on(task_manager.future()).expect_err("future()'s Result must be Err");
+	runtime
+		.block_on(task_manager.future())
+		.expect_err("future()'s Result must be Err");
 	assert_eq!(drop_tester, 4);
 	runtime.block_on(task_manager.clean_shutdown());
 	assert_eq!(drop_tester, 0);

@@ -43,7 +43,10 @@ pub struct Offchain<T: OffchainStorage> {
 impl<T: OffchainStorage> Offchain<T> {
 	/// Create new instance of Offchain API.
 	pub fn new(storage: T, deny_unsafe: DenyUnsafe) -> Self {
-		Offchain { storage: Arc::new(RwLock::new(storage)), deny_unsafe }
+		Offchain {
+			storage: Arc::new(RwLock::new(storage)),
+			deny_unsafe,
+		}
 	}
 }
 

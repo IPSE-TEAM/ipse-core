@@ -26,9 +26,7 @@ mod mock;
 mod tests;
 
 use codec::{Decode, Encode};
-use frame_support::{
-	debug, decl_event, decl_module, decl_storage, traits::Get, weights::Weight, Parameter,
-};
+use frame_support::{debug, decl_event, decl_module, decl_storage, traits::Get, weights::Weight, Parameter};
 use sp_runtime::{
 	traits::{Hash, Zero},
 	Perbill,
@@ -168,8 +166,7 @@ decl_module! {
 	}
 }
 
-impl<T: Trait, O: Offence<T::IdentificationTuple>>
-	ReportOffence<T::AccountId, T::IdentificationTuple, O> for Module<T>
+impl<T: Trait, O: Offence<T::IdentificationTuple>> ReportOffence<T::AccountId, T::IdentificationTuple, O> for Module<T>
 where
 	T::IdentificationTuple: Clone,
 {
@@ -192,14 +189,9 @@ where
 		// The amount new offenders are slashed
 		let new_fraction = O::slash_fraction(offenders_count, validator_set_count);
 
-		let slash_perbill: Vec<_> =
-			(0..concurrent_offenders.len()).map(|_| new_fraction.clone()).collect();
+		let slash_perbill: Vec<_> = (0..concurrent_offenders.len()).map(|_| new_fraction.clone()).collect();
 
-		let applied = Self::report_or_store_offence(
-			&concurrent_offenders,
-			&slash_perbill,
-			offence.session_index(),
-		);
+		let applied = Self::report_or_store_offence(&concurrent_offenders, &slash_perbill, offence.session_index());
 
 		// Deposit the event.
 		Self::deposit_event(Event::Offence(O::ID, time_slot.encode(), applied));
@@ -225,15 +217,14 @@ impl<T: Trait> Module<T> {
 		slash_perbill: &[Perbill],
 		session_index: SessionIndex,
 	) -> bool {
-		match T::OnOffenceHandler::on_offence(&concurrent_offenders, &slash_perbill, session_index)
-		{
+		match T::OnOffenceHandler::on_offence(&concurrent_offenders, &slash_perbill, session_index) {
 			Ok(_) => true,
 			Err(_) => {
 				<DeferredOffences<T>>::mutate(|d| {
 					d.push((concurrent_offenders.to_vec(), slash_perbill.to_vec(), session_index))
 				});
 				false
-			},
+			}
 		}
 	}
 
@@ -264,7 +255,10 @@ impl<T: Trait> Module<T> {
 				any_new = true;
 				<Reports<T>>::insert(
 					&report_id,
-					OffenceDetails { offender, reporters: reporters.clone() },
+					OffenceDetails {
+						offender,
+						reporters: reporters.clone(),
+					},
 				);
 
 				storage.insert(time_slot, report_id);
@@ -317,23 +311,28 @@ impl<T: Trait, O: Offence<T::IdentificationTuple>> ReportIndexStorage<T, O> {
 
 		let same_kind_reports = <ReportsByKindIndex>::get(&O::ID);
 		let same_kind_reports =
-			Vec::<(O::TimeSlot, ReportIdOf<T>)>::decode(&mut &same_kind_reports[..])
-				.unwrap_or_default();
+			Vec::<(O::TimeSlot, ReportIdOf<T>)>::decode(&mut &same_kind_reports[..]).unwrap_or_default();
 
 		let concurrent_reports = <ConcurrentReportsIndex<T>>::get(&O::ID, &opaque_time_slot);
 
-		Self { opaque_time_slot, concurrent_reports, same_kind_reports }
+		Self {
+			opaque_time_slot,
+			concurrent_reports,
+			same_kind_reports,
+		}
 	}
 
 	/// Insert a new report to the index.
 	fn insert(&mut self, time_slot: &O::TimeSlot, report_id: ReportIdOf<T>) {
 		// Insert the report id into the list while maintaining the ordering by the time
 		// slot.
-		let pos =
-			match self.same_kind_reports.binary_search_by_key(&time_slot, |&(ref when, _)| when) {
-				Ok(pos) => pos,
-				Err(pos) => pos,
-			};
+		let pos = match self
+			.same_kind_reports
+			.binary_search_by_key(&time_slot, |&(ref when, _)| when)
+		{
+			Ok(pos) => pos,
+			Err(pos) => pos,
+		};
 		self.same_kind_reports.insert(pos, (time_slot.clone(), report_id));
 
 		// Update the list of concurrent reports.
@@ -343,10 +342,6 @@ impl<T: Trait, O: Offence<T::IdentificationTuple>> ReportIndexStorage<T, O> {
 	/// Dump the indexes to the storage.
 	fn save(self) {
 		<ReportsByKindIndex>::insert(&O::ID, self.same_kind_reports.encode());
-		<ConcurrentReportsIndex<T>>::insert(
-			&O::ID,
-			&self.opaque_time_slot,
-			&self.concurrent_reports,
-		);
+		<ConcurrentReportsIndex<T>>::insert(&O::ID, &self.opaque_time_slot, &self.concurrent_reports);
 	}
 }

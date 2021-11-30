@@ -18,9 +18,7 @@
 
 //! implementation of the `vanity` subcommand
 
-use crate::{
-	error, utils, with_crypto_scheme, CryptoSchemeFlag, NetworkSchemeFlag, OutputTypeFlag,
-};
+use crate::{error, utils, with_crypto_scheme, CryptoSchemeFlag, NetworkSchemeFlag, OutputTypeFlag};
 use rand::{rngs::OsRng, RngCore};
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_runtime::traits::IdentifyAccount;
@@ -70,10 +68,7 @@ impl VanityCmd {
 }
 
 /// genertae a key based on given pattern
-fn generate_key<Pair>(
-	desired: &str,
-	network_override: Ss58AddressFormat,
-) -> Result<String, &'static str>
+fn generate_key<Pair>(desired: &str, network_override: Ss58AddressFormat) -> Result<String, &'static str>
 where
 	Pair: sp_core::Pair,
 	Pair::Public: IdentifyAccount,
@@ -100,7 +95,7 @@ where
 			best = score;
 			if best >= top {
 				println!("best: {} == top: {}", best, top);
-				return Ok(utils::format_seed::<Pair>(seed.clone()))
+				return Ok(utils::format_seed::<Pair>(seed.clone()));
 			}
 		}
 		done += 1;
@@ -125,11 +120,11 @@ fn next_seed(seed: &mut [u8]) {
 		match seed[i] {
 			255 => {
 				seed[i] = 0;
-			},
+			}
 			_ => {
 				seed[i] += 1;
-				break
-			},
+				break;
+			}
 		}
 	}
 }
@@ -141,7 +136,7 @@ fn calculate_score(_desired: &str, key: &str) -> usize {
 		let snip_size = _desired.len() - truncate;
 		let truncated = &_desired[0..snip_size];
 		if let Some(pos) = key.find(truncated) {
-			return (47 - pos) + (snip_size * 48)
+			return (47 - pos) + (snip_size * 48);
 		}
 	}
 	0

@@ -120,7 +120,10 @@ pub struct Signer<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>, X = Fo
 
 impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>, X> Default for Signer<T, C, X> {
 	fn default() -> Self {
-		Self { accounts: Default::default(), _phantom: Default::default() }
+		Self {
+			accounts: Default::default(),
+			_phantom: Default::default(),
+		}
 	}
 }
 
@@ -171,7 +174,7 @@ impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>, X> Signer<T, C, X> 
 						})
 						.filter(move |account| keystore_lookup.contains(&account.public)),
 				)
-			},
+			}
 		}
 	}
 
@@ -191,7 +194,10 @@ impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> Signer<T, C, ForAll
 		F: Fn(&Account<T>) -> Option<R>,
 	{
 		let accounts = self.accounts_from_keys();
-		accounts.into_iter().filter_map(|account| f(&account).map(|res| (account, res))).collect()
+		accounts
+			.into_iter()
+			.filter_map(|account| f(&account).map(|res| (account, res)))
+			.collect()
 	}
 }
 
@@ -204,16 +210,14 @@ impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> Signer<T, C, ForAny
 		for account in accounts.into_iter() {
 			let res = f(&account);
 			if let Some(res) = res {
-				return Some((account, res))
+				return Some((account, res));
 			}
 		}
 		None
 	}
 }
 
-impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> SignMessage<T>
-	for Signer<T, C, ForAll>
-{
+impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> SignMessage<T> for Signer<T, C, ForAll> {
 	type SignatureData = Vec<(Account<T>, T::Signature)>;
 
 	fn sign_message(&self, message: &[u8]) -> Self::SignatureData {
@@ -229,9 +233,7 @@ impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> SignMessage<T>
 	}
 }
 
-impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> SignMessage<T>
-	for Signer<T, C, ForAny>
-{
+impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> SignMessage<T> for Signer<T, C, ForAny> {
 	type SignatureData = Option<(Account<T>, T::Signature)>;
 
 	fn sign_message(&self, message: &[u8]) -> Self::SignatureData {
@@ -247,11 +249,8 @@ impl<T: SigningTypes, C: AppCrypto<T::Public, T::Signature>> SignMessage<T>
 	}
 }
 
-impl<
-		T: CreateSignedTransaction<LocalCall> + SigningTypes,
-		C: AppCrypto<T::Public, T::Signature>,
-		LocalCall,
-	> SendSignedTransaction<T, C, LocalCall> for Signer<T, C, ForAny>
+impl<T: CreateSignedTransaction<LocalCall> + SigningTypes, C: AppCrypto<T::Public, T::Signature>, LocalCall>
+	SendSignedTransaction<T, C, LocalCall> for Signer<T, C, ForAny>
 {
 	type Result = Option<(Account<T>, Result<(), ()>)>;
 
@@ -263,11 +262,8 @@ impl<
 	}
 }
 
-impl<
-		T: SigningTypes + CreateSignedTransaction<LocalCall>,
-		C: AppCrypto<T::Public, T::Signature>,
-		LocalCall,
-	> SendSignedTransaction<T, C, LocalCall> for Signer<T, C, ForAll>
+impl<T: SigningTypes + CreateSignedTransaction<LocalCall>, C: AppCrypto<T::Public, T::Signature>, LocalCall>
+	SendSignedTransaction<T, C, LocalCall> for Signer<T, C, ForAll>
 {
 	type Result = Vec<(Account<T>, Result<(), ()>)>;
 
@@ -279,11 +275,8 @@ impl<
 	}
 }
 
-impl<
-		T: SigningTypes + SendTransactionTypes<LocalCall>,
-		C: AppCrypto<T::Public, T::Signature>,
-		LocalCall,
-	> SendUnsignedTransaction<T, LocalCall> for Signer<T, C, ForAny>
+impl<T: SigningTypes + SendTransactionTypes<LocalCall>, C: AppCrypto<T::Public, T::Signature>, LocalCall>
+	SendUnsignedTransaction<T, LocalCall> for Signer<T, C, ForAny>
 {
 	type Result = Option<(Account<T>, Result<(), ()>)>;
 
@@ -305,11 +298,8 @@ impl<
 	}
 }
 
-impl<
-		T: SigningTypes + SendTransactionTypes<LocalCall>,
-		C: AppCrypto<T::Public, T::Signature>,
-		LocalCall,
-	> SendUnsignedTransaction<T, LocalCall> for Signer<T, C, ForAll>
+impl<T: SigningTypes + SendTransactionTypes<LocalCall>, C: AppCrypto<T::Public, T::Signature>, LocalCall>
+	SendUnsignedTransaction<T, LocalCall> for Signer<T, C, ForAll>
 {
 	type Result = Vec<(Account<T>, Result<(), ()>)>;
 
@@ -355,7 +345,11 @@ where
 	T::Public: Clone,
 {
 	fn clone(&self) -> Self {
-		Self { index: self.index, id: self.id.clone(), public: self.public.clone() }
+		Self {
+			index: self.index,
+			id: self.id.clone(),
+			public: self.public.clone(),
+		}
 	}
 }
 
@@ -390,10 +384,7 @@ pub trait AppCrypto<Public, Signature> {
 	type RuntimeAppPublic: RuntimeAppPublic;
 
 	/// A raw crypto public key wrapped by `RuntimeAppPublic`.
-	type GenericPublic: From<Self::RuntimeAppPublic>
-		+ Into<Self::RuntimeAppPublic>
-		+ TryFrom<Public>
-		+ Into<Public>;
+	type GenericPublic: From<Self::RuntimeAppPublic> + Into<Self::RuntimeAppPublic> + TryFrom<Public> + Into<Public>;
 
 	/// A matching raw crypto `Signature` type.
 	type GenericSignature: From<<Self::RuntimeAppPublic as RuntimeAppPublic>::Signature>
@@ -424,8 +415,7 @@ pub trait AppCrypto<Public, Signature> {
 			Ok(a) => a,
 			_ => return false,
 		};
-		let signature =
-			Into::<<Self::RuntimeAppPublic as RuntimeAppPublic>::Signature>::into(signature);
+		let signature = Into::<<Self::RuntimeAppPublic as RuntimeAppPublic>::Signature>::into(signature);
 
 		x.verify(&payload, &signature)
 	}
@@ -471,9 +461,7 @@ pub trait SendTransactionTypes<LocalCall> {
 /// This will most likely include creation of `SignedExtra` (a set of `SignedExtensions`).
 /// Note that the result can be altered by inspecting the `Call` (for instance adjusting
 /// fees, or mortality depending on the `pallet` being called).
-pub trait CreateSignedTransaction<LocalCall>:
-	SendTransactionTypes<LocalCall> + SigningTypes
-{
+pub trait CreateSignedTransaction<LocalCall>: SendTransactionTypes<LocalCall> + SigningTypes {
 	/// Attempt to create signed extrinsic data that encodes call from given account.
 	///
 	/// Runtime implementation is free to construct the payload to sign and the signature
@@ -532,11 +520,7 @@ pub trait SendSignedTransaction<
 	fn send_signed_transaction(&self, f: impl Fn(&Account<T>) -> LocalCall) -> Self::Result;
 
 	/// Wraps the call into transaction, signs using given account and submits to the pool.
-	fn send_single_signed_transaction(
-		&self,
-		account: &Account<T>,
-		call: LocalCall,
-	) -> Option<Result<(), ()>> {
+	fn send_single_signed_transaction(&self, account: &Account<T>, call: LocalCall) -> Option<Result<(), ()>> {
 		let mut account_data = crate::Account::<T>::get(&account.id);
 		debug::native::debug!(
 			target: "offchain",
@@ -587,7 +571,9 @@ pub trait SendUnsignedTransaction<T: SigningTypes + SendTransactionTypes<LocalCa
 
 	/// Submits an unsigned call to the transaction pool.
 	fn submit_unsigned_transaction(&self, call: LocalCall) -> Option<Result<(), ()>> {
-		Some(SubmitTransaction::<T, LocalCall>::submit_unsigned_transaction(call.into()))
+		Some(SubmitTransaction::<T, LocalCall>::submit_unsigned_transaction(
+			call.into(),
+		))
 	}
 }
 
@@ -656,7 +642,17 @@ mod tests {
 	}
 
 	fn assert_account(next: Option<(Account<TestRuntime>, Result<(), ()>)>, index: usize, id: u64) {
-		assert_eq!(next, Some((Account { index, id, public: id.into() }, Ok(()))));
+		assert_eq!(
+			next,
+			Some((
+				Account {
+					index,
+					id,
+					public: id.into()
+				},
+				Ok(())
+			))
+		);
 	}
 
 	#[test]
@@ -671,11 +667,13 @@ mod tests {
 
 		t.execute_with(|| {
 			// when
-			let result = Signer::<TestRuntime, DummyAppCrypto>::all_accounts()
-				.send_unsigned_transaction(
-					|account| SimplePayload { data: vec![1, 2, 3], public: account.public.clone() },
-					|_payload, _signature| Call,
-				);
+			let result = Signer::<TestRuntime, DummyAppCrypto>::all_accounts().send_unsigned_transaction(
+				|account| SimplePayload {
+					data: vec![1, 2, 3],
+					public: account.public.clone(),
+				},
+				|_payload, _signature| Call,
+			);
 
 			// then
 			let mut res = result.into_iter();
@@ -706,11 +704,13 @@ mod tests {
 
 		t.execute_with(|| {
 			// when
-			let result = Signer::<TestRuntime, DummyAppCrypto>::any_account()
-				.send_unsigned_transaction(
-					|account| SimplePayload { data: vec![1, 2, 3], public: account.public.clone() },
-					|_payload, _signature| Call,
-				);
+			let result = Signer::<TestRuntime, DummyAppCrypto>::any_account().send_unsigned_transaction(
+				|account| SimplePayload {
+					data: vec![1, 2, 3],
+					public: account.public.clone(),
+				},
+				|_payload, _signature| Call,
+			);
 
 			// then
 			let mut res = result.into_iter();
@@ -740,7 +740,10 @@ mod tests {
 			let result = Signer::<TestRuntime, DummyAppCrypto>::all_accounts()
 				.with_filter(vec![0xf2.into(), 0xf1.into()])
 				.send_unsigned_transaction(
-					|account| SimplePayload { data: vec![1, 2, 3], public: account.public.clone() },
+					|account| SimplePayload {
+						data: vec![1, 2, 3],
+						public: account.public.clone(),
+					},
 					|_payload, _signature| Call,
 				);
 
@@ -774,7 +777,10 @@ mod tests {
 			let result = Signer::<TestRuntime, DummyAppCrypto>::any_account()
 				.with_filter(vec![0xf2.into(), 0xf1.into()])
 				.send_unsigned_transaction(
-					|account| SimplePayload { data: vec![1, 2, 3], public: account.public.clone() },
+					|account| SimplePayload {
+						data: vec![1, 2, 3],
+						public: account.public.clone(),
+					},
 					|_payload, _signature| Call,
 				);
 

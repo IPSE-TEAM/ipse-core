@@ -61,8 +61,7 @@ mod benchmarking;
 mod default_weight;
 mod tests;
 
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 pub trait WeightInfo {
 	fn proxy_announced(a: u32, p: u32) -> Weight;
@@ -97,12 +96,7 @@ pub trait Trait: frame_system::Trait {
 	/// The instance filter determines whether a given call may be proxied under this type.
 	///
 	/// IMPORTANT: `Default` must be provided and MUST BE the the *most permissive* value.
-	type ProxyType: Parameter
-		+ Member
-		+ Ord
-		+ PartialOrd
-		+ InstanceFilter<<Self as Trait>::Call>
-		+ Default;
+	type ProxyType: Parameter + Member + Ord + PartialOrd + InstanceFilter<<Self as Trait>::Call> + Default;
 
 	/// The base amount of currency needed to reserve for creating a proxy.
 	///
@@ -576,8 +570,7 @@ impl<T: Trait> Module<T> {
 				system::Module::<T>::extrinsic_index().unwrap_or_default(),
 			)
 		});
-		let entropy = (b"modlpy/proxy____", who, height, ext_index, proxy_type, index)
-			.using_encoded(blake2_256);
+		let entropy = (b"modlpy/proxy____", who, height, ext_index, proxy_type, index).using_encoded(blake2_256);
 		T::AccountId::decode(&mut &entropy[..]).unwrap_or_default()
 	}
 
@@ -597,7 +590,11 @@ impl<T: Trait> Module<T> {
 	) -> DispatchResult {
 		Proxies::<T>::try_mutate(delegator, |(ref mut proxies, ref mut deposit)| {
 			ensure!(proxies.len() < T::MaxProxies::get() as usize, Error::<T>::TooMany);
-			let proxy_def = ProxyDefinition { delegate: delegatee, proxy_type, delay };
+			let proxy_def = ProxyDefinition {
+				delegate: delegatee,
+				proxy_type,
+				delay,
+			};
 			let i = proxies.binary_search(&proxy_def).err().ok_or(Error::<T>::Duplicate)?;
 			proxies.insert(i, proxy_def);
 			let new_deposit = Self::deposit(proxies.len() as u32);
@@ -627,7 +624,11 @@ impl<T: Trait> Module<T> {
 	) -> DispatchResult {
 		Proxies::<T>::try_mutate_exists(delegator, |x| {
 			let (mut proxies, old_deposit) = x.take().ok_or(Error::<T>::NotFound)?;
-			let proxy_def = ProxyDefinition { delegate: delegatee, proxy_type, delay };
+			let proxy_def = ProxyDefinition {
+				delegate: delegatee,
+				proxy_type,
+				delay,
+			};
 			let i = proxies.binary_search(&proxy_def).ok().ok_or(Error::<T>::NotFound)?;
 			proxies.remove(i);
 			let new_deposit = Self::deposit(proxies.len() as u32);
@@ -658,8 +659,11 @@ impl<T: Trait> Module<T> {
 		factor: BalanceOf<T>,
 		len: usize,
 	) -> Result<Option<BalanceOf<T>>, DispatchError> {
-		let new_deposit =
-			if len == 0 { BalanceOf::<T>::zero() } else { base + factor * (len as u32).into() };
+		let new_deposit = if len == 0 {
+			BalanceOf::<T>::zero()
+		} else {
+			base + factor * (len as u32).into()
+		};
 		if new_deposit > old_deposit {
 			T::Currency::reserve(&who, new_deposit - old_deposit)?;
 		} else if new_deposit < old_deposit {
@@ -668,9 +672,7 @@ impl<T: Trait> Module<T> {
 		Ok(if len == 0 { None } else { Some(new_deposit) })
 	}
 
-	fn edit_announcements<
-		F: FnMut(&Announcement<T::AccountId, CallHashOf<T>, T::BlockNumber>) -> bool,
-	>(
+	fn edit_announcements<F: FnMut(&Announcement<T::AccountId, CallHashOf<T>, T::BlockNumber>) -> bool>(
 		delegate: &T::AccountId,
 		f: F,
 	) -> DispatchResult {
@@ -697,10 +699,13 @@ impl<T: Trait> Module<T> {
 		force_proxy_type: Option<T::ProxyType>,
 	) -> Result<ProxyDefinition<T::AccountId, T::ProxyType, T::BlockNumber>, DispatchError> {
 		let f = |x: &ProxyDefinition<T::AccountId, T::ProxyType, T::BlockNumber>| -> bool {
-			&x.delegate == delegate &&
-				force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
+			&x.delegate == delegate && force_proxy_type.as_ref().map_or(true, |y| &x.proxy_type == y)
 		};
-		Ok(Proxies::<T>::get(real).0.into_iter().find(f).ok_or(Error::<T>::NotProxy)?)
+		Ok(Proxies::<T>::get(real)
+			.0
+			.into_iter()
+			.find(f)
+			.ok_or(Error::<T>::NotProxy)?)
 	}
 
 	fn do_proxy(
@@ -718,12 +723,16 @@ impl<T: Trait> Module<T> {
 				// has.
 				Some(Call::add_proxy(_, ref pt, _)) | Some(Call::remove_proxy(_, ref pt, _))
 					if !def.proxy_type.is_superset(&pt) =>
-					false,
+				{
+					false
+				}
 				// Proxy call cannot remove all proxies or kill anonymous proxies unless it has full
 				// permissions.
 				Some(Call::remove_proxies(..)) | Some(Call::kill_anonymous(..))
 					if def.proxy_type != T::ProxyType::default() =>
-					false,
+				{
+					false
+				}
 				_ => def.proxy_type.filter(c),
 			}
 		});
@@ -745,21 +754,19 @@ pub mod migration {
 	/// simply takes any existing proxies using the old tuple format, and migrates it to the new
 	/// struct by setting the delay to zero.
 	pub fn migrate_to_time_delayed_proxies<T: Trait>() -> Weight {
-		Proxies::<T>::translate::<(Vec<(T::AccountId, T::ProxyType)>, BalanceOf<T>), _>(
-			|_, (targets, deposit)| {
-				Some((
-					targets
-						.into_iter()
-						.map(|(a, t)| ProxyDefinition {
-							delegate: a,
-							proxy_type: t,
-							delay: Zero::zero(),
-						})
-						.collect::<Vec<_>>(),
-					deposit,
-				))
-			},
-		);
+		Proxies::<T>::translate::<(Vec<(T::AccountId, T::ProxyType)>, BalanceOf<T>), _>(|_, (targets, deposit)| {
+			Some((
+				targets
+					.into_iter()
+					.map(|(a, t)| ProxyDefinition {
+						delegate: a,
+						proxy_type: t,
+						delay: Zero::zero(),
+					})
+					.collect::<Vec<_>>(),
+				deposit,
+			))
+		});
 		T::MaximumBlockWeight::get()
 	}
 }

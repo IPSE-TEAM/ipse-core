@@ -31,9 +31,7 @@ pub use sc_executor::{self, NativeExecutor, WasmExecutionMethod};
 pub use sc_service::{client, RpcHandlers, RpcSession};
 pub use sp_consensus;
 pub use sp_core::traits::BareCryptoStorePtr;
-pub use sp_keyring::{
-	ed25519::Keyring as Ed25519Keyring, sr25519::Keyring as Sr25519Keyring, AccountKeyring,
-};
+pub use sp_keyring::{ed25519::Keyring as Ed25519Keyring, sr25519::Keyring as Sr25519Keyring, AccountKeyring};
 pub use sp_runtime::{Storage, StorageChild};
 pub use sp_state_machine::ExecutionStrategy;
 
@@ -55,8 +53,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 /// Test client light database backend.
-pub type LightBackend<Block> =
-	sc_light::Backend<sc_client_db::light::LightStorage<Block>, BlakeTwo256>;
+pub type LightBackend<Block> = sc_light::Backend<sc_client_db::light::LightStorage<Block>, BlakeTwo256>;
 
 /// A genesis storage initialization trait.
 pub trait GenesisInit: Default {
@@ -84,17 +81,13 @@ pub struct TestClientBuilder<Block: BlockT, Executor, Backend, G: GenesisInit> {
 	bad_blocks: BadBlocks<Block>,
 }
 
-impl<Block: BlockT, Executor, G: GenesisInit> Default
-	for TestClientBuilder<Block, Executor, Backend<Block>, G>
-{
+impl<Block: BlockT, Executor, G: GenesisInit> Default for TestClientBuilder<Block, Executor, Backend<Block>, G> {
 	fn default() -> Self {
 		Self::with_default_backend()
 	}
 }
 
-impl<Block: BlockT, Executor, G: GenesisInit>
-	TestClientBuilder<Block, Executor, Backend<Block>, G>
-{
+impl<Block: BlockT, Executor, G: GenesisInit> TestClientBuilder<Block, Executor, Backend<Block>, G> {
 	/// Create new `TestClientBuilder` with default backend.
 	pub fn with_default_backend() -> Self {
 		let backend = Arc::new(Backend::new_test(std::u32::MAX, std::u64::MAX));
@@ -108,9 +101,7 @@ impl<Block: BlockT, Executor, G: GenesisInit>
 	}
 }
 
-impl<Block: BlockT, Executor, Backend, G: GenesisInit>
-	TestClientBuilder<Block, Executor, Backend, G>
-{
+impl<Block: BlockT, Executor, Backend, G: GenesisInit> TestClientBuilder<Block, Executor, Backend, G> {
 	/// Create a new instance of the test client builder.
 	pub fn with_backend(backend: Arc<Backend>) -> Self {
 		TestClientBuilder {
@@ -142,16 +133,15 @@ impl<Block: BlockT, Executor, Backend, G: GenesisInit>
 	}
 
 	/// Extend child storage
-	pub fn add_child_storage(
-		mut self,
-		child_info: &ChildInfo,
-		key: impl AsRef<[u8]>,
-		value: impl AsRef<[u8]>,
-	) -> Self {
+	pub fn add_child_storage(mut self, child_info: &ChildInfo, key: impl AsRef<[u8]>, value: impl AsRef<[u8]>) -> Self {
 		let storage_key = child_info.storage_key();
-		let entry = self.child_storage_extension.entry(storage_key.to_vec()).or_insert_with(|| {
-			StorageChild { data: Default::default(), child_info: child_info.clone() }
-		});
+		let entry = self
+			.child_storage_extension
+			.entry(storage_key.to_vec())
+			.or_insert_with(|| StorageChild {
+				data: Default::default(),
+				child_info: child_info.clone(),
+			});
 		entry.data.insert(key.as_ref().to_vec(), value.as_ref().to_vec());
 		self
 	}
@@ -169,11 +159,7 @@ impl<Block: BlockT, Executor, Backend, G: GenesisInit>
 	}
 
 	/// Sets custom block rules.
-	pub fn set_block_rules(
-		mut self,
-		fork_blocks: ForkBlocks<Block>,
-		bad_blocks: BadBlocks<Block>,
-	) -> Self {
+	pub fn set_block_rules(mut self, fork_blocks: ForkBlocks<Block>, bad_blocks: BadBlocks<Block>) -> Self {
 		self.fork_blocks = fork_blocks;
 		self.bad_blocks = bad_blocks;
 		self
@@ -234,12 +220,7 @@ impl<Block: BlockT, E, Backend, G: GenesisInit>
 		self,
 		executor: I,
 	) -> (
-		client::Client<
-			Backend,
-			client::LocalCallExecutor<Backend, NativeExecutor<E>>,
-			Block,
-			RuntimeApi,
-		>,
+		client::Client<Backend, client::LocalCallExecutor<Backend, NativeExecutor<E>>, Block, RuntimeApi>,
 		sc_consensus::LongestChain<Backend, Block>,
 	)
 	where
@@ -273,7 +254,11 @@ pub struct RpcTransactionOutput {
 
 impl std::fmt::Debug for RpcTransactionOutput {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(f, "RpcTransactionOutput {{ result: {:?}, session, receiver }}", self.result)
+		write!(
+			f,
+			"RpcTransactionOutput {{ result: {:?}, session, receiver }}",
+			self.result
+		)
 	}
 }
 
@@ -336,15 +321,21 @@ pub(crate) fn parse_rpc_result(
 	if let Some(ref result) = result {
 		let json: serde_json::Value =
 			serde_json::from_str(result).expect("the result can only be a JSONRPC string; qed");
-		let error = json.as_object().expect("JSON result is always an object; qed").get("error");
+		let error = json
+			.as_object()
+			.expect("JSON result is always an object; qed")
+			.get("error");
 
 		if let Some(error) = error {
-			return Err(serde_json::from_value(error.clone())
-				.expect("the JSONRPC result's error is always valid; qed"))
+			return Err(serde_json::from_value(error.clone()).expect("the JSONRPC result's error is always valid; qed"));
 		}
 	}
 
-	Ok(RpcTransactionOutput { result, session, receiver })
+	Ok(RpcTransactionOutput {
+		result,
+		session,
+		receiver,
+	})
 }
 
 /// An extension trait for `BlockchainEvents`.
@@ -375,7 +366,7 @@ where
 				if notification.is_new_best {
 					blocks.insert(notification.hash);
 					if blocks.len() == count {
-						break
+						break;
 					}
 				}
 			}

@@ -17,15 +17,21 @@
 
 extern crate frame_system as system;
 extern crate pallet_timestamp as timestamp;
+use crate::constants::capacity::Gib;
 use crate::constants::time::HOURS;
+use crate::constants::{
+	currency::DOLLARS,
+	time::{DAYS, MILLISECS_PER_BLOCK},
+};
+use crate::ipse_traits::{GetPrice, PocHandler};
 use crate::poc_staking as staking;
 use crate::poc_staking::AccountIdOfPid;
 use crate::poc_staking::DeclaredCapacity;
-use num_traits::Zero;
-use sp_std::collections::btree_set::BTreeSet;
-use sp_std::convert::{Into, TryFrom, TryInto};
-
 use codec::{Decode, Encode};
+use conjugate_poc::{
+	nonce::noncegen_rust,
+	poc_hashing::{calculate_scoop, find_best_deadline_rust},
+};
 use frame_support::{
 	debug, decl_error, decl_event, decl_module, decl_storage,
 	dispatch::{DispatchError, DispatchResult},
@@ -34,42 +40,29 @@ use frame_support::{
 	weights::Weight,
 	IterableStorageMap, StorageMap, StorageValue,
 };
+use node_primitives::GIB;
+use num_traits::Zero;
 use pallet_treasury as treasury;
 use sp_runtime::{
 	traits::{CheckedAdd, CheckedDiv, CheckedSub, SaturatedConversion, Saturating},
 	Percent,
 };
+use sp_std::collections::btree_set::BTreeSet;
+use sp_std::convert::{Into, TryFrom, TryInto};
 use sp_std::result;
 use sp_std::vec;
 use sp_std::vec::Vec;
 use system::{ensure_root, ensure_signed};
 
-use crate::ipse_traits::PocHandler;
-
-use conjugate_poc::{
-	nonce::noncegen_rust,
-	poc_hashing::{calculate_scoop, find_best_deadline_rust},
-};
-
-use crate::constants::{
-	currency::DOLLARS,
-	time::{DAYS, MILLISECS_PER_BLOCK},
-};
-
 /// block numbers of a year
 pub const YEAR: u32 = 365 * DAYS;
-
-pub const GIB: u64 = 1024 * 1024 * 1024;
-
 /// you should not modify the SPEED and the MiningExpire
 pub const SPEED: u64 = 11;
 pub const MiningExpire: u64 = 2;
 
-type BalanceOf<T> =
-	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
-type PositiveImbalanceOf<T> = <<T as staking::Trait>::StakingCurrency as Currency<
-	<T as system::Trait>::AccountId,
->>::PositiveImbalance;
+type BalanceOf<T> = <<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::Balance;
+type PositiveImbalanceOf<T> =
+	<<T as staking::Trait>::StakingCurrency as Currency<<T as system::Trait>::AccountId>>::PositiveImbalance;
 
 pub trait Trait: system::Trait + timestamp::Trait + treasury::Trait + staking::Trait {
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
@@ -222,7 +215,7 @@ decl_module! {
 
 		/// how much capacity that one difficulty.
 		#[weight = 10_000]
-		fn set_capacity_of_per_difficulty(origin, capacity: u64) {
+		fn set_capacity_of_per_difficulty(origin, capacity: GIB) {
 			ensure_root(origin)?;
 			ensure!(capacity != 0u64, Error::<T>::CapacityIsZero);
 			<CapacityOfPerDifficulty>::put(capacity);
@@ -233,7 +226,7 @@ decl_module! {
 
 		/// submit deadline.
 		#[weight = 50_000_000 as Weight + T::DbWeight::get().reads(8 as Weight).saturating_add(T::DbWeight::get().writes(3 as Weight))]
-		fn mining(origin, account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
+		fn mining(origin, numeric_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> DispatchResult {
 
 			let miner = ensure_signed(origin)?;
 
@@ -249,7 +242,7 @@ decl_module! {
 
 			let real_pid = <staking::Module<T>>::disk_of(&miner).unwrap().numeric_id;
 
-			ensure!(real_pid == account_id.into(), Error::<T>::PidErr);
+			ensure!(real_pid == numeric_id.into(), Error::<T>::PidErr);
 
 			let current_block = <system::Module<T>>::block_number().saturated_into::<u64>();
 
@@ -278,7 +271,7 @@ decl_module! {
 				return Err(Error::<T>::NotBestDeadline)?;
 			}
 
-			let verify_ok = Self::verify_dl(account_id, height, sig, nonce, deadline);
+			let verify_ok = Self::verify_dl(numeric_id, height, sig, nonce, deadline);
 
 			if verify_ok.0 {
 				debug::info!("verify is ok!, deadline = {}", deadline);
@@ -463,7 +456,7 @@ impl<T: Trait> Module<T> {
 
 		while let Some(dl) = iter.next() {
 			if count == <AdjustDifficultyDuration>::get() / MiningExpire {
-				break
+				break;
 			}
 			if dl.miner.is_some() {
 				real_count += 1;
@@ -480,13 +473,7 @@ impl<T: Trait> Module<T> {
 		}
 	}
 
-	fn verify_dl(
-		account_id: u64,
-		height: u64,
-		sig: [u8; 32],
-		nonce: u64,
-		deadline: u64,
-	) -> (bool, u64, u64) {
+	fn verify_dl(account_id: u64, height: u64, sig: [u8; 32], nonce: u64, deadline: u64) -> (bool, u64, u64) {
 		let scoop_data = calculate_scoop(height, &sig) as u64;
 		debug::info!("scoop_data: {:?}", scoop_data);
 		debug::info!("sig: {:?}", sig);
@@ -524,12 +511,14 @@ impl<T: Trait> Module<T> {
 
 		let sub_half_reward_time = 2u32;
 
-		let year = now.checked_div(&T::BlockNumber::from(YEAR)).ok_or(Error::<T>::DivZero)?;
+		let year = now
+			.checked_div(&T::BlockNumber::from(YEAR))
+			.ok_or(Error::<T>::DivZero)?;
 		let duration = year / T::BlockNumber::from(sub_half_reward_time);
 
 		let duration = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(duration)
-			.map_err(|_| Error::<T>::ConvertErr)? +
-			1u32;
+			.map_err(|_| Error::<T>::ConvertErr)?
+			+ 1u32;
 
 		let n_opt = sub_half_reward_time.checked_pow(duration);
 
@@ -538,9 +527,9 @@ impl<T: Trait> Module<T> {
 		if n_opt.is_some() {
 			let n = <BalanceOf<T>>::from(n_opt.unwrap());
 
-			reward = T::TotalMiningReward::get() /
-				n / 2.saturated_into::<BalanceOf<T>>() /
-				Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
+			reward = T::TotalMiningReward::get()
+				/ n / 2.saturated_into::<BalanceOf<T>>()
+				/ Self::block_convert_to_balance(T::BlockNumber::from(YEAR))?;
 
 			Ok(reward * MiningExpire.saturated_into::<BalanceOf<T>>())
 		} else {
@@ -549,10 +538,9 @@ impl<T: Trait> Module<T> {
 	}
 
 	fn block_convert_to_balance(n: T::BlockNumber) -> result::Result<BalanceOf<T>, DispatchError> {
-		let n_u = <<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(n)
-			.map_err(|_| Error::<T>::ConvertErr)?;
-		let n_b =
-			<BalanceOf<T> as TryFrom<u32>>::try_from(n_u).map_err(|_| Error::<T>::ConvertErr)?;
+		let n_u =
+			<<T as system::Trait>::BlockNumber as TryInto<u32>>::try_into(n).map_err(|_| Error::<T>::ConvertErr)?;
+		let n_b = <BalanceOf<T> as TryFrom<u32>>::try_from(n_u).map_err(|_| Error::<T>::ConvertErr)?;
 		Ok(n_b)
 	}
 
@@ -581,9 +569,10 @@ impl<T: Trait> Module<T> {
 		if staking_info_opt.is_some() {
 			let total_staking = staking_info_opt.unwrap().total_staking;
 
-			let miner_should_staking_amount =
-				disk.saturated_into::<BalanceOf<T>>().saturating_mul(<CapacityPrice<T>>::get()) /
-					GIB.saturated_into::<BalanceOf<T>>();
+			let miner_should_staking_amount = disk
+				.saturated_into::<BalanceOf<T>>()
+				.saturating_mul(<CapacityPrice<T>>::get())
+				/ Gib.saturated_into::<BalanceOf<T>>();
 
 			if miner_should_staking_amount <= total_staking {
 				debug::info!("miner's staking enough！staking enough = {:?} ", total_staking);
@@ -603,29 +592,28 @@ impl<T: Trait> Module<T> {
 
 				let net_should_staking_total_amount = Self::get_total_capacity()
 					.saturated_into::<BalanceOf<T>>()
-					.saturating_mul(<CapacityPrice<T>>::get()) /
-					GIB.saturated_into::<BalanceOf<T>>();
+					.saturating_mul(<CapacityPrice<T>>::get())
+					/ Gib.saturated_into::<BalanceOf<T>>();
 
 				if (miner_mining_num
 					.saturated_into::<BalanceOf<T>>()
-					.saturating_mul(net_should_staking_total_amount) >
-					(net_mining_num.saturated_into::<BalanceOf<T>>() *
-						miner_should_staking_amount)
-						.saturating_add(
-							T::ProbabilityDeviationValue::get() *
-								(net_mining_num.saturated_into::<BalanceOf<T>>() *
-									miner_should_staking_amount),
-						)) || ((net_mining_num.saturated_into::<BalanceOf<T>>() *
-					miner_should_staking_amount)
+					.saturating_mul(net_should_staking_total_amount)
+					> (net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount).saturating_add(
+						T::ProbabilityDeviationValue::get()
+							* (net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount),
+					)) || ((net_mining_num.saturated_into::<BalanceOf<T>>() * miner_should_staking_amount)
 					.saturating_sub(
-						T::ProbabilityDeviationValue::get() *
-							net_mining_num.saturated_into::<BalanceOf<T>>() *
-							miner_should_staking_amount,
+						T::ProbabilityDeviationValue::get()
+							* net_mining_num.saturated_into::<BalanceOf<T>>()
+							* miner_should_staking_amount,
 					) > miner_mining_num
 					.saturated_into::<BalanceOf<T>>()
 					.saturating_mul(net_should_staking_total_amount))
 				{
-					debug::info!("Miners: {:?} have a high probability of mining, and you should increase the disk space", miner.clone());
+					debug::info!(
+						"Miners: {:?} have a high probability of mining, and you should increase the disk space",
+						miner.clone()
+					);
 
 					reward = Percent::from_percent(10) * reward;
 
@@ -667,7 +655,10 @@ impl<T: Trait> Module<T> {
 			let history = vec![(now, reward)];
 			<History<T>>::insert(
 				miner.clone(),
-				MiningHistory { total_num: miner_mining_num, history },
+				MiningHistory {
+					total_num: miner_mining_num,
+					history,
+				},
 			);
 		}
 
@@ -677,8 +668,7 @@ impl<T: Trait> Module<T> {
 	fn reward_staker(miner: T::AccountId, reward: BalanceOf<T>) -> DispatchResult {
 		let now = <staking::Module<T>>::now();
 
-		let staking_info =
-			<staking::Module<T>>::staking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
+		let staking_info = <staking::Module<T>>::staking_info_of(&miner).ok_or(Error::<T>::NotRegister)?;
 		let stakers = staking_info.clone().others;
 		if stakers.len() == 0 {
 			Self::reward_miner(miner.clone(), reward, now);
@@ -731,44 +721,31 @@ impl<T: Trait> Module<T> {
 			avg_difficulty = total_difficulty / len;
 		}
 
-		let capacity = avg_difficulty.saturating_mul(GIB * <CapacityOfPerDifficulty>::get());
+		let capacity = avg_difficulty.saturating_mul(Gib * <CapacityOfPerDifficulty>::get());
 
 		<NetPower>::put(capacity);
 
-		return capacity
+		return capacity;
 	}
 
 	fn reward_miner(miner: T::AccountId, amount: BalanceOf<T>, now: T::BlockNumber) {
 		let disk = <staking::Module<T>>::disk_of(&miner).unwrap();
 		let reward_dest = disk.reward_dest;
 		if reward_dest == miner.clone() {
-			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(
-				&reward_dest,
-				amount,
-			));
+			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&reward_dest, amount));
 			Self::update_reword_history(reward_dest.clone(), amount, now);
 		} else {
 			let miner_reward = Percent::from_percent(10) * amount;
-			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(
-				&miner,
-				miner_reward,
-			));
+			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&miner, miner_reward));
 			Self::update_reword_history(miner, miner_reward, now);
 
 			let dest_reward = amount.saturating_sub(miner_reward);
-			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(
-				&reward_dest,
-				dest_reward,
-			));
+			T::PocAddOrigin::on_unbalanced(T::StakingCurrency::deposit_creating(&reward_dest, dest_reward));
 			Self::update_reword_history(reward_dest, dest_reward, now);
 		}
 	}
 
-	fn update_reword_history(
-		account_id: T::AccountId,
-		amount: BalanceOf<T>,
-		block_num: T::BlockNumber,
-	) {
+	fn update_reword_history(account_id: T::AccountId, amount: BalanceOf<T>, block_num: T::BlockNumber) {
 		let mut reward_history = <UserRewardHistory<T>>::get(account_id.clone());
 
 		reward_history.push((block_num, amount));
@@ -812,6 +789,12 @@ impl<T: Trait> Module<T> {
 impl<T: Trait> PocHandler<T::AccountId> for Module<T> {
 	fn remove_history(miner: T::AccountId) {
 		<History<T>>::remove(miner);
+	}
+}
+
+impl<T: Trait> GetPrice<BalanceOf<T>> for Module<T> {
+	fn get_price() -> BalanceOf<T> {
+		CapacityPrice::<T>::get()
 	}
 }
 

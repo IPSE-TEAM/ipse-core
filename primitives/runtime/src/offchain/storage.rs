@@ -31,12 +31,18 @@ pub struct StorageValueRef<'a> {
 impl<'a> StorageValueRef<'a> {
 	/// Create a new reference to a value in the persistent local storage.
 	pub fn persistent(key: &'a [u8]) -> Self {
-		Self { key, kind: StorageKind::PERSISTENT }
+		Self {
+			key,
+			kind: StorageKind::PERSISTENT,
+		}
 	}
 
 	/// Create a new reference to a value in the fork-aware local storage.
 	pub fn local(key: &'a [u8]) -> Self {
-		Self { key, kind: StorageKind::LOCAL }
+		Self {
+			key,
+			kind: StorageKind::LOCAL,
+		}
 	}
 
 	/// Set the value of the storage to encoding of given parameter.
@@ -61,8 +67,7 @@ impl<'a> StorageValueRef<'a> {
 	/// The function returns `None` if the value was not found in storage,
 	/// otherwise a decoding of the value to requested type.
 	pub fn get<T: codec::Decode>(&self) -> Option<Option<T>> {
-		sp_io::offchain::local_storage_get(self.kind, self.key)
-			.map(|val| T::decode(&mut &*val).ok())
+		sp_io::offchain::local_storage_get(self.kind, self.key).map(|val| T::decode(&mut &*val).ok())
 	}
 
 	/// Retrieve & decode the value and set it to a new one atomically.

@@ -168,18 +168,22 @@ impl<B: BlockT> Future for GossipEngine<B> {
 				ForwardingState::Idle => {
 					match this.network_event_stream.poll_next_unpin(cx) {
 						Poll::Ready(Some(event)) => match event {
-							Event::NotificationStreamOpened { remote, engine_id, role } => {
+							Event::NotificationStreamOpened {
+								remote,
+								engine_id,
+								role,
+							} => {
 								if engine_id != this.engine_id {
-									continue
+									continue;
 								}
 								this.state_machine.new_peer(&mut *this.network, remote, role);
-							},
+							}
 							Event::NotificationStreamClosed { remote, engine_id } => {
 								if engine_id != this.engine_id {
-									continue
+									continue;
 								}
 								this.state_machine.peer_disconnected(&mut *this.network, remote);
-							},
+							}
 							Event::NotificationsReceived { remote, messages } => {
 								let messages = messages
 									.into_iter()
@@ -192,48 +196,42 @@ impl<B: BlockT> Future for GossipEngine<B> {
 									})
 									.collect();
 
-								let to_forward = this.state_machine.on_incoming(
-									&mut *this.network,
-									remote,
-									messages,
-								);
+								let to_forward = this.state_machine.on_incoming(&mut *this.network, remote, messages);
 
 								this.forwarding_state = ForwardingState::Busy(to_forward.into());
-							},
-							Event::Dht(_) => {},
+							}
+							Event::Dht(_) => {}
 						},
 						// The network event stream closed. Do the same for [`GossipValidator`].
 						Poll::Ready(None) => return Poll::Ready(()),
 						Poll::Pending => break,
 					}
-				},
+				}
 				ForwardingState::Busy(to_forward) => {
 					let (topic, notification) = match to_forward.pop_front() {
 						Some(n) => n,
 						None => {
 							this.forwarding_state = ForwardingState::Idle;
-							continue
-						},
+							continue;
+						}
 					};
 
 					let sinks = match this.message_sinks.get_mut(&topic) {
 						Some(sinks) => sinks,
-						None => {
-							continue
-						},
+						None => continue,
 					};
 
 					// Make sure all sinks for the given topic are ready.
 					for sink in sinks.iter_mut() {
 						match sink.poll_ready(cx) {
-							Poll::Ready(Ok(())) => {},
+							Poll::Ready(Ok(())) => {}
 							// Receiver has been dropped. Ignore for now, filtered out in (1).
-							Poll::Ready(Err(_)) => {},
+							Poll::Ready(Err(_)) => {}
 							Poll::Pending => {
 								// Push back onto queue for later.
 								to_forward.push_front((topic, notification));
-								break 'outer
-							},
+								break 'outer;
+							}
 						}
 					}
 
@@ -242,7 +240,7 @@ impl<B: BlockT> Future for GossipEngine<B> {
 
 					if sinks.is_empty() {
 						this.message_sinks.remove(&topic);
-						continue
+						continue;
 					}
 
 					trace!(
@@ -253,14 +251,13 @@ impl<B: BlockT> Future for GossipEngine<B> {
 					// Send the notification on each sink.
 					for sink in sinks {
 						match sink.start_send(notification.clone()) {
-							Ok(()) => {},
-							Err(e) if e.is_full() =>
-								unreachable!("Previously ensured that all sinks are ready; qed.",),
+							Ok(()) => {}
+							Err(e) if e.is_full() => unreachable!("Previously ensured that all sinks are ready; qed.",),
 							// Receiver got dropped. Will be removed in next iteration (See (1)).
-							Err(_) => {},
+							Err(_) => {}
 						}
 					}
-				},
+				}
 			}
 		}
 
@@ -350,12 +347,8 @@ mod tests {
 	#[test]
 	fn returns_when_network_event_stream_closes() {
 		let network = TestNetwork::default();
-		let mut gossip_engine = GossipEngine::<Block>::new(
-			network.clone(),
-			[1, 2, 3, 4],
-			"my_protocol",
-			Arc::new(AllowAll {}),
-		);
+		let mut gossip_engine =
+			GossipEngine::<Block>::new(network.clone(), [1, 2, 3, 4], "my_protocol", Arc::new(AllowAll {}));
 
 		// Drop network event stream sender side.
 		drop(network.inner.lock().unwrap().event_senders.pop());
@@ -378,12 +371,8 @@ mod tests {
 		let remote_peer = PeerId::random();
 		let network = TestNetwork::default();
 
-		let mut gossip_engine = GossipEngine::<Block>::new(
-			network.clone(),
-			engine_id.clone(),
-			"my_protocol",
-			Arc::new(AllowAll {}),
-		);
+		let mut gossip_engine =
+			GossipEngine::<Block>::new(network.clone(), engine_id.clone(), "my_protocol", Arc::new(AllowAll {}));
 
 		let mut event_sender = network.inner.lock().unwrap().event_senders.pop().unwrap();
 
@@ -407,7 +396,9 @@ mod tests {
 			.collect::<Vec<_>>();
 
 		// Send first event before subscribing.
-		event_sender.start_send(events[0].clone()).expect("Event stream is unbounded; qed.");
+		event_sender
+			.start_send(events[0].clone())
+			.expect("Event stream is unbounded; qed.");
 
 		let mut subscribers = vec![];
 		for _ in 0..2 {
@@ -415,12 +406,13 @@ mod tests {
 		}
 
 		// Send second event after subscribing.
-		event_sender.start_send(events[1].clone()).expect("Event stream is unbounded; qed.");
+		event_sender
+			.start_send(events[1].clone())
+			.expect("Event stream is unbounded; qed.");
 
 		spawn(gossip_engine);
 
-		let mut subscribers =
-			subscribers.into_iter().map(|s| block_on_stream(s)).collect::<Vec<_>>();
+		let mut subscribers = subscribers.into_iter().map(|s| block_on_stream(s)).collect::<Vec<_>>();
 
 		// Expect each subscriber to receive both events.
 		for message in messages {
@@ -490,13 +482,13 @@ mod tests {
 			let remote_peer = PeerId::random();
 			let network = TestNetwork::default();
 
-			let num_channels_per_topic = channels.iter().fold(
-				HashMap::new(),
-				|mut acc, ChannelLengthAndTopic { topic, .. }| {
-					acc.entry(topic).and_modify(|e| *e += 1).or_insert(1);
-					acc
-				},
-			);
+			let num_channels_per_topic =
+				channels
+					.iter()
+					.fold(HashMap::new(), |mut acc, ChannelLengthAndTopic { topic, .. }| {
+						acc.entry(topic).and_modify(|e| *e += 1).or_insert(1);
+						acc
+					});
 
 			let expected_msgs_per_topic_all_chan = notifications
 				.iter()
@@ -536,7 +528,7 @@ mod tests {
 					Some(entry) => entry.push(tx),
 					None => {
 						gossip_engine.message_sinks.insert(topic, vec![tx]);
-					},
+					}
 				}
 			}
 
@@ -600,15 +592,14 @@ mod tests {
 									.entry(*topic)
 									.and_modify(|e| *e += 1)
 									.or_insert(1);
-							},
-							Poll::Ready(None) =>
-								unreachable!("Sender side of channel is never dropped",),
-							Poll::Pending => {},
+							}
+							Poll::Ready(None) => unreachable!("Sender side of channel is never dropped",),
+							Poll::Pending => {}
 						}
 					}
 
 					if !progress {
-						break
+						break;
 					}
 				}
 				Poll::Ready(())
@@ -632,7 +623,10 @@ mod tests {
 		// Past regressions.
 		prop(vec![], vec![vec![Message { topic: H256::default() }]]);
 		prop(
-			vec![ChannelLengthAndTopic { length: 71, topic: H256::default() }],
+			vec![ChannelLengthAndTopic {
+				length: 71,
+				topic: H256::default(),
+			}],
 			vec![vec![Message { topic: H256::default() }]],
 		);
 

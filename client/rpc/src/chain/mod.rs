@@ -97,7 +97,7 @@ where
 					.header(BlockId::number(block_num))
 					.map_err(client_err)?
 					.map(|h| h.hash()))
-			},
+			}
 		}
 	}
 
@@ -107,11 +107,7 @@ where
 	}
 
 	/// All new head subscription
-	fn subscribe_all_heads(
-		&self,
-		_metadata: crate::Metadata,
-		subscriber: Subscriber<Block::Header>,
-	) {
+	fn subscribe_all_heads(&self, _metadata: crate::Metadata, subscriber: Subscriber<Block::Header>) {
 		subscribe_headers(
 			self.client(),
 			self.subscriptions(),
@@ -127,20 +123,12 @@ where
 	}
 
 	/// Unsubscribe from all head subscription.
-	fn unsubscribe_all_heads(
-		&self,
-		_metadata: Option<crate::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_all_heads(&self, _metadata: Option<crate::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		Ok(self.subscriptions().cancel(id))
 	}
 
 	/// New best head subscription
-	fn subscribe_new_heads(
-		&self,
-		_metadata: crate::Metadata,
-		subscriber: Subscriber<Block::Header>,
-	) {
+	fn subscribe_new_heads(&self, _metadata: crate::Metadata, subscriber: Subscriber<Block::Header>) {
 		subscribe_headers(
 			self.client(),
 			self.subscriptions(),
@@ -157,20 +145,12 @@ where
 	}
 
 	/// Unsubscribe from new best head subscription.
-	fn unsubscribe_new_heads(
-		&self,
-		_metadata: Option<crate::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_new_heads(&self, _metadata: Option<crate::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		Ok(self.subscriptions().cancel(id))
 	}
 
 	/// Finalized head subscription
-	fn subscribe_finalized_heads(
-		&self,
-		_metadata: crate::Metadata,
-		subscriber: Subscriber<Block::Header>,
-	) {
+	fn subscribe_finalized_heads(&self, _metadata: crate::Metadata, subscriber: Subscriber<Block::Header>) {
 		subscribe_headers(
 			self.client(),
 			self.subscriptions(),
@@ -186,25 +166,20 @@ where
 	}
 
 	/// Unsubscribe from finalized head subscription.
-	fn unsubscribe_finalized_heads(
-		&self,
-		_metadata: Option<crate::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_finalized_heads(&self, _metadata: Option<crate::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		Ok(self.subscriptions().cancel(id))
 	}
 }
 
 /// Create new state API that works on full node.
-pub fn new_full<Block: BlockT, Client>(
-	client: Arc<Client>,
-	subscriptions: SubscriptionManager,
-) -> Chain<Block, Client>
+pub fn new_full<Block: BlockT, Client>(client: Arc<Client>, subscriptions: SubscriptionManager) -> Chain<Block, Client>
 where
 	Block: BlockT + 'static,
 	Client: BlockBackend<Block> + HeaderBackend<Block> + BlockchainEvents<Block> + 'static,
 {
-	Chain { backend: Box::new(self::chain_full::FullChain::new(client, subscriptions)) }
+	Chain {
+		backend: Box::new(self::chain_full::FullChain::new(client, subscriptions)),
+	}
 }
 
 /// Create new state API that works on light node.
@@ -234,8 +209,7 @@ pub struct Chain<Block: BlockT, Client> {
 	backend: Box<dyn ChainBackend<Client, Block>>,
 }
 
-impl<Block, Client> ChainApi<NumberFor<Block>, Block::Hash, Block::Header, SignedBlock<Block>>
-	for Chain<Block, Client>
+impl<Block, Client> ChainApi<NumberFor<Block>, Block::Hash, Block::Header, SignedBlock<Block>> for Chain<Block, Client>
 where
 	Block: BlockT + 'static,
 	Client: HeaderBackend<Block> + BlockchainEvents<Block> + 'static,
@@ -250,14 +224,10 @@ where
 		self.backend.block(hash)
 	}
 
-	fn block_hash(
-		&self,
-		number: Option<ListOrValue<NumberOrHex>>,
-	) -> Result<ListOrValue<Option<Block::Hash>>> {
+	fn block_hash(&self, number: Option<ListOrValue<NumberOrHex>>) -> Result<ListOrValue<Option<Block::Hash>>> {
 		match number {
 			None => self.backend.block_hash(None).map(ListOrValue::Value),
-			Some(ListOrValue::Value(number)) =>
-				self.backend.block_hash(Some(number)).map(ListOrValue::Value),
+			Some(ListOrValue::Value(number)) => self.backend.block_hash(Some(number)).map(ListOrValue::Value),
 			Some(ListOrValue::List(list)) => Ok(ListOrValue::List(
 				list.into_iter()
 					.map(|number| self.backend.block_hash(Some(number)))
@@ -274,11 +244,7 @@ where
 		self.backend.subscribe_all_heads(metadata, subscriber)
 	}
 
-	fn unsubscribe_all_heads(
-		&self,
-		metadata: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_all_heads(&self, metadata: Option<Self::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		self.backend.unsubscribe_all_heads(metadata, id)
 	}
 
@@ -286,27 +252,15 @@ where
 		self.backend.subscribe_new_heads(metadata, subscriber)
 	}
 
-	fn unsubscribe_new_heads(
-		&self,
-		metadata: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_new_heads(&self, metadata: Option<Self::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		self.backend.unsubscribe_new_heads(metadata, id)
 	}
 
-	fn subscribe_finalized_heads(
-		&self,
-		metadata: Self::Metadata,
-		subscriber: Subscriber<Block::Header>,
-	) {
+	fn subscribe_finalized_heads(&self, metadata: Self::Metadata, subscriber: Subscriber<Block::Header>) {
 		self.backend.subscribe_finalized_heads(metadata, subscriber)
 	}
 
-	fn unsubscribe_finalized_heads(
-		&self,
-		metadata: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_finalized_heads(&self, metadata: Option<Self::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		self.backend.unsubscribe_finalized_heads(metadata, id)
 	}
 }

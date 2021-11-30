@@ -39,16 +39,16 @@ pub fn noncegen_rust(cache: &mut [u8], numeric_id: u64, local_startnonce: u64, l
 		// round 1
 		let hash = shabal256_hash_fast(&[], &t1);
 
-		cache[n as usize * NONCE_SIZE + NONCE_SIZE - HASH_SIZE..
-			n as usize * NONCE_SIZE + NONCE_SIZE]
+		cache[n as usize * NONCE_SIZE + NONCE_SIZE - HASH_SIZE..n as usize * NONCE_SIZE + NONCE_SIZE]
 			.clone_from_slice(&hash);
 		let hash = unsafe { sp_std::mem::transmute::<[u8; 32], [u32; 8]>(hash) };
 
 		// store first hash into smart termination string 2
 		t2[0..8].clone_from_slice(&hash);
 		// round 2 - 128
-		for i in
-			(NONCE_SIZE - HASH_CAP + HASH_SIZE..=NONCE_SIZE - HASH_SIZE).rev().step_by(HASH_SIZE)
+		for i in (NONCE_SIZE - HASH_CAP + HASH_SIZE..=NONCE_SIZE - HASH_SIZE)
+			.rev()
+			.step_by(HASH_SIZE)
 		{
 			// check if msg can be divided into 512bit packages without a
 			// remainder
@@ -58,16 +58,14 @@ pub fn noncegen_rust(cache: &mut [u8], numeric_id: u64, local_startnonce: u64, l
 					&cache[n as usize * NONCE_SIZE + i..n as usize * NONCE_SIZE + NONCE_SIZE],
 					&t1,
 				);
-				cache[n as usize * NONCE_SIZE + i - HASH_SIZE..n as usize * NONCE_SIZE + i]
-					.clone_from_slice(hash);
+				cache[n as usize * NONCE_SIZE + i - HASH_SIZE..n as usize * NONCE_SIZE + i].clone_from_slice(hash);
 			} else {
 				// last msg = 256 bit data + seed + termination
 				let hash = &shabal256_hash_fast(
 					&cache[n as usize * NONCE_SIZE + i..n as usize * NONCE_SIZE + NONCE_SIZE],
 					&t2,
 				);
-				cache[n as usize * NONCE_SIZE + i - HASH_SIZE..n as usize * NONCE_SIZE + i]
-					.clone_from_slice(hash);
+				cache[n as usize * NONCE_SIZE + i - HASH_SIZE..n as usize * NONCE_SIZE + i].clone_from_slice(hash);
 			}
 		}
 
@@ -77,8 +75,7 @@ pub fn noncegen_rust(cache: &mut [u8], numeric_id: u64, local_startnonce: u64, l
 				&cache[n as usize * NONCE_SIZE + i..n as usize * NONCE_SIZE + i + HASH_CAP],
 				&t3,
 			);
-			cache[n as usize * NONCE_SIZE + i - HASH_SIZE..n as usize * NONCE_SIZE + i]
-				.clone_from_slice(hash);
+			cache[n as usize * NONCE_SIZE + i - HASH_SIZE..n as usize * NONCE_SIZE + i].clone_from_slice(hash);
 		}
 
 		// generate final hash

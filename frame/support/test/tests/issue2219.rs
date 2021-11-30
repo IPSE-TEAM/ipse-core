@@ -26,8 +26,7 @@ mod system;
 mod module {
 	use super::*;
 
-	pub type Request<T> =
-		(<T as system::Trait>::AccountId, Role, <T as system::Trait>::BlockNumber);
+	pub type Request<T> = (<T as system::Trait>::AccountId, Role, <T as system::Trait>::BlockNumber);
 	pub type Requests<T> = Vec<Request<T>>;
 
 	#[derive(Encode, Decode, Copy, Clone, Eq, PartialEq, Debug)]
@@ -91,7 +90,9 @@ mod module {
 
 	impl<T: Trait> Default for Data<T> {
 		fn default() -> Self {
-			Self { data: T::BlockNumber::default() }
+			Self {
+				data: T::BlockNumber::default(),
+			}
 		}
 	}
 
@@ -179,6 +180,9 @@ frame_support::construct_runtime!(
 #[test]
 fn create_genesis_config() {
 	GenesisConfig {
-		module: Some(module::GenesisConfig { request_life_time: 0, enable_storage_role: true }),
+		module: Some(module::GenesisConfig {
+			request_life_time: 0,
+			enable_storage_role: true,
+		}),
 	};
 }

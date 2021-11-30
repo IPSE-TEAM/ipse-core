@@ -40,8 +40,8 @@ use libp2p::{
 		ConnectedPoint, Multiaddr, PeerId,
 	},
 	swarm::{
-		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler,
-		OneShotHandler, OneShotHandlerConfig, PollParameters, SubstreamProtocol,
+		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler, OneShotHandler,
+		OneShotHandlerConfig, PollParameters, SubstreamProtocol,
 	},
 };
 use prost::Message;
@@ -262,11 +262,7 @@ where
 	///
 	/// If the response doesn't arrive in time, or if the remote answers improperly, the target
 	/// will be disconnected.
-	pub fn send_request(
-		&mut self,
-		target: &PeerId,
-		req: message::BlockRequest<B>,
-	) -> SendRequestOutcome<B> {
+	pub fn send_request(&mut self, target: &PeerId, req: message::BlockRequest<B>) -> SendRequestOutcome<B> {
 		// Determine which connection to send the request to.
 		let connection = if let Some(peer) = self.peers.get_mut(target) {
 			// We don't want to have multiple requests for any given node, so in priority try to
@@ -280,19 +276,14 @@ where
 					target: "sync",
 					"State inconsistency: empty list of peer connections"
 				);
-				return SendRequestOutcome::NotConnected
+				return SendRequestOutcome::NotConnected;
 			}
 		} else {
-			return SendRequestOutcome::NotConnected
+			return SendRequestOutcome::NotConnected;
 		};
 
-		let protobuf_rq = build_protobuf_block_request(
-			req.fields,
-			req.from.clone(),
-			req.to.clone(),
-			req.direction,
-			req.max,
-		);
+		let protobuf_rq =
+			build_protobuf_block_request(req.fields, req.from.clone(), req.to.clone(), req.direction, req.max);
 
 		let mut buf = Vec::with_capacity(protobuf_rq.encoded_len());
 		if let Err(err) = protobuf_rq.encode(&mut buf) {
@@ -302,7 +293,7 @@ where
 				protobuf_rq,
 				err
 			);
-			return SendRequestOutcome::EncodeError(err)
+			return SendRequestOutcome::EncodeError(err);
 		}
 
 		let previous_request = connection.ongoing_request.take();
@@ -357,15 +348,15 @@ where
 			Some(schema::v1::block_request::FromBlock::Hash(ref h)) => {
 				let h = Decode::decode(&mut h.as_ref())?;
 				BlockId::<B>::Hash(h)
-			},
+			}
 			Some(schema::v1::block_request::FromBlock::Number(ref n)) => {
 				let n = Decode::decode(&mut n.as_ref())?;
 				BlockId::<B>::Number(n)
-			},
+			}
 			None => {
 				let msg = "missing `BlockRequest::from_block` field";
-				return Err(io::Error::new(io::ErrorKind::Other, msg).into())
-			},
+				return Err(io::Error::new(io::ErrorKind::Other, msg).into());
+			}
 		};
 
 		let max_blocks = if request.max_blocks == 0 {
@@ -380,7 +371,7 @@ where
 			schema::v1::Direction::Descending
 		} else {
 			let msg = format!("invalid `BlockRequest::direction` value: {}", request.direction);
-			return Err(io::Error::new(io::ErrorKind::Other, msg).into())
+			return Err(io::Error::new(io::ErrorKind::Other, msg).into());
 		};
 
 		let attributes = BlockAttributes::from_be_u32(request.fields)?;
@@ -392,10 +383,10 @@ where
 		let mut block_id = from_block_id;
 		let mut total_size = 0;
 		while let Some(header) = self.chain.header(block_id).unwrap_or(None) {
-			if blocks.len() >= max_blocks as usize ||
-				(blocks.len() >= 1 && total_size > self.config.max_block_body_bytes)
+			if blocks.len() >= max_blocks as usize
+				|| (blocks.len() >= 1 && total_size > self.config.max_block_body_bytes)
 			{
-				break
+				break;
 			}
 
 			let number = *header.number();
@@ -406,17 +397,15 @@ where
 			} else {
 				None
 			};
-			let is_empty_justification =
-				justification.as_ref().map(|j| j.is_empty()).unwrap_or(false);
+			let is_empty_justification = justification.as_ref().map(|j| j.is_empty()).unwrap_or(false);
 
 			let body = if get_body {
 				match self.chain.block_body(&BlockId::Hash(hash))? {
-					Some(mut extrinsics) =>
-						extrinsics.iter_mut().map(|extrinsic| extrinsic.encode()).collect(),
+					Some(mut extrinsics) => extrinsics.iter_mut().map(|extrinsic| extrinsic.encode()).collect(),
 					None => {
 						log::trace!(target: "sync", "Missing data for block request.");
-						break
-					},
+						break;
+					}
 				}
 			} else {
 				Vec::new()
@@ -439,10 +428,10 @@ where
 				schema::v1::Direction::Ascending => block_id = BlockId::Number(number + One::one()),
 				schema::v1::Direction::Descending => {
 					if number.is_zero() {
-						break
+						break;
 					}
 					block_id = BlockId::Hash(parent_hash)
-				},
+				}
 			}
 		}
 
@@ -454,8 +443,7 @@ impl<B> NetworkBehaviour for BlockRequests<B>
 where
 	B: Block,
 {
-	type ProtocolsHandler =
-		OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
+	type ProtocolsHandler = OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
 	type OutEvent = Event<B>;
 
 	fn new_handler(&mut self) -> Self::ProtocolsHandler {
@@ -478,24 +466,14 @@ where
 
 	fn inject_disconnected(&mut self, _peer: &PeerId) {}
 
-	fn inject_connection_established(
-		&mut self,
-		peer_id: &PeerId,
-		id: &ConnectionId,
-		_: &ConnectedPoint,
-	) {
-		self.peers
-			.entry(peer_id.clone())
-			.or_default()
-			.push(Connection { id: *id, ongoing_request: None });
+	fn inject_connection_established(&mut self, peer_id: &PeerId, id: &ConnectionId, _: &ConnectedPoint) {
+		self.peers.entry(peer_id.clone()).or_default().push(Connection {
+			id: *id,
+			ongoing_request: None,
+		});
 	}
 
-	fn inject_connection_closed(
-		&mut self,
-		peer_id: &PeerId,
-		id: &ConnectionId,
-		_: &ConnectedPoint,
-	) {
+	fn inject_connection_closed(&mut self, peer_id: &PeerId, id: &ConnectionId, _: &ConnectedPoint) {
 		let mut needs_remove = false;
 		if let Some(entry) = self.peers.get_mut(peer_id) {
 			if let Some(pos) = entry.iter().position(|i| i.id == *id) {
@@ -542,42 +520,40 @@ where
 		node_event: NodeEvent<B, NegotiatedSubstream>,
 	) {
 		match node_event {
-			NodeEvent::Request(request, mut stream, handling_start) => {
-				match self.on_block_request(&peer, &request) {
-					Ok(res) => {
-						log::trace!(
-							target: "sync",
-							"Enqueueing block response for peer {} with {} blocks",
-							peer, res.blocks.len()
-						);
-						let mut data = Vec::with_capacity(res.encoded_len());
-						if let Err(e) = res.encode(&mut data) {
-							log::debug!(
-								target: "sync",
-								"Error encoding block response for peer {}: {}",
-								peer, e
-							)
-						} else {
-							self.outgoing.push(
-								async move {
-									if let Err(e) = write_one(&mut stream, data).await {
-										log::debug!(
-											target: "sync",
-											"Error writing block response: {}",
-											e
-										);
-									}
-									(peer, handling_start.elapsed())
-								}
-								.boxed(),
-							);
-						}
-					},
-					Err(e) => log::debug!(
+			NodeEvent::Request(request, mut stream, handling_start) => match self.on_block_request(&peer, &request) {
+				Ok(res) => {
+					log::trace!(
 						target: "sync",
-						"Error handling block request from peer {}: {}", peer, e
-					),
+						"Enqueueing block response for peer {} with {} blocks",
+						peer, res.blocks.len()
+					);
+					let mut data = Vec::with_capacity(res.encoded_len());
+					if let Err(e) = res.encode(&mut data) {
+						log::debug!(
+							target: "sync",
+							"Error encoding block response for peer {}: {}",
+							peer, e
+						)
+					} else {
+						self.outgoing.push(
+							async move {
+								if let Err(e) = write_one(&mut stream, data).await {
+									log::debug!(
+										target: "sync",
+										"Error writing block response: {}",
+										e
+									);
+								}
+								(peer, handling_start.elapsed())
+							}
+							.boxed(),
+						);
+					}
 				}
+				Err(e) => log::debug!(
+					target: "sync",
+					"Error handling block request from peer {}: {}", peer, e
+				),
 			},
 			NodeEvent::Response(original_request, response) => {
 				log::trace!(
@@ -586,8 +562,7 @@ where
 					peer, response.blocks.len()
 				);
 				let request_duration = if let Some(connections) = self.peers.get_mut(&peer) {
-					if let Some(connection) = connections.iter_mut().find(|c| c.id == connection_id)
-					{
+					if let Some(connection) = connections.iter_mut().find(|c| c.id == connection_id) {
 						if let Some(ongoing_request) = &mut connection.ongoing_request {
 							if ongoing_request.request == original_request {
 								let request_duration = ongoing_request.emitted.elapsed();
@@ -601,7 +576,7 @@ where
 									peer,
 									original_request
 								);
-								return
+								return;
 							}
 						} else {
 							// We remove from `self.peers` requests we're no longer interested in,
@@ -610,7 +585,7 @@ where
 								target: "sync",
 								"Response discarded because it concerns an obsolete request"
 							);
-							return
+							return;
 						}
 					} else {
 						log::error!(
@@ -618,7 +593,7 @@ where
 							"State inconsistency: response on non-existing connection {:?}",
 							connection_id
 						);
-						return
+						return;
 					}
 				} else {
 					log::error!(
@@ -626,7 +601,7 @@ where
 						"State inconsistency: response on non-connected peer {}",
 						peer
 					);
-					return
+					return;
 				};
 
 				let blocks = response
@@ -640,10 +615,7 @@ where
 							} else {
 								None
 							},
-							body: if original_request
-								.fields
-								.contains(message::BlockAttributes::BODY)
-							{
+							body: if original_request.fields.contains(message::BlockAttributes::BODY) {
 								Some(
 									block_data
 										.body
@@ -685,15 +657,15 @@ where
 							request_duration,
 						};
 						self.pending_events.push_back(NetworkBehaviourAction::GenerateEvent(ev));
-					},
+					}
 					Err(err) => {
 						log::debug!(
 							target: "sync",
 							"Failed to decode block response from peer {}: {}", peer, err
 						);
-					},
+					}
 				}
-			},
+			}
 		}
 	}
 
@@ -703,7 +675,7 @@ where
 		_: &mut impl PollParameters,
 	) -> Poll<NetworkBehaviourAction<OutboundProtocol<B>, Event<B>>> {
 		if let Some(ev) = self.pending_events.pop_front() {
-			return Poll::Ready(ev)
+			return Poll::Ready(ev);
 		}
 
 		// Check the request timeouts.
@@ -728,14 +700,17 @@ where
 						original_request,
 						request_duration,
 					};
-					return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev))
+					return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev));
 				}
 			}
 		}
 
 		if let Poll::Ready(Some((peer, total_handling_time))) = self.outgoing.poll_next_unpin(cx) {
-			let ev = Event::AnsweredRequest { peer, total_handling_time };
-			return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev))
+			let ev = Event::AnsweredRequest {
+				peer,
+				total_handling_time,
+			};
+			return Poll::Ready(NetworkBehaviourAction::GenerateEvent(ev));
 		}
 
 		Poll::Pending
@@ -859,10 +834,8 @@ pub(crate) fn build_protobuf_block_request<Hash: Encode, Number: Encode>(
 	schema::v1::BlockRequest {
 		fields: attributes.to_be_u32(),
 		from_block: match from_block {
-			message::FromBlock::Hash(h) =>
-				Some(schema::v1::block_request::FromBlock::Hash(h.encode())),
-			message::FromBlock::Number(n) =>
-				Some(schema::v1::block_request::FromBlock::Number(n.encode())),
+			message::FromBlock::Hash(h) => Some(schema::v1::block_request::FromBlock::Hash(h.encode())),
+			message::FromBlock::Number(n) => Some(schema::v1::block_request::FromBlock::Number(n.encode())),
 		},
 		to_block: to_block.map(|h| h.encode()).unwrap_or_default(),
 		direction: match direction {

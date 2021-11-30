@@ -37,8 +37,8 @@ use sp_core::{traits::BareCryptoStorePtr, Bytes};
 use sp_runtime::generic;
 use sp_session::SessionKeys;
 use sp_transaction_pool::{
-	error::IntoPoolError, BlockHash, InPoolTransaction, TransactionFor, TransactionPool,
-	TransactionSource, TransactionStatus, TxHash,
+	error::IntoPoolError, BlockHash, InPoolTransaction, TransactionFor, TransactionPool, TransactionSource,
+	TransactionStatus, TxHash,
 };
 
 use self::error::{Error, FutureResult, Result};
@@ -68,7 +68,13 @@ impl<P, Client> Author<P, Client> {
 		keystore: BareCryptoStorePtr,
 		deny_unsafe: DenyUnsafe,
 	) -> Self {
-		Author { client, pool, subscriptions, keystore, deny_unsafe }
+		Author {
+			client,
+			pool,
+			subscriptions,
+			keystore,
+			deny_unsafe,
+		}
 	}
 }
 
@@ -152,10 +158,7 @@ where
 		Ok(self.pool.ready().map(|tx| tx.data().encode().into()).collect())
 	}
 
-	fn remove_extrinsic(
-		&self,
-		bytes_or_hash: Vec<hash::ExtrinsicOrHash<TxHash<P>>>,
-	) -> Result<Vec<TxHash<P>>> {
+	fn remove_extrinsic(&self, bytes_or_hash: Vec<hash::ExtrinsicOrHash<TxHash<P>>>) -> Result<Vec<TxHash<P>>> {
 		self.deny_unsafe.check_if_safe()?;
 
 		let hashes = bytes_or_hash
@@ -165,11 +168,16 @@ where
 				hash::ExtrinsicOrHash::Extrinsic(bytes) => {
 					let xt = Decode::decode(&mut &bytes[..])?;
 					Ok(self.pool.hash_of(&xt))
-				},
+				}
 			})
 			.collect::<Result<Vec<_>>>()?;
 
-		Ok(self.pool.remove_invalid(&hashes).into_iter().map(|tx| tx.hash().clone()).collect())
+		Ok(self
+			.pool
+			.remove_invalid(&hashes)
+			.into_iter()
+			.map(|tx| tx.hash().clone())
+			.collect())
 	}
 
 	fn watch_extrinsic(
@@ -205,27 +213,25 @@ where
 							.send_all(Compat::new(watcher))
 							.map(|_| ())
 					});
-				},
+				}
 				Err(err) => {
 					warn!("Failed to submit extrinsic: {}", err);
 					// reject the subscriber (ignore errors - we don't care if subscriber is no
 					// longer there).
 					let _ = subscriber.reject(err.into());
-				},
+				}
 			});
 
-		let res =
-			self.subscriptions.executor().execute(Box::new(Compat::new(future.map(|_| Ok(())))));
+		let res = self
+			.subscriptions
+			.executor()
+			.execute(Box::new(Compat::new(future.map(|_| Ok(())))));
 		if res.is_err() {
 			warn!("Error spawning subscription RPC task.");
 		}
 	}
 
-	fn unwatch_extrinsic(
-		&self,
-		_metadata: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> Result<bool> {
+	fn unwatch_extrinsic(&self, _metadata: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool> {
 		Ok(self.subscriptions.cancel(id))
 	}
 }

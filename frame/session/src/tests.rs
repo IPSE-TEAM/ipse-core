@@ -20,9 +20,9 @@
 use super::*;
 use frame_support::{assert_ok, traits::OnInitialize};
 use mock::{
-	authorities, before_session_end_called, force_new_session, new_test_ext,
-	reset_before_session_end_called, session_changed, set_next_validators, set_session_length,
-	Origin, Session, System, SESSION_CHANGED, TEST_SESSION_CHANGED,
+	authorities, before_session_end_called, force_new_session, new_test_ext, reset_before_session_end_called,
+	session_changed, set_next_validators, set_session_length, Origin, Session, System, SESSION_CHANGED,
+	TEST_SESSION_CHANGED,
 };
 use sp_core::crypto::key_types::DUMMY;
 use sp_runtime::testing::UintAuthorityId;
@@ -36,7 +36,10 @@ fn initialize_block(block: u64) {
 #[test]
 fn simple_setup_should_work() {
 	new_test_ext().execute_with(|| {
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]
+		);
 		assert_eq!(Session::validators(), vec![1, 2, 3]);
 	});
 }
@@ -81,7 +84,10 @@ fn authorities_should_track_validators() {
 			vec![(1, UintAuthorityId(1).into()), (2, UintAuthorityId(2).into()),]
 		);
 		assert_eq!(Session::validators(), vec![1, 2, 3]);
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]
+		);
 		assert!(before_session_end_called());
 		reset_before_session_end_called();
 
@@ -123,7 +129,10 @@ fn authorities_should_track_validators() {
 			]
 		);
 		assert_eq!(Session::validators(), vec![1, 2, 4]);
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(4)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(4)]
+		);
 	});
 }
 
@@ -155,28 +164,46 @@ fn session_change_should_work() {
 	new_test_ext().execute_with(|| {
 		// Block 1: No change
 		initialize_block(1);
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]
+		);
 
 		// Block 2: Session rollover, but no change.
 		initialize_block(2);
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]
+		);
 
 		// Block 3: Set new key for validator 2; no visible change.
 		initialize_block(3);
 		assert_ok!(Session::set_keys(Origin::signed(2), UintAuthorityId(5).into(), vec![]));
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]
+		);
 
 		// Block 4: Session rollover; no visible change.
 		initialize_block(4);
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]
+		);
 
 		// Block 5: No change.
 		initialize_block(5);
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)]
+		);
 
 		// Block 6: Session rollover; authority 2 changes.
 		initialize_block(6);
-		assert_eq!(authorities(), vec![UintAuthorityId(1), UintAuthorityId(5), UintAuthorityId(3)]);
+		assert_eq!(
+			authorities(),
+			vec![UintAuthorityId(1), UintAuthorityId(5), UintAuthorityId(3)]
+		);
 	});
 }
 
@@ -239,7 +266,11 @@ fn session_changed_flag_works() {
 		reset_before_session_end_called();
 
 		// changing the keys of a validator leads to change.
-		assert_ok!(Session::set_keys(Origin::signed(69), UintAuthorityId(69).into(), vec![]));
+		assert_ok!(Session::set_keys(
+			Origin::signed(69),
+			UintAuthorityId(69).into(),
+			vec![]
+		));
 		force_new_session();
 		initialize_block(7);
 		assert!(session_changed());

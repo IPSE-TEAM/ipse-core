@@ -45,8 +45,7 @@ impl Decode for Vote {
 		let b = input.read_byte()?;
 		Ok(Vote {
 			aye: (b & 0b1000_0000) == 0b1000_0000,
-			conviction: Conviction::try_from(b & 0b0111_1111)
-				.map_err(|_| codec::Error::from("Invalid conviction"))?,
+			conviction: Conviction::try_from(b & 0b0111_1111).map_err(|_| codec::Error::from("Invalid conviction"))?,
 		})
 	}
 }
@@ -67,8 +66,9 @@ impl<Balance: Saturating> AccountVote<Balance> {
 	pub fn locked_if(self, approved: bool) -> Option<(u32, Balance)> {
 		// winning side: can only be removed after the lock period ends.
 		match self {
-			AccountVote::Standard { vote, balance } if vote.aye == approved =>
-				Some((vote.conviction.lock_periods(), balance)),
+			AccountVote::Standard { vote, balance } if vote.aye == approved => {
+				Some((vote.conviction.lock_periods(), balance))
+			}
 			_ => None,
 		}
 	}
@@ -139,9 +139,7 @@ pub enum Voting<Balance, AccountId, BlockNumber> {
 	},
 }
 
-impl<Balance: Default, AccountId, BlockNumber: Zero> Default
-	for Voting<Balance, AccountId, BlockNumber>
-{
+impl<Balance: Default, AccountId, BlockNumber: Zero> Default for Voting<Balance, AccountId, BlockNumber> {
 	fn default() -> Self {
 		Voting::Direct {
 			votes: Vec::new(),
@@ -165,20 +163,26 @@ impl<Balance: Saturating + Ord + Zero + Copy, BlockNumber: Ord + Copy + Zero, Ac
 	/// The amount of this account's balance that much currently be locked due to voting.
 	pub fn locked_balance(&self) -> Balance {
 		match self {
-			Voting::Direct { votes, prior, .. } =>
-				votes.iter().map(|i| i.1.balance()).fold(prior.locked(), |a, i| a.max(i)),
+			Voting::Direct { votes, prior, .. } => votes
+				.iter()
+				.map(|i| i.1.balance())
+				.fold(prior.locked(), |a, i| a.max(i)),
 			Voting::Delegating { balance, .. } => *balance,
 		}
 	}
 
-	pub fn set_common(
-		&mut self,
-		delegations: Delegations<Balance>,
-		prior: PriorLock<BlockNumber, Balance>,
-	) {
+	pub fn set_common(&mut self, delegations: Delegations<Balance>, prior: PriorLock<BlockNumber, Balance>) {
 		let (d, p) = match self {
-			Voting::Direct { ref mut delegations, ref mut prior, .. } => (delegations, prior),
-			Voting::Delegating { ref mut delegations, ref mut prior, .. } => (delegations, prior),
+			Voting::Direct {
+				ref mut delegations,
+				ref mut prior,
+				..
+			} => (delegations, prior),
+			Voting::Delegating {
+				ref mut delegations,
+				ref mut prior,
+				..
+			} => (delegations, prior),
 		};
 		*d = delegations;
 		*p = prior;

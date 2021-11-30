@@ -28,8 +28,7 @@ use sp_core::blake2_256;
 use sp_runtime::{
 	generic::BlockId,
 	transaction_validity::{
-		InvalidTransaction, TransactionSource, TransactionTag as Tag, TransactionValidity,
-		ValidTransaction,
+		InvalidTransaction, TransactionSource, TransactionTag as Tag, TransactionValidity, ValidTransaction,
 	},
 };
 use substrate_test_runtime::{AccountId, Block, Extrinsic, Transfer, H256};
@@ -69,7 +68,7 @@ impl ChainApi for TestApi {
 
 		match self.block_id_to_number(at) {
 			Ok(Some(num)) if num > 5 => return ready(Ok(Err(InvalidTransaction::Stale.into()))),
-			_ => {},
+			_ => {}
 		}
 
 		ready(Ok(Ok(ValidTransaction {
@@ -85,20 +84,14 @@ impl ChainApi for TestApi {
 		})))
 	}
 
-	fn block_id_to_number(
-		&self,
-		at: &BlockId<Self::Block>,
-	) -> Result<Option<NumberFor<Self>>, Self::Error> {
+	fn block_id_to_number(&self, at: &BlockId<Self::Block>) -> Result<Option<NumberFor<Self>>, Self::Error> {
 		Ok(match at {
 			BlockId::Number(num) => Some(*num),
 			BlockId::Hash(_) => None,
 		})
 	}
 
-	fn block_id_to_hash(
-		&self,
-		at: &BlockId<Self::Block>,
-	) -> Result<Option<BlockHash<Self>>, Self::Error> {
+	fn block_id_to_hash(&self, at: &BlockId<Self::Block>) -> Result<Option<BlockHash<Self>>, Self::Error> {
 		Ok(match at {
 			BlockId::Number(num) => Some(H256::from_low_u64_be(*num)).into(),
 			BlockId::Hash(_) => None,

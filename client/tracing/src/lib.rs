@@ -131,10 +131,10 @@ impl Values {
 
 	/// Checks if all individual collections are empty
 	pub fn is_empty(&self) -> bool {
-		self.bool_values.is_empty() &&
-			self.i64_values.is_empty() &&
-			self.u64_values.is_empty() &&
-			self.string_values.is_empty()
+		self.bool_values.is_empty()
+			&& self.i64_values.is_empty()
+			&& self.u64_values.is_empty()
+			&& self.string_values.is_empty()
 	}
 }
 
@@ -156,7 +156,8 @@ impl Visit for Values {
 	}
 
 	fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-		self.string_values.insert(field.name().to_string(), format!("{:?}", value).to_owned());
+		self.string_values
+			.insert(field.name().to_string(), format!("{:?}", value).to_owned());
 	}
 }
 
@@ -165,10 +166,7 @@ impl Serialize for Values {
 	where
 		S: Serializer,
 	{
-		let len = self.bool_values.len() +
-			self.i64_values.len() +
-			self.u64_values.len() +
-			self.string_values.len();
+		let len = self.bool_values.len() + self.i64_values.len() + self.u64_values.len() + self.string_values.len();
 		let mut map = serializer.serialize_map(Some(len))?;
 		for (k, v) in &self.bool_values {
 			map.serialize_entry(k, v)?;
@@ -213,12 +211,7 @@ impl slog::SerdeValue for Values {
 }
 
 impl slog::Value for Values {
-	fn serialize(
-		&self,
-		_record: &slog::Record,
-		key: slog::Key,
-		ser: &mut dyn slog::Serializer,
-	) -> slog::Result {
+	fn serialize(&self, _record: &slog::Record, key: slog::Key, ser: &mut dyn slog::Serializer) -> slog::Result {
 		ser.emit_serde(key, self)
 	}
 }
@@ -231,8 +224,7 @@ impl ProfilingLayer {
 	pub fn new(receiver: TracingReceiver, targets: &str) -> Self {
 		match receiver {
 			TracingReceiver::Log => Self::new_with_handler(Box::new(LogTraceHandler), targets),
-			TracingReceiver::Telemetry =>
-				Self::new_with_handler(Box::new(TelemetryTraceHandler), targets),
+			TracingReceiver::Telemetry => Self::new_with_handler(Box::new(TelemetryTraceHandler), targets),
 		}
 	}
 
@@ -254,7 +246,7 @@ impl ProfilingLayer {
 	fn check_target(&self, target: &str, level: &Level) -> bool {
 		for t in &self.targets {
 			if target.starts_with(t.0.as_str()) && level <= &t.1 {
-				return true
+				return true;
 			}
 		}
 		false
@@ -273,7 +265,7 @@ fn parse_target(s: &str) -> (String, Level) {
 			} else {
 				(target, Level::TRACE)
 			}
-		},
+		}
 		None => (s.to_string(), Level::TRACE),
 	}
 }
@@ -455,14 +447,15 @@ mod tests {
 		}
 	}
 
-	type TestSubscriber =
-		tracing_subscriber::layer::Layered<ProfilingLayer, tracing_subscriber::fmt::Subscriber>;
+	type TestSubscriber = tracing_subscriber::layer::Layered<ProfilingLayer, tracing_subscriber::fmt::Subscriber>;
 
-	fn setup_subscriber(
-	) -> (TestSubscriber, Arc<Mutex<Vec<SpanDatum>>>, Arc<Mutex<Vec<TraceEvent>>>) {
+	fn setup_subscriber() -> (TestSubscriber, Arc<Mutex<Vec<SpanDatum>>>, Arc<Mutex<Vec<TraceEvent>>>) {
 		let spans = Arc::new(Mutex::new(Vec::new()));
 		let events = Arc::new(Mutex::new(Vec::new()));
-		let handler = TestTraceHandler { spans: spans.clone(), events: events.clone() };
+		let handler = TestTraceHandler {
+			spans: spans.clone(),
+			events: events.clone(),
+		};
 		let layer = ProfilingLayer::new_with_handler(Box::new(handler), "test_target");
 		let subscriber = tracing_subscriber::fmt().finish().with(layer);
 		(subscriber, spans, events)
@@ -587,7 +580,7 @@ mod tests {
 			tracing::event!(target: "test_target", tracing::Level::INFO, "test_event1");
 			for msg in rx.recv() {
 				if msg == false {
-					break
+					break;
 				}
 			}
 			// gard2 and span2 dropped / exited

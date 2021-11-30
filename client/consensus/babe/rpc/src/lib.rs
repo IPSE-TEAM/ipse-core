@@ -72,23 +72,27 @@ impl<B: BlockT, C, SC> BabeRpcHandler<B, C, SC> {
 		select_chain: SC,
 		deny_unsafe: DenyUnsafe,
 	) -> Self {
-		Self { client, shared_epoch_changes, keystore, babe_config, select_chain, deny_unsafe }
+		Self {
+			client,
+			shared_epoch_changes,
+			keystore,
+			babe_config,
+			select_chain,
+			deny_unsafe,
+		}
 	}
 }
 
 impl<B, C, SC> BabeApi for BabeRpcHandler<B, C, SC>
 where
 	B: BlockT,
-	C: ProvideRuntimeApi<B>
-		+ HeaderBackend<B>
-		+ HeaderMetadata<B, Error = BlockChainError>
-		+ 'static,
+	C: ProvideRuntimeApi<B> + HeaderBackend<B> + HeaderMetadata<B, Error = BlockChainError> + 'static,
 	C::Api: BabeRuntimeApi<B>,
 	SC: SelectChain<B> + Clone + 'static,
 {
 	fn epoch_authorship(&self) -> FutureResult<HashMap<AuthorityId, EpochAuthorship>> {
 		if let Err(err) = self.deny_unsafe.check_if_safe() {
-			return Box::new(rpc_future::err(err.into()))
+			return Box::new(rpc_future::err(err.into()));
 		}
 
 		let (babe_config, keystore, shared_epoch, client, select_chain) = (
@@ -104,8 +108,7 @@ where
 				.runtime_api()
 				.current_epoch_start(&BlockId::Hash(header.hash()))
 				.map_err(|err| Error::StringError(format!("{:?}", err)))?;
-			let epoch =
-				epoch_data(&shared_epoch, &client, &babe_config, epoch_start, &select_chain)?;
+			let epoch = epoch_data(&shared_epoch, &client, &babe_config, epoch_start, &select_chain)?;
 			let (epoch_start, epoch_end) = (epoch.start_slot(), epoch.end_slot());
 
 			let mut claims: HashMap<AuthorityId, EpochAuthorship> = HashMap::new();
@@ -127,19 +130,17 @@ where
 			};
 
 			for slot_number in epoch_start..epoch_end {
-				if let Some((claim, key)) =
-					authorship::claim_slot_using_keys(slot_number, &epoch, &keystore, &keys)
-				{
+				if let Some((claim, key)) = authorship::claim_slot_using_keys(slot_number, &epoch, &keystore, &keys) {
 					match claim {
 						PreDigest::Primary { .. } => {
 							claims.entry(key).or_default().primary.push(slot_number);
-						},
+						}
 						PreDigest::SecondaryPlain { .. } => {
 							claims.entry(key).or_default().secondary.push(slot_number);
-						},
+						}
 						PreDigest::SecondaryVRF { .. } => {
 							claims.entry(key).or_default().secondary_vrf.push(slot_number);
-						},
+						}
 					};
 				}
 			}
@@ -216,8 +217,7 @@ mod tests {
 	use sp_application_crypto::AppPair;
 	use sp_keyring::Ed25519Keyring;
 	use substrate_test_runtime_client::{
-		runtime::Block, Backend, DefaultTestClientBuilderExt, TestClient, TestClientBuilder,
-		TestClientBuilderExt,
+		runtime::Block, Backend, DefaultTestClientBuilderExt, TestClient, TestClientBuilder, TestClientBuilderExt,
 	};
 
 	use jsonrpc_core::IoHandler;
@@ -225,9 +225,7 @@ mod tests {
 	use std::sync::Arc;
 
 	/// creates keystore backed by a temp file
-	fn create_temp_keystore<P: AppPair>(
-		authority: Ed25519Keyring,
-	) -> (KeyStorePtr, tempfile::TempDir) {
+	fn create_temp_keystore<P: AppPair>(authority: Ed25519Keyring) -> (KeyStorePtr, tempfile::TempDir) {
 		let keystore_path = tempfile::tempdir().expect("Creates keystore path");
 		let keystore = Store::open(keystore_path.path(), None).expect("Creates keystore");
 		keystore
@@ -245,8 +243,8 @@ mod tests {
 		let (client, longest_chain) = builder.build_with_longest_chain();
 		let client = Arc::new(client);
 		let config = Config::get_or_compute(&*client).expect("config available");
-		let (_, link) = block_import(config.clone(), client.clone(), client.clone())
-			.expect("can initialize block-import");
+		let (_, link) =
+			block_import(config.clone(), client.clone(), client.clone()).expect("can initialize block-import");
 
 		let epoch_changes = link.epoch_changes().clone();
 		let keystore = create_temp_keystore::<AuthorityPair>(Ed25519Keyring::Alice).0;

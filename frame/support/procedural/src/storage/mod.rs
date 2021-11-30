@@ -25,9 +25,7 @@ mod parse;
 mod storage_struct;
 mod store_trait;
 
-use frame_support_procedural_tools::{
-	generate_crate_access, generate_hidden_includes, syn_ext as ext,
-};
+use frame_support_procedural_tools::{generate_crate_access, generate_hidden_includes, syn_ext as ext};
 use quote::quote;
 
 /// All information contained in input of decl_storage
@@ -106,21 +104,20 @@ pub struct DeclStorageDefExt {
 impl From<DeclStorageDef> for DeclStorageDefExt {
 	fn from(mut def: DeclStorageDef) -> Self {
 		let storage_lines = def.storage_lines.drain(..).collect::<Vec<_>>();
-		let storage_lines =
-			storage_lines.into_iter().map(|line| StorageLineDefExt::from_def(line, &def)).collect();
+		let storage_lines = storage_lines
+			.into_iter()
+			.map(|line| StorageLineDefExt::from_def(line, &def))
+			.collect();
 
 		let (optional_instance, optional_instance_bound, optional_instance_bound_optional_default) =
 			if let Some(instance) = def.module_instance.as_ref() {
 				let instance_generic = &instance.instance_generic;
 				let instance_trait = &instance.instance_trait;
-				let optional_equal_instance_default =
-					instance.instance_default.as_ref().map(|d| quote!( = #d ));
+				let optional_equal_instance_default = instance.instance_default.as_ref().map(|d| quote!( = #d ));
 				(
 					Some(quote!(#instance_generic)),
 					Some(quote!(#instance_generic: #instance_trait)),
-					Some(
-						quote!(#instance_generic: #instance_trait #optional_equal_instance_default),
-					),
+					Some(quote!(#instance_generic: #instance_trait #optional_equal_instance_default)),
 				)
 			} else {
 				(None, None, None)
@@ -227,15 +224,16 @@ pub struct StorageLineDefExt {
 impl StorageLineDefExt {
 	fn from_def(storage_def: StorageLineDef, def: &DeclStorageDef) -> Self {
 		let is_generic = match &storage_def.storage_type {
-			StorageLineTypeDef::Simple(value) =>
-				ext::type_contains_ident(&value, &def.module_runtime_generic),
-			StorageLineTypeDef::Map(map) =>
-				ext::type_contains_ident(&map.key, &def.module_runtime_generic) ||
-					ext::type_contains_ident(&map.value, &def.module_runtime_generic),
-			StorageLineTypeDef::DoubleMap(map) =>
-				ext::type_contains_ident(&map.key1, &def.module_runtime_generic) ||
-					ext::type_contains_ident(&map.key2, &def.module_runtime_generic) ||
-					ext::type_contains_ident(&map.value, &def.module_runtime_generic),
+			StorageLineTypeDef::Simple(value) => ext::type_contains_ident(&value, &def.module_runtime_generic),
+			StorageLineTypeDef::Map(map) => {
+				ext::type_contains_ident(&map.key, &def.module_runtime_generic)
+					|| ext::type_contains_ident(&map.value, &def.module_runtime_generic)
+			}
+			StorageLineTypeDef::DoubleMap(map) => {
+				ext::type_contains_ident(&map.key1, &def.module_runtime_generic)
+					|| ext::type_contains_ident(&map.key2, &def.module_runtime_generic)
+					|| ext::type_contains_ident(&map.value, &def.module_runtime_generic)
+			}
 		};
 
 		let query_type = match &storage_def.storage_type {
@@ -244,13 +242,15 @@ impl StorageLineDefExt {
 			StorageLineTypeDef::DoubleMap(map) => map.value.clone(),
 		};
 		let is_option = ext::extract_type_option(&query_type).is_some();
-		let value_type =
-			ext::extract_type_option(&query_type).unwrap_or_else(|| query_type.clone());
+		let value_type = ext::extract_type_option(&query_type).unwrap_or_else(|| query_type.clone());
 
 		let module_runtime_generic = &def.module_runtime_generic;
 		let module_runtime_trait = &def.module_runtime_trait;
-		let optional_storage_runtime_comma =
-			if is_generic { Some(quote!( #module_runtime_generic, )) } else { None };
+		let optional_storage_runtime_comma = if is_generic {
+			Some(quote!( #module_runtime_generic, ))
+		} else {
+			None
+		};
 		let optional_storage_runtime_bound_comma = if is_generic {
 			Some(quote!( #module_runtime_generic: #module_runtime_trait, ))
 		} else {
@@ -266,20 +266,23 @@ impl StorageLineDefExt {
 			#storage_name<#optional_storage_runtime_comma #optional_instance_generic>
 		);
 
-		let optional_storage_where_clause =
-			if is_generic { def.where_clause.as_ref().map(|w| quote!( #w )) } else { None };
+		let optional_storage_where_clause = if is_generic {
+			def.where_clause.as_ref().map(|w| quote!( #w ))
+		} else {
+			None
+		};
 
 		let storage_trait_truncated = match &storage_def.storage_type {
 			StorageLineTypeDef::Simple(_) => quote!( StorageValue<#value_type> ),
 			StorageLineTypeDef::Map(map) => {
 				let key = &map.key;
 				quote!( StorageMap<#key, #value_type> )
-			},
+			}
 			StorageLineTypeDef::DoubleMap(map) => {
 				let key1 = &map.key1;
 				let key2 = &map.key2;
 				quote!( StorageDoubleMap<#key1, #key2, #value_type> )
-			},
+			}
 		};
 
 		let storage_trait = quote!( storage::#storage_trait_truncated );

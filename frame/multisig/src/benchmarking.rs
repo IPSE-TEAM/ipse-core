@@ -42,7 +42,7 @@ fn setup_multi<T: Trait>(s: u32, z: u32) -> Result<(Vec<T::AccountId>, Vec<u8>),
 	// Must first convert to outer call type.
 	let call: <T as Trait>::Call = frame_system::Call::<T>::remark(vec![0; z as usize]).into();
 	let call_data = call.encode();
-	return Ok((signatories, call_data))
+	return Ok((signatories, call_data));
 }
 
 benchmarks! {

@@ -76,11 +76,7 @@ pub trait ManualSealApi<Hash> {
 
 	/// Instructs the manual-seal authorship task to finalize a block
 	#[rpc(name = "engine_finalizeBlock")]
-	fn finalize_block(
-		&self,
-		hash: Hash,
-		justification: Option<Justification>,
-	) -> FutureResult<bool>;
+	fn finalize_block(&self, hash: Hash, justification: Option<Justification>) -> FutureResult<bool>;
 }
 
 /// A struct that implements the [`ManualSealApi`].
@@ -128,16 +124,16 @@ impl<Hash: Send + 'static> ManualSealApi<Hash> for ManualSeal<Hash> {
 		Box::new(future.map_err(Error::from).compat())
 	}
 
-	fn finalize_block(
-		&self,
-		hash: Hash,
-		justification: Option<Justification>,
-	) -> FutureResult<bool> {
+	fn finalize_block(&self, hash: Hash, justification: Option<Justification>) -> FutureResult<bool> {
 		let mut sink = self.import_block_channel.clone();
 		let future = async move {
 			let (sender, receiver) = oneshot::channel();
-			sink.send(EngineCommand::FinalizeBlock { hash, sender: Some(sender), justification })
-				.await?;
+			sink.send(EngineCommand::FinalizeBlock {
+				hash,
+				sender: Some(sender),
+				justification,
+			})
+			.await?;
 
 			receiver.await?.map(|_| true)
 		};
@@ -148,10 +144,7 @@ impl<Hash: Send + 'static> ManualSealApi<Hash> for ManualSeal<Hash> {
 
 /// report any errors or successes encountered by the authorship task back
 /// to the rpc
-pub fn send_result<T: std::fmt::Debug>(
-	sender: &mut Sender<T>,
-	result: std::result::Result<T, crate::Error>,
-) {
+pub fn send_result<T: std::fmt::Debug>(sender: &mut Sender<T>, result: std::result::Result<T, crate::Error>) {
 	if let Some(sender) = sender.take() {
 		if let Err(err) = sender.send(result) {
 			log::warn!("Server is shutting down: {:?}", err)

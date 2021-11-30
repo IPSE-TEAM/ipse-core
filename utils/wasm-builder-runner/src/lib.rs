@@ -82,10 +82,7 @@ impl WasmBuilderSelectProject {
 	/// Use the given `path` as project for building the WASM binary.
 	///
 	/// Returns an error if the given `path` does not points to a `Cargo.toml`.
-	pub fn with_project(
-		self,
-		path: impl Into<PathBuf>,
-	) -> Result<WasmBuilderSelectSource, &'static str> {
+	pub fn with_project(self, path: impl Into<PathBuf>) -> Result<WasmBuilderSelectSource, &'static str> {
 		let path = path.into();
 
 		if path.ends_with("Cargo.toml") {
@@ -138,11 +135,7 @@ impl WasmBuilderSelectSource {
 	///
 	/// The `path` must be relative and point to the directory that contains the `Cargo.toml` for
 	/// `wasm-builder`.
-	pub fn with_wasm_builder_from_crates_or_path(
-		self,
-		version: &'static str,
-		path: &'static str,
-	) -> WasmBuilder {
+	pub fn with_wasm_builder_from_crates_or_path(self, version: &'static str, path: &'static str) -> WasmBuilder {
 		WasmBuilder {
 			source: WasmBuilderSource::CratesOrPath { version, path },
 			rust_flags: Vec::new(),
@@ -153,7 +146,12 @@ impl WasmBuilderSelectSource {
 
 	/// Use the given `source` as source for `wasm-builder`.
 	pub fn with_wasm_builder_source(self, source: WasmBuilderSource) -> WasmBuilder {
-		WasmBuilder { source, rust_flags: Vec::new(), file_name: None, project_cargo_toml: self.0 }
+		WasmBuilder {
+			source,
+			rust_flags: Vec::new(),
+			file_name: None,
+			project_cargo_toml: self.0,
+		}
 	}
 }
 
@@ -230,7 +228,7 @@ impl WasmBuilder {
 			// If we skip the build, we still want to make sure to be called when an env variable
 			// changes
 			generate_rerun_if_changed_instructions();
-			return
+			return;
 		}
 
 		let out_dir = PathBuf::from(env::var("OUT_DIR").expect("`OUT_DIR` is set by cargo!"));
@@ -244,8 +242,7 @@ impl WasmBuilder {
 		// Make sure the `wasm-builder-runner` path is unique by concatenating the name of the
 		// project that is compiling the WASM binary with the hash of the path to the project that
 		// should be compiled as WASM binary.
-		let project_folder =
-			get_workspace_root().join(format!("{}{}", project_name, hasher.finish()));
+		let project_folder = get_workspace_root().join(format!("{}{}", project_name, hasher.finish()));
 
 		if check_provide_dummy_wasm_binary() {
 			provide_dummy_wasm_binary(&file_path);
@@ -255,7 +252,11 @@ impl WasmBuilder {
 				&file_path,
 				self.source,
 				&self.project_cargo_toml,
-				&self.rust_flags.into_iter().map(|f| format!("{} ", f)).collect::<String>(),
+				&self
+					.rust_flags
+					.into_iter()
+					.map(|f| format!("{} ", f))
+					.collect::<String>(),
 			);
 			run_project(&project_folder);
 		}
@@ -284,8 +285,9 @@ impl WasmBuilderSource {
 	/// `absolute_path` - The manifest dir.
 	fn to_cargo_source(&self, manifest_dir: &Path) -> String {
 		match self {
-			WasmBuilderSource::Path(path) =>
-				replace_back_slashes(format!("path = \"{}\"", manifest_dir.join(path).display())),
+			WasmBuilderSource::Path(path) => {
+				replace_back_slashes(format!("path = \"{}\"", manifest_dir.join(path).display()))
+			}
 			WasmBuilderSource::Git { repo, rev } => format!("git = \"{}\", rev=\"{}\"", repo, rev),
 			WasmBuilderSource::Crates(version) => format!("version = \"{}\"", version),
 			WasmBuilderSource::CratesOrPath { version, path } => replace_back_slashes(format!(
@@ -338,10 +340,11 @@ fn get_workspace_root() -> PathBuf {
 	loop {
 		match out_dir.parent() {
 			Some(parent) if out_dir.ends_with("build") => return parent.join("wbuild-runner"),
-			_ =>
+			_ => {
 				if !out_dir.pop() {
-					break
-				},
+					break;
+				}
+			}
 		}
 	}
 
@@ -355,8 +358,7 @@ fn create_project(
 	cargo_toml_path: &Path,
 	default_rustflags: &str,
 ) {
-	fs::create_dir_all(project_folder.join("src"))
-		.expect("WASM build runner dir create can not fail; qed");
+	fs::create_dir_all(project_folder.join("src")).expect("WASM build runner dir create can not fail; qed");
 
 	fs::write(
 		project_folder.join("Cargo.toml"),
@@ -402,10 +404,12 @@ fn create_project(
 }
 
 fn run_project(project_folder: &Path) {
-	let cargo =
-		env::var("CARGO").expect("`CARGO` env variable is always set when executing `build.rs`.");
+	let cargo = env::var("CARGO").expect("`CARGO` env variable is always set when executing `build.rs`.");
 	let mut cmd = Command::new(cargo);
-	cmd.arg("run").arg(format!("--manifest-path={}", project_folder.join("Cargo.toml").display()));
+	cmd.arg("run").arg(format!(
+		"--manifest-path={}",
+		project_folder.join("Cargo.toml").display()
+	));
 
 	if env::var("DEBUG") != Ok(String::from("true")) {
 		cmd.arg("--release");
@@ -430,7 +434,10 @@ fn run_project(project_folder: &Path) {
 fn generate_crate_skip_build_env_name() -> String {
 	format!(
 		"SKIP_{}_WASM_BUILD",
-		env::var("CARGO_PKG_NAME").expect("Package name is set").to_uppercase().replace('-', "_"),
+		env::var("CARGO_PKG_NAME")
+			.expect("Package name is set")
+			.to_uppercase()
+			.replace('-', "_"),
 	)
 }
 
@@ -449,7 +456,8 @@ fn provide_dummy_wasm_binary(file_path: &Path) {
 	fs::write(
 		file_path,
 		"pub const WASM_BINARY: Option<&[u8]> = None; pub const WASM_BINARY_BLOATY: Option<&[u8]> = None;",
-	).expect("Writing dummy WASM binary should not fail");
+	)
+	.expect("Writing dummy WASM binary should not fail");
 }
 
 /// Generate the `rerun-if-changed` instructions for cargo to make sure that the WASM binary is

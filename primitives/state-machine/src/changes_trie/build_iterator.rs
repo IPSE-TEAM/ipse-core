@@ -31,10 +31,8 @@ pub fn digest_build_iterator<'a, Number: BlockNumber>(
 	block: Number,
 ) -> DigestBuildIterator<Number> {
 	// prepare digest build parameters
-	let (_, _, digest_step) = match config.config.digest_level_at_block(config.zero, block.clone())
-	{
-		Some((current_level, digest_interval, digest_step)) =>
-			(current_level, digest_interval, digest_step),
+	let (_, _, digest_step) = match config.config.digest_level_at_block(config.zero, block.clone()) {
+		Some((current_level, digest_interval, digest_step)) => (current_level, digest_interval, digest_step),
 		None => return DigestBuildIterator::empty(),
 	};
 
@@ -104,7 +102,7 @@ impl<Number: BlockNumber> Iterator for DigestBuildIterator<Number> {
 			if let Some(next) = self.current_range.as_mut().and_then(|iter| iter.next()) {
 				if next < self.end {
 					self.last_block = Some(next.clone());
-					return Some(next)
+					return Some(next);
 				}
 			}
 
@@ -118,16 +116,14 @@ impl<Number: BlockNumber> Iterator for DigestBuildIterator<Number> {
 				self.current_step_reverse * self.digest_interval
 			};
 			if next_step_reverse > self.max_step {
-				return None
+				return None;
 			}
 
 			self.current_step_reverse = next_step_reverse;
 			self.current_range = Some(BlocksRange::new(
 				match self.last_block.clone() {
 					Some(last_block) => last_block + self.current_step.into(),
-					None =>
-						self.block.clone() -
-							(self.current_step * self.digest_interval - self.current_step).into(),
+					None => self.block.clone() - (self.current_step * self.digest_interval - self.current_step).into(),
 				},
 				self.block.clone(),
 				self.current_step.into(),
@@ -151,7 +147,11 @@ struct BlocksRange<Number: BlockNumber> {
 
 impl<Number: BlockNumber> BlocksRange<Number> {
 	pub fn new(begin: Number, end: Number, step: Number) -> Self {
-		BlocksRange { current: begin, end, step }
+		BlocksRange {
+			current: begin,
+			end,
+			step,
+		}
 	}
 }
 
@@ -160,7 +160,7 @@ impl<Number: BlockNumber> Iterator for BlocksRange<Number> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.current >= self.end {
-			return None
+			return None;
 		}
 
 		let current = Some(self.current.clone());
@@ -183,7 +183,10 @@ mod tests {
 	) -> DigestBuildIterator<u64> {
 		super::digest_build_iterator(
 			ConfigurationRange {
-				config: &Configuration { digest_interval, digest_levels },
+				config: &Configuration {
+					digest_interval,
+					digest_levels,
+				},
 				zero,
 				end,
 			},
@@ -191,12 +194,7 @@ mod tests {
 		)
 	}
 
-	fn digest_build_iterator_basic(
-		digest_interval: u32,
-		digest_levels: u32,
-		zero: u64,
-		block: u64,
-	) -> (u64, u32, u32) {
+	fn digest_build_iterator_basic(digest_interval: u32, digest_levels: u32, zero: u64, block: u64) -> (u64, u32, u32) {
 		let iter = digest_build_iterator(digest_interval, digest_levels, zero, block, None);
 		(iter.block, iter.digest_interval, iter.max_step)
 	}
@@ -361,13 +359,10 @@ mod tests {
 			);
 			assert_eq!(
 				digest_build_iterator_blocks(16, 3, zero, zero + 4080, None),
-				[
-					4065, 4066, 4067, 4068, 4069, 4070, 4071, 4072, 4073, 4074, 4075, 4076, 4077,
-					4078, 4079
-				]
-				.iter()
-				.map(|item| zero + item)
-				.collect::<Vec<_>>()
+				[4065, 4066, 4067, 4068, 4069, 4070, 4071, 4072, 4073, 4074, 4075, 4076, 4077, 4078, 4079]
+					.iter()
+					.map(|item| zero + item)
+					.collect::<Vec<_>>()
 			);
 		}
 
@@ -395,10 +390,9 @@ mod tests {
 				digest_build_iterator_blocks(16, 2, zero, zero + 4096, None),
 				[
 					// level2 points to previous 16-1 level1 digests:
-					3856, 3872, 3888, 3904, 3920, 3936, 3952, 3968, 3984, 4000, 4016, 4032, 4048,
-					4064, 4080, // level2 is a level1 digest of 16-1 previous blocks:
-					4081, 4082, 4083, 4084, 4085, 4086, 4087, 4088, 4089, 4090, 4091, 4092, 4093,
-					4094, 4095,
+					3856, 3872, 3888, 3904, 3920, 3936, 3952, 3968, 3984, 4000, 4016, 4032, 4048, 4064,
+					4080, // level2 is a level1 digest of 16-1 previous blocks:
+					4081, 4082, 4083, 4084, 4085, 4086, 4087, 4088, 4089, 4090, 4091, 4092, 4093, 4094, 4095,
 				]
 				.iter()
 				.map(|item| zero + item)
@@ -420,10 +414,9 @@ mod tests {
 					// level3 points to previous 16-1 level2 digests:
 					256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304, 2560, 2816, 3072, 3328, 3584,
 					3840, // level3 points to previous 16-1 level1 digests:
-					3856, 3872, 3888, 3904, 3920, 3936, 3952, 3968, 3984, 4000, 4016, 4032, 4048,
-					4064, 4080, // level3 is a level1 digest of 16-1 previous blocks:
-					4081, 4082, 4083, 4084, 4085, 4086, 4087, 4088, 4089, 4090, 4091, 4092, 4093,
-					4094, 4095,
+					3856, 3872, 3888, 3904, 3920, 3936, 3952, 3968, 3984, 4000, 4016, 4032, 4048, 4064,
+					4080, // level3 is a level1 digest of 16-1 previous blocks:
+					4081, 4082, 4083, 4084, 4085, 4086, 4087, 4088, 4089, 4090, 4091, 4092, 4093, 4094, 4095,
 				]
 				.iter()
 				.map(|item| zero + item)

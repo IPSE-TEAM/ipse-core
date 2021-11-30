@@ -18,8 +18,8 @@
 
 use crate::arg_enums::{
 	ExecutionStrategy, TracingReceiver, WasmExecutionMethod, DEFAULT_EXECUTION_BLOCK_CONSTRUCTION,
-	DEFAULT_EXECUTION_IMPORT_BLOCK, DEFAULT_EXECUTION_IMPORT_BLOCK_VALIDATOR,
-	DEFAULT_EXECUTION_OFFCHAIN_WORKER, DEFAULT_EXECUTION_OTHER, DEFAULT_EXECUTION_SYNCING,
+	DEFAULT_EXECUTION_IMPORT_BLOCK, DEFAULT_EXECUTION_IMPORT_BLOCK_VALIDATOR, DEFAULT_EXECUTION_OFFCHAIN_WORKER,
+	DEFAULT_EXECUTION_OTHER, DEFAULT_EXECUTION_SYNCING,
 };
 use crate::params::DatabaseParams;
 use crate::params::PruningParams;
@@ -117,14 +117,8 @@ impl ImportParams {
 		ExecutionStrategies {
 			syncing: exec_all_or(exec.execution_syncing, DEFAULT_EXECUTION_SYNCING),
 			importing: exec_all_or(exec.execution_import_block, default_execution_import_block),
-			block_construction: exec_all_or(
-				exec.execution_block_construction,
-				DEFAULT_EXECUTION_BLOCK_CONSTRUCTION,
-			),
-			offchain_worker: exec_all_or(
-				exec.execution_offchain_worker,
-				DEFAULT_EXECUTION_OFFCHAIN_WORKER,
-			),
+			block_construction: exec_all_or(exec.execution_block_construction, DEFAULT_EXECUTION_BLOCK_CONSTRUCTION),
+			offchain_worker: exec_all_or(exec.execution_offchain_worker, DEFAULT_EXECUTION_OFFCHAIN_WORKER),
 			other: exec_all_or(exec.execution_other, DEFAULT_EXECUTION_OTHER),
 		}
 	}

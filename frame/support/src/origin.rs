@@ -481,8 +481,14 @@ mod tests {
 		assert_eq!(OriginWithSystem::from(Some(0)).filter_call(&1), false);
 		assert_eq!(OriginWithSystem::from(None).filter_call(&0), true);
 		assert_eq!(OriginWithSystem::from(None).filter_call(&1), false);
-		assert_eq!(OriginWithSystem::from(origin_without_generic::Origin).filter_call(&0), true);
-		assert_eq!(OriginWithSystem::from(origin_without_generic::Origin).filter_call(&1), false);
+		assert_eq!(
+			OriginWithSystem::from(origin_without_generic::Origin).filter_call(&0),
+			true
+		);
+		assert_eq!(
+			OriginWithSystem::from(origin_without_generic::Origin).filter_call(&1),
+			false
+		);
 
 		let mut origin = OriginWithSystem::from(Some(0));
 
@@ -507,13 +513,11 @@ mod tests {
 	fn test_codec() {
 		use codec::Encode;
 		assert_eq!(OriginIndices::root().caller.encode()[0], 11);
-		let without_generic_variant =
-			OriginIndicesCaller::origin_without_generic(origin_without_generic::Origin);
+		let without_generic_variant = OriginIndicesCaller::origin_without_generic(origin_without_generic::Origin);
 		assert_eq!(without_generic_variant.encode()[0], 10);
 
 		assert_eq!(OriginWithoutSystem::root().caller.encode()[0], 0);
-		let without_generic_variant =
-			OriginWithoutSystemCaller::origin_without_generic(origin_without_generic::Origin);
+		let without_generic_variant = OriginWithoutSystemCaller::origin_without_generic(origin_without_generic::Origin);
 		assert_eq!(without_generic_variant.encode()[0], 1);
 	}
 }

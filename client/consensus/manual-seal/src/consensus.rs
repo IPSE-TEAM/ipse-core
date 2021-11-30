@@ -32,11 +32,7 @@ pub trait ConsensusDataProvider<B: BlockT>: Send + Sync {
 	type Transaction;
 
 	/// Attempt to create a consensus digest.
-	fn create_digest(
-		&self,
-		parent: &B::Header,
-		inherents: &InherentData,
-	) -> Result<DigestFor<B>, Error>;
+	fn create_digest(&self, parent: &B::Header, inherents: &InherentData) -> Result<DigestFor<B>, Error>;
 
 	/// set up the neccessary import params.
 	fn append_block_import(

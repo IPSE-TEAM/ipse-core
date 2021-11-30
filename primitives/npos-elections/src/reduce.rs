@@ -63,7 +63,7 @@ type Map<A> = BTreeMap<(A, A), A>;
 fn combinations_2<T: Clone>(input: &[T]) -> Vec<(T, T)> {
 	let n = input.len();
 	if n < 2 {
-		return Default::default()
+		return Default::default();
 	}
 
 	let mut comb = Vec::with_capacity(n * (n - 1) / 2);
@@ -126,7 +126,7 @@ fn reduce_4<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32 {
 			match combination_map.entry((v1.clone(), v2.clone())) {
 				Vacant(entry) => {
 					entry.insert(who.clone());
-				},
+				}
 				Occupied(mut entry) => {
 					let other_who = entry.get_mut();
 
@@ -141,30 +141,28 @@ fn reduce_4<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32 {
 						.filter(|(t, _)| *t == v1 || *t == v2)
 						.count() != 2
 					{
-						continue
+						continue;
 					}
 
 					// check if other_who voted for the same pair v1, v2.
 					let maybe_other_assignments = assignments.iter().find(|a| a.who == *other_who);
 					if maybe_other_assignments.is_none() {
-						continue
+						continue;
 					}
-					let other_assignment =
-						maybe_other_assignments.expect("value is checked to be 'Some'");
+					let other_assignment = maybe_other_assignments.expect("value is checked to be 'Some'");
 
 					// Collect potential cycle votes
-					let mut other_cycle_votes =
-						other_assignment
-							.distribution
-							.iter()
-							.filter_map(|(t, w)| {
-								if *t == v1 || *t == v2 {
-									Some((t.clone(), *w))
-								} else {
-									None
-								}
-							})
-							.collect::<Vec<(A, ExtendedBalance)>>();
+					let mut other_cycle_votes = other_assignment
+						.distribution
+						.iter()
+						.filter_map(|(t, w)| {
+							if *t == v1 || *t == v2 {
+								Some((t.clone(), *w))
+							} else {
+								None
+							}
+						})
+						.collect::<Vec<(A, ExtendedBalance)>>();
 
 					let other_votes_count = other_cycle_votes.len();
 
@@ -176,7 +174,7 @@ fn reduce_4<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32 {
 					if other_votes_count < 2 {
 						// This is not a cycle. Replace and continue.
 						*other_who = who.clone();
-						continue
+						continue;
 					} else if other_votes_count == 2 {
 						// This is a cycle.
 						let mut who_cycle_votes: Vec<(A, ExtendedBalance)> = Vec::with_capacity(2);
@@ -187,7 +185,7 @@ fn reduce_4<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32 {
 						});
 
 						if who_cycle_votes.len() != 2 {
-							continue
+							continue;
 						}
 
 						// Align the targets similarly. This helps with the circulation below.
@@ -247,8 +245,7 @@ fn reduce_4<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32 {
 									.iter_mut()
 									.position(|(t, _)| *t == cycle[i].0)
 									.map(|idx| {
-										let next_value =
-											ass.distribution[idx].1.saturating_add(min_value);
+										let next_value = ass.distribution[idx].1.saturating_add(min_value);
 										ass.distribution[idx].1 = next_value;
 									});
 							});
@@ -260,8 +257,7 @@ fn reduce_4<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32 {
 									.iter_mut()
 									.position(|(t, _)| *t == cycle[i].0)
 									.map(|idx| {
-										let next_value =
-											ass.distribution[idx].1.saturating_sub(min_value);
+										let next_value = ass.distribution[idx].1.saturating_sub(min_value);
 										if next_value.is_zero() {
 											ass.distribution.remove(idx);
 											remove_indices.push(i);
@@ -275,27 +271,26 @@ fn reduce_4<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32 {
 
 						// remove either one of them.
 						let who_removed = remove_indices.iter().find(|i| **i < 2usize).is_some();
-						let other_removed =
-							remove_indices.into_iter().find(|i| *i >= 2usize).is_some();
+						let other_removed = remove_indices.into_iter().find(|i| *i >= 2usize).is_some();
 
 						match (who_removed, other_removed) {
 							(false, true) => {
 								*other_who = who.clone();
-							},
+							}
 							(true, false) => {
 								// nothing, other_who can stay there.
-							},
+							}
 							(true, true) => {
 								// remove and don't replace
 								entry.remove();
-							},
+							}
 							(false, false) => {
 								// Neither of the edges was removed? impossible.
 								panic!("Duplicate voter (or other corrupt input).");
-							},
+							}
 						}
 					}
-				},
+				}
 			}
 		}
 	}
@@ -334,7 +329,7 @@ fn reduce_all<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32
 			let maybe_dist = assignments[assignment_index].distribution.get(dist_index);
 			if maybe_dist.is_none() {
 				// The rest of this loop is moot.
-				break
+				break;
 			}
 			let (target, _) = maybe_dist.expect("Value checked to be some").clone();
 
@@ -361,19 +356,19 @@ fn reduce_all<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32
 				(false, false) => {
 					Node::set_parent_of(&target_node, &voter_node);
 					dist_index += 1;
-					continue
-				},
+					continue;
+				}
 				(false, true) => {
 					Node::set_parent_of(&voter_node, &target_node);
 					dist_index += 1;
-					continue
-				},
+					continue;
+				}
 				(true, false) => {
 					Node::set_parent_of(&target_node, &voter_node);
 					dist_index += 1;
-					continue
-				},
-				(true, true) => { /* don't continue and execute the rest */ },
+					continue;
+				}
+				(true, true) => { /* don't continue and execute the rest */ }
 			};
 
 			let (voter_root, voter_root_path) = Node::root(&voter_node);
@@ -513,10 +508,8 @@ fn reduce_all<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32
 											num_changed += 1;
 											// only add if this is not the min itself.
 											if !(i == min_index && min_direction == 0) {
-												additional_removed.push((
-													cycle[i].clone(),
-													cycle[prev_index(i)].clone(),
-												));
+												additional_removed
+													.push((cycle[i].clone(), cycle[prev_index(i)].clone()));
 											}
 										} else {
 											ass.distribution[idx].1 = next_value;
@@ -557,10 +550,8 @@ fn reduce_all<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32
 											ass.distribution.remove(idx);
 											num_changed += 1;
 											if !(i == min_index && min_direction == 1) {
-												additional_removed.push((
-													cycle[i].clone(),
-													cycle[next_index(i)].clone(),
-												));
+												additional_removed
+													.push((cycle[i].clone(), cycle[next_index(i)].clone()));
 											}
 										} else {
 											ass.distribution[idx].1 = next_value;
@@ -583,7 +574,7 @@ fn reduce_all<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32
 							let current = voter_root_path[i].clone().borrow().id.who.clone();
 							let next = voter_root_path[i + 1].clone().borrow().id.who.clone();
 							if min_edge.contains(&current) && min_edge.contains(&next) {
-								break
+								break;
 							}
 							Node::set_parent_of(&voter_root_path[i + 1], &voter_root_path[i]);
 						}
@@ -594,7 +585,7 @@ fn reduce_all<A: IdentifierT>(assignments: &mut Vec<StakedAssignment<A>>) -> u32
 							let current = target_root_path[i].clone().borrow().id.who.clone();
 							let next = target_root_path[i + 1].clone().borrow().id.who.clone();
 							if min_edge.contains(&current) && min_edge.contains(&next) {
-								break
+								break;
 							}
 							Node::set_parent_of(&target_root_path[i + 1], &target_root_path[i]);
 						}
@@ -699,8 +690,14 @@ mod tests {
 		use super::*;
 
 		let assignments = vec![
-			StakedAssignment { who: 1, distribution: vec![(10, 25), (20, 75)] },
-			StakedAssignment { who: 2, distribution: vec![(10, 50), (20, 50)] },
+			StakedAssignment {
+				who: 1,
+				distribution: vec![(10, 25), (20, 75)],
+			},
+			StakedAssignment {
+				who: 2,
+				distribution: vec![(10, 50), (20, 50)],
+			},
 		];
 
 		let mut new_assignments = assignments.clone();
@@ -710,8 +707,14 @@ mod tests {
 		assert_eq!(
 			new_assignments,
 			vec![
-				StakedAssignment { who: 1, distribution: vec![(20, 100),] },
-				StakedAssignment { who: 2, distribution: vec![(10, 75), (20, 25),] },
+				StakedAssignment {
+					who: 1,
+					distribution: vec![(20, 100),]
+				},
+				StakedAssignment {
+					who: 2,
+					distribution: vec![(10, 75), (20, 25),]
+				},
 			],
 		);
 	}
@@ -719,11 +722,26 @@ mod tests {
 	#[test]
 	fn basic_reduce_all_cycles_works() {
 		let mut assignments = vec![
-			StakedAssignment { who: 1, distribution: vec![(10, 10)] },
-			StakedAssignment { who: 2, distribution: vec![(10, 15), (20, 5)] },
-			StakedAssignment { who: 3, distribution: vec![(20, 15), (40, 15)] },
-			StakedAssignment { who: 4, distribution: vec![(20, 10), (30, 10), (40, 20)] },
-			StakedAssignment { who: 5, distribution: vec![(20, 20), (30, 10), (40, 20)] },
+			StakedAssignment {
+				who: 1,
+				distribution: vec![(10, 10)],
+			},
+			StakedAssignment {
+				who: 2,
+				distribution: vec![(10, 15), (20, 5)],
+			},
+			StakedAssignment {
+				who: 3,
+				distribution: vec![(20, 15), (40, 15)],
+			},
+			StakedAssignment {
+				who: 4,
+				distribution: vec![(20, 10), (30, 10), (40, 20)],
+			},
+			StakedAssignment {
+				who: 5,
+				distribution: vec![(20, 20), (30, 10), (40, 20)],
+			},
 		];
 
 		assert_eq!(3, reduce_all(&mut assignments));
@@ -731,11 +749,26 @@ mod tests {
 		assert_eq!(
 			assignments,
 			vec![
-				StakedAssignment { who: 1, distribution: vec![(10, 10),] },
-				StakedAssignment { who: 2, distribution: vec![(10, 15), (20, 5),] },
-				StakedAssignment { who: 3, distribution: vec![(20, 30),] },
-				StakedAssignment { who: 4, distribution: vec![(40, 40),] },
-				StakedAssignment { who: 5, distribution: vec![(20, 15), (30, 20), (40, 15),] },
+				StakedAssignment {
+					who: 1,
+					distribution: vec![(10, 10),]
+				},
+				StakedAssignment {
+					who: 2,
+					distribution: vec![(10, 15), (20, 5),]
+				},
+				StakedAssignment {
+					who: 3,
+					distribution: vec![(20, 30),]
+				},
+				StakedAssignment {
+					who: 4,
+					distribution: vec![(40, 40),]
+				},
+				StakedAssignment {
+					who: 5,
+					distribution: vec![(20, 15), (30, 20), (40, 15),]
+				},
 			],
 		)
 	}
@@ -743,11 +776,26 @@ mod tests {
 	#[test]
 	fn basic_reduce_works() {
 		let mut assignments = vec![
-			StakedAssignment { who: 1, distribution: vec![(10, 10)] },
-			StakedAssignment { who: 2, distribution: vec![(10, 15), (20, 5)] },
-			StakedAssignment { who: 3, distribution: vec![(20, 15), (40, 15)] },
-			StakedAssignment { who: 4, distribution: vec![(20, 10), (30, 10), (40, 20)] },
-			StakedAssignment { who: 5, distribution: vec![(20, 20), (30, 10), (40, 20)] },
+			StakedAssignment {
+				who: 1,
+				distribution: vec![(10, 10)],
+			},
+			StakedAssignment {
+				who: 2,
+				distribution: vec![(10, 15), (20, 5)],
+			},
+			StakedAssignment {
+				who: 3,
+				distribution: vec![(20, 15), (40, 15)],
+			},
+			StakedAssignment {
+				who: 4,
+				distribution: vec![(20, 10), (30, 10), (40, 20)],
+			},
+			StakedAssignment {
+				who: 5,
+				distribution: vec![(20, 20), (30, 10), (40, 20)],
+			},
 		];
 
 		assert_eq!(3, reduce(&mut assignments));
@@ -755,11 +803,26 @@ mod tests {
 		assert_eq!(
 			assignments,
 			vec![
-				StakedAssignment { who: 1, distribution: vec![(10, 10),] },
-				StakedAssignment { who: 2, distribution: vec![(10, 15), (20, 5),] },
-				StakedAssignment { who: 3, distribution: vec![(20, 30),] },
-				StakedAssignment { who: 4, distribution: vec![(40, 40),] },
-				StakedAssignment { who: 5, distribution: vec![(20, 15), (30, 20), (40, 15),] },
+				StakedAssignment {
+					who: 1,
+					distribution: vec![(10, 10),]
+				},
+				StakedAssignment {
+					who: 2,
+					distribution: vec![(10, 15), (20, 5),]
+				},
+				StakedAssignment {
+					who: 3,
+					distribution: vec![(20, 30),]
+				},
+				StakedAssignment {
+					who: 4,
+					distribution: vec![(40, 40),]
+				},
+				StakedAssignment {
+					who: 5,
+					distribution: vec![(20, 15), (30, 20), (40, 15),]
+				},
 			],
 		)
 	}
@@ -767,14 +830,35 @@ mod tests {
 	#[test]
 	fn should_deal_with_self_vote() {
 		let mut assignments = vec![
-			StakedAssignment { who: 1, distribution: vec![(10, 10)] },
-			StakedAssignment { who: 2, distribution: vec![(10, 15), (20, 5)] },
-			StakedAssignment { who: 3, distribution: vec![(20, 15), (40, 15)] },
-			StakedAssignment { who: 4, distribution: vec![(20, 10), (30, 10), (40, 20)] },
-			StakedAssignment { who: 5, distribution: vec![(20, 20), (30, 10), (40, 20)] },
+			StakedAssignment {
+				who: 1,
+				distribution: vec![(10, 10)],
+			},
+			StakedAssignment {
+				who: 2,
+				distribution: vec![(10, 15), (20, 5)],
+			},
+			StakedAssignment {
+				who: 3,
+				distribution: vec![(20, 15), (40, 15)],
+			},
+			StakedAssignment {
+				who: 4,
+				distribution: vec![(20, 10), (30, 10), (40, 20)],
+			},
+			StakedAssignment {
+				who: 5,
+				distribution: vec![(20, 20), (30, 10), (40, 20)],
+			},
 			// self vote from 10 and 20 to itself.
-			StakedAssignment { who: 10, distribution: vec![(10, 100)] },
-			StakedAssignment { who: 20, distribution: vec![(20, 200)] },
+			StakedAssignment {
+				who: 10,
+				distribution: vec![(10, 100)],
+			},
+			StakedAssignment {
+				who: 20,
+				distribution: vec![(20, 200)],
+			},
 		];
 
 		assert_eq!(3, reduce(&mut assignments));
@@ -782,14 +866,35 @@ mod tests {
 		assert_eq!(
 			assignments,
 			vec![
-				StakedAssignment { who: 1, distribution: vec![(10, 10),] },
-				StakedAssignment { who: 2, distribution: vec![(10, 15), (20, 5),] },
-				StakedAssignment { who: 3, distribution: vec![(20, 30),] },
-				StakedAssignment { who: 4, distribution: vec![(40, 40),] },
-				StakedAssignment { who: 5, distribution: vec![(20, 15), (30, 20), (40, 15),] },
+				StakedAssignment {
+					who: 1,
+					distribution: vec![(10, 10),]
+				},
+				StakedAssignment {
+					who: 2,
+					distribution: vec![(10, 15), (20, 5),]
+				},
+				StakedAssignment {
+					who: 3,
+					distribution: vec![(20, 30),]
+				},
+				StakedAssignment {
+					who: 4,
+					distribution: vec![(40, 40),]
+				},
+				StakedAssignment {
+					who: 5,
+					distribution: vec![(20, 15), (30, 20), (40, 15),]
+				},
 				// should stay untouched.
-				StakedAssignment { who: 10, distribution: vec![(10, 100)] },
-				StakedAssignment { who: 20, distribution: vec![(20, 200)] },
+				StakedAssignment {
+					who: 10,
+					distribution: vec![(10, 100)]
+				},
+				StakedAssignment {
+					who: 20,
+					distribution: vec![(20, 200)]
+				},
 			],
 		)
 	}
@@ -812,8 +917,14 @@ mod tests {
 		assert_eq!(
 			assignments,
 			vec![
-				StakedAssignment { who: 4, distribution: vec![(1000000, 200,), (1000004, 100,),] },
-				StakedAssignment { who: 5, distribution: vec![(1000002, 200,), (1000004, 100,),] },
+				StakedAssignment {
+					who: 4,
+					distribution: vec![(1000000, 200,), (1000004, 100,),]
+				},
+				StakedAssignment {
+					who: 5,
+					distribution: vec![(1000002, 200,), (1000004, 100,),]
+				},
 			],
 		)
 	}
@@ -822,9 +933,18 @@ mod tests {
 	#[should_panic]
 	fn reduce_panics_on_duplicate_voter() {
 		let mut assignments = vec![
-			StakedAssignment { who: 1, distribution: vec![(10, 10), (20, 10)] },
-			StakedAssignment { who: 1, distribution: vec![(10, 15), (20, 5)] },
-			StakedAssignment { who: 2, distribution: vec![(10, 15), (20, 15)] },
+			StakedAssignment {
+				who: 1,
+				distribution: vec![(10, 10), (20, 10)],
+			},
+			StakedAssignment {
+				who: 1,
+				distribution: vec![(10, 15), (20, 5)],
+			},
+			StakedAssignment {
+				who: 2,
+				distribution: vec![(10, 15), (20, 15)],
+			},
 		];
 
 		reduce(&mut assignments);
@@ -833,7 +953,10 @@ mod tests {
 	#[test]
 	fn should_deal_with_duplicates_target() {
 		let mut assignments = vec![
-			StakedAssignment { who: 1, distribution: vec![(10, 15), (20, 5)] },
+			StakedAssignment {
+				who: 1,
+				distribution: vec![(10, 15), (20, 5)],
+			},
 			StakedAssignment {
 				who: 2,
 				distribution: vec![
@@ -852,7 +975,10 @@ mod tests {
 		assert_eq!(
 			assignments,
 			vec![
-				StakedAssignment { who: 1, distribution: vec![(10, 20),] },
+				StakedAssignment {
+					who: 1,
+					distribution: vec![(10, 20),]
+				},
 				StakedAssignment {
 					who: 2,
 					distribution: vec![

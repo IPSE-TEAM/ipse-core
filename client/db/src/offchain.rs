@@ -48,7 +48,10 @@ impl LocalStorage {
 
 	/// Create offchain local storage with given `KeyValueDB` backend.
 	pub fn new(db: Arc<dyn Database<DbHash>>) -> Self {
-		Self { db, locks: Default::default() }
+		Self {
+			db,
+			locks: Default::default(),
+		}
 	}
 }
 
@@ -78,13 +81,7 @@ impl sp_core::offchain::OffchainStorage for LocalStorage {
 		self.db.get(columns::OFFCHAIN, &key)
 	}
 
-	fn compare_and_set(
-		&mut self,
-		prefix: &[u8],
-		item_key: &[u8],
-		old_value: Option<&[u8]>,
-		new_value: &[u8],
-	) -> bool {
+	fn compare_and_set(&mut self, prefix: &[u8], item_key: &[u8], old_value: Option<&[u8]>, new_value: &[u8]) -> bool {
 		let key: Vec<u8> = prefix.iter().chain(item_key).cloned().collect();
 		let key_lock = {
 			let mut locks = self.locks.lock();

@@ -52,7 +52,10 @@ pub struct RandomNumberGenerator<Hashing: Hash> {
 impl<Hashing: Hash> RandomNumberGenerator<Hashing> {
 	/// A new source of random data.
 	pub fn new(seed: Hashing::Output) -> Self {
-		Self { current: seed, offset: 0 }
+		Self {
+			current: seed,
+			offset: 0,
+		}
 	}
 
 	fn offset(&self) -> usize {
@@ -73,7 +76,7 @@ impl<Hashing: Hash> RandomNumberGenerator<Hashing> {
 			self.offset += needed as u32;
 			let raw = u32::decode(&mut TrailingZeroInput::new(data)).unwrap_or(0);
 			if raw <= top {
-				break if max < u32::max_value() { raw % (max + 1) } else { raw }
+				break if max < u32::max_value() { raw % (max + 1) } else { raw };
 			}
 		}
 	}

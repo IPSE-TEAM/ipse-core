@@ -159,7 +159,7 @@ pub trait SubstrateCli: Sized {
 					let _ = std::io::stdout().write_all(e.message.as_bytes());
 					std::process::exit(0);
 				}
-			},
+			}
 		};
 
 		<Self as StructOpt>::from_clap(&matches)
@@ -243,7 +243,7 @@ pub fn init_logger(
 	}
 
 	if let Err(e) = tracing_log::LogTracer::init() {
-		return Err(format!("Registering Substrate logger failed: {:}!", e))
+		return Err(format!("Registering Substrate logger failed: {:}!", e));
 	}
 
 	let mut env_filter = tracing_subscriber::EnvFilter::default()
@@ -292,11 +292,11 @@ pub fn init_logger(
 		let profiling = sc_tracing::ProfilingLayer::new(tracing_receiver, &tracing_targets);
 
 		if let Err(e) = tracing::subscriber::set_global_default(subscriber.with(profiling)) {
-			return Err(format!("Registering Substrate tracing subscriber failed: {:}!", e))
+			return Err(format!("Registering Substrate tracing subscriber failed: {:}!", e));
 		}
 	} else {
 		if let Err(e) = tracing::subscriber::set_global_default(subscriber) {
-			return Err(format!("Registering Substrate tracing subscriber  failed: {:}!", e))
+			return Err(format!("Registering Substrate tracing subscriber  failed: {:}!", e));
 		}
 	}
 	Ok(())

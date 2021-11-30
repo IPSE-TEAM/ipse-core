@@ -19,9 +19,7 @@
 //! (block, extrinsic) pairs where given key has been changed.
 
 use crate::changes_trie::input::ChildIndex;
-use crate::changes_trie::input::{
-	DigestIndex, DigestIndexValue, ExtrinsicIndex, ExtrinsicIndexValue,
-};
+use crate::changes_trie::input::{DigestIndex, DigestIndexValue, ExtrinsicIndex, ExtrinsicIndexValue};
 use crate::changes_trie::storage::{InMemoryStorage, TrieBackendAdapter};
 use crate::changes_trie::surface_iterator::{surface_iterator, SurfaceIterator};
 use crate::changes_trie::{AnchorBlockId, BlockNumber, ConfigurationRange, RootsStorage, Storage};
@@ -224,21 +222,23 @@ where
 	{
 		loop {
 			if let Some((block, extrinsic)) = self.extrinsics.pop_front() {
-				return Ok(Some((block, extrinsic)))
+				return Ok(Some((block, extrinsic)));
 			}
 
 			if let Some((block, level)) = self.blocks.pop_front() {
 				// not having a changes trie root is an error because:
 				// we never query roots for future blocks
 				// AND trie roots for old blocks are known (both on full + light node)
-				let trie_root =
-					self.roots_storage.root(&self.end, block.clone())?.ok_or_else(|| {
-						format!("Changes trie root for block {} is not found", block.clone())
-					})?;
+				let trie_root = self
+					.roots_storage
+					.root(&self.end, block.clone())?
+					.ok_or_else(|| format!("Changes trie root for block {} is not found", block.clone()))?;
 				let trie_root = if let Some(storage_key) = self.storage_key {
-					let child_key =
-						ChildIndex { block: block.clone(), storage_key: storage_key.clone() }
-							.encode();
+					let child_key = ChildIndex {
+						block: block.clone(),
+						storage_key: storage_key.clone(),
+					}
+					.encode();
 					if let Some(trie_root) = trie_reader(self.storage, trie_root, &child_key)?
 						.and_then(|v| <Vec<u8>>::decode(&mut &v[..]).ok())
 						.map(|v| {
@@ -248,7 +248,7 @@ where
 						}) {
 						trie_root
 					} else {
-						continue
+						continue;
 					}
 				} else {
 					trie_root
@@ -262,8 +262,11 @@ where
 					"We shall not touch digests earlier than a range' begin"
 				);
 				if block <= self.end.number {
-					let extrinsics_key =
-						ExtrinsicIndex { block: block.clone(), key: self.key.to_vec() }.encode();
+					let extrinsics_key = ExtrinsicIndex {
+						block: block.clone(),
+						key: self.key.to_vec(),
+					}
+					.encode();
 					let extrinsics = trie_reader(self.storage, trie_root, &extrinsics_key);
 					if let Some(extrinsics) = extrinsics? {
 						if let Ok(extrinsics) = ExtrinsicIndexValue::decode(&mut &extrinsics[..]) {
@@ -273,8 +276,11 @@ where
 					}
 				}
 
-				let blocks_key =
-					DigestIndex { block: block.clone(), key: self.key.to_vec() }.encode();
+				let blocks_key = DigestIndex {
+					block: block.clone(),
+					key: self.key.to_vec(),
+				}
+				.encode();
 				let blocks = trie_reader(self.storage, trie_root, &blocks_key);
 				if let Some(blocks) = blocks? {
 					if let Ok(blocks) = <DigestIndexValue<Number>>::decode(&mut &blocks[..]) {
@@ -288,31 +294,24 @@ where
 							blocks
 								.into_iter()
 								.rev()
-								.filter(|b| {
-									level.map(|level| level > 1).unwrap_or(true) ||
-										(*b >= begin && *b <= end)
-								})
+								.filter(|b| level.map(|level| level > 1).unwrap_or(true) || (*b >= begin && *b <= end))
 								.map(|b| {
-									let prev_level =
-										level.map(|level| Some(level - 1)).unwrap_or_else(|| {
-											Some(
-												config
-													.config
-													.digest_level_at_block(
-														config.zero.clone(),
-														b.clone(),
-													)
-													.map(|(level, _, _)| level)
-													.unwrap_or_else(|| Zero::zero()),
-											)
-										});
+									let prev_level = level.map(|level| Some(level - 1)).unwrap_or_else(|| {
+										Some(
+											config
+												.config
+												.digest_level_at_block(config.zero.clone(), b.clone())
+												.map(|(level, _, _)| level)
+												.unwrap_or_else(|| Zero::zero()),
+										)
+									});
 									(b, prev_level)
 								}),
 						);
 					}
 				}
 
-				continue
+				continue;
 			}
 
 			match self.surface.next() {
@@ -367,7 +366,12 @@ where
 	/// Consume the iterator, extracting the gathered proof in lexicographical order
 	/// by value.
 	pub fn extract_proof(self) -> Vec<Vec<u8>> {
-		self.proof_recorder.into_inner().drain().into_iter().map(|n| n.data.to_vec()).collect()
+		self.proof_recorder
+			.into_inner()
+			.drain()
+			.into_iter()
+			.map(|n| n.data.to_vec())
+			.collect()
 	}
 }
 
@@ -409,7 +413,10 @@ mod tests {
 	}
 
 	fn prepare_for_drilldown() -> (Configuration, InMemoryStorage<BlakeTwo256, u64>) {
-		let config = Configuration { digest_interval: 4, digest_levels: 2 };
+		let config = Configuration {
+			digest_interval: 4,
+			digest_levels: 2,
+		};
 		let backend = InMemoryStorage::with_inputs(
 			vec![
 				// digest: 1..4 => [(3, 0)]
@@ -418,17 +425,32 @@ mod tests {
 				(
 					3,
 					vec![InputPair::ExtrinsicIndex(
-						ExtrinsicIndex { block: 3, key: vec![42] },
+						ExtrinsicIndex {
+							block: 3,
+							key: vec![42],
+						},
 						vec![0],
 					)],
 				),
-				(4, vec![InputPair::DigestIndex(DigestIndex { block: 4, key: vec![42] }, vec![3])]),
+				(
+					4,
+					vec![InputPair::DigestIndex(
+						DigestIndex {
+							block: 4,
+							key: vec![42],
+						},
+						vec![3],
+					)],
+				),
 				// digest: 5..8 => [(6, 3), (8, 1+2)]
 				(5, vec![]),
 				(
 					6,
 					vec![InputPair::ExtrinsicIndex(
-						ExtrinsicIndex { block: 6, key: vec![42] },
+						ExtrinsicIndex {
+							block: 6,
+							key: vec![42],
+						},
 						vec![3],
 					)],
 				),
@@ -437,10 +459,19 @@ mod tests {
 					8,
 					vec![
 						InputPair::ExtrinsicIndex(
-							ExtrinsicIndex { block: 8, key: vec![42] },
+							ExtrinsicIndex {
+								block: 8,
+								key: vec![42],
+							},
 							vec![1, 2],
 						),
-						InputPair::DigestIndex(DigestIndex { block: 8, key: vec![42] }, vec![6]),
+						InputPair::DigestIndex(
+							DigestIndex {
+								block: 8,
+								key: vec![42],
+							},
+							vec![6],
+						),
 					],
 				),
 				// digest: 9..12 => []
@@ -455,7 +486,10 @@ mod tests {
 				(
 					16,
 					vec![InputPair::DigestIndex(
-						DigestIndex { block: 16, key: vec![42] },
+						DigestIndex {
+							block: 16,
+							key: vec![42],
+						},
 						vec![4, 8],
 					)],
 				),
@@ -466,14 +500,20 @@ mod tests {
 					(
 						1,
 						vec![InputPair::ExtrinsicIndex(
-							ExtrinsicIndex { block: 1, key: vec![42] },
+							ExtrinsicIndex {
+								block: 1,
+								key: vec![42],
+							},
 							vec![0],
 						)],
 					),
 					(
 						2,
 						vec![InputPair::ExtrinsicIndex(
-							ExtrinsicIndex { block: 2, key: vec![42] },
+							ExtrinsicIndex {
+								block: 2,
+								key: vec![42],
+							},
 							vec![3],
 						)],
 					),
@@ -481,11 +521,17 @@ mod tests {
 						16,
 						vec![
 							InputPair::ExtrinsicIndex(
-								ExtrinsicIndex { block: 16, key: vec![42] },
+								ExtrinsicIndex {
+									block: 16,
+									key: vec![42],
+								},
 								vec![5],
 							),
 							InputPair::DigestIndex(
-								DigestIndex { block: 16, key: vec![42] },
+								DigestIndex {
+									block: 16,
+									key: vec![42],
+								},
 								vec![2],
 							),
 						],
@@ -497,11 +543,12 @@ mod tests {
 		(config, backend)
 	}
 
-	fn configuration_range<'a>(
-		config: &'a Configuration,
-		zero: u64,
-	) -> ConfigurationRange<'a, u64> {
-		ConfigurationRange { config, zero, end: None }
+	fn configuration_range<'a>(config: &'a Configuration, zero: u64) -> ConfigurationRange<'a, u64> {
+		ConfigurationRange {
+			config,
+			zero,
+			end: None,
+		}
 	}
 
 	#[test]
@@ -511,7 +558,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 16 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 16,
+			},
 			16,
 			None,
 			&[42],
@@ -523,7 +573,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 2 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 2,
+			},
 			4,
 			None,
 			&[42],
@@ -535,7 +588,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 3 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 3,
+			},
 			4,
 			None,
 			&[42],
@@ -547,7 +603,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 7 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 7,
+			},
 			7,
 			None,
 			&[42],
@@ -559,7 +618,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			7,
-			&AnchorBlockId { hash: Default::default(), number: 8 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 8,
+			},
 			8,
 			None,
 			&[42],
@@ -571,7 +633,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			5,
-			&AnchorBlockId { hash: Default::default(), number: 7 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 7,
+			},
 			8,
 			None,
 			&[42],
@@ -589,7 +654,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 100 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 100
+			},
 			1000,
 			None,
 			&[42],
@@ -601,7 +669,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 100 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 100
+			},
 			1000,
 			Some(&child_key()),
 			&[42],
@@ -617,7 +688,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 100 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 100
+			},
 			50,
 			None,
 			&[42],
@@ -627,7 +701,10 @@ mod tests {
 			configuration_range(&config, 0),
 			&storage,
 			20,
-			&AnchorBlockId { hash: Default::default(), number: 10 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 10
+			},
 			100,
 			None,
 			&[42],
@@ -645,7 +722,10 @@ mod tests {
 			configuration_range(&remote_config, 0),
 			&remote_storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 16 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 16,
+			},
 			16,
 			None,
 			&[42],
@@ -657,7 +737,10 @@ mod tests {
 			configuration_range(&remote_config, 0),
 			&remote_storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 16 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 16,
+			},
 			16,
 			Some(&child_key()),
 			&[42],
@@ -674,7 +757,10 @@ mod tests {
 			&local_storage,
 			remote_proof,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 16 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 16,
+			},
 			16,
 			None,
 			&[42],
@@ -687,7 +773,10 @@ mod tests {
 			&local_storage,
 			remote_proof_child,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 16 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 16,
+			},
 			16,
 			Some(&child_key()),
 			&[42],
@@ -700,7 +789,10 @@ mod tests {
 
 	#[test]
 	fn drilldown_iterator_works_with_skewed_digest() {
-		let config = Configuration { digest_interval: 4, digest_levels: 3 };
+		let config = Configuration {
+			digest_interval: 4,
+			digest_levels: 3,
+		};
 		let mut config_range = configuration_range(&config, 0);
 		config_range.end = Some(91);
 
@@ -712,29 +804,52 @@ mod tests {
 		// regular blocks: 89, 90, 91
 		let mut input = (1u64..92u64).map(|b| (b, vec![])).collect::<Vec<_>>();
 		// changed at block#63 and covered by L3 digest at block#64
-		input[63 - 1]
-			.1
-			.push(InputPair::ExtrinsicIndex(ExtrinsicIndex { block: 63, key: vec![42] }, vec![0]));
-		input[64 - 1]
-			.1
-			.push(InputPair::DigestIndex(DigestIndex { block: 64, key: vec![42] }, vec![63]));
+		input[63 - 1].1.push(InputPair::ExtrinsicIndex(
+			ExtrinsicIndex {
+				block: 63,
+				key: vec![42],
+			},
+			vec![0],
+		));
+		input[64 - 1].1.push(InputPair::DigestIndex(
+			DigestIndex {
+				block: 64,
+				key: vec![42],
+			},
+			vec![63],
+		));
 		// changed at block#79 and covered by L2 digest at block#80 + skewed digest at block#91
-		input[79 - 1]
-			.1
-			.push(InputPair::ExtrinsicIndex(ExtrinsicIndex { block: 79, key: vec![42] }, vec![1]));
-		input[80 - 1]
-			.1
-			.push(InputPair::DigestIndex(DigestIndex { block: 80, key: vec![42] }, vec![79]));
-		input[91 - 1]
-			.1
-			.push(InputPair::DigestIndex(DigestIndex { block: 91, key: vec![42] }, vec![80]));
+		input[79 - 1].1.push(InputPair::ExtrinsicIndex(
+			ExtrinsicIndex {
+				block: 79,
+				key: vec![42],
+			},
+			vec![1],
+		));
+		input[80 - 1].1.push(InputPair::DigestIndex(
+			DigestIndex {
+				block: 80,
+				key: vec![42],
+			},
+			vec![79],
+		));
+		input[91 - 1].1.push(InputPair::DigestIndex(
+			DigestIndex {
+				block: 91,
+				key: vec![42],
+			},
+			vec![80],
+		));
 		let storage = InMemoryStorage::with_inputs(input, vec![]);
 
 		let drilldown_result = key_changes::<BlakeTwo256, u64>(
 			config_range,
 			&storage,
 			1,
-			&AnchorBlockId { hash: Default::default(), number: 91 },
+			&AnchorBlockId {
+				hash: Default::default(),
+				number: 91,
+			},
 			100_000u64,
 			None,
 			&[42],

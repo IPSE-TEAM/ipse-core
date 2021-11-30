@@ -19,45 +19,39 @@ extern crate pallet_balances as balances;
 extern crate pallet_timestamp as timestamp;
 use crate::constants::time::MILLISECS_PER_BLOCK;
 
+use crate::constants::capacity::*;
+use crate::ipse_traits::GetPrice;
+use crate::ipse_traits::PocHandler;
 use codec::{Decode, Encode};
 use frame_support::{
 	debug, decl_error, decl_event, decl_module, decl_storage,
 	dispatch::{DispatchError, DispatchResult},
 	ensure,
-	traits::{
-		Currency, Get, LockIdentifier, LockableCurrency, OnUnbalanced, ReservableCurrency,
-		WithdrawReason,
-	},
+	traits::{Currency, Get, LockIdentifier, LockableCurrency, OnUnbalanced, ReservableCurrency, WithdrawReason},
 	weights::Weight,
 	StorageMap, StorageValue,
 };
-
-use pallet_staking as staking;
-
-use sp_std::result;
-
-use crate::ipse_traits::PocHandler;
 use node_primitives::GIB;
+use pallet_staking as staking;
 use sp_runtime::{
 	traits::{CheckedAdd, CheckedDiv, CheckedSub, SaturatedConversion, Saturating},
 	Percent,
 };
 use sp_std::collections::btree_set::BTreeSet;
+use sp_std::result;
 use sp_std::vec;
 use sp_std::vec::Vec;
 use system::ensure_signed;
 
 const Staking_ID: LockIdentifier = *b"pocstake";
+const MaxCapacity: u64 = 8 * Tib;
+const MinCapacity: u64 = 200 * Gib;
 
-type BalanceOf<T> =
-	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<
-	<T as frame_system::Trait>::AccountId,
->>::NegativeImbalance;
+type BalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type NegativeImbalanceOf<T> =
+	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
-pub trait Trait:
-	system::Trait + timestamp::Trait + balances::Trait + babe::Trait + staking::Trait
-{
+pub trait Trait: system::Trait + timestamp::Trait + balances::Trait + babe::Trait + staking::Trait {
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
 	type ChillDuration: Get<Self::BlockNumber>;
@@ -81,6 +75,8 @@ pub trait Trait:
 	type RecommendLockExpire: Get<Self::BlockNumber>;
 
 	type RecommendMaxNumber: Get<usize>;
+
+	type GetPrice: GetPrice<BalanceOf<Self>>;
 }
 
 #[derive(Encode, Decode, Clone, Debug, Default, PartialEq, Eq)]
@@ -213,24 +209,22 @@ decl_module! {
 		/// register.
 		#[weight = 10_000]
 		fn register(origin, plot_size: GIB, numeric_id: u128, miner_proportion: u32, reward_dest: Option<T::AccountId>) {
-
-			let miner_proportion = Percent::from_percent(miner_proportion as u8);
-
 			let miner = ensure_signed(origin)?;
-
-			let kib = plot_size;
-
+			let miner_proportion = Percent::from_percent(miner_proportion as u8);
 			let pid = numeric_id;
 
-			ensure!(kib != 0 as GIB, Error::<T>::PlotSizeIsZero);
-
-			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
+			let disk = plot_size.checked_mul(Gib).ok_or(Error::<T>::Overflow)?;
+			Self::check_capacity(disk)?;
 
 			ensure!(!Self::is_register(miner.clone()), Error::<T>::AlreadyRegister);
 
 			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::NumericIdInUsing);
 
-			<DeclaredCapacity>::mutate(|h| *h += disk);
+			let price = T::GetPrice::get_price();
+			let miner_should_staking = Percent::from_percent(10u8) * disk.saturated_into::<BalanceOf<T>>().saturating_mul(price);
+			T::StakingCurrency::reserve(&miner, miner_should_staking)?;
+
+			<DeclaredCapacity>::mutate(|h| *h = h.saturating_add(disk));
 
 			let dest: T::AccountId;
 			if reward_dest.is_some() {
@@ -252,11 +246,10 @@ decl_module! {
 
 			<StakingInfoOf<T>>::insert(&miner,
 				StakingInfo {
-
 					miner: miner.clone(),
 					miner_proportion: miner_proportion,
-					total_staking: <BalanceOf<T>>::from(0u32),
-					others: vec![],
+					total_staking: miner_should_staking,
+					others: vec![(miner.clone(), miner_should_staking, BalanceOf::<T>::from(0u32))],
 				}
 			);
 
@@ -359,14 +352,11 @@ decl_module! {
 		/// the miner modify the plot size.
 		#[weight = 10_000]
 		fn update_plot_size(origin, plot_size: GIB) {
-
 			let miner = ensure_signed(origin)?;
 
-			let kib = plot_size;
+			let disk = plot_size.checked_mul(Gib).ok_or(Error::<T>::Overflow)?;
 
-			let disk = kib.checked_mul((1024 * 1024 * 1024) as GIB).ok_or(Error::<T>::Overflow)?;
-
-			ensure!(disk != 0 as GIB, Error::<T>::PlotSizeIsZero);
+			Self::check_capacity(disk)?;
 
 			ensure!(Self::is_chill_time(), Error::<T>::ChillTime);
 
@@ -625,7 +615,10 @@ impl<T: Trait> Module<T> {
 	pub fn is_can_mining(miner: T::AccountId) -> result::Result<bool, DispatchError> {
 		ensure!(Self::is_register(miner.clone()), Error::<T>::NotRegister);
 
-		ensure!(!<DiskOf<T>>::get(&miner).unwrap().is_stop, Error::<T>::AlreadyStopMining);
+		ensure!(
+			!<DiskOf<T>>::get(&miner).unwrap().is_stop,
+			Error::<T>::AlreadyStopMining
+		);
 
 		Ok(true)
 	}
@@ -663,7 +656,7 @@ impl<T: Trait> Module<T> {
 		<RecommendList<T>>::put(old_list);
 
 		if index >= T::RecommendMaxNumber::get() {
-			return Err(Error::<T>::AmountTooLow)?
+			return Err(Error::<T>::AmountTooLow)?;
 		}
 
 		Ok(())
@@ -709,7 +702,7 @@ impl<T: Trait> Module<T> {
 				else {
 					T::StakingCurrency::lock_sub_amount(Staking_ID, &who, amount, reasons);
 				}
-			},
+			}
 
 			Operate::Add => {
 				if locks_opt.is_none() {
@@ -719,14 +712,11 @@ impl<T: Trait> Module<T> {
 				else {
 					T::StakingCurrency::lock_add_amount(Staking_ID, &who, amount, reasons);
 				}
-			},
+			}
 		};
 	}
 
-	fn sort_account_by_amount(
-		miner: T::AccountId,
-		mut amount: BalanceOf<T>,
-	) -> result::Result<(), DispatchError> {
+	fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
 		let mut old_list = <RecommendList<T>>::get();
 
 		let mut miner_old_info: Option<(T::AccountId, BalanceOf<T>)> = None;
@@ -738,7 +728,10 @@ impl<T: Trait> Module<T> {
 		if miner_old_info.is_some() {
 			let old_amount = miner_old_info.clone().unwrap().1;
 
-			ensure!(T::StakingCurrency::can_reserve(&miner, amount), Error::<T>::AmountNotEnough);
+			ensure!(
+				T::StakingCurrency::can_reserve(&miner, amount),
+				Error::<T>::AmountNotEnough
+			);
 
 			T::StakingCurrency::unreserve(&miner, old_amount);
 
@@ -753,13 +746,19 @@ impl<T: Trait> Module<T> {
 				if i.1 >= amount {
 					index += 1;
 				} else {
-					break
+					break;
 				}
 			}
 
 			Self::sort_after(miner, amount, index, old_list)?;
 		}
 
+		Ok(())
+	}
+
+	fn check_capacity(capacity: u64) -> DispatchResult {
+		ensure!(capacity >= MinCapacity, Error::<T>::PlotSizeTooLow);
+		ensure!(capacity <= MaxCapacity, Error::<T>::PlotSizeTooLarge);
 		Ok(())
 	}
 
@@ -790,21 +789,19 @@ impl<T: Trait> Module<T> {
 					let bond = staker_info.1.clone();
 					let now_bond = bond.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
 					let total_staking = staking_info.total_staking;
-					let now_staking =
-						total_staking.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
+					let now_staking = total_staking.checked_add(&amount).ok_or(Error::<T>::Overflow)?;
 					T::StakingCurrency::reserve(&staker, amount)?;
 
 					staker_info.1 = now_bond;
 
 					staking_info.total_staking = now_staking;
-				},
+				}
 
 				_ => {
 					let bond = staker_info.1.clone();
 					let now_bond = bond.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
 					let total_staking = staking_info.total_staking;
-					let now_staking =
-						total_staking.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
+					let now_staking = total_staking.checked_sub(&amount).ok_or(Error::<T>::Overflow)?;
 
 					T::StakingCurrency::unreserve(&staker, amount);
 
@@ -815,7 +812,7 @@ impl<T: Trait> Module<T> {
 					staker_info.1 = now_bond;
 
 					staking_info.total_staking = now_staking;
-				},
+				}
 			}
 
 			if staker_info.1 == <BalanceOf<T>>::from(0u32) {
@@ -833,7 +830,7 @@ impl<T: Trait> Module<T> {
 
 			<StakingInfoOf<T>>::insert(&miner, staking_info);
 		} else {
-			return Err(Error::<T>::NotYourStaker)?
+			return Err(Error::<T>::NotYourStaker)?;
 		}
 
 		Ok(())
@@ -875,5 +872,7 @@ decl_error! {
 		AmountTooLow,
 		/// you staking amount too low
 		StakingAmountooLow,
+		PlotSizeTooLow,
+		PlotSizeTooLarge,
 	}
 }

@@ -27,7 +27,7 @@ fn handle_err<T>(result: std::io::Result<T>) -> T {
 		Ok(r) => r,
 		Err(e) => {
 			panic!("Critical database eror: {:?}", e);
-		},
+		}
 	}
 }
 

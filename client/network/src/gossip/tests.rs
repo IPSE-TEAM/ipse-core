@@ -23,19 +23,15 @@ use sp_runtime::traits::{Block as BlockT, Header as _};
 use std::{sync::Arc, time::Duration};
 use substrate_test_runtime_client::{TestClientBuilder, TestClientBuilderExt as _};
 
-type TestNetworkService = NetworkService<
-	substrate_test_runtime_client::runtime::Block,
-	substrate_test_runtime_client::runtime::Hash,
->;
+type TestNetworkService =
+	NetworkService<substrate_test_runtime_client::runtime::Block, substrate_test_runtime_client::runtime::Hash>;
 
 /// Builds a full node to be used for testing. Returns the node service and its associated events
 /// stream.
 ///
 /// > **Note**: We return the events stream in order to not possibly lose events between the
 /// >			construction of the service and the moment the events stream is grabbed.
-fn build_test_full_node(
-	config: config::NetworkConfiguration,
-) -> (Arc<TestNetworkService>, impl Stream<Item = Event>) {
+fn build_test_full_node(config: config::NetworkConfiguration) -> (Arc<TestNetworkService>, impl Stream<Item = Event>) {
 	let client = Arc::new(TestClientBuilder::with_default_backend().build_with_longest_chain().0);
 
 	#[derive(Clone)]
@@ -58,15 +54,9 @@ fn build_test_full_node(
 				.digest()
 				.log(|l| {
 					l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"aura"))
-						.or_else(|| {
-							l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(
-								b"babe",
-							))
-						})
+						.or_else(|| l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"babe")))
 				})
-				.map(|blob| {
-					vec![(sp_blockchain::well_known_cache_keys::AUTHORITIES, blob.to_vec())]
-				});
+				.map(|blob| vec![(sp_blockchain::well_known_cache_keys::AUTHORITIES, blob.to_vec())]);
 
 			let mut import = sp_consensus::BlockImportParams::new(origin, header);
 			import.body = body;
@@ -97,9 +87,7 @@ fn build_test_full_node(
 		transaction_pool: Arc::new(crate::config::EmptyTransactionPool),
 		protocol_id: config::ProtocolId::from("/test-protocol-name"),
 		import_queue,
-		block_announce_validator: Box::new(
-			sp_consensus::block_validation::DefaultBlockAnnounceValidator,
-		),
+		block_announce_validator: Box::new(sp_consensus::block_validation::DefaultBlockAnnounceValidator),
 		metrics_registry: None,
 	})
 	.unwrap();
@@ -161,13 +149,14 @@ fn basic_works() {
 		while received_notifications < NUM_NOTIFS {
 			match events_stream2.next().await.unwrap() {
 				Event::NotificationStreamClosed { .. } => panic!(),
-				Event::NotificationsReceived { messages, .. } =>
+				Event::NotificationsReceived { messages, .. } => {
 					for message in messages {
 						assert_eq!(message.0, ENGINE_ID);
 						assert_eq!(message.1, &b"message"[..]);
 						received_notifications += 1;
-					},
-				_ => {},
+					}
+				}
+				_ => {}
 			};
 
 			if rand::random::<u8>() < 2 {
@@ -177,15 +166,14 @@ fn basic_works() {
 	});
 
 	async_std::task::block_on(async move {
-		let (sender, bg_future) =
-			QueuedSender::new(node1, node2_id, ENGINE_ID, NUM_NOTIFS, |msg| msg);
+		let (sender, bg_future) = QueuedSender::new(node1, node2_id, ENGINE_ID, NUM_NOTIFS, |msg| msg);
 		async_std::task::spawn(bg_future);
 
 		// Wait for the `NotificationStreamOpened`.
 		loop {
 			match events_stream1.next().await.unwrap() {
 				Event::NotificationStreamOpened { .. } => break,
-				_ => {},
+				_ => {}
 			};
 		}
 

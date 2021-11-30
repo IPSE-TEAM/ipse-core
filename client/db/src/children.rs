@@ -23,10 +23,7 @@ use sp_database::{Database, Transaction};
 use std::hash::Hash;
 
 /// Returns the hashes of the children blocks of the block with `parent_hash`.
-pub fn read_children<
-	K: Eq + Hash + Clone + Encode + Decode,
-	V: Eq + Hash + Clone + Encode + Decode,
->(
+pub fn read_children<K: Eq + Hash + Clone + Encode + Decode, V: Eq + Hash + Clone + Encode + Decode>(
 	db: &dyn Database<DbHash>,
 	column: u32,
 	prefix: &[u8],
@@ -52,10 +49,7 @@ pub fn read_children<
 
 /// Insert the key-value pair (`parent_hash`, `children_hashes`) in the transaction.
 /// Any existing value is overwritten upon write.
-pub fn write_children<
-	K: Eq + Hash + Clone + Encode + Decode,
-	V: Eq + Hash + Clone + Encode + Decode,
->(
+pub fn write_children<K: Eq + Hash + Clone + Encode + Decode, V: Eq + Hash + Clone + Encode + Decode>(
 	tx: &mut Transaction<DbHash>,
 	column: u32,
 	prefix: &[u8],

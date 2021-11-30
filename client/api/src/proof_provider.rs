@@ -50,10 +50,7 @@ pub trait ProofProvider<Block: BlockT> {
 		call_data: &[u8],
 	) -> sp_blockchain::Result<(Vec<u8>, StorageProof)>;
 	/// Reads given header and generates CHT-based header proof.
-	fn header_proof(
-		&self,
-		id: &BlockId<Block>,
-	) -> sp_blockchain::Result<(Block::Header, StorageProof)>;
+	fn header_proof(&self, id: &BlockId<Block>) -> sp_blockchain::Result<(Block::Header, StorageProof)>;
 
 	/// Get proof for computation of (block, extrinsic) pairs where key has been changed at given
 	/// blocks range. `min` is the hash of the first block, which changes trie root is known to the

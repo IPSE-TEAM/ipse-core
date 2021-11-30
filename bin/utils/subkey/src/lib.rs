@@ -17,8 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use sc_cli::{
-	Error, GenerateCmd, GenerateNodeKeyCmd, InsertCmd, InspectKeyCmd, InspectNodeKeyCmd, SignCmd,
-	VanityCmd, VerifyCmd,
+	Error, GenerateCmd, GenerateNodeKeyCmd, InsertCmd, InspectKeyCmd, InspectNodeKeyCmd, SignCmd, VanityCmd, VerifyCmd,
 };
 use sp_core::crypto::Ss58Codec;
 use structopt::StructOpt;

@@ -26,9 +26,7 @@ use sc_executor_common::{
 };
 use sp_core::sandbox as sandbox_primitives;
 use sp_runtime_interface::unpack_ptr_and_len;
-use sp_wasm_interface::{
-	Function, FunctionContext, MemoryId, Pointer, Result as WResult, Sandbox, WordSize,
-};
+use sp_wasm_interface::{Function, FunctionContext, MemoryId, Pointer, Result as WResult, Sandbox, WordSize};
 use std::{cell::RefCell, str, sync::Arc};
 use wasmi::{
 	memory_units::Pages,
@@ -171,7 +169,9 @@ impl<'a> Sandbox for FunctionExecutor<'a> {
 	}
 
 	fn memory_new(&mut self, initial: u32, maximum: u32) -> WResult<MemoryId> {
-		self.sandbox_store.new_memory(initial, maximum).map_err(|e| e.to_string())
+		self.sandbox_store
+			.new_memory(initial, maximum)
+			.map_err(|e| e.to_string())
 	}
 
 	fn invoke(
@@ -203,25 +203,22 @@ impl<'a> Sandbox for FunctionExecutor<'a> {
 					if val.len() > return_val_len as usize {
 						Err("Return value buffer is too small")?;
 					}
-					self.write_memory(return_val, val).map_err(|_| "Return value buffer is OOB")?;
+					self.write_memory(return_val, val)
+						.map_err(|_| "Return value buffer is OOB")?;
 					Ok(sandbox_primitives::ERR_OK)
 				})
-			},
+			}
 			Err(_) => Ok(sandbox_primitives::ERR_EXECUTION),
 		}
 	}
 
 	fn instance_teardown(&mut self, instance_id: u32) -> WResult<()> {
-		self.sandbox_store.instance_teardown(instance_id).map_err(|e| e.to_string())
+		self.sandbox_store
+			.instance_teardown(instance_id)
+			.map_err(|e| e.to_string())
 	}
 
-	fn instance_new(
-		&mut self,
-		dispatch_thunk_id: u32,
-		wasm: &[u8],
-		raw_env_def: &[u8],
-		state: u32,
-	) -> WResult<u32> {
+	fn instance_new(&mut self, dispatch_thunk_id: u32, wasm: &[u8], raw_env_def: &[u8], state: u32) -> WResult<u32> {
 		// Extract a dispatch thunk from instance's table by the specified index.
 		let dispatch_thunk = {
 			let table = self
@@ -239,23 +236,18 @@ impl<'a> Sandbox for FunctionExecutor<'a> {
 			Err(_) => return Ok(sandbox_primitives::ERR_MODULE as u32),
 		};
 
-		let instance_idx_or_err_code =
-			match sandbox::instantiate(self, dispatch_thunk, wasm, guest_env, state)
-				.map(|i| i.register(&mut self.sandbox_store))
-			{
-				Ok(instance_idx) => instance_idx,
-				Err(sandbox::InstantiationError::StartTrapped) => sandbox_primitives::ERR_EXECUTION,
-				Err(_) => sandbox_primitives::ERR_MODULE,
-			};
+		let instance_idx_or_err_code = match sandbox::instantiate(self, dispatch_thunk, wasm, guest_env, state)
+			.map(|i| i.register(&mut self.sandbox_store))
+		{
+			Ok(instance_idx) => instance_idx,
+			Err(sandbox::InstantiationError::StartTrapped) => sandbox_primitives::ERR_EXECUTION,
+			Err(_) => sandbox_primitives::ERR_MODULE,
+		};
 
 		Ok(instance_idx_or_err_code as u32)
 	}
 
-	fn get_global_val(
-		&self,
-		instance_idx: u32,
-		name: &str,
-	) -> WResult<Option<sp_wasm_interface::Value>> {
+	fn get_global_val(&self, instance_idx: u32, name: &str) -> WResult<Option<sp_wasm_interface::Value>> {
 		self.sandbox_store
 			.instance(instance_idx)
 			.map(|i| i.get_global_val(name))
@@ -307,14 +299,14 @@ impl<'a> wasmi::ModuleImportResolver for Resolver<'a> {
 		for (function_index, function) in self.host_functions.iter().enumerate() {
 			if name == function.name() {
 				if signature == function.signature() {
-					return Ok(wasmi::FuncInstance::alloc_host(signature.into(), function_index))
+					return Ok(wasmi::FuncInstance::alloc_host(signature.into(), function_index));
 				} else {
 					return Err(wasmi::Error::Instantiation(format!(
 						"Invalid signature for function `{}` expected `{:?}`, got `{:?}`",
 						function.name(),
 						signature,
 						function.signature(),
-					)))
+					)));
 				}
 			}
 		}
@@ -337,8 +329,7 @@ impl<'a> wasmi::ModuleImportResolver for Resolver<'a> {
 	) -> Result<MemoryRef, wasmi::Error> {
 		if field_name == "memory" {
 			match &mut *self.import_memory.borrow_mut() {
-				Some(_) =>
-					Err(wasmi::Error::Instantiation("Memory can not be imported twice!".into())),
+				Some(_) => Err(wasmi::Error::Instantiation("Memory can not be imported twice!".into())),
 				memory_ref @ None => {
 					if memory_type
 						.maximum()
@@ -362,7 +353,7 @@ impl<'a> wasmi::ModuleImportResolver for Resolver<'a> {
 						*memory_ref = Some(memory.clone());
 						Ok(memory)
 					}
-				},
+				}
 			}
 		} else {
 			Err(wasmi::Error::Instantiation(format!(
@@ -387,9 +378,9 @@ impl<'a> wasmi::Externals for FunctionExecutor<'a> {
 				.map_err(|msg| Error::FunctionExecution(function.name().to_string(), msg))
 				.map_err(wasmi::Trap::from)
 				.map(|v| v.map(Into::into))
-		} else if self.allow_missing_func_imports &&
-			index >= self.host_functions.len() &&
-			index < self.host_functions.len() + self.missing_functions.len()
+		} else if self.allow_missing_func_imports
+			&& index >= self.host_functions.len()
+			&& index < self.host_functions.len() + self.missing_functions.len()
 		{
 			Err(Error::from(format!(
 				"Function `{}` is only a stub. Calling a stub is not allowed.",
@@ -466,7 +457,7 @@ fn call_in_wasm_module(
 		Ok(Some(I64(r))) => {
 			let (ptr, length) = unpack_ptr_and_len(r as u64);
 			memory.get(ptr.into(), length as usize).map_err(|_| Error::Runtime)
-		},
+		}
 		Err(e) => {
 			trace!(
 				target: "wasm-executor",
@@ -474,7 +465,7 @@ fn call_in_wasm_module(
 				memory.current_size().0
 			);
 			Err(e.into())
-		},
+		}
 		_ => Err(Error::InvalidReturn),
 	}
 }
@@ -488,8 +479,7 @@ fn instantiate_module(
 ) -> Result<(ModuleRef, Vec<String>, MemoryRef), Error> {
 	let resolver = Resolver::new(host_functions, allow_missing_func_imports, heap_pages);
 	// start module instantiation. Don't run 'start' function yet.
-	let intermediate_instance =
-		ModuleInstance::new(module, &ImportsBuilder::new().with_resolver("env", &resolver))?;
+	let intermediate_instance = ModuleInstance::new(module, &ImportsBuilder::new().with_resolver("env", &resolver))?;
 
 	// Verify that the module has the heap base global variable.
 	let _ = get_heap_base(intermediate_instance.not_started_instance())?;
@@ -508,7 +498,7 @@ fn instantiate_module(
 			memory.grow(Pages(heap_pages)).map_err(|_| Error::Runtime)?;
 
 			memory
-		},
+		}
 	};
 
 	if intermediate_instance.has_start() {
@@ -536,8 +526,12 @@ impl GlobalValsSnapshot {
 	// Returns `None` if instance is not valid.
 	fn take(module_instance: &ModuleRef) -> Self {
 		// Collect all values of mutable globals.
-		let global_mut_values =
-			module_instance.globals().iter().filter(|g| g.is_mutable()).map(|g| g.get()).collect();
+		let global_mut_values = module_instance
+			.globals()
+			.iter()
+			.filter(|g| g.is_mutable())
+			.map(|g| g.get())
+			.collect();
 		Self { global_mut_values }
 	}
 
@@ -546,13 +540,18 @@ impl GlobalValsSnapshot {
 	///
 	/// Returns `Err` if applying the snapshot is failed.
 	fn apply(&self, instance: &ModuleRef) -> Result<(), WasmError> {
-		for (global_ref, global_val) in
-			instance.globals().iter().filter(|g| g.is_mutable()).zip(self.global_mut_values.iter())
+		for (global_ref, global_val) in instance
+			.globals()
+			.iter()
+			.filter(|g| g.is_mutable())
+			.zip(self.global_mut_values.iter())
 		{
 			// the instance should be the same as used for preserving and
 			// we iterate the same way it as we do it for preserving values that means that the
 			// types should be the same and all the values are mutable. So no error is expected/
-			global_ref.set(*global_val).map_err(|_| WasmError::ApplySnapshotFailed)?;
+			global_ref
+				.set(*global_val)
+				.map_err(|_| WasmError::ApplySnapshotFailed)?;
 		}
 		Ok(())
 	}
@@ -621,8 +620,7 @@ pub fn create_runtime(
 		.map_err(|e| WasmError::Instantiation(e.to_string()))?;
 
 		let data_segments_snapshot = DataSegmentsSnapshot::take(
-			&WasmModuleInfo::new(code)
-				.ok_or_else(|| WasmError::Other("cannot deserialize module".to_string()))?,
+			&WasmModuleInfo::new(code).ok_or_else(|| WasmError::Other("cannot deserialize module".to_string()))?,
 		)
 		.map_err(|e| WasmError::Other(e.to_string()))?;
 		let global_vals_snapshot = GlobalValsSnapshot::take(&instance);
@@ -678,7 +676,8 @@ impl WasmInstance for WasmiInstance {
 		})?;
 
 		// Second, reapply data segments into the linear memory.
-		self.data_segments_snapshot.apply(|offset, contents| self.memory.set(offset, contents))?;
+		self.data_segments_snapshot
+			.apply(|offset, contents| self.memory.set(offset, contents))?;
 
 		// Third, restore the global variables to their initial values.
 		self.global_vals_snapshot.apply(&self.instance)?;

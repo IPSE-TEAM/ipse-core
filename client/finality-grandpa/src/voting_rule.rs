@@ -91,7 +91,7 @@ where
 		use sp_arithmetic::traits::Saturating;
 
 		if current_target.number().is_zero() {
-			return None
+			return None;
 		}
 
 		// find the target number restricted by this rule
@@ -99,7 +99,7 @@ where
 
 		// our current target is already lower than this rule would restrict
 		if target_number >= *current_target.number() {
-			return None
+			return None;
 		}
 
 		// find the block at the given target height
@@ -138,7 +138,7 @@ where
 
 		// our current target is already lower than this rule would restrict
 		if target_number >= *current_target.number() {
-			return None
+			return None;
 		}
 
 		// find the block at the given target height
@@ -169,7 +169,7 @@ where
 		}
 
 		if *target_header.number() == target_number {
-			return Some((target_hash, target_number))
+			return Some((target_hash, target_number));
 		}
 
 		target_hash = *target_header.parent_hash();
@@ -186,7 +186,9 @@ struct VotingRules<Block, B> {
 
 impl<B, Block> Clone for VotingRules<B, Block> {
 	fn clone(&self) -> Self {
-		VotingRules { rules: self.rules.clone() }
+		VotingRules {
+			rules: self.rules.clone(),
+		}
 	}
 }
 
@@ -202,13 +204,12 @@ where
 		best_target: &Block::Header,
 		current_target: &Block::Header,
 	) -> Option<(Block::Hash, NumberFor<Block>)> {
-		let restricted_target =
-			self.rules.iter().fold(current_target.clone(), |current_target, rule| {
-				rule.restrict_vote(backend, base, best_target, &current_target)
-					.and_then(|(hash, _)| backend.header(BlockId::Hash(hash)).ok())
-					.and_then(std::convert::identity)
-					.unwrap_or(current_target)
-			});
+		let restricted_target = self.rules.iter().fold(current_target.clone(), |current_target, rule| {
+			rule.restrict_vote(backend, base, best_target, &current_target)
+				.and_then(|(hash, _)| backend.header(BlockId::Hash(hash)).ok())
+				.and_then(std::convert::identity)
+				.unwrap_or(current_target)
+		});
 
 		let restricted_hash = restricted_target.hash();
 
@@ -269,7 +270,9 @@ where
 	/// Return a new `VotingRule` that applies all of the previously added
 	/// voting rules in-order.
 	pub fn build(self) -> impl VotingRule<Block, B> + Clone {
-		VotingRules { rules: Arc::new(self.rules) }
+		VotingRules {
+			rules: Arc::new(self.rules),
+		}
 	}
 }
 

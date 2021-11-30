@@ -18,8 +18,7 @@
 use frame_support::codec::{Decode, Encode, EncodeLike};
 
 pub trait Trait: 'static + Eq + Clone {
-	type Origin: Into<Result<RawOrigin<Self::AccountId>, Self::Origin>>
-		+ From<RawOrigin<Self::AccountId>>;
+	type Origin: Into<Result<RawOrigin<Self::AccountId>, Self::Origin>> + From<RawOrigin<Self::AccountId>>;
 
 	type BaseCallFilter: frame_support::traits::Filter<Self::Call>;
 	type BlockNumber: Decode + Encode + EncodeLike + Clone + Default;
@@ -86,5 +85,7 @@ pub fn ensure_root<OuterOrigin, AccountId>(o: OuterOrigin) -> Result<(), &'stati
 where
 	OuterOrigin: Into<Result<RawOrigin<AccountId>, OuterOrigin>>,
 {
-	o.into().map(|_| ()).map_err(|_| "bad origin: expected to be a root origin")
+	o.into()
+		.map(|_| ())
+		.map_err(|_| "bad origin: expected to be a root origin")
 }

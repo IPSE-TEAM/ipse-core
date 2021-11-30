@@ -54,10 +54,7 @@ pub trait Storage<Block: BlockT, T: CacheItemT> {
 	fn read_meta(&self) -> ClientResult<Metadata<Block>>;
 
 	/// Reads cache entry from the storage.
-	fn read_entry(
-		&self,
-		at: &ComplexBlockId<Block>,
-	) -> ClientResult<Option<StorageEntry<Block, T>>>;
+	fn read_entry(&self, at: &ComplexBlockId<Block>) -> ClientResult<Option<StorageEntry<Block, T>>>;
 
 	/// Reads referenced (and thus existing) cache entry from the storage.
 	fn require_entry(&self, at: &ComplexBlockId<Block>) -> ClientResult<StorageEntry<Block, T>> {
@@ -114,7 +111,12 @@ impl DbStorage {
 	/// Create new database-backed list cache storage.
 	pub fn new(name: Vec<u8>, db: Arc<dyn Database<DbHash>>, columns: DbColumns) -> Self {
 		let meta_key = meta::key(&name);
-		DbStorage { name, meta_key, db, columns }
+		DbStorage {
+			name,
+			meta_key,
+			db,
+			columns,
+		}
 	}
 
 	/// Get reference to the database.
@@ -160,14 +162,14 @@ impl<Block: BlockT, T: CacheItemT> Storage<Block, T> for DbStorage {
 	fn read_meta(&self) -> ClientResult<Metadata<Block>> {
 		match self.db.get(self.columns.meta, &self.meta_key) {
 			Some(meta) => meta::decode(&*meta),
-			None => Ok(Metadata { finalized: None, unfinalized: Vec::new() }),
+			None => Ok(Metadata {
+				finalized: None,
+				unfinalized: Vec::new(),
+			}),
 		}
 	}
 
-	fn read_entry(
-		&self,
-		at: &ComplexBlockId<Block>,
-	) -> ClientResult<Option<StorageEntry<Block, T>>> {
+	fn read_entry(&self, at: &ComplexBlockId<Block>) -> ClientResult<Option<StorageEntry<Block, T>>> {
 		match self.db.get(self.columns.cache, &self.encode_block_id(at)) {
 			Some(entry) => StorageEntry::<Block, T>::decode(&mut &entry[..])
 				.map_err(|_| ClientError::Backend("Failed to decode cache entry".into()))
@@ -200,7 +202,8 @@ impl<'a, Block: BlockT, T: CacheItemT> StorageTransaction<Block, T> for DbStorag
 	}
 
 	fn remove_storage_entry(&mut self, at: &ComplexBlockId<Block>) {
-		self.tx.remove(self.storage.columns.cache, &self.storage.encode_block_id(at));
+		self.tx
+			.remove(self.storage.columns.cache, &self.storage.encode_block_id(at));
 	}
 
 	fn update_meta(
@@ -235,17 +238,19 @@ mod meta {
 		op: &CommitOperation<Block, T>,
 	) -> Vec<u8> {
 		let mut finalized = best_finalized_entry.as_ref().map(|entry| &entry.valid_from);
-		let mut unfinalized =
-			unfinalized.iter().map(|fork| &fork.head().valid_from).collect::<Vec<_>>();
+		let mut unfinalized = unfinalized
+			.iter()
+			.map(|fork| &fork.head().valid_from)
+			.collect::<Vec<_>>();
 
 		match op {
 			CommitOperation::AppendNewBlock(_, _) => (),
 			CommitOperation::AppendNewEntry(index, ref entry) => {
 				unfinalized[*index] = &entry.valid_from;
-			},
+			}
 			CommitOperation::AddNewFork(ref entry) => {
 				unfinalized.push(&entry.valid_from);
-			},
+			}
 			CommitOperation::BlockFinalized(_, ref finalizing_entry, ref forks) => {
 				if let Some(finalizing_entry) = finalizing_entry.as_ref() {
 					finalized = Some(&finalizing_entry.valid_from);
@@ -253,18 +258,17 @@ mod meta {
 				for fork_index in forks.iter().rev() {
 					unfinalized.remove(*fork_index);
 				}
-			},
+			}
 			CommitOperation::BlockReverted(ref forks) => {
 				for (fork_index, updated_fork) in forks.iter().rev() {
 					match updated_fork {
-						Some(updated_fork) =>
-							unfinalized[*fork_index] = &updated_fork.head().valid_from,
+						Some(updated_fork) => unfinalized[*fork_index] = &updated_fork.head().valid_from,
 						None => {
 							unfinalized.remove(*fork_index);
-						},
+						}
 					}
 				}
-			},
+			}
 		}
 
 		(finalized, unfinalized).encode()
@@ -273,12 +277,10 @@ mod meta {
 	/// Decode meta information.
 	pub fn decode<Block: BlockT>(encoded: &[u8]) -> ClientResult<Metadata<Block>> {
 		let input = &mut &*encoded;
-		let finalized: Option<ComplexBlockId<Block>> = Decode::decode(input).map_err(|_| {
-			ClientError::from(ClientError::Backend("Error decoding cache meta".into()))
-		})?;
-		let unfinalized: Vec<ComplexBlockId<Block>> = Decode::decode(input).map_err(|_| {
-			ClientError::from(ClientError::Backend("Error decoding cache meta".into()))
-		})?;
+		let finalized: Option<ComplexBlockId<Block>> = Decode::decode(input)
+			.map_err(|_| ClientError::from(ClientError::Backend("Error decoding cache meta".into())))?;
+		let unfinalized: Vec<ComplexBlockId<Block>> = Decode::decode(input)
+			.map_err(|_| ClientError::from(ClientError::Backend("Error decoding cache meta".into())))?;
 
 		Ok(Metadata { finalized, unfinalized })
 	}
@@ -304,10 +306,7 @@ pub mod tests {
 			Err(ClientError::Backend("TestError".into()))
 		}
 
-		fn read_entry(
-			&self,
-			_at: &ComplexBlockId<Block>,
-		) -> ClientResult<Option<StorageEntry<Block, T>>> {
+		fn read_entry(&self, _at: &ComplexBlockId<Block>) -> ClientResult<Option<StorageEntry<Block, T>>> {
 			Err(ClientError::Backend("TestError".into()))
 		}
 	}
@@ -322,7 +321,10 @@ pub mod tests {
 	impl<Block: BlockT, T: CacheItemT> DummyStorage<Block, T> {
 		pub fn new() -> Self {
 			DummyStorage {
-				meta: Metadata { finalized: None, unfinalized: Vec::new() },
+				meta: Metadata {
+					finalized: None,
+					unfinalized: Vec::new(),
+				},
 				ids: HashMap::new(),
 				headers: HashMap::new(),
 				entries: HashMap::new(),
@@ -349,11 +351,7 @@ pub mod tests {
 			self
 		}
 
-		pub fn with_entry(
-			mut self,
-			at: ComplexBlockId<Block>,
-			entry: StorageEntry<Block, T>,
-		) -> Self {
+		pub fn with_entry(mut self, at: ComplexBlockId<Block>, entry: StorageEntry<Block, T>) -> Self {
 			self.entries.insert(at.hash, entry);
 			self
 		}
@@ -372,10 +370,7 @@ pub mod tests {
 			Ok(self.meta.clone())
 		}
 
-		fn read_entry(
-			&self,
-			at: &ComplexBlockId<Block>,
-		) -> ClientResult<Option<StorageEntry<Block, T>>> {
+		fn read_entry(&self, at: &ComplexBlockId<Block>) -> ClientResult<Option<StorageEntry<Block, T>>> {
 			Ok(self.entries.get(&at.hash).cloned())
 		}
 	}
@@ -409,11 +404,7 @@ pub mod tests {
 	}
 
 	impl<Block: BlockT, T: CacheItemT> StorageTransaction<Block, T> for DummyTransaction<Block> {
-		fn insert_storage_entry(
-			&mut self,
-			at: &ComplexBlockId<Block>,
-			_entry: &StorageEntry<Block, T>,
-		) {
+		fn insert_storage_entry(&mut self, at: &ComplexBlockId<Block>, _entry: &StorageEntry<Block, T>) {
 			self.inserted_entries.insert(at.hash);
 		}
 
@@ -427,9 +418,8 @@ pub mod tests {
 			unfinalized: &[Fork<Block, T>],
 			operation: &CommitOperation<Block, T>,
 		) {
-			self.updated_meta = Some(
-				meta::decode(&meta::encode(best_finalized_entry, unfinalized, operation)).unwrap(),
-			);
+			self.updated_meta =
+				Some(meta::decode(&meta::encode(best_finalized_entry, unfinalized, operation)).unwrap());
 		}
 	}
 }

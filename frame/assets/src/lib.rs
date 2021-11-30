@@ -286,9 +286,7 @@ impl<T: Trait> Module<T> {
 mod tests {
 	use super::*;
 
-	use frame_support::{
-		assert_noop, assert_ok, impl_outer_origin, parameter_types, weights::Weight,
-	};
+	use frame_support::{assert_noop, assert_ok, impl_outer_origin, parameter_types, weights::Weight};
 	use sp_core::H256;
 	use sp_runtime::{
 		testing::Header,
@@ -343,7 +341,10 @@ mod tests {
 	type Assets = Module<Test>;
 
 	fn new_test_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+		frame_system::GenesisConfig::default()
+			.build_storage::<Test>()
+			.unwrap()
+			.into()
 	}
 
 	#[test]
@@ -410,7 +411,10 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			assert_ok!(Assets::issue(Origin::signed(1), 100));
 			assert_eq!(Assets::balance(0, 1), 100);
-			assert_noop!(Assets::transfer(Origin::signed(1), 0, 2, 101), Error::<Test>::BalanceLow);
+			assert_noop!(
+				Assets::transfer(Origin::signed(1), 0, 2, 101),
+				Error::<Test>::BalanceLow
+			);
 		});
 	}
 

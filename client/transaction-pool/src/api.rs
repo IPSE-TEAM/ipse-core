@@ -64,7 +64,7 @@ impl<Client, Block> FullChainApi<Client, Block> {
 					err,
 				);
 				None
-			},
+			}
 			Ok(api) => Some(Arc::new(api)),
 		});
 
@@ -91,8 +91,7 @@ where
 {
 	type Block = Block;
 	type Error = error::Error;
-	type ValidationFuture =
-		Pin<Box<dyn Future<Output = error::Result<TransactionValidity>> + Send>>;
+	type ValidationFuture = Pin<Box<dyn Future<Output = error::Result<TransactionValidity>> + Send>>;
 	type BodyFuture = Ready<error::Result<Option<Vec<<Self::Block as BlockT>::Extrinsic>>>>;
 
 	fn block_body(&self, id: &BlockId<Self::Block>) -> Self::BodyFuture {
@@ -112,13 +111,14 @@ where
 		let metrics = self.metrics.clone();
 		metrics.report(|m| m.validations_scheduled.inc());
 
-		self.pool.spawn_ok(futures_diagnose::diagnose("validate-transaction", async move {
-			let res = validate_transaction_blocking(&*client, &at, source, uxt);
-			if let Err(e) = tx.send(res) {
-				log::warn!("Unable to send a validate transaction result: {:?}", e);
-			}
-			metrics.report(|m| m.validations_finished.inc());
-		}));
+		self.pool
+			.spawn_ok(futures_diagnose::diagnose("validate-transaction", async move {
+				let res = validate_transaction_blocking(&*client, &at, source, uxt);
+				if let Err(e) = tx.send(res) {
+					log::warn!("Unable to send a validate transaction result: {:?}", e);
+				}
+				metrics.report(|m| m.validations_finished.inc());
+			}));
 
 		Box::pin(async move {
 			match rx.await {
@@ -132,14 +132,18 @@ where
 		&self,
 		at: &BlockId<Self::Block>,
 	) -> error::Result<Option<sc_transaction_graph::NumberFor<Self>>> {
-		self.client.to_number(at).map_err(|e| Error::BlockIdConversion(format!("{:?}", e)))
+		self.client
+			.to_number(at)
+			.map_err(|e| Error::BlockIdConversion(format!("{:?}", e)))
 	}
 
 	fn block_id_to_hash(
 		&self,
 		at: &BlockId<Self::Block>,
 	) -> error::Result<Option<sc_transaction_graph::BlockHash<Self>>> {
-		self.client.to_hash(at).map_err(|e| Error::BlockIdConversion(format!("{:?}", e)))
+		self.client
+			.to_hash(at)
+			.map_err(|e| Error::BlockIdConversion(format!("{:?}", e)))
 	}
 
 	fn hash_and_length(
@@ -221,7 +225,11 @@ pub struct LightChainApi<Client, F, Block> {
 impl<Client, F, Block> LightChainApi<Client, F, Block> {
 	/// Create new transaction pool logic.
 	pub fn new(client: Arc<Client>, fetcher: Arc<F>) -> Self {
-		LightChainApi { client, fetcher, _phantom: Default::default() }
+		LightChainApi {
+			client,
+			fetcher,
+			_phantom: Default::default(),
+		}
 	}
 }
 
@@ -233,14 +241,9 @@ where
 {
 	type Block = Block;
 	type Error = error::Error;
-	type ValidationFuture =
-		Box<dyn Future<Output = error::Result<TransactionValidity>> + Send + Unpin>;
-	type BodyFuture = Pin<
-		Box<
-			dyn Future<Output = error::Result<Option<Vec<<Self::Block as BlockT>::Extrinsic>>>>
-				+ Send,
-		>,
-	>;
+	type ValidationFuture = Box<dyn Future<Output = error::Result<TransactionValidity>> + Send + Unpin>;
+	type BodyFuture =
+		Pin<Box<dyn Future<Output = error::Result<Option<Vec<<Self::Block as BlockT>::Extrinsic>>>> + Send>>;
 
 	fn validate_transaction(
 		&self,
@@ -266,12 +269,10 @@ where
 			retry_count: None,
 		});
 		let remote_validation_request = remote_validation_request.then(move |result| {
-			let result: error::Result<TransactionValidity> =
-				result.map_err(Into::into).and_then(|result| {
-					Decode::decode(&mut &result[..]).map_err(|e| {
-						Error::RuntimeApi(format!("Error decoding tx validation result: {:?}", e))
-					})
-				});
+			let result: error::Result<TransactionValidity> = result.map_err(Into::into).and_then(|result| {
+				Decode::decode(&mut &result[..])
+					.map_err(|e| Error::RuntimeApi(format!("Error decoding tx validation result: {:?}", e)))
+			});
 			ready(result)
 		});
 
@@ -308,14 +309,19 @@ where
 			Ok(header) => header,
 			Err(err) => {
 				log::warn!(target: "txpool", "Failed to query header: {:?}", err);
-				return Box::pin(ready(Ok(None)))
-			},
+				return Box::pin(ready(Ok(None)));
+			}
 		};
 
 		let fetcher = self.fetcher.clone();
 		async move {
 			let transactions = fetcher
-				.remote_body({ RemoteBodyRequest { header, retry_count: None } })
+				.remote_body({
+					RemoteBodyRequest {
+						header,
+						retry_count: None,
+					}
+				})
 				.await
 				.unwrap_or_else(|e| {
 					log::warn!(target: "txpool", "Failed to fetch block body: {:?}", e);

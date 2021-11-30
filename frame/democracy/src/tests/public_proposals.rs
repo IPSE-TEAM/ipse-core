@@ -70,7 +70,10 @@ fn proposal_with_deposit_below_minimum_should_not_work() {
 #[test]
 fn poor_proposer_should_not_work() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(propose_set_balance(1, 2, 11), BalancesError::<Test, _>::InsufficientBalance);
+		assert_noop!(
+			propose_set_balance(1, 2, 11),
+			BalancesError::<Test, _>::InsufficientBalance
+		);
 	});
 }
 
@@ -89,7 +92,10 @@ fn poor_seconder_should_not_work() {
 fn invalid_seconds_upper_bound_should_not_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(propose_set_balance_and_note(1, 2, 5));
-		assert_noop!(Democracy::second(Origin::signed(2), 0, 0), Error::<Test>::WrongUpperBound);
+		assert_noop!(
+			Democracy::second(Origin::signed(2), 0, 0),
+			Error::<Test>::WrongUpperBound
+		);
 	});
 }
 
@@ -121,7 +127,10 @@ fn blacklisting_should_work() {
 		assert_eq!(Democracy::backing_for(0), None);
 		assert_eq!(Democracy::backing_for(1), Some(4));
 
-		assert_noop!(propose_set_balance_and_note(1, 2, 2), Error::<Test>::ProposalBlacklisted);
+		assert_noop!(
+			propose_set_balance_and_note(1, 2, 2),
+			Error::<Test>::ProposalBlacklisted
+		);
 
 		fast_forward_to(2);
 

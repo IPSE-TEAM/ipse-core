@@ -43,13 +43,13 @@ impl BenchmarkCmd {
 	{
 		if let Some(output_path) = &self.output {
 			if !output_path.is_dir() {
-				return Err("Output path is invalid!".into())
+				return Err("Output path is invalid!".into());
 			};
 		}
 
 		if let Some(header_file) = &self.header {
 			if !header_file.is_file() {
-				return Err("Header file is invalid!".into())
+				return Err("Header file is invalid!".into());
 			};
 		}
 
@@ -98,21 +98,15 @@ impl BenchmarkCmd {
 		.execute(strategy.into())
 		.map_err(|e| format!("Error executing runtime benchmark: {:?}", e))?;
 
-		let results =
-			<std::result::Result<Vec<BenchmarkBatch>, String> as Decode>::decode(&mut &result[..])
-				.map_err(|e| format!("Failed to decode benchmark results: {:?}", e))?;
+		let results = <std::result::Result<Vec<BenchmarkBatch>, String> as Decode>::decode(&mut &result[..])
+			.map_err(|e| format!("Failed to decode benchmark results: {:?}", e))?;
 
 		match results {
 			Ok(batches) => {
 				// If we are going to output results to a file...
 				if let Some(output_path) = &self.output {
 					if self.trait_def {
-						crate::writer::write_trait(
-							&batches,
-							output_path,
-							&self.r#trait,
-							self.spaces,
-						)?;
+						crate::writer::write_trait(&batches, output_path, &self.r#trait, self.spaces)?;
 					} else {
 						crate::writer::write_results(
 							&batches,
@@ -143,7 +137,7 @@ impl BenchmarkCmd {
 
 					// Skip raw data + analysis if there are no results
 					if batch.results.is_empty() {
-						continue
+						continue;
 					}
 
 					if self.raw_data {
@@ -176,44 +170,34 @@ impl BenchmarkCmd {
 					// Conduct analysis.
 					if !self.no_median_slopes {
 						println!("Median Slopes Analysis\n========");
-						if let Some(analysis) = Analysis::median_slopes(
-							&batch.results,
-							BenchmarkSelector::ExtrinsicTime,
-						) {
+						if let Some(analysis) =
+							Analysis::median_slopes(&batch.results, BenchmarkSelector::ExtrinsicTime)
+						{
 							println!("-- Extrinsic Time --\n{}", analysis);
 						}
-						if let Some(analysis) =
-							Analysis::median_slopes(&batch.results, BenchmarkSelector::Reads)
-						{
+						if let Some(analysis) = Analysis::median_slopes(&batch.results, BenchmarkSelector::Reads) {
 							println!("Reads = {:?}", analysis);
 						}
-						if let Some(analysis) =
-							Analysis::median_slopes(&batch.results, BenchmarkSelector::Writes)
-						{
+						if let Some(analysis) = Analysis::median_slopes(&batch.results, BenchmarkSelector::Writes) {
 							println!("Writes = {:?}", analysis);
 						}
 					}
 					if !self.no_min_squares {
 						println!("Min Squares Analysis\n========");
-						if let Some(analysis) = Analysis::min_squares_iqr(
-							&batch.results,
-							BenchmarkSelector::ExtrinsicTime,
-						) {
+						if let Some(analysis) =
+							Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::ExtrinsicTime)
+						{
 							println!("-- Extrinsic Time --\n{}", analysis);
 						}
-						if let Some(analysis) =
-							Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Reads)
-						{
+						if let Some(analysis) = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Reads) {
 							println!("Reads = {:?}", analysis);
 						}
-						if let Some(analysis) =
-							Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Writes)
-						{
+						if let Some(analysis) = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Writes) {
 							println!("Writes = {:?}", analysis);
 						}
 					}
 				}
-			},
+			}
 			Err(error) => eprintln!("Error: {:?}", error),
 		}
 

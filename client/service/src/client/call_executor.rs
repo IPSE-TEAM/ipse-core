@@ -32,8 +32,7 @@ use sp_runtime::{
 	traits::{Block as BlockT, HashFor, NumberFor},
 };
 use sp_state_machine::{
-	self, backend::Backend as _, ExecutionManager, ExecutionStrategy, Ext, OverlayedChanges,
-	StateMachine, StorageProof,
+	self, backend::Backend as _, ExecutionManager, ExecutionStrategy, Ext, OverlayedChanges, StateMachine, StorageProof,
 };
 use std::{cell::RefCell, panic::UnwindSafe, result, sync::Arc};
 
@@ -48,13 +47,13 @@ pub struct LocalCallExecutor<B, E> {
 
 impl<B, E> LocalCallExecutor<B, E> {
 	/// Creates new instance of local call executor.
-	pub fn new(
-		backend: Arc<B>,
-		executor: E,
-		spawn_handle: Box<dyn SpawnNamed>,
-		client_config: ClientConfig,
-	) -> Self {
-		LocalCallExecutor { backend, executor, spawn_handle, client_config }
+	pub fn new(backend: Arc<B>, executor: E, spawn_handle: Box<dyn SpawnNamed>, client_config: ClientConfig) -> Self {
+		LocalCallExecutor {
+			backend,
+			executor,
+			spawn_handle,
+			client_config,
+		}
 	}
 }
 
@@ -96,8 +95,7 @@ where
 		} else {
 			OffchainOverlayedChanges::disabled()
 		};
-		let changes_trie =
-			backend::changes_tries_state_at_block(id, self.backend.changes_trie_storage())?;
+		let changes_trie = backend::changes_tries_state_at_block(id, self.backend.changes_trie_storage())?;
 		let state = self.backend.state_at(*id)?;
 		let state_runtime_code = sp_state_machine::backend::BackendRuntimeCode::new(&state);
 		let return_data = StateMachine::new(
@@ -112,10 +110,7 @@ where
 			&state_runtime_code.runtime_code()?,
 			self.spawn_handle.clone(),
 		)
-		.execute_using_consensus_failure_handler::<_, NeverNativeValue, fn() -> _>(
-			strategy.get_manager(),
-			None,
-		)?;
+		.execute_using_consensus_failure_handler::<_, NeverNativeValue, fn() -> _>(strategy.get_manager(), None)?;
 
 		Ok(return_data.into_encoded())
 	}
@@ -148,17 +143,14 @@ where
 		ExecutionManager<EM>: Clone,
 	{
 		match initialize_block {
-			InitializeBlock::Do(ref init_block)
-				if init_block.borrow().as_ref().map(|id| id != at).unwrap_or(true) =>
-			{
+			InitializeBlock::Do(ref init_block) if init_block.borrow().as_ref().map(|id| id != at).unwrap_or(true) => {
 				initialize_block_fn()?;
 			}
 			// We don't need to initialize the runtime at a block.
-			_ => {},
+			_ => {}
 		}
 
-		let changes_trie_state =
-			backend::changes_tries_state_at_block(at, self.backend.changes_trie_storage())?;
+		let changes_trie_state = backend::changes_tries_state_at_block(at, self.backend.changes_trie_storage())?;
 		let mut storage_transaction_cache = storage_transaction_cache.map(|c| c.borrow_mut());
 
 		let mut state = self.backend.state_at(*at)?;
@@ -173,16 +165,12 @@ where
 						as Box<dyn sp_state_machine::Error>
 				})?;
 
-				let state_runtime_code =
-					sp_state_machine::backend::BackendRuntimeCode::new(&trie_state);
+				let state_runtime_code = sp_state_machine::backend::BackendRuntimeCode::new(&trie_state);
 				// It is important to extract the runtime code here before we create the proof
 				// recorder.
 				let runtime_code = state_runtime_code.runtime_code()?;
 
-				let backend = sp_state_machine::ProvingBackend::new_with_recorder(
-					trie_state,
-					recorder.clone(),
-				);
+				let backend = sp_state_machine::ProvingBackend::new_with_recorder(trie_state, recorder.clone());
 
 				let mut state_machine = StateMachine::new(
 					&backend,
@@ -199,9 +187,8 @@ where
 				// TODO: https://github.com/paritytech/substrate/issues/4455
 				// .with_storage_transaction_cache(storage_transaction_cache.as_mut().map(|c| &mut
 				// **c))
-				state_machine
-					.execute_using_consensus_failure_handler(execution_manager, native_call)
-			},
+				state_machine.execute_using_consensus_failure_handler(execution_manager, native_call)
+			}
 			None => {
 				let state_runtime_code = sp_state_machine::backend::BackendRuntimeCode::new(&state);
 				let runtime_code = state_runtime_code.runtime_code()?;
@@ -217,12 +204,9 @@ where
 					&runtime_code,
 					self.spawn_handle.clone(),
 				)
-				.with_storage_transaction_cache(
-					storage_transaction_cache.as_mut().map(|c| &mut **c),
-				);
-				state_machine
-					.execute_using_consensus_failure_handler(execution_manager, native_call)
-			},
+				.with_storage_transaction_cache(storage_transaction_cache.as_mut().map(|c| &mut **c));
+				state_machine.execute_using_consensus_failure_handler(execution_manager, native_call)
+			}
 		}
 		.map_err(Into::into)
 	}
@@ -230,8 +214,7 @@ where
 	fn runtime_version(&self, id: &BlockId<Block>) -> sp_blockchain::Result<RuntimeVersion> {
 		let mut overlay = OverlayedChanges::default();
 		let mut offchain_overlay = OffchainOverlayedChanges::default();
-		let changes_trie_state =
-			backend::changes_tries_state_at_block(id, self.backend.changes_trie_storage())?;
+		let changes_trie_state = backend::changes_tries_state_at_block(id, self.backend.changes_trie_storage())?;
 		let state = self.backend.state_at(*id)?;
 		let mut cache = StorageTransactionCache::<Block, B::State>::default();
 		let mut ext = Ext::new(

@@ -85,14 +85,14 @@ where
 {
 	/// Create new changes trie build cache.
 	pub fn new() -> Self {
-		BuildCache { roots_by_number: HashMap::new(), changed_keys: HashMap::new() }
+		BuildCache {
+			roots_by_number: HashMap::new(),
+			changed_keys: HashMap::new(),
+		}
 	}
 
 	/// Get cached changed keys for changes trie with given root.
-	pub fn get(
-		&self,
-		root: &H,
-	) -> Option<&HashMap<Option<PrefixedStorageKey>, HashSet<StorageKey>>> {
+	pub fn get(&self, root: &H) -> Option<&HashMap<Option<PrefixedStorageKey>, HashSet<StorageKey>>> {
 		self.changed_keys.get(&root)
 	}
 
@@ -107,7 +107,7 @@ where
 			Some(changed_keys) => {
 				functor(changed_keys);
 				true
-			},
+			}
 			None => false,
 		}
 	}
@@ -125,11 +125,11 @@ where
 						self.changed_keys.remove(&digest_input_block_hash);
 					}
 				}
-			},
+			}
 			CacheAction::Clear => {
 				self.roots_by_number.clear();
 				self.changed_keys.clear();
-			},
+			}
 		}
 	}
 }
@@ -146,8 +146,9 @@ impl<N> IncompleteCacheAction<N> {
 	/// Complete cache action with computed changes trie root.
 	pub(crate) fn complete<H: Clone>(self, block: N, trie_root: &H) -> CacheAction<H, N> {
 		match self {
-			IncompleteCacheAction::CacheBuildData(build_data) =>
-				CacheAction::CacheBuildData(build_data.complete(block, trie_root.clone())),
+			IncompleteCacheAction::CacheBuildData(build_data) => {
+				CacheAction::CacheBuildData(build_data.complete(block, trie_root.clone()))
+			}
 			IncompleteCacheAction::Clear => CacheAction::Clear,
 		}
 	}
@@ -158,23 +159,19 @@ impl<N> IncompleteCacheAction<N> {
 	/// will be removed from the cache.
 	pub(crate) fn set_digest_input_blocks(self, digest_input_blocks: Vec<N>) -> Self {
 		match self {
-			IncompleteCacheAction::CacheBuildData(build_data) =>
-				IncompleteCacheAction::CacheBuildData(
-					build_data.set_digest_input_blocks(digest_input_blocks),
-				),
+			IncompleteCacheAction::CacheBuildData(build_data) => {
+				IncompleteCacheAction::CacheBuildData(build_data.set_digest_input_blocks(digest_input_blocks))
+			}
 			IncompleteCacheAction::Clear => IncompleteCacheAction::Clear,
 		}
 	}
 
 	/// Insert changed keys of given storage into cached data.
-	pub(crate) fn insert(
-		self,
-		storage_key: Option<PrefixedStorageKey>,
-		changed_keys: HashSet<StorageKey>,
-	) -> Self {
+	pub(crate) fn insert(self, storage_key: Option<PrefixedStorageKey>, changed_keys: HashSet<StorageKey>) -> Self {
 		match self {
-			IncompleteCacheAction::CacheBuildData(build_data) =>
-				IncompleteCacheAction::CacheBuildData(build_data.insert(storage_key, changed_keys)),
+			IncompleteCacheAction::CacheBuildData(build_data) => {
+				IncompleteCacheAction::CacheBuildData(build_data.insert(storage_key, changed_keys))
+			}
 			IncompleteCacheAction::Clear => IncompleteCacheAction::Clear,
 		}
 	}
@@ -183,7 +180,10 @@ impl<N> IncompleteCacheAction<N> {
 impl<N> IncompleteCachedBuildData<N> {
 	/// Create new cached data.
 	pub(crate) fn new() -> Self {
-		IncompleteCachedBuildData { digest_input_blocks: Vec::new(), changed_keys: HashMap::new() }
+		IncompleteCachedBuildData {
+			digest_input_blocks: Vec::new(),
+			changed_keys: HashMap::new(),
+		}
 	}
 
 	fn complete<H>(self, block: N, trie_root: H) -> CachedBuildData<H, N> {
@@ -200,11 +200,7 @@ impl<N> IncompleteCachedBuildData<N> {
 		self
 	}
 
-	fn insert(
-		mut self,
-		storage_key: Option<PrefixedStorageKey>,
-		changed_keys: HashSet<StorageKey>,
-	) -> Self {
+	fn insert(mut self, storage_key: Option<PrefixedStorageKey>, changed_keys: HashSet<StorageKey>) -> Self {
 		self.changed_keys.insert(storage_key, changed_keys);
 		self
 	}
@@ -251,7 +247,9 @@ mod tests {
 		assert_eq!(cache.changed_keys.len(), 3);
 
 		cache.perform(CacheAction::CacheBuildData(
-			IncompleteCachedBuildData::new().set_digest_input_blocks(vec![1, 2, 3]).complete(4, 4),
+			IncompleteCachedBuildData::new()
+				.set_digest_input_blocks(vec![1, 2, 3])
+				.complete(4, 4),
 		));
 
 		assert_eq!(cache.changed_keys.len(), 1);

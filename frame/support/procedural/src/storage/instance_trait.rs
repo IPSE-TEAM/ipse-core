@@ -63,9 +63,7 @@ pub fn decl_and_impl(scrate: &TokenStream, def: &DeclStorageDefExt) -> TokenStre
 	let inherent_instance = syn::Ident::new(INHERENT_INSTANCE_NAME, Span::call_site());
 
 	// Implementation of inherent instance.
-	if let Some(default_instance) =
-		def.module_instance.as_ref().and_then(|i| i.instance_default.as_ref())
-	{
+	if let Some(default_instance) = def.module_instance.as_ref().and_then(|i| i.instance_default.as_ref()) {
 		impls.extend(quote! {
 			/// Hidden instance generated to be internally used when module is used without
 			/// instance.

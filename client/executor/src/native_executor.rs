@@ -198,8 +198,9 @@ impl sp_core::traits::CallInWasm for WasmExecutor {
 			)
 			.map_err(|e| format!("Failed to create module: {:?}", e))?;
 
-			let instance =
-				module.new_instance().map_err(|e| format!("Failed to create instance: {:?}", e))?;
+			let instance = module
+				.new_instance()
+				.map_err(|e| format!("Failed to create instance: {:?}", e))?;
 
 			let instance = AssertUnwindSafe(instance);
 			let mut ext = AssertUnwindSafe(ext);
@@ -260,24 +261,20 @@ impl<D: NativeExecutionDispatch> RuntimeInfo for NativeExecutor<D> {
 		&self.native_version
 	}
 
-	fn runtime_version(
-		&self,
-		ext: &mut dyn Externalities,
-		runtime_code: &RuntimeCode,
-	) -> Result<RuntimeVersion> {
-		self.wasm.with_instance(runtime_code, ext, false, |_instance, version, _ext| {
-			Ok(version.cloned().ok_or_else(|| Error::ApiError("Unknown version".into())))
-		})
+	fn runtime_version(&self, ext: &mut dyn Externalities, runtime_code: &RuntimeCode) -> Result<RuntimeVersion> {
+		self.wasm
+			.with_instance(runtime_code, ext, false, |_instance, version, _ext| {
+				Ok(version
+					.cloned()
+					.ok_or_else(|| Error::ApiError("Unknown version".into())))
+			})
 	}
 }
 
 impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 	type Error = Error;
 
-	fn call<
-		R: Decode + Encode + PartialEq,
-		NC: FnOnce() -> result::Result<R, String> + UnwindSafe,
-	>(
+	fn call<R: Decode + Encode + PartialEq, NC: FnOnce() -> result::Result<R, String> + UnwindSafe>(
 		&self,
 		ext: &mut dyn Externalities,
 		runtime_code: &RuntimeCode,
@@ -287,13 +284,10 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 		native_call: Option<NC>,
 	) -> (Result<NativeOrEncoded<R>>, bool) {
 		let mut used_native = false;
-		let result = self.wasm.with_instance(
-			runtime_code,
-			ext,
-			false,
-			|instance, onchain_version, mut ext| {
-				let onchain_version =
-					onchain_version.ok_or_else(|| Error::ApiError("Unknown version".into()))?;
+		let result = self
+			.wasm
+			.with_instance(runtime_code, ext, false, |instance, onchain_version, mut ext| {
+				let onchain_version = onchain_version.ok_or_else(|| Error::ApiError("Unknown version".into()))?;
 				match (
 					use_native,
 					onchain_version.can_call_with(&self.native_version.runtime_version),
@@ -310,7 +304,7 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 						with_externalities_safe(&mut **ext, move || {
 							instance.call(method, data).map(NativeOrEncoded::Encoded)
 						})
-					},
+					}
 					(false, _, _) => with_externalities_safe(&mut **ext, move || {
 						instance.call(method, data).map(NativeOrEncoded::Encoded)
 					}),
@@ -324,13 +318,11 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 						);
 
 						used_native = true;
-						let res =
-							with_externalities_safe(&mut **ext, move || (call)()).and_then(|r| {
-								r.map(NativeOrEncoded::Native).map_err(|s| Error::ApiError(s))
-							});
+						let res = with_externalities_safe(&mut **ext, move || (call)())
+							.and_then(|r| r.map(NativeOrEncoded::Native).map_err(|s| Error::ApiError(s)));
 
 						Ok(res)
-					},
+					}
 					_ => {
 						trace!(
 							target: "executor",
@@ -341,10 +333,9 @@ impl<D: NativeExecutionDispatch + 'static> CodeExecutor for NativeExecutor<D> {
 
 						used_native = true;
 						Ok(D::dispatch(&mut **ext, method, data).map(NativeOrEncoded::Encoded))
-					},
+					}
 				}
-			},
-		);
+			});
 		(result, used_native)
 	}
 }
@@ -369,7 +360,8 @@ impl<D: NativeExecutionDispatch> sp_core::traits::CallInWasm for NativeExecutor<
 		ext: &mut dyn Externalities,
 		missing_host_functions: MissingHostFunctions,
 	) -> std::result::Result<Vec<u8>, String> {
-		self.wasm.call_in_wasm(wasm_blob, code_hash, method, call_data, ext, missing_host_functions)
+		self.wasm
+			.call_in_wasm(wasm_blob, code_hash, method, call_data, ext, missing_host_functions)
 	}
 }
 
@@ -468,9 +460,14 @@ mod tests {
 	#[test]
 	fn native_executor_registers_custom_interface() {
 		let executor = NativeExecutor::<MyExecutor>::new(WasmExecutionMethod::Interpreted, None, 8);
-		my_interface::HostFunctions::host_functions().iter().for_each(|function| {
-			assert_eq!(executor.wasm.host_functions.iter().filter(|f| f == &function).count(), 2,);
-		});
+		my_interface::HostFunctions::host_functions()
+			.iter()
+			.for_each(|function| {
+				assert_eq!(
+					executor.wasm.host_functions.iter().filter(|f| f == &function).count(),
+					2,
+				);
+			});
 
 		my_interface::say_hello_world("hey");
 	}

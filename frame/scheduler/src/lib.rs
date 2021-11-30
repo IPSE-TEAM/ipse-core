@@ -96,10 +96,7 @@ pub trait Trait: system::Trait {
 	type PalletsOrigin: From<system::RawOrigin<Self::AccountId>> + Codec + Clone + Eq;
 
 	/// The aggregated call type.
-	type Call: Parameter
-		+ Dispatchable<Origin = <Self as Trait>::Origin>
-		+ GetDispatchInfo
-		+ From<system::Call<Self>>;
+	type Call: Parameter + Dispatchable<Origin = <Self as Trait>::Origin> + GetDispatchInfo + From<system::Call<Self>>;
 
 	/// The maximum weight that may be scheduled per block for any dispatchables of less priority
 	/// than `schedule::HARD_DEADLINE`.
@@ -437,25 +434,23 @@ impl<T: Trait> Module<T> {
 		if StorageVersion::get() == Releases::V1 {
 			StorageVersion::put(Releases::V2);
 
-			Agenda::<T>::translate::<Vec<Option<ScheduledV1<<T as Trait>::Call, T::BlockNumber>>>, _>(
-				|_, agenda| {
-					Some(
-						agenda
-							.into_iter()
-							.map(|schedule| {
-								schedule.map(|schedule| ScheduledV2 {
-									maybe_id: schedule.maybe_id,
-									priority: schedule.priority,
-									call: schedule.call,
-									maybe_periodic: schedule.maybe_periodic,
-									origin: system::RawOrigin::Root.into(),
-									_phantom: Default::default(),
-								})
+			Agenda::<T>::translate::<Vec<Option<ScheduledV1<<T as Trait>::Call, T::BlockNumber>>>, _>(|_, agenda| {
+				Some(
+					agenda
+						.into_iter()
+						.map(|schedule| {
+							schedule.map(|schedule| ScheduledV2 {
+								maybe_id: schedule.maybe_id,
+								priority: schedule.priority,
+								call: schedule.call,
+								maybe_periodic: schedule.maybe_periodic,
+								origin: system::RawOrigin::Root.into(),
+								_phantom: Default::default(),
 							})
-							.collect::<Vec<_>>(),
-					)
-				},
-			);
+						})
+						.collect::<Vec<_>>(),
+				)
+			});
 
 			true
 		} else {
@@ -465,26 +460,25 @@ impl<T: Trait> Module<T> {
 
 	/// Helper to migrate scheduler when the pallet origin type has changed.
 	pub fn migrate_origin<OldOrigin: Into<T::PalletsOrigin> + codec::Decode>() {
-		Agenda::<T>::translate::<
-			Vec<Option<Scheduled<<T as Trait>::Call, T::BlockNumber, OldOrigin, T::AccountId>>>,
-			_,
-		>(|_, agenda| {
-			Some(
-				agenda
-					.into_iter()
-					.map(|schedule| {
-						schedule.map(|schedule| Scheduled {
-							maybe_id: schedule.maybe_id,
-							priority: schedule.priority,
-							call: schedule.call,
-							maybe_periodic: schedule.maybe_periodic,
-							origin: schedule.origin.into(),
-							_phantom: Default::default(),
+		Agenda::<T>::translate::<Vec<Option<Scheduled<<T as Trait>::Call, T::BlockNumber, OldOrigin, T::AccountId>>>, _>(
+			|_, agenda| {
+				Some(
+					agenda
+						.into_iter()
+						.map(|schedule| {
+							schedule.map(|schedule| Scheduled {
+								maybe_id: schedule.maybe_id,
+								priority: schedule.priority,
+								call: schedule.call,
+								maybe_periodic: schedule.maybe_periodic,
+								origin: schedule.origin.into(),
+								_phantom: Default::default(),
+							})
 						})
-					})
-					.collect::<Vec<_>>(),
-			)
-		});
+						.collect::<Vec<_>>(),
+				)
+			},
+		);
 	}
 
 	fn do_schedule(
@@ -502,7 +496,7 @@ impl<T: Trait> Module<T> {
 		};
 
 		if when <= now {
-			return Err(Error::<T>::TargetBlockNumberInPast.into())
+			return Err(Error::<T>::TargetBlockNumberInPast.into());
 		}
 
 		// sanitize maybe_periodic
@@ -541,7 +535,7 @@ impl<T: Trait> Module<T> {
 				|s| -> Result<Option<Scheduled<_, _, _, _>>, DispatchError> {
 					if let (Some(ref o), Some(ref s)) = (origin, s.borrow()) {
 						if *o != s.origin {
-							return Err(BadOrigin.into())
+							return Err(BadOrigin.into());
 						}
 					};
 					Ok(s.take())
@@ -569,7 +563,7 @@ impl<T: Trait> Module<T> {
 	) -> Result<TaskAddress<T::BlockNumber>, DispatchError> {
 		// ensure id it is unique
 		if Lookup::<T>::contains_key(&id) {
-			return Err(Error::<T>::FailedToSchedule)?
+			return Err(Error::<T>::FailedToSchedule)?;
 		}
 
 		let now = frame_system::Module::<T>::block_number();
@@ -580,7 +574,7 @@ impl<T: Trait> Module<T> {
 		};
 
 		if when <= now {
-			return Err(Error::<T>::TargetBlockNumberInPast.into())
+			return Err(Error::<T>::TargetBlockNumberInPast.into());
 		}
 
 		// sanitize maybe_periodic
@@ -620,7 +614,7 @@ impl<T: Trait> Module<T> {
 					if let Some(s) = agenda.get_mut(i) {
 						if let (Some(ref o), Some(ref s)) = (origin, s.borrow()) {
 							if *o != s.origin {
-								return Err(BadOrigin.into())
+								return Err(BadOrigin.into());
 							}
 						}
 						*s = None;
@@ -679,8 +673,8 @@ mod tests {
 
 	use crate as scheduler;
 	use frame_support::{
-		assert_err, assert_noop, assert_ok, impl_outer_dispatch, impl_outer_event,
-		impl_outer_origin, ord_parameter_types, parameter_types,
+		assert_err, assert_noop, assert_ok, impl_outer_dispatch, impl_outer_event, impl_outer_origin,
+		ord_parameter_types, parameter_types,
 		traits::{Filter, OnFinalize, OnInitialize},
 		weights::constants::RocksDbWeight,
 		Hashable,
@@ -1084,12 +1078,10 @@ mod tests {
 	#[test]
 	fn on_initialize_weight_is_correct() {
 		new_test_ext().execute_with(|| {
-			let base_weight: Weight =
-				<Test as frame_system::Trait>::DbWeight::get().reads_writes(1, 2);
+			let base_weight: Weight = <Test as frame_system::Trait>::DbWeight::get().reads_writes(1, 2);
 			let base_multiplier = 0;
 			let named_multiplier = <Test as frame_system::Trait>::DbWeight::get().writes(1);
-			let periodic_multiplier =
-				<Test as frame_system::Trait>::DbWeight::get().reads_writes(1, 1);
+			let periodic_multiplier = <Test as frame_system::Trait>::DbWeight::get().reads_writes(1, 1);
 
 			// Named
 			assert_ok!(Scheduler::do_schedule_named(
@@ -1131,9 +1123,7 @@ mod tests {
 			let call_weight = MaximumSchedulerWeight::get() / 2;
 			assert_eq!(
 				actual_weight,
-				call_weight +
-					base_weight + base_multiplier +
-					named_multiplier + periodic_multiplier
+				call_weight + base_weight + base_multiplier + named_multiplier + periodic_multiplier
 			);
 			assert_eq!(logger::log(), vec![(root(), 2600u32)]);
 
@@ -1239,7 +1229,10 @@ mod tests {
 			// Scheduled calls are in the agenda.
 			assert_eq!(Agenda::<Test>::get(4).len(), 2);
 			assert!(logger::log().is_empty());
-			assert_ok!(Scheduler::cancel_named(system::RawOrigin::Signed(1).into(), 1u32.encode()));
+			assert_ok!(Scheduler::cancel_named(
+				system::RawOrigin::Signed(1).into(),
+				1u32.encode()
+			));
 			assert_ok!(Scheduler::cancel(system::RawOrigin::Signed(1).into(), 4, 1));
 			// Scheduled calls are made NONE, so should not effect state
 			run_to_block(100);
@@ -1253,14 +1246,7 @@ mod tests {
 			let call = Box::new(Call::Logger(logger::Call::log(69, 1000)));
 			let call2 = Box::new(Call::Logger(logger::Call::log(42, 1000)));
 			assert_noop!(
-				Scheduler::schedule_named(
-					system::RawOrigin::Signed(2).into(),
-					1u32.encode(),
-					4,
-					None,
-					127,
-					call
-				),
+				Scheduler::schedule_named(system::RawOrigin::Signed(2).into(), 1u32.encode(), 4, None, 127, call),
 				BadOrigin
 			);
 			assert_noop!(

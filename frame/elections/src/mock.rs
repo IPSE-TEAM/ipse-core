@@ -259,7 +259,10 @@ impl ExtBuilder {
 }
 
 pub(crate) fn voter_ids() -> Vec<u64> {
-	Elections::all_voters().iter().map(|v| v.unwrap_or(0)).collect::<Vec<u64>>()
+	Elections::all_voters()
+		.iter()
+		.map(|v| v.unwrap_or(0))
+		.collect::<Vec<u64>>()
 }
 
 pub(crate) fn vote(i: u64, l: usize) {

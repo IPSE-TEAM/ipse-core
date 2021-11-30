@@ -26,8 +26,7 @@ use libp2p::core::{
 	upgrade, ConnectedPoint,
 };
 use libp2p::swarm::{
-	IntoProtocolsHandler, NetworkBehaviour, NetworkBehaviourAction, PollParameters,
-	ProtocolsHandler, Swarm,
+	IntoProtocolsHandler, NetworkBehaviour, NetworkBehaviourAction, PollParameters, ProtocolsHandler, Swarm,
 };
 use libp2p::{identity, noise, yamux};
 use libp2p::{Multiaddr, PeerId, Transport};
@@ -43,15 +42,17 @@ fn build_nodes() -> (Swarm<CustomProtoWithAddr>, Swarm<CustomProtoWithAddr>) {
 	let mut out = Vec::with_capacity(2);
 
 	let keypairs: Vec<_> = (0..2).map(|_| identity::Keypair::generate_ed25519()).collect();
-	let addrs: Vec<Multiaddr> =
-		(0..2).map(|_| format!("/memory/{}", rand::random::<u64>()).parse().unwrap()).collect();
+	let addrs: Vec<Multiaddr> = (0..2)
+		.map(|_| format!("/memory/{}", rand::random::<u64>()).parse().unwrap())
+		.collect();
 
 	for index in 0..2 {
 		let keypair = keypairs[index].clone();
 		let local_peer_id = keypair.public().into_peer_id();
 
-		let noise_keys =
-			noise::Keypair::<noise::X25519Spec>::new().into_authentic(&keypair).unwrap();
+		let noise_keys = noise::Keypair::<noise::X25519Spec>::new()
+			.into_authentic(&keypair)
+			.unwrap();
 
 		let transport = MemoryTransport
 			.upgrade(upgrade::Version::V1)
@@ -66,7 +67,11 @@ fn build_nodes() -> (Swarm<CustomProtoWithAddr>, Swarm<CustomProtoWithAddr>) {
 			in_peers: 25,
 			out_peers: 25,
 			bootnodes: if index == 0 {
-				keypairs.iter().skip(1).map(|keypair| keypair.public().into_peer_id()).collect()
+				keypairs
+					.iter()
+					.skip(1)
+					.map(|keypair| keypair.public().into_peer_id())
+					.collect()
 			} else {
 				vec![]
 			},
@@ -154,21 +159,11 @@ impl NetworkBehaviour for CustomProtoWithAddr {
 		self.inner.inject_disconnected(peer_id)
 	}
 
-	fn inject_connection_established(
-		&mut self,
-		peer_id: &PeerId,
-		conn: &ConnectionId,
-		endpoint: &ConnectedPoint,
-	) {
+	fn inject_connection_established(&mut self, peer_id: &PeerId, conn: &ConnectionId, endpoint: &ConnectedPoint) {
 		self.inner.inject_connection_established(peer_id, conn, endpoint)
 	}
 
-	fn inject_connection_closed(
-		&mut self,
-		peer_id: &PeerId,
-		conn: &ConnectionId,
-		endpoint: &ConnectedPoint,
-	) {
+	fn inject_connection_closed(&mut self, peer_id: &PeerId, conn: &ConnectionId, endpoint: &ConnectedPoint) {
 		self.inner.inject_connection_closed(peer_id, conn, endpoint)
 	}
 
@@ -184,22 +179,17 @@ impl NetworkBehaviour for CustomProtoWithAddr {
 	fn poll(
 		&mut self,
 		cx: &mut Context,
-		params: &mut impl PollParameters
+		params: &mut impl PollParameters,
 	) -> Poll<
 		NetworkBehaviourAction<
 			<<Self::ProtocolsHandler as IntoProtocolsHandler>::Handler as ProtocolsHandler>::InEvent,
-			Self::OutEvent
-		>
->{
+			Self::OutEvent,
+		>,
+	> {
 		self.inner.poll(cx, params)
 	}
 
-	fn inject_addr_reach_failure(
-		&mut self,
-		peer_id: Option<&PeerId>,
-		addr: &Multiaddr,
-		error: &dyn std::error::Error,
-	) {
+	fn inject_addr_reach_failure(&mut self, peer_id: Option<&PeerId>, addr: &Multiaddr, error: &dyn std::error::Error) {
 		self.inner.inject_addr_reach_failure(peer_id, addr, error)
 	}
 
@@ -260,49 +250,39 @@ fn reconnect_after_disconnect() {
 			};
 
 			match event {
-				future::Either::Left(GenericProtoOut::CustomProtocolOpen { .. }) =>
-					match service1_state {
-						ServiceState::NotConnected => {
-							service1_state = ServiceState::FirstConnec;
-							if service2_state == ServiceState::FirstConnec {
-								service1.disconnect_peer(Swarm::local_peer_id(&service2));
-							}
-						},
-						ServiceState::Disconnected => service1_state = ServiceState::ConnectedAgain,
-						ServiceState::FirstConnec | ServiceState::ConnectedAgain => panic!(),
-					},
-				future::Either::Left(GenericProtoOut::CustomProtocolClosed { .. }) =>
-					match service1_state {
-						ServiceState::FirstConnec => service1_state = ServiceState::Disconnected,
-						ServiceState::ConnectedAgain |
-						ServiceState::NotConnected |
-						ServiceState::Disconnected => panic!(),
-					},
-				future::Either::Right(GenericProtoOut::CustomProtocolOpen { .. }) =>
-					match service2_state {
-						ServiceState::NotConnected => {
-							service2_state = ServiceState::FirstConnec;
-							if service1_state == ServiceState::FirstConnec {
-								service1.disconnect_peer(Swarm::local_peer_id(&service2));
-							}
-						},
-						ServiceState::Disconnected => service2_state = ServiceState::ConnectedAgain,
-						ServiceState::FirstConnec | ServiceState::ConnectedAgain => panic!(),
-					},
-				future::Either::Right(GenericProtoOut::CustomProtocolClosed { .. }) =>
-					match service2_state {
-						ServiceState::FirstConnec => service2_state = ServiceState::Disconnected,
-						ServiceState::ConnectedAgain |
-						ServiceState::NotConnected |
-						ServiceState::Disconnected => panic!(),
-					},
-				_ => {},
+				future::Either::Left(GenericProtoOut::CustomProtocolOpen { .. }) => match service1_state {
+					ServiceState::NotConnected => {
+						service1_state = ServiceState::FirstConnec;
+						if service2_state == ServiceState::FirstConnec {
+							service1.disconnect_peer(Swarm::local_peer_id(&service2));
+						}
+					}
+					ServiceState::Disconnected => service1_state = ServiceState::ConnectedAgain,
+					ServiceState::FirstConnec | ServiceState::ConnectedAgain => panic!(),
+				},
+				future::Either::Left(GenericProtoOut::CustomProtocolClosed { .. }) => match service1_state {
+					ServiceState::FirstConnec => service1_state = ServiceState::Disconnected,
+					ServiceState::ConnectedAgain | ServiceState::NotConnected | ServiceState::Disconnected => panic!(),
+				},
+				future::Either::Right(GenericProtoOut::CustomProtocolOpen { .. }) => match service2_state {
+					ServiceState::NotConnected => {
+						service2_state = ServiceState::FirstConnec;
+						if service1_state == ServiceState::FirstConnec {
+							service1.disconnect_peer(Swarm::local_peer_id(&service2));
+						}
+					}
+					ServiceState::Disconnected => service2_state = ServiceState::ConnectedAgain,
+					ServiceState::FirstConnec | ServiceState::ConnectedAgain => panic!(),
+				},
+				future::Either::Right(GenericProtoOut::CustomProtocolClosed { .. }) => match service2_state {
+					ServiceState::FirstConnec => service2_state = ServiceState::Disconnected,
+					ServiceState::ConnectedAgain | ServiceState::NotConnected | ServiceState::Disconnected => panic!(),
+				},
+				_ => {}
 			}
 
-			if service1_state == ServiceState::ConnectedAgain &&
-				service2_state == ServiceState::ConnectedAgain
-			{
-				break
+			if service1_state == ServiceState::ConnectedAgain && service2_state == ServiceState::ConnectedAgain {
+				break;
 			}
 		}
 
@@ -324,9 +304,8 @@ fn reconnect_after_disconnect() {
 			};
 
 			match event {
-				GenericProtoOut::CustomProtocolOpen { .. } |
-				GenericProtoOut::CustomProtocolClosed { .. } => panic!(),
-				_ => {},
+				GenericProtoOut::CustomProtocolOpen { .. } | GenericProtoOut::CustomProtocolClosed { .. } => panic!(),
+				_ => {}
 			}
 		}
 	});

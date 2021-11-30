@@ -103,7 +103,7 @@ impl<T: Fork> Fork for Option<T> {
 			(Some(mut a), Some(b)) => {
 				a.combine_with(b);
 				Some(a)
-			},
+			}
 			(a, b) => a.or(b),
 		};
 	}
@@ -133,7 +133,8 @@ pub trait Extension: Serialize + DeserializeOwned + Clone {
 		<Self::Forks as IsForks>::Extension: Extension,
 		<<Self::Forks as IsForks>::Extension as Group>::Fork: Extension,
 	{
-		self.get::<Forks<BlockNumber, <Self::Forks as IsForks>::Extension>>()?.for_type()
+		self.get::<Forks<BlockNumber, <Self::Forks as IsForks>::Extension>>()?
+			.for_type()
 	}
 }
 
@@ -168,7 +169,10 @@ pub struct Forks<BlockNumber: Ord, T: Group> {
 
 impl<B: Ord, T: Group + Default> Default for Forks<B, T> {
 	fn default() -> Self {
-		Self { base: Default::default(), forks: Default::default() }
+		Self {
+			base: Default::default(),
+			forks: Default::default(),
+		}
 	}
 }
 
@@ -258,7 +262,8 @@ where
 		if TypeId::of::<BlockNumber>() == TypeId::of::<B>() {
 			Any::downcast_ref(&self.for_type::<T>()?).cloned()
 		} else {
-			self.get::<Forks<BlockNumber, <Self::Forks as IsForks>::Extension>>()?.for_type()
+			self.get::<Forks<BlockNumber, <Self::Forks as IsForks>::Extension>>()?
+				.for_type()
 		}
 	}
 }
@@ -300,9 +305,7 @@ mod tests {
 		pub test: u8,
 	}
 
-	#[derive(
-		Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension,
-	)]
+	#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension)]
 	#[serde(deny_unknown_fields)]
 	pub struct Extensions {
 		pub ext1: Extension1,
@@ -360,27 +363,45 @@ mod tests {
 		let forks = ext.get::<Forks<u64, Extensions>>().unwrap();
 		assert_eq!(
 			forks.at_block(0),
-			Extensions { ext1: Extension1 { test: 15 }, ext2: Extension2 { test: 123 } }
+			Extensions {
+				ext1: Extension1 { test: 15 },
+				ext2: Extension2 { test: 123 }
+			}
 		);
 		assert_eq!(
 			forks.at_block(1),
-			Extensions { ext1: Extension1 { test: 5 }, ext2: Extension2 { test: 123 } }
+			Extensions {
+				ext1: Extension1 { test: 5 },
+				ext2: Extension2 { test: 123 }
+			}
 		);
 		assert_eq!(
 			forks.at_block(2),
-			Extensions { ext1: Extension1 { test: 5 }, ext2: Extension2 { test: 5 } }
+			Extensions {
+				ext1: Extension1 { test: 5 },
+				ext2: Extension2 { test: 5 }
+			}
 		);
 		assert_eq!(
 			forks.at_block(4),
-			Extensions { ext1: Extension1 { test: 5 }, ext2: Extension2 { test: 5 } }
+			Extensions {
+				ext1: Extension1 { test: 5 },
+				ext2: Extension2 { test: 5 }
+			}
 		);
 		assert_eq!(
 			forks.at_block(5),
-			Extensions { ext1: Extension1 { test: 5 }, ext2: Extension2 { test: 1 } }
+			Extensions {
+				ext1: Extension1 { test: 5 },
+				ext2: Extension2 { test: 1 }
+			}
 		);
 		assert_eq!(
 			forks.at_block(10),
-			Extensions { ext1: Extension1 { test: 5 }, ext2: Extension2 { test: 1 } }
+			Extensions {
+				ext1: Extension1 { test: 5 },
+				ext2: Extension2 { test: 1 }
+			}
 		);
 		assert!(forks.at_block(10).get::<Extension2>().is_some());
 

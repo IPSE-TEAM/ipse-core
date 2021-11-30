@@ -105,7 +105,7 @@ impl sp_runtime::traits::Printable for OffenceError {
 			Self::Other(e) => {
 				"Other".print();
 				e.print();
-			},
+			}
 		}
 	}
 }

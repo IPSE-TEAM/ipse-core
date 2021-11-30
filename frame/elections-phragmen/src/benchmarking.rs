@@ -34,9 +34,7 @@ type Lookup<T> = <<T as frame_system::Trait>::Lookup as StaticLookup>::Source;
 
 macro_rules! whitelist {
 	($acc:ident) => {
-		frame_benchmarking::benchmarking::add_to_whitelist(
-			frame_system::Account::<T>::hashed_key_for(&$acc).into(),
-			);
+		frame_benchmarking::benchmarking::add_to_whitelist(frame_system::Account::<T>::hashed_key_for(&$acc).into());
 	};
 }
 
@@ -83,28 +81,19 @@ fn defunct_for<T: Trait>(who: T::AccountId) -> DefunctVoter<Lookup<T>> {
 }
 
 /// Add `c` new candidates.
-fn submit_candidates<T: Trait>(
-	c: u32,
-	prefix: &'static str,
-) -> Result<Vec<T::AccountId>, &'static str> {
+fn submit_candidates<T: Trait>(c: u32, prefix: &'static str) -> Result<Vec<T::AccountId>, &'static str> {
 	(0..c)
 		.map(|i| {
 			let account = endowed_account::<T>(prefix, i);
-			<Elections<T>>::submit_candidacy(
-				RawOrigin::Signed(account.clone()).into(),
-				candidate_count::<T>(),
-			)
-			.map_err(|_| "failed to submit candidacy")?;
+			<Elections<T>>::submit_candidacy(RawOrigin::Signed(account.clone()).into(), candidate_count::<T>())
+				.map_err(|_| "failed to submit candidacy")?;
 			Ok(account)
 		})
 		.collect::<Result<_, _>>()
 }
 
 /// Add `c` new candidates with self vote.
-fn submit_candidates_with_self_vote<T: Trait>(
-	c: u32,
-	prefix: &'static str,
-) -> Result<Vec<T::AccountId>, &'static str> {
+fn submit_candidates_with_self_vote<T: Trait>(c: u32, prefix: &'static str) -> Result<Vec<T::AccountId>, &'static str> {
 	let candidates = submit_candidates::<T>(c, prefix)?;
 	let stake = default_stake::<T>(BALANCE_FACTOR);
 	let _ = candidates
@@ -145,7 +134,11 @@ fn distribute_voters<T: Trait>(
 /// members, or members and runners-up.
 fn fill_seats_up_to<T: Trait>(m: u32) -> Result<Vec<T::AccountId>, &'static str> {
 	let _ = submit_candidates_with_self_vote::<T>(m, "fill_seats_up_to")?;
-	assert_eq!(<Elections<T>>::candidates().len() as u32, m, "wrong number of candidates.");
+	assert_eq!(
+		<Elections<T>>::candidates().len() as u32,
+		m,
+		"wrong number of candidates."
+	);
 	<Elections<T>>::do_phragmen();
 	assert_eq!(<Elections<T>>::candidates().len(), 0, "some candidates remaining.");
 	assert_eq!(
@@ -594,52 +587,88 @@ mod tests {
 
 	#[test]
 	fn test_benchmarks_elections_phragmen() {
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_vote::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_vote::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_remove_voter::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_remove_voter::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_report_defunct_voter_correct::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_report_defunct_voter_correct::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_report_defunct_voter_incorrect::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_report_defunct_voter_incorrect::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_submit_candidacy::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_submit_candidacy::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_renounce_candidacy_candidate::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_renounce_candidacy_candidate::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_renounce_candidacy_runners_up::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_renounce_candidacy_runners_up::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_renounce_candidacy_members::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_renounce_candidacy_members::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_remove_member_without_replacement::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_remove_member_without_replacement::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_remove_member_with_replacement::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_remove_member_with_replacement::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_on_initialize::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_on_initialize::<Test>());
+			});
 
-		ExtBuilder::default().desired_members(13).desired_runners_up(7).build_and_execute(|| {
-			assert_ok!(test_benchmark_phragmen::<Test>());
-		});
+		ExtBuilder::default()
+			.desired_members(13)
+			.desired_runners_up(7)
+			.build_and_execute(|| {
+				assert_ok!(test_benchmark_phragmen::<Test>());
+			});
 	}
 }

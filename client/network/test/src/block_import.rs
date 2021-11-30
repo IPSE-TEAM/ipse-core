@@ -20,9 +20,7 @@
 
 use super::*;
 use sc_block_builder::BlockBuilderProvider;
-use sp_consensus::import_queue::{
-	import_single_block, BasicQueue, BlockImportError, BlockImportResult, IncomingBlock,
-};
+use sp_consensus::import_queue::{import_single_block, BasicQueue, BlockImportError, BlockImportResult, IncomingBlock};
 use sp_consensus::ImportedAux;
 use sp_runtime::generic::BlockId;
 use substrate_test_runtime_client::runtime::{Block, Hash};
@@ -68,7 +66,7 @@ fn import_single_good_block_works() {
 		&mut PassThroughVerifier::new(true),
 	) {
 		Ok(BlockImportResult::ImportedUnknown(ref num, ref aux, ref org))
-			if *num == number && *aux == expected_aux && *org == Some(peer_id) => {},
+			if *num == number && *aux == expected_aux && *org == Some(peer_id) => {}
 		r @ _ => panic!("{:?}", r),
 	}
 }
@@ -82,7 +80,7 @@ fn import_single_good_known_block_is_ignored() {
 		block,
 		&mut PassThroughVerifier::new(true),
 	) {
-		Ok(BlockImportResult::ImportedKnown(ref n)) if *n == number => {},
+		Ok(BlockImportResult::ImportedKnown(ref n)) if *n == number => {}
 		_ => panic!(),
 	}
 }
@@ -97,7 +95,7 @@ fn import_single_good_block_without_header_fails() {
 		block,
 		&mut PassThroughVerifier::new(true),
 	) {
-		Err(BlockImportError::IncompleteHeader(ref org)) if *org == Some(peer_id) => {},
+		Err(BlockImportError::IncompleteHeader(ref org)) if *org == Some(peer_id) => {}
 		_ => panic!(),
 	}
 }

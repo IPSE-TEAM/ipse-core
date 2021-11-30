@@ -22,16 +22,13 @@
 //! executor. These implementations call the bare function interface.
 
 use crate::utils::{
-	create_exchangeable_host_function_ident, create_function_ident_with_version,
-	create_host_function_ident, generate_crate_access, get_function_argument_names,
-	get_function_argument_names_and_types_without_ref, get_function_argument_types,
-	get_function_argument_types_ref_and_mut, get_function_argument_types_without_ref,
+	create_exchangeable_host_function_ident, create_function_ident_with_version, create_host_function_ident,
+	generate_crate_access, get_function_argument_names, get_function_argument_names_and_types_without_ref,
+	get_function_argument_types, get_function_argument_types_ref_and_mut, get_function_argument_types_without_ref,
 	get_function_arguments, get_runtime_interface,
 };
 
-use syn::{
-	spanned::Spanned, Error, Ident, ItemTrait, Pat, Result, ReturnType, Signature, TraitItemMethod,
-};
+use syn::{spanned::Spanned, Error, Ident, ItemTrait, Pat, Result, ReturnType, Signature, TraitItemMethod};
 
 use proc_macro2::{Span, TokenStream};
 
@@ -52,12 +49,13 @@ pub fn generate(trait_def: &ItemTrait, is_wasm_only: bool) -> Result<TokenStream
 			Ok::<_, Error>(t)
 		},
 	)?;
-	let exchangeable_host_functions = get_runtime_interface(trait_def)?
-		.latest_versions()
-		.try_fold(TokenStream::new(), |mut t, (_, m)| {
-			t.extend(generate_exchangeable_host_function(m)?);
-			Ok::<_, Error>(t)
-		})?;
+	let exchangeable_host_functions =
+		get_runtime_interface(trait_def)?
+			.latest_versions()
+			.try_fold(TokenStream::new(), |mut t, (_, m)| {
+				t.extend(generate_exchangeable_host_function(m)?);
+				Ok::<_, Error>(t)
+			})?;
 	let host_functions_struct = generate_host_functions_struct(trait_def, is_wasm_only)?;
 
 	Ok(quote! {
@@ -78,11 +76,7 @@ pub fn generate(trait_def: &ItemTrait, is_wasm_only: bool) -> Result<TokenStream
 }
 
 /// Generate the extern host function for the given method.
-fn generate_extern_host_function(
-	method: &TraitItemMethod,
-	version: u32,
-	trait_name: &Ident,
-) -> Result<TokenStream> {
+fn generate_extern_host_function(method: &TraitItemMethod, version: u32, trait_name: &Ident) -> Result<TokenStream> {
 	let crate_ = generate_crate_access();
 	let args = get_function_arguments(&method.sig);
 	let arg_types = get_function_argument_types_without_ref(&method.sig);
@@ -157,17 +151,12 @@ fn generate_exchangeable_host_function(method: &TraitItemMethod) -> Result<Token
 
 /// Generate the `HostFunctions` struct that implements `wasm-interface::HostFunctions` to provide
 /// implementations for the extern host functions.
-fn generate_host_functions_struct(
-	trait_def: &ItemTrait,
-	is_wasm_only: bool,
-) -> Result<TokenStream> {
+fn generate_host_functions_struct(trait_def: &ItemTrait, is_wasm_only: bool) -> Result<TokenStream> {
 	let crate_ = generate_crate_access();
 
 	let host_functions = get_runtime_interface(trait_def)?
 		.all_versions()
-		.map(|(version, method)| {
-			generate_host_function_implementation(&trait_def.ident, method, version, is_wasm_only)
-		})
+		.map(|(version, method)| generate_host_function_implementation(&trait_def.ident, method, version, is_wasm_only))
 		.collect::<Result<Vec<_>>>()?;
 
 	Ok(quote! {
@@ -199,8 +188,7 @@ fn generate_host_function_implementation(
 	let struct_name = Ident::new(&name.to_pascal_case(), Span::call_site());
 	let crate_ = generate_crate_access();
 	let signature = generate_wasm_interface_signature_for_host_function(&method.sig)?;
-	let wasm_to_ffi_values =
-		generate_wasm_to_ffi_values(&method.sig, trait_name).collect::<Result<Vec<_>>>()?;
+	let wasm_to_ffi_values = generate_wasm_to_ffi_values(&method.sig, trait_name).collect::<Result<Vec<_>>>()?;
 	let ffi_to_host_values = generate_ffi_to_host_value(&method.sig).collect::<Result<Vec<_>>>()?;
 	let host_function_call = generate_host_function_call(&method.sig, version, is_wasm_only);
 	let into_preallocated_ffi_value = generate_into_preallocated_ffi_value(&method.sig)?;
@@ -293,9 +281,7 @@ fn generate_wasm_to_ffi_values<'a>(
 }
 
 /// Generate the code to convert the ffi values on the host to the host values using `FromFFIValue`.
-fn generate_ffi_to_host_value<'a>(
-	sig: &'a Signature,
-) -> impl Iterator<Item = Result<TokenStream>> + 'a {
+fn generate_ffi_to_host_value<'a>(sig: &'a Signature) -> impl Iterator<Item = Result<TokenStream>> + 'a {
 	let mut_access = get_function_argument_types_ref_and_mut(sig);
 	let crate_ = generate_crate_access();
 
@@ -317,8 +303,7 @@ fn generate_ffi_to_host_value<'a>(
 fn generate_host_function_call(sig: &Signature, version: u32, is_wasm_only: bool) -> TokenStream {
 	let host_function_name = create_function_ident_with_version(&sig.ident, version);
 	let result_var_name = generate_host_function_result_var_name(&sig.ident);
-	let ref_and_mut =
-		get_function_argument_types_ref_and_mut(sig).map(|ram| ram.map(|(vr, vm)| quote!(#vr #vm)));
+	let ref_and_mut = get_function_argument_types_ref_and_mut(sig).map(|ram| ram.map(|(vr, vm)| quote!(#vr #vm)));
 	let names = get_function_argument_names(sig);
 
 	let var_access = names
@@ -326,8 +311,14 @@ fn generate_host_function_call(sig: &Signature, version: u32, is_wasm_only: bool
 		.map(|(n, ref_and_mut)| quote!( #ref_and_mut #n ))
 		// If this is a wasm only interface, we add the function context as last parameter.
 		.chain(
-			iter::from_fn(|| if is_wasm_only { Some(quote!(__function_context__)) } else { None })
-				.take(1),
+			iter::from_fn(|| {
+				if is_wasm_only {
+					Some(quote!(__function_context__))
+				} else {
+					None
+				}
+			})
+			.take(1),
 		);
 
 	quote! {
@@ -343,14 +334,15 @@ fn generate_host_function_result_var_name(name: &Ident) -> Ident {
 /// Generate the variable name that stores the FFI value.
 fn generate_ffi_value_var_name(pat: &Pat) -> Result<Ident> {
 	match pat {
-		Pat::Ident(pat_ident) =>
+		Pat::Ident(pat_ident) => {
 			if let Some(by_ref) = pat_ident.by_ref {
 				Err(Error::new(by_ref.span(), "`ref` not supported!"))
 			} else if let Some(sub_pattern) = &pat_ident.subpat {
 				Err(Error::new(sub_pattern.0.span(), "Not supported!"))
 			} else {
 				Ok(Ident::new(&format!("{}_ffi_value", pat_ident.ident), Span::call_site()))
-			},
+			}
+		}
 		_ => Err(Error::new(pat.span(), "Not supported as variable name!")),
 	}
 }
@@ -361,8 +353,8 @@ fn generate_ffi_value_var_name(pat: &Pat) -> Result<Ident> {
 /// that the type implements `IntoPreAllocatedFFIValue`.
 fn generate_into_preallocated_ffi_value(sig: &Signature) -> Result<TokenStream> {
 	let crate_ = generate_crate_access();
-	let ref_and_mut = get_function_argument_types_ref_and_mut(sig)
-		.map(|ram| ram.and_then(|(vr, vm)| vm.map(|v| (vr, v))));
+	let ref_and_mut =
+		get_function_argument_types_ref_and_mut(sig).map(|ram| ram.and_then(|(vr, vm)| vm.map(|v| (vr, v))));
 	let names_and_types = get_function_argument_names_and_types_without_ref(sig);
 
 	ref_and_mut
@@ -397,6 +389,6 @@ fn generate_return_value_into_wasm_value(sig: &Signature) -> TokenStream {
 					__function_context__,
 				).map(#crate_::sp_wasm_interface::IntoValue::into_value).map(Some)
 			}
-		},
+		}
 	}
 }

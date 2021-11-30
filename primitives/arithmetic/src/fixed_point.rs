@@ -19,8 +19,8 @@
 use crate::{
 	helpers_128bit::multiply_by_rational,
 	traits::{
-		Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, One,
-		SaturatedConversion, Saturating, UniqueSaturatedInto, Zero,
+		Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedSub, One, SaturatedConversion, Saturating,
+		UniqueSaturatedInto, Zero,
 	},
 	PerThing,
 };
@@ -37,15 +37,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Integer types that can be used to interact with `FixedPointNumber` implementations.
 pub trait FixedPointOperand:
-	Copy
-	+ Clone
-	+ Bounded
-	+ Zero
-	+ Saturating
-	+ PartialOrd
-	+ UniqueSaturatedInto<u128>
-	+ TryFrom<u128>
-	+ CheckedNeg
+	Copy + Clone + Bounded + Zero + Saturating + PartialOrd + UniqueSaturatedInto<u128> + TryFrom<u128> + CheckedNeg
 {
 }
 
@@ -136,12 +128,9 @@ pub trait FixedPointNumber:
 	/// Creates `self` from a rational number. Equal to `n / d`.
 	///
 	/// Returns `None` if `d == 0` or `n / d` exceeds accuracy.
-	fn checked_from_rational<N: FixedPointOperand, D: FixedPointOperand>(
-		n: N,
-		d: D,
-	) -> Option<Self> {
+	fn checked_from_rational<N: FixedPointOperand, D: FixedPointOperand>(n: N, d: D) -> Option<Self> {
 		if d == D::zero() {
-			return None
+			return None;
 		}
 
 		let n: I129 = n.into();
@@ -171,7 +160,8 @@ pub trait FixedPointNumber:
 	///
 	/// Returns `N::min` or `N::max` if the result does not fit in `N`.
 	fn saturating_mul_int<N: FixedPointOperand>(self, n: N) -> N {
-		self.checked_mul_int(n).unwrap_or_else(|| to_bound(self.into_inner(), n))
+		self.checked_mul_int(n)
+			.unwrap_or_else(|| to_bound(self.into_inner(), n))
 	}
 
 	/// Checked division for integer type `N`. Equal to `self / d`.
@@ -195,7 +185,8 @@ pub trait FixedPointNumber:
 		if d == N::zero() {
 			panic!("attempt to divide by zero")
 		}
-		self.checked_div_int(d).unwrap_or_else(|| to_bound(self.into_inner(), d))
+		self.checked_div_int(d)
+			.unwrap_or_else(|| to_bound(self.into_inner(), d))
 	}
 
 	/// Saturating multiplication for integer type `N`, adding the result back.
@@ -341,7 +332,10 @@ impl<N: FixedPointOperand> From<N> for I129 {
 				.unwrap_or_else(|| N::max_value().unique_saturated_into().saturating_add(1));
 			I129 { value, negative: true }
 		} else {
-			I129 { value: n.unique_saturated_into(), negative: false }
+			I129 {
+				value: n.unique_saturated_into(),
+				negative: false,
+			}
 		}
 	}
 }
@@ -353,7 +347,11 @@ fn from_i129<N: FixedPointOperand>(n: I129) -> Option<N> {
 		Some(N::min_value())
 	} else {
 		let unsigned_inner: N = n.value.try_into().ok()?;
-		let inner = if n.negative { unsigned_inner.checked_neg()? } else { unsigned_inner };
+		let inner = if n.negative {
+			unsigned_inner.checked_neg()?
+		} else {
+			unsigned_inner
+		};
 		Some(inner)
 	}
 }

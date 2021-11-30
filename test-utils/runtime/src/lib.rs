@@ -44,12 +44,11 @@ use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
 	create_runtime_str, impl_opaque_keys,
 	traits::{
-		BlakeTwo256, BlindCheckable, Block as BlockT, Extrinsic as ExtrinsicT, GetNodeBlockType,
-		GetRuntimeBlockType, IdentityLookup, NumberFor, Verify,
+		BlakeTwo256, BlindCheckable, Block as BlockT, Extrinsic as ExtrinsicT, GetNodeBlockType, GetRuntimeBlockType,
+		IdentityLookup, NumberFor, Verify,
 	},
 	transaction_validity::{
-		InvalidTransaction, TransactionSource, TransactionValidity, TransactionValidityError,
-		ValidTransaction,
+		InvalidTransaction, TransactionSource, TransactionValidity, TransactionValidityError, ValidTransaction,
 	},
 	ApplyExtrinsicResult, Perbill,
 };
@@ -93,7 +92,10 @@ fn version() -> RuntimeVersion {
 /// Native version.
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
-	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 /// Calls in transactions.
@@ -113,7 +115,11 @@ impl Transfer {
 			.expect("Creates keyring from public key.")
 			.sign(&self.encode())
 			.into();
-		Extrinsic::Transfer { transfer: self, signature, exhaust_resources_when_not_first: false }
+		Extrinsic::Transfer {
+			transfer: self,
+			signature,
+			exhaust_resources_when_not_first: false,
+		}
 	}
 
 	/// Convert into a signed extrinsic, which will only end up included in the block
@@ -125,7 +131,11 @@ impl Transfer {
 			.expect("Creates keyring from public key.")
 			.sign(&self.encode())
 			.into();
-		Extrinsic::Transfer { transfer: self, signature, exhaust_resources_when_not_first: true }
+		Extrinsic::Transfer {
+			transfer: self,
+			signature,
+			exhaust_resources_when_not_first: true,
+		}
 	}
 }
 
@@ -161,7 +171,11 @@ impl BlindCheckable for Extrinsic {
 	fn check(self) -> Result<Self, TransactionValidityError> {
 		match self {
 			Extrinsic::AuthoritiesChange(new_auth) => Ok(Extrinsic::AuthoritiesChange(new_auth)),
-			Extrinsic::Transfer { transfer, signature, exhaust_resources_when_not_first } =>
+			Extrinsic::Transfer {
+				transfer,
+				signature,
+				exhaust_resources_when_not_first,
+			} => {
 				if sp_runtime::verify_encoded_lazy(&signature, &transfer, &transfer.from) {
 					Ok(Extrinsic::Transfer {
 						transfer,
@@ -170,11 +184,11 @@ impl BlindCheckable for Extrinsic {
 					})
 				} else {
 					Err(InvalidTransaction::BadProof.into())
-				},
+				}
+			}
 			Extrinsic::IncludeData(_) => Err(InvalidTransaction::BadProof.into()),
 			Extrinsic::StorageChange(key, value) => Ok(Extrinsic::StorageChange(key, value)),
-			Extrinsic::ChangesTrieConfigUpdate(new_config) =>
-				Ok(Extrinsic::ChangesTrieConfigUpdate(new_config)),
+			Extrinsic::ChangesTrieConfigUpdate(new_config) => Ok(Extrinsic::ChangesTrieConfigUpdate(new_config)),
 		}
 	}
 }
@@ -275,7 +289,9 @@ impl<B: BlockT> codec::EncodeLike for DecodeFails<B> {}
 impl<B: BlockT> DecodeFails<B> {
 	/// Create a new instance.
 	pub fn new() -> DecodeFails<B> {
-		DecodeFails { _phantom: Default::default() }
+		DecodeFails {
+			_phantom: Default::default(),
+		}
 	}
 }
 
@@ -482,13 +498,10 @@ impl pallet_babe::Trait for Runtime {
 
 	type KeyOwnerProofSystem = ();
 
-	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::Proof;
+	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::Proof;
 
-	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		AuthorityId,
-	)>>::IdentificationTuple;
+	type KeyOwnerIdentification =
+		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::IdentificationTuple;
 
 	type HandleEquivocation = ();
 
@@ -522,7 +535,7 @@ fn code_using_trie() -> u64 {
 			let key: &[u8] = &v[i].0;
 			let val: &[u8] = &v[i].1;
 			if !t.insert(key, val).is_ok() {
-				return 101
+				return 101;
 			}
 		}
 		t
@@ -1032,7 +1045,9 @@ fn test_ed25519_crypto() -> (ed25519::AppSignature, ed25519::AppPublic) {
 	assert!(all.contains(&public1));
 	assert!(all.contains(&public2));
 
-	let signature = public0.sign(&"ed25519").expect("Generates a valid `ed25519` signature.");
+	let signature = public0
+		.sign(&"ed25519")
+		.expect("Generates a valid `ed25519` signature.");
 	assert!(public0.verify(&"ed25519", &signature));
 	(signature, public0)
 }
@@ -1047,7 +1062,9 @@ fn test_sr25519_crypto() -> (sr25519::AppSignature, sr25519::AppPublic) {
 	assert!(all.contains(&public1));
 	assert!(all.contains(&public2));
 
-	let signature = public0.sign(&"sr25519").expect("Generates a valid `sr25519` signature.");
+	let signature = public0
+		.sign(&"sr25519")
+		.expect("Generates a valid `sr25519` signature.");
 	assert!(public0.verify(&"sr25519", &signature));
 	(signature, public0)
 }
@@ -1133,8 +1150,7 @@ mod tests {
 	use sp_runtime::generic::BlockId;
 	use sp_state_machine::ExecutionStrategy;
 	use substrate_test_runtime_client::{
-		prelude::*, runtime::TestAPI, sp_consensus::BlockOrigin, DefaultTestClientBuilderExt,
-		TestClientBuilder,
+		prelude::*, runtime::TestAPI, sp_consensus::BlockOrigin, DefaultTestClientBuilderExt, TestClientBuilder,
 	};
 
 	#[test]
@@ -1157,7 +1173,9 @@ mod tests {
 		// ~2048k of heap memory.
 		let (new_block_id, block) = {
 			let mut builder = client.new_block(Default::default()).unwrap();
-			builder.push_storage_change(HEAP_PAGES.to_vec(), Some(32u64.encode())).unwrap();
+			builder
+				.push_storage_change(HEAP_PAGES.to_vec(), Some(32u64.encode()))
+				.unwrap();
 			let block = builder.build().unwrap().block;
 			let hash = block.header.hash();
 			(BlockId::Hash(hash), block)
@@ -1172,8 +1190,9 @@ mod tests {
 
 	#[test]
 	fn test_storage() {
-		let client =
-			TestClientBuilder::new().set_execution_strategy(ExecutionStrategy::Both).build();
+		let client = TestClientBuilder::new()
+			.set_execution_strategy(ExecutionStrategy::Both)
+			.build();
 		let runtime_api = client.runtime_api();
 		let block_id = BlockId::Number(client.chain_info().best_number);
 
@@ -1197,8 +1216,9 @@ mod tests {
 		let (db, root) = witness_backend();
 		let backend = sp_state_machine::TrieBackend::<_, crate::Hashing>::new(db, root);
 		let proof = sp_state_machine::prove_read(backend, vec![b"value3"]).unwrap();
-		let client =
-			TestClientBuilder::new().set_execution_strategy(ExecutionStrategy::Both).build();
+		let client = TestClientBuilder::new()
+			.set_execution_strategy(ExecutionStrategy::Both)
+			.build();
 		let runtime_api = client.runtime_api();
 		let block_id = BlockId::Number(client.chain_info().best_number);
 

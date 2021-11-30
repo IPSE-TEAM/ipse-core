@@ -29,10 +29,7 @@ mod genesis_config_def;
 
 const DEFAULT_INSTANCE_NAME: &str = "__GeneratedInstance";
 
-fn decl_genesis_config_and_impl_default(
-	scrate: &TokenStream,
-	genesis_config: &GenesisConfigDef,
-) -> TokenStream {
+fn decl_genesis_config_and_impl_default(scrate: &TokenStream, genesis_config: &GenesisConfigDef) -> TokenStream {
 	let config_fields = genesis_config.fields.iter().map(|field| {
 		let (name, typ, attrs) = (&field.name, &field.typ, &field.attrs);
 		quote!( #( #[ #attrs] )* pub #name: #typ, )
@@ -116,16 +113,15 @@ fn impl_build_storage(
 	let genesis_impl = &genesis_config.genesis_impl;
 	let genesis_where_clause = &genesis_config.genesis_where_clause;
 
-	let (fn_generic, fn_traitinstance, fn_where_clause) =
-		if !genesis_config.is_generic && builders.is_generic {
-			(
-				quote!( <#runtime_generic: #runtime_trait, #optional_instance_bound> ),
-				quote!( #runtime_generic, #optional_instance ),
-				Some(&def.where_clause),
-			)
-		} else {
-			(quote!(), quote!(), None)
-		};
+	let (fn_generic, fn_traitinstance, fn_where_clause) = if !genesis_config.is_generic && builders.is_generic {
+		(
+			quote!( <#runtime_generic: #runtime_trait, #optional_instance_bound> ),
+			quote!( #runtime_generic, #optional_instance ),
+			Some(&def.where_clause),
+		)
+	} else {
+		(quote!(), quote!(), None)
+	};
 
 	let builder_blocks = &builders.blocks;
 
@@ -172,18 +168,14 @@ fn impl_build_storage(
 	}
 }
 
-pub fn genesis_config_and_build_storage(
-	scrate: &TokenStream,
-	def: &DeclStorageDefExt,
-) -> TokenStream {
+pub fn genesis_config_and_build_storage(scrate: &TokenStream, def: &DeclStorageDefExt) -> TokenStream {
 	let builders = BuilderDef::from_def(scrate, def);
 	if !builders.blocks.is_empty() {
 		let genesis_config = match GenesisConfigDef::from_def(def) {
 			Ok(genesis_config) => genesis_config,
 			Err(err) => return err.to_compile_error(),
 		};
-		let decl_genesis_config_and_impl_default =
-			decl_genesis_config_and_impl_default(scrate, &genesis_config);
+		let decl_genesis_config_and_impl_default = decl_genesis_config_and_impl_default(scrate, &genesis_config);
 		let impl_build_storage = impl_build_storage(scrate, def, &genesis_config, &builders);
 
 		quote! {

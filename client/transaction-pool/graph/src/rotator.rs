@@ -43,7 +43,10 @@ pub struct PoolRotator<Hash> {
 
 impl<Hash: hash::Hash + Eq> Default for PoolRotator<Hash> {
 	fn default() -> Self {
-		PoolRotator { ban_time: Duration::from_secs(60 * 30), banned_until: Default::default() }
+		PoolRotator {
+			ban_time: Duration::from_secs(60 * 30),
+			banned_until: Default::default(),
+		}
 	}
 }
 
@@ -73,14 +76,9 @@ impl<Hash: hash::Hash + Eq + Clone> PoolRotator<Hash> {
 	/// Bans extrinsic if it's stale.
 	///
 	/// Returns `true` if extrinsic is stale and got banned.
-	pub fn ban_if_stale<Ex>(
-		&self,
-		now: &Instant,
-		current_block: u64,
-		xt: &Transaction<Hash, Ex>,
-	) -> bool {
+	pub fn ban_if_stale<Ex>(&self, now: &Instant, current_block: u64, xt: &Transaction<Hash, Ex>) -> bool {
 		if xt.valid_till > current_block {
-			return false
+			return false;
 		}
 
 		self.ban(now, iter::once(xt.hash.clone()));
@@ -104,7 +102,10 @@ mod tests {
 	type Ex = ();
 
 	fn rotator() -> PoolRotator<Hash> {
-		PoolRotator { ban_time: Duration::from_millis(10), ..Default::default() }
+		PoolRotator {
+			ban_time: Duration::from_millis(10),
+			..Default::default()
+		}
 	}
 
 	fn tx() -> (Hash, Transaction<Hash, Ex>) {

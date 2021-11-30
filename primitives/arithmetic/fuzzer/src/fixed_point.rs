@@ -38,8 +38,7 @@ fn main() {
 
 			// Check `from_rational` and division are consistent.
 			if y != 0 {
-				let f1 =
-					FixedI64::saturating_from_integer(x) / FixedI64::saturating_from_integer(y);
+				let f1 = FixedI64::saturating_from_integer(x) / FixedI64::saturating_from_integer(y);
 				let f2 = FixedI64::saturating_from_rational(x, y);
 				assert_eq!(f1.into_inner(), f2.into_inner());
 			}
@@ -76,8 +75,7 @@ fn main() {
 			let a = FixedI64::saturating_from_rational(2, 5);
 			let b = a.saturating_mul_acc_int(x);
 			let xx = FixedI64::saturating_from_integer(x);
-			let d = a.saturating_mul(xx).saturating_add(xx).into_inner() as i128 /
-				FixedI64::accuracy() as i128;
+			let d = a.saturating_mul(xx).saturating_add(xx).into_inner() as i128 / FixedI64::accuracy() as i128;
 			assert_eq!(b, d);
 		});
 	}

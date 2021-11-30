@@ -16,10 +16,9 @@
 // limitations under the License.
 
 pub use frame_metadata::{
-	DecodeDifferent, DefaultByte, DefaultByteGetter, ExtrinsicMetadata, FnEncode,
-	ModuleErrorMetadata, ModuleMetadata, RuntimeMetadata, RuntimeMetadataLastVersion,
-	RuntimeMetadataPrefixed, StorageEntryMetadata, StorageEntryModifier, StorageEntryType,
-	StorageHasher, StorageMetadata,
+	DecodeDifferent, DefaultByte, DefaultByteGetter, ExtrinsicMetadata, FnEncode, ModuleErrorMetadata, ModuleMetadata,
+	RuntimeMetadata, RuntimeMetadataLastVersion, RuntimeMetadataPrefixed, StorageEntryMetadata, StorageEntryModifier,
+	StorageEntryType, StorageHasher, StorageMetadata,
 };
 
 /// Implements the metadata support for the given runtime and all its modules.
@@ -249,9 +248,9 @@ mod tests {
 	use crate::traits::Get;
 	use codec::{Decode, Encode};
 	use frame_metadata::{
-		DefaultByte, DefaultByteGetter, ErrorMetadata, EventMetadata, ExtrinsicMetadata,
-		FunctionMetadata, ModuleConstantMetadata, ModuleMetadata, RuntimeMetadataPrefixed,
-		StorageEntryMetadata, StorageEntryModifier, StorageEntryType,
+		DefaultByte, DefaultByteGetter, ErrorMetadata, EventMetadata, ExtrinsicMetadata, FunctionMetadata,
+		ModuleConstantMetadata, ModuleMetadata, RuntimeMetadataPrefixed, StorageEntryMetadata, StorageEntryModifier,
+		StorageEntryType,
 	};
 	use sp_runtime::transaction_validity::TransactionValidityError;
 
@@ -294,8 +293,7 @@ mod tests {
 		pub trait Trait: 'static {
 			type BaseCallFilter;
 			const ASSOCIATED_CONST: u64 = 500;
-			type Origin: Into<Result<RawOrigin<Self::AccountId>, Self::Origin>>
-				+ From<RawOrigin<Self::AccountId>>;
+			type Origin: Into<Result<RawOrigin<Self::AccountId>, Self::Origin>> + From<RawOrigin<Self::AccountId>>;
 			type AccountId: From<u32> + Encode;
 			type BlockNumber: From<u32> + Encode;
 			type SomeValue: Get<u32>;
@@ -498,25 +496,19 @@ mod tests {
 							ModuleConstantMetadata {
 								name: DecodeDifferent::Encode("BlockNumber"),
 								ty: DecodeDifferent::Encode("T::BlockNumber"),
-								value: DecodeDifferent::Encode(DefaultByteGetter(
-									&ConstantBlockNumberByteGetter,
-								)),
+								value: DecodeDifferent::Encode(DefaultByteGetter(&ConstantBlockNumberByteGetter)),
 								documentation: DecodeDifferent::Encode(&[" Hi, I am a comment."]),
 							},
 							ModuleConstantMetadata {
 								name: DecodeDifferent::Encode("GetType"),
 								ty: DecodeDifferent::Encode("T::AccountId"),
-								value: DecodeDifferent::Encode(DefaultByteGetter(
-									&ConstantGetTypeByteGetter,
-								)),
+								value: DecodeDifferent::Encode(DefaultByteGetter(&ConstantGetTypeByteGetter)),
 								documentation: DecodeDifferent::Encode(&[]),
 							},
 							ModuleConstantMetadata {
 								name: DecodeDifferent::Encode("ASSOCIATED_CONST"),
 								ty: DecodeDifferent::Encode("u64"),
-								value: DecodeDifferent::Encode(DefaultByteGetter(
-									&ConstantAssociatedConstByteGetter,
-								)),
+								value: DecodeDifferent::Encode(DefaultByteGetter(&ConstantAssociatedConstByteGetter)),
 								documentation: DecodeDifferent::Encode(&[]),
 							},
 						]
@@ -568,9 +560,7 @@ mod tests {
 							modifier: StorageEntryModifier::Optional,
 							ty: StorageEntryType::Plain(DecodeDifferent::Encode("u32")),
 							default: DecodeDifferent::Encode(DefaultByteGetter(
-								&event_module2::__GetByteStructStorageMethod(
-									std::marker::PhantomData::<TestRuntime>,
-								),
+								&event_module2::__GetByteStructStorageMethod(std::marker::PhantomData::<TestRuntime>),
 							)),
 							documentation: DecodeDifferent::Encode(&[]),
 						}]),

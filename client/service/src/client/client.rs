@@ -31,15 +31,13 @@ use rand::Rng;
 use sc_block_builder::{BlockBuilderApi, BlockBuilderProvider};
 use sc_client_api::{
 	backend::{
-		self, apply_aux, changes_tries_state_at_block, BlockImportOperation, ClientImportOperation,
-		Finalizer, ImportSummary, LockImportRun, NewBlockState, PrunableStateChangesTrieStorage,
-		StorageProvider,
+		self, apply_aux, changes_tries_state_at_block, BlockImportOperation, ClientImportOperation, Finalizer,
+		ImportSummary, LockImportRun, NewBlockState, PrunableStateChangesTrieStorage, StorageProvider,
 	},
 	cht,
 	client::{
-		BadBlocks, BlockBackend, BlockImportNotification, BlockOf, BlockchainEvents, ClientInfo,
-		FinalityNotification, FinalityNotifications, ForkBlocks, ImportNotifications,
-		ProvideUncles,
+		BadBlocks, BlockBackend, BlockImportNotification, BlockOf, BlockchainEvents, ClientInfo, FinalityNotification,
+		FinalityNotifications, ForkBlocks, ImportNotifications, ProvideUncles,
 	},
 	execution_extensions::ExecutionExtensions,
 	notifications::{StorageEventStream, StorageNotifications},
@@ -48,18 +46,15 @@ use sc_client_api::{
 use sc_executor::RuntimeVersion;
 use sc_light::{call_executor::prove_execution, fetcher::ChangesProof};
 use sc_telemetry::{telemetry, SUBSTRATE_INFO};
-use sp_api::{
-	ApiExt, ApiRef, CallApiAt, CallApiAtParams, ConstructRuntimeApi, Core as CoreApi,
-	ProvideRuntimeApi,
-};
+use sp_api::{ApiExt, ApiRef, CallApiAt, CallApiAtParams, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
 use sp_blockchain::Error;
 use sp_blockchain::{
-	self as blockchain, well_known_cache_keys::Id as CacheKeyId, Backend as ChainBackend, Cache,
-	CachedHeaderMetadata, HeaderBackend as ChainHeaderBackend, HeaderMetadata, ProvideCache,
+	self as blockchain, well_known_cache_keys::Id as CacheKeyId, Backend as ChainBackend, Cache, CachedHeaderMetadata,
+	HeaderBackend as ChainHeaderBackend, HeaderMetadata, ProvideCache,
 };
 use sp_consensus::{
-	BlockCheckParams, BlockImportParams, BlockOrigin, BlockStatus, Error as ConsensusError,
-	ForkChoiceStrategy, ImportResult, RecordProof,
+	BlockCheckParams, BlockImportParams, BlockOrigin, BlockStatus, Error as ConsensusError, ForkChoiceStrategy,
+	ImportResult, RecordProof,
 };
 use sp_core::{
 	convert_hash,
@@ -68,16 +63,12 @@ use sp_core::{
 };
 use sp_runtime::{
 	generic::{BlockId, DigestItem, SignedBlock},
-	traits::{
-		Block as BlockT, DigestFor, HashFor, Header as HeaderT, NumberFor, One,
-		SaturatedConversion, Zero,
-	},
+	traits::{Block as BlockT, DigestFor, HashFor, Header as HeaderT, NumberFor, One, SaturatedConversion, Zero},
 	BuildStorage, Justification,
 };
 use sp_state_machine::{
-	key_changes, key_changes_proof, prove_child_read, prove_read, Backend as StateBackend,
-	ChangesTrieAnchorBlockId, ChangesTrieConfigurationRange, ChangesTrieRootsStorage,
-	ChangesTrieStorage, DBValue,
+	key_changes, key_changes_proof, prove_child_read, prove_read, Backend as StateBackend, ChangesTrieAnchorBlockId,
+	ChangesTrieConfigurationRange, ChangesTrieRootsStorage, ChangesTrieStorage, DBValue,
 };
 use sp_trie::StorageProof;
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedSender};
@@ -154,9 +145,7 @@ pub fn new_in_mem<E, Block, S, RA>(
 	prometheus_registry: Option<Registry>,
 	spawn_handle: Box<dyn SpawnNamed>,
 	config: ClientConfig,
-) -> sp_blockchain::Result<
-	Client<in_mem::Backend<Block>, LocalCallExecutor<in_mem::Backend<Block>, E>, Block, RA>,
->
+) -> sp_blockchain::Result<Client<in_mem::Backend<Block>, LocalCallExecutor<in_mem::Backend<Block>, E>, Block, RA>>
 where
 	E: CodeExecutor + RuntimeInfo,
 	S: BuildStorage,
@@ -200,8 +189,7 @@ where
 	Block: BlockT,
 	B: backend::LocalBackend<Block> + 'static,
 {
-	let call_executor =
-		LocalCallExecutor::new(backend.clone(), executor, spawn_handle, config.clone());
+	let call_executor = LocalCallExecutor::new(backend.clone(), executor, spawn_handle, config.clone());
 	let extensions = ExecutionExtensions::new(Default::default(), keystore);
 	Client::new(
 		backend,
@@ -246,7 +234,11 @@ where
 
 			let r = f(&mut op)?;
 
-			let ClientImportOperation { op, notify_imported, notify_finalized } = op;
+			let ClientImportOperation {
+				op,
+				notify_imported,
+				notify_finalized,
+			} = op;
 			self.backend.commit_operation(op)?;
 
 			self.notify_finalized(notify_finalized)?;
@@ -306,12 +298,7 @@ where
 				genesis_block.header().state_root(),
 				genesis_block.header().hash()
 			);
-			op.set_block_data(
-				genesis_block.deconstruct().0,
-				Some(vec![]),
-				None,
-				NewBlockState::Final,
-			)?;
+			op.set_block_data(genesis_block.deconstruct().0, Some(vec![]), None, NewBlockState::Final)?;
 			backend.commit_operation(op)?;
 		}
 
@@ -348,12 +335,14 @@ where
 
 	/// Get the code at a given block.
 	pub fn code_at(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Vec<u8>> {
-		Ok(StorageProvider::storage(self, id, &StorageKey(well_known_keys::CODE.to_vec()))?
-			.expect(
-				"None is returned if there's no value stored for the given key;\
+		Ok(
+			StorageProvider::storage(self, id, &StorageKey(well_known_keys::CODE.to_vec()))?
+				.expect(
+					"None is returned if there's no value stored for the given key;\
 				':code' key is always defined; qed",
-			)
-			.0)
+				)
+				.0,
+		)
 	}
 
 	/// Get the RuntimeVersion at a given block.
@@ -367,9 +356,7 @@ where
 		id: &BlockId<Block>,
 		cht_size: NumberFor<Block>,
 	) -> sp_blockchain::Result<(Block::Header, StorageProof)> {
-		let proof_error = || {
-			sp_blockchain::Error::Backend(format!("Failed to generate header proof for {:?}", id))
-		};
+		let proof_error = || sp_blockchain::Error::Backend(format!("Failed to generate header proof for {:?}", id));
 		let header = self.backend.blockchain().expect_header(*id)?;
 		let block_num = *header.number();
 		let cht_num = cht::block_to_cht_number(cht_size, block_num).ok_or_else(proof_error)?;
@@ -407,9 +394,7 @@ where
 			required_roots_proofs: Mutex<BTreeMap<NumberFor<Block>, Block::Hash>>,
 		};
 
-		impl<'a, Block: BlockT> ChangesTrieRootsStorage<HashFor<Block>, NumberFor<Block>>
-			for AccessedRootsRecorder<'a, Block>
-		{
+		impl<'a, Block: BlockT> ChangesTrieRootsStorage<HashFor<Block>, NumberFor<Block>> for AccessedRootsRecorder<'a, Block> {
 			fn build_anchor(
 				&self,
 				hash: Block::Hash,
@@ -432,9 +417,7 @@ where
 			}
 		}
 
-		impl<'a, Block: BlockT> ChangesTrieStorage<HashFor<Block>, NumberFor<Block>>
-			for AccessedRootsRecorder<'a, Block>
-		{
+		impl<'a, Block: BlockT> ChangesTrieStorage<HashFor<Block>, NumberFor<Block>> for AccessedRootsRecorder<'a, Block> {
 			fn as_roots_storage(
 				&self,
 			) -> &dyn sp_state_machine::ChangesTrieRootsStorage<HashFor<Block>, NumberFor<Block>> {
@@ -454,11 +437,15 @@ where
 			}
 		}
 
-		let first_number =
-			self.backend.blockchain().expect_block_number_from_id(&BlockId::Hash(first))?;
+		let first_number = self
+			.backend
+			.blockchain()
+			.expect_block_number_from_id(&BlockId::Hash(first))?;
 		let (storage, configs) = self.require_changes_trie(first_number, last, true)?;
-		let min_number =
-			self.backend.blockchain().expect_block_number_from_id(&BlockId::Hash(min))?;
+		let min_number = self
+			.backend
+			.blockchain()
+			.expect_block_number_from_id(&BlockId::Hash(min))?;
 
 		let recording_storage = AccessedRootsRecorder::<Block> {
 			storage: storage.storage(),
@@ -468,14 +455,18 @@ where
 
 		let max_number = std::cmp::min(
 			self.backend.blockchain().info().best_number,
-			self.backend.blockchain().expect_block_number_from_id(&BlockId::Hash(max))?,
+			self.backend
+				.blockchain()
+				.expect_block_number_from_id(&BlockId::Hash(max))?,
 		);
 
 		// fetch key changes proof
 		let mut proof = Vec::new();
 		for (config_zero, config_end, config) in configs {
-			let last_number =
-				self.backend.blockchain().expect_block_number_from_id(&BlockId::Hash(last))?;
+			let last_number = self
+				.backend
+				.blockchain()
+				.expect_block_number_from_id(&BlockId::Hash(last))?;
 			let config_range = ChangesTrieConfigurationRange {
 				config: &config,
 				zero: config_zero,
@@ -485,7 +476,10 @@ where
 				config_range,
 				&recording_storage,
 				first_number,
-				&ChangesTrieAnchorBlockId { hash: convert_hash(&last), number: last_number },
+				&ChangesTrieAnchorBlockId {
+					hash: convert_hash(&last),
+					number: last_number,
+				},
 				max_number,
 				storage_key,
 				&key.0,
@@ -521,8 +515,7 @@ where
 			cht_size,
 			blocks,
 			|_, cht_num, cht_blocks| {
-				let cht_proof =
-					self.changes_trie_roots_proof_at_cht(cht_size, cht_num, cht_blocks)?;
+				let cht_proof = self.changes_trie_roots_proof_at_cht(cht_size, cht_num, cht_blocks)?;
 				proofs.push(cht_proof);
 				Ok(())
 			},
@@ -548,14 +541,10 @@ where
 			Some(old_current_num)
 		});
 		let roots = cht_range.map(|num| {
-			self.header(&BlockId::Number(num)).map(|block| {
-				block
-					.and_then(|block| block.digest().log(DigestItem::as_changes_trie_root).cloned())
-			})
+			self.header(&BlockId::Number(num))
+				.map(|block| block.and_then(|block| block.digest().log(DigestItem::as_changes_trie_root).cloned()))
 		});
-		let proof = cht::build_proof::<Block::Header, HashFor<Block>, _, _>(
-			cht_size, cht_num, blocks, roots,
-		)?;
+		let proof = cht::build_proof::<Block::Header, HashFor<Block>, _, _>(cht_size, cht_num, blocks, roots)?;
 		Ok(proof)
 	}
 
@@ -574,7 +563,11 @@ where
 		fail_if_disabled: bool,
 	) -> sp_blockchain::Result<(
 		&dyn PrunableStateChangesTrieStorage<Block>,
-		Vec<(NumberFor<Block>, Option<(NumberFor<Block>, Block::Hash)>, ChangesTrieConfiguration)>,
+		Vec<(
+			NumberFor<Block>,
+			Option<(NumberFor<Block>, Block::Hash)>,
+			ChangesTrieConfiguration,
+		)>,
 	)> {
 		let storage = match self.backend.changes_trie_storage() {
 			Some(storage) => storage,
@@ -592,7 +585,7 @@ where
 			}
 
 			if config_range.zero.0 < first {
-				break
+				break;
 			}
 
 			current = *self
@@ -615,8 +608,7 @@ where
 	) -> sp_blockchain::Result<ImportResult>
 	where
 		Self: ProvideRuntimeApi<Block>,
-		<Self as ProvideRuntimeApi<Block>>::Api:
-			CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
+		<Self as ProvideRuntimeApi<Block>>::Api: CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
 	{
 		let BlockImportParams {
 			origin,
@@ -636,7 +628,7 @@ where
 		assert!(justification.is_some() && finalized || justification.is_none());
 
 		if !intermediates.is_empty() {
-			return Err(Error::IncompletePipeline)
+			return Err(Error::IncompletePipeline);
 		}
 
 		let fork_choice = fork_choice.ok_or(Error::IncompletePipeline)?;
@@ -706,17 +698,15 @@ where
 	) -> sp_blockchain::Result<ImportResult>
 	where
 		Self: ProvideRuntimeApi<Block>,
-		<Self as ProvideRuntimeApi<Block>>::Api:
-			CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
+		<Self as ProvideRuntimeApi<Block>>::Api: CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
 	{
 		let parent_hash = import_headers.post().parent_hash().clone();
 		let status = self.backend.blockchain().status(BlockId::Hash(hash))?;
 		match (import_existing, status) {
 			(false, blockchain::BlockStatus::InChain) => return Ok(ImportResult::AlreadyInChain),
-			(false, blockchain::BlockStatus::Unknown) => {},
-			(true, blockchain::BlockStatus::InChain) => {},
-			(true, blockchain::BlockStatus::Unknown) =>
-				return Err(Error::UnknownBlock(format!("{:?}", hash))),
+			(false, blockchain::BlockStatus::Unknown) => {}
+			(true, blockchain::BlockStatus::InChain) => {}
+			(true, blockchain::BlockStatus::Unknown) => return Err(Error::UnknownBlock(format!("{:?}", hash))),
 		}
 
 		let info = self.backend.blockchain().info();
@@ -724,15 +714,14 @@ where
 		// the block is lower than our last finalized block so it must revert
 		// finality, refusing import.
 		if *import_headers.post().number() <= info.finalized_number {
-			return Err(sp_blockchain::Error::NotInFinalizedChain)
+			return Err(sp_blockchain::Error::NotInFinalizedChain);
 		}
 
 		// this is a fairly arbitrary choice of where to draw the line on making notifications,
 		// but the general goal is to only make notifications when we are already fully synced
 		// and get a new chain head.
 		let make_notifications = match origin {
-			BlockOrigin::NetworkBroadcast | BlockOrigin::Own | BlockOrigin::ConsensusBroadcast =>
-				true,
+			BlockOrigin::NetworkBroadcast | BlockOrigin::Own | BlockOrigin::ConsensusBroadcast => true,
 			BlockOrigin::Genesis | BlockOrigin::NetworkInitialSync | BlockOrigin::File => false,
 		};
 
@@ -755,8 +744,7 @@ where
 
 				operation.op.update_cache(new_cache);
 
-				let (main_sc, child_sc, offchain_sc, tx, _, changes_trie_tx) =
-					storage_changes.into_inner();
+				let (main_sc, child_sc, offchain_sc, tx, _, changes_trie_tx) = storage_changes.into_inner();
 
 				if self.config.offchain_indexing_api {
 					operation.op.update_offchain_storage(offchain_sc)?;
@@ -770,14 +758,13 @@ where
 				}
 
 				Some((main_sc, child_sc))
-			},
+			}
 			None => None,
 		};
 
-		let is_new_best = finalized ||
-			match fork_choice {
-				ForkChoiceStrategy::LongestChain =>
-					import_headers.post().number() > &info.best_number,
+		let is_new_best = finalized
+			|| match fork_choice {
+				ForkChoiceStrategy::LongestChain => import_headers.post().number() > &info.best_number,
 				ForkChoiceStrategy::Custom(v) => v,
 			};
 
@@ -790,8 +777,7 @@ where
 		};
 
 		let tree_route = if is_new_best && info.best_hash != parent_hash {
-			let route_from_best =
-				sp_blockchain::tree_route(self.backend.blockchain(), info.best_hash, parent_hash)?;
+			let route_from_best = sp_blockchain::tree_route(self.backend.blockchain(), info.best_hash, parent_hash)?;
 			Some(route_from_best)
 		} else {
 			None
@@ -805,12 +791,9 @@ where
 			origin,
 		);
 
-		operation.op.set_block_data(
-			import_headers.post().clone(),
-			body,
-			justification,
-			leaf_state,
-		)?;
+		operation
+			.op
+			.set_block_data(import_headers.post().clone(), body, justification, leaf_state)?;
 
 		operation.op.insert_aux(aux)?;
 
@@ -845,8 +828,7 @@ where
 	) -> sp_blockchain::Result<Option<ImportResult>>
 	where
 		Self: ProvideRuntimeApi<Block>,
-		<Self as ProvideRuntimeApi<Block>>::Api:
-			CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
+		<Self as ProvideRuntimeApi<Block>>::Api: CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
 	{
 		let parent_hash = import_block.header.parent_hash();
 		let at = BlockId::Hash(*parent_hash);
@@ -861,7 +843,7 @@ where
 		match (enact_state, &mut import_block.storage_changes, &mut import_block.body) {
 			// We have storage changes and should enact the state, so we don't need to do anything
 			// here
-			(true, Some(_), _) => {},
+			(true, Some(_), _) => {}
 			// We should enact state, but don't have any storage changes, so we need to execute the
 			// block.
 			(true, ref mut storage_changes @ None, Some(ref body)) => {
@@ -879,28 +861,23 @@ where
 				)?;
 
 				let state = self.backend.state_at(at)?;
-				let changes_trie_state =
-					changes_tries_state_at_block(&at, self.backend.changes_trie_storage())?;
+				let changes_trie_state = changes_tries_state_at_block(&at, self.backend.changes_trie_storage())?;
 
-				let gen_storage_changes = runtime_api.into_storage_changes(
-					&state,
-					changes_trie_state.as_ref(),
-					*parent_hash,
-				)?;
+				let gen_storage_changes =
+					runtime_api.into_storage_changes(&state, changes_trie_state.as_ref(), *parent_hash)?;
 
-				if import_block.header.state_root() != &gen_storage_changes.transaction_storage_root
-				{
-					return Err(Error::InvalidStateRoot)
+				if import_block.header.state_root() != &gen_storage_changes.transaction_storage_root {
+					return Err(Error::InvalidStateRoot);
 				} else {
 					**storage_changes = Some(gen_storage_changes);
 				}
-			},
+			}
 			// No block body, no storage changes
-			(true, None, None) => {},
+			(true, None, None) => {}
 			// We should not enact the state, so we set the storage changes to `None`.
 			(false, changes, _) => {
 				changes.take();
-			},
+			}
 		};
 
 		Ok(None)
@@ -922,11 +899,10 @@ where
 				"Possible safety violation: attempted to re-finalize last finalized block {:?} ",
 				last_finalized
 			);
-			return Ok(())
+			return Ok(());
 		}
 
-		let route_from_finalized =
-			sp_blockchain::tree_route(self.backend.blockchain(), last_finalized, block)?;
+		let route_from_finalized = sp_blockchain::tree_route(self.backend.blockchain(), last_finalized, block)?;
 
 		if let Some(retracted) = route_from_finalized.retracted().get(0) {
 			warn!(
@@ -935,11 +911,10 @@ where
 				retracted, last_finalized
 			);
 
-			return Err(sp_blockchain::Error::NotInFinalizedChain)
+			return Err(sp_blockchain::Error::NotInFinalizedChain);
 		}
 
-		let route_from_best =
-			sp_blockchain::tree_route(self.backend.blockchain(), best_block, block)?;
+		let route_from_best = sp_blockchain::tree_route(self.backend.blockchain(), best_block, block)?;
 
 		// if the block is not a direct ancestor of the current best chain,
 		// then some other block is the common ancestor.
@@ -985,7 +960,7 @@ where
 			// would also remove any closed sinks.
 			sinks.retain(|sink| !sink.is_closed());
 
-			return Ok(())
+			return Ok(());
 		}
 
 		// We assume the list is sorted and only want to inform the
@@ -1008,7 +983,10 @@ where
 					 indicated in the tree route; qed",
 			);
 
-			let notification = FinalityNotification { header, hash: finalized_hash };
+			let notification = FinalityNotification {
+				header,
+				hash: finalized_hash,
+			};
 
 			sinks.retain(|sink| sink.unbounded_send(notification.clone()).is_ok());
 		}
@@ -1016,10 +994,7 @@ where
 		Ok(())
 	}
 
-	fn notify_imported(
-		&self,
-		notify_import: Option<ImportSummary<Block>>,
-	) -> sp_blockchain::Result<()> {
+	fn notify_imported(&self, notify_import: Option<ImportSummary<Block>>) -> sp_blockchain::Result<()> {
 		let notify_import = match notify_import {
 			Some(notify_import) => notify_import,
 			None => {
@@ -1031,8 +1006,8 @@ where
 				// from consensus code).
 				self.import_notification_sinks.lock().retain(|sink| !sink.is_closed());
 
-				return Ok(())
-			},
+				return Ok(());
+			}
 		};
 
 		if let Some(storage_changes) = notify_import.storage_changes {
@@ -1076,11 +1051,7 @@ where
 	/// again. The blacklist is reset upon client restart.
 	///
 	/// Returns the number of blocks that were successfully reverted.
-	pub fn unsafe_revert(
-		&mut self,
-		n: NumberFor<Block>,
-		blacklist: bool,
-	) -> sp_blockchain::Result<NumberFor<Block>> {
+	pub fn unsafe_revert(&mut self, n: NumberFor<Block>, blacklist: bool) -> sp_blockchain::Result<NumberFor<Block>> {
 		let (number, reverted) = self.backend.revert(n, true)?;
 		if blacklist {
 			for b in reverted {
@@ -1099,8 +1070,13 @@ where
 	pub fn block_status(&self, id: &BlockId<Block>) -> sp_blockchain::Result<BlockStatus> {
 		// this can probably be implemented more efficiently
 		if let BlockId::Hash(ref h) = id {
-			if self.importing_block.read().as_ref().map_or(false, |importing| h == importing) {
-				return Ok(BlockStatus::Queued)
+			if self
+				.importing_block
+				.read()
+				.as_ref()
+				.map_or(false, |importing| h == importing)
+			{
+				return Ok(BlockStatus::Queued);
 			}
 		}
 		let hash_and_number = match id.clone() {
@@ -1108,29 +1084,24 @@ where
 			BlockId::Number(n) => self.backend.blockchain().hash(n)?.map(|hash| (hash, n)),
 		};
 		match hash_and_number {
-			Some((hash, number)) =>
+			Some((hash, number)) => {
 				if self.backend.have_state_at(&hash, number) {
 					Ok(BlockStatus::InChainWithState)
 				} else {
 					Ok(BlockStatus::InChainPruned)
-				},
+				}
+			}
 			None => Ok(BlockStatus::Unknown),
 		}
 	}
 
 	/// Get block header by id.
-	pub fn header(
-		&self,
-		id: &BlockId<Block>,
-	) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
+	pub fn header(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
 		self.backend.blockchain().header(*id)
 	}
 
 	/// Get block body by id.
-	pub fn body(
-		&self,
-		id: &BlockId<Block>,
-	) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
+	pub fn body(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
 		self.backend.blockchain().body(*id)
 	}
 
@@ -1149,7 +1120,7 @@ where
 
 		let genesis_hash = self.backend.blockchain().info().genesis_hash;
 		if genesis_hash == target_hash {
-			return Ok(Vec::new())
+			return Ok(Vec::new());
 		}
 
 		let mut current_hash = target_hash;
@@ -1163,7 +1134,7 @@ where
 			uncles.extend(children.into_iter().filter(|h| h != &current_hash));
 			current_hash = ancestor_hash;
 			if genesis_hash == current_hash {
-				break
+				break;
 			}
 			current = ancestor;
 			ancestor_hash = *current.parent_hash();
@@ -1174,10 +1145,7 @@ where
 	}
 
 	/// Prepare in-memory header that is used in execution environment.
-	fn prepare_environment_block(
-		&self,
-		parent: &BlockId<Block>,
-	) -> sp_blockchain::Result<Block::Header> {
+	fn prepare_environment_block(&self, parent: &BlockId<Block>) -> sp_blockchain::Result<Block::Header> {
 		let parent_header = self.backend.blockchain().expect_header(*parent)?;
 		Ok(<<Block as BlockT>::Header as HeaderT>::new(
 			self.backend.blockchain().expect_block_number_from_id(parent)? + One::one(),
@@ -1197,7 +1165,10 @@ where
 {
 	/// Get usage info about current client.
 	fn usage_info(&self) -> ClientInfo<Block> {
-		ClientInfo { chain: self.chain_info(), usage: self.backend.usage_info() }
+		ClientInfo {
+			chain: self.chain_info(),
+			usage: self.backend.usage_info(),
+		}
 	}
 }
 
@@ -1212,7 +1183,8 @@ where
 		id: &BlockId<Block>,
 		keys: &mut dyn Iterator<Item = &[u8]>,
 	) -> sp_blockchain::Result<StorageProof> {
-		self.state_at(id).and_then(|state| prove_read(state, keys).map_err(Into::into))
+		self.state_at(id)
+			.and_then(|state| prove_read(state, keys).map_err(Into::into))
 	}
 
 	fn read_child_proof(
@@ -1246,10 +1218,7 @@ where
 			.map(|(r, p)| (r, StorageProof::merge(vec![p, code_proof])))
 	}
 
-	fn header_proof(
-		&self,
-		id: &BlockId<Block>,
-	) -> sp_blockchain::Result<(Block::Header, StorageProof)> {
+	fn header_proof(&self, id: &BlockId<Block>) -> sp_blockchain::Result<(Block::Header, StorageProof)> {
 		self.header_proof_with_cht_size(id, cht::size())
 	}
 
@@ -1272,8 +1241,8 @@ where
 	E: CallExecutor<Block> + Send + Sync + 'static,
 	Block: BlockT,
 	Self: ChainHeaderBackend<Block> + ProvideRuntimeApi<Block>,
-	<Self as ProvideRuntimeApi<Block>>::Api: ApiExt<Block, StateBackend = backend::StateBackendFor<B, Block>>
-		+ BlockBuilderApi<Block, Error = Error>,
+	<Self as ProvideRuntimeApi<Block>>::Api:
+		ApiExt<Block, StateBackend = backend::StateBackendFor<B, Block>> + BlockBuilderApi<Block, Error = Error>,
 {
 	fn new_block_at<R: Into<RecordProof>>(
 		&self,
@@ -1330,12 +1299,13 @@ where
 	E: CallExecutor<Block>,
 	Block: BlockT,
 {
-	fn storage_keys(
-		&self,
-		id: &BlockId<Block>,
-		key_prefix: &StorageKey,
-	) -> sp_blockchain::Result<Vec<StorageKey>> {
-		let keys = self.state_at(id)?.keys(&key_prefix.0).into_iter().map(StorageKey).collect();
+	fn storage_keys(&self, id: &BlockId<Block>, key_prefix: &StorageKey) -> sp_blockchain::Result<Vec<StorageKey>> {
+		let keys = self
+			.state_at(id)?
+			.keys(&key_prefix.0)
+			.into_iter()
+			.map(StorageKey)
+			.collect();
 		Ok(keys)
 	}
 
@@ -1367,11 +1337,7 @@ where
 		Ok(KeyIterator::new(state, prefix, start_key))
 	}
 
-	fn storage(
-		&self,
-		id: &BlockId<Block>,
-		key: &StorageKey,
-	) -> sp_blockchain::Result<Option<StorageData>> {
+	fn storage(&self, id: &BlockId<Block>, key: &StorageKey) -> sp_blockchain::Result<Option<StorageData>> {
 		Ok(self
 			.state_at(id)?
 			.storage(&key.0)
@@ -1379,11 +1345,7 @@ where
 			.map(StorageData))
 	}
 
-	fn storage_hash(
-		&self,
-		id: &BlockId<Block>,
-		key: &StorageKey,
-	) -> sp_blockchain::Result<Option<Block::Hash>> {
+	fn storage_hash(&self, id: &BlockId<Block>, key: &StorageKey) -> sp_blockchain::Result<Option<Block::Hash>> {
 		Ok(self
 			.state_at(id)?
 			.storage_hash(&key.0)
@@ -1440,7 +1402,7 @@ where
 		if first > last_number {
 			return Err(sp_blockchain::Error::ChangesTrieAccessFailed(
 				"Invalid changes trie range".into(),
-			))
+			));
 		}
 
 		let (storage, configs) = match self.require_changes_trie(first, last_hash, false).ok() {
@@ -1454,7 +1416,7 @@ where
 				let oldest_unpruned = storage.oldest_pruned_digest_range_end();
 				let first = std::cmp::max(first_available_changes_trie, oldest_unpruned);
 				Ok(Some((first, last)))
-			},
+			}
 			None => Ok(None),
 		}
 	}
@@ -1475,7 +1437,7 @@ where
 		for (config_zero, config_end, config) in configs {
 			let range_first = ::std::cmp::max(first, config_zero + One::one());
 			let range_anchor = match config_end {
-				Some((config_end_number, config_end_hash)) =>
+				Some((config_end_number, config_end_hash)) => {
 					if last_number > config_end_number {
 						ChangesTrieAnchorBlockId {
 							hash: config_end_hash,
@@ -1486,9 +1448,12 @@ where
 							hash: convert_hash(&last_hash),
 							number: last_number,
 						}
-					},
-				None =>
-					ChangesTrieAnchorBlockId { hash: convert_hash(&last_hash), number: last_number },
+					}
+				}
+				None => ChangesTrieAnchorBlockId {
+					hash: convert_hash(&last_hash),
+					number: last_number,
+				},
 			};
 
 			let config_range = ChangesTrieConfigurationRange {
@@ -1522,10 +1487,7 @@ where
 {
 	type Error = sp_blockchain::Error;
 
-	fn header_metadata(
-		&self,
-		hash: Block::Hash,
-	) -> Result<CachedHeaderMetadata<Block>, Self::Error> {
+	fn header_metadata(&self, hash: Block::Hash) -> Result<CachedHeaderMetadata<Block>, Self::Error> {
 		self.backend.blockchain().header_metadata(hash)
 	}
 
@@ -1600,10 +1562,7 @@ where
 		self.block_hash_from_id(block_id)
 	}
 
-	fn to_number(
-		&self,
-		block_id: &BlockId<Block>,
-	) -> sp_blockchain::Result<Option<NumberFor<Block>>> {
+	fn to_number(&self, block_id: &BlockId<Block>) -> sp_blockchain::Result<Option<NumberFor<Block>>> {
 		self.block_number_from_id(block_id)
 	}
 }
@@ -1684,8 +1643,7 @@ where
 		let core_api = params.core_api;
 		let at = params.at;
 
-		let (manager, extensions) =
-			self.execution_extensions.manager_and_extensions(at, params.context);
+		let (manager, extensions) = self.execution_extensions.manager_and_extensions(at, params.context);
 
 		self.executor.contextual_call::<_, fn(_, _) -> _, _, _>(
 			|| core_api.initialize_block(at, &self.prepare_environment_block(at)?),
@@ -1744,7 +1702,7 @@ where
 			warn!("Block prepare storage changes error:\n{:?}", e);
 			ConsensusError::ClientImport(e.to_string())
 		})? {
-			return Ok(res)
+			return Ok(res);
 		}
 
 		self.lock_import_and_run(|operation| self.apply_block(operation, import_block, new_cache))
@@ -1756,16 +1714,21 @@ where
 
 	/// Check block preconditions.
 	fn check_block(&mut self, block: BlockCheckParams<Block>) -> Result<ImportResult, Self::Error> {
-		let BlockCheckParams { hash, number, parent_hash, allow_missing_state, import_existing } =
-			block;
+		let BlockCheckParams {
+			hash,
+			number,
+			parent_hash,
+			allow_missing_state,
+			import_existing,
+		} = block;
 
 		// Check the block against white and black lists if any are defined
 		// (i.e. fork blocks and bad blocks respectively)
 		match self.block_rules.lookup(number, &hash) {
 			BlockLookupResult::KnownBad => {
 				trace!("Rejecting known bad block: #{} {:?}", number, hash,);
-				return Ok(ImportResult::KnownBad)
-			},
+				return Ok(ImportResult::KnownBad);
+			}
 			BlockLookupResult::Expected(expected_hash) => {
 				trace!(
 					"Rejecting block from known invalid fork. Got {:?}, expected: {:?} at height {}",
@@ -1773,9 +1736,9 @@ where
 					expected_hash,
 					number
 				);
-				return Ok(ImportResult::KnownBad)
-			},
-			BlockLookupResult::NotSpecial => {},
+				return Ok(ImportResult::KnownBad);
+			}
+			BlockLookupResult::NotSpecial => {}
 		}
 
 		// Own status must be checked first. If the block and ancestry is pruned
@@ -1784,11 +1747,12 @@ where
 			.block_status(&BlockId::Hash(hash))
 			.map_err(|e| ConsensusError::ClientImport(e.to_string()))?
 		{
-			BlockStatus::InChainWithState | BlockStatus::Queued if !import_existing =>
-				return Ok(ImportResult::AlreadyInChain),
-			BlockStatus::InChainWithState | BlockStatus::Queued => {},
+			BlockStatus::InChainWithState | BlockStatus::Queued if !import_existing => {
+				return Ok(ImportResult::AlreadyInChain)
+			}
+			BlockStatus::InChainWithState | BlockStatus::Queued => {}
 			BlockStatus::InChainPruned => return Ok(ImportResult::AlreadyInChain),
-			BlockStatus::Unknown => {},
+			BlockStatus::Unknown => {}
 			BlockStatus::KnownBad => return Ok(ImportResult::KnownBad),
 		}
 
@@ -1796,9 +1760,9 @@ where
 			.block_status(&BlockId::Hash(parent_hash))
 			.map_err(|e| ConsensusError::ClientImport(e.to_string()))?
 		{
-			BlockStatus::InChainWithState | BlockStatus::Queued => {},
+			BlockStatus::InChainWithState | BlockStatus::Queued => {}
 			BlockStatus::Unknown => return Ok(ImportResult::UnknownParent),
-			BlockStatus::InChainPruned if allow_missing_state => {},
+			BlockStatus::InChainPruned if allow_missing_state => {}
 			BlockStatus::InChainPruned => return Ok(ImportResult::MissingState),
 			BlockStatus::KnownBad => return Ok(ImportResult::KnownBad),
 		}
@@ -1813,8 +1777,7 @@ where
 	E: CallExecutor<Block> + Send + Sync,
 	Block: BlockT,
 	Self: ProvideRuntimeApi<Block>,
-	<Self as ProvideRuntimeApi<Block>>::Api:
-		CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
+	<Self as ProvideRuntimeApi<Block>>::Api: CoreApi<Block, Error = Error> + ApiExt<Block, StateBackend = B::State>,
 {
 	type Error = ConsensusError;
 	type Transaction = backend::TransactionFor<B, Block>;
@@ -1847,13 +1810,7 @@ where
 	) -> sp_blockchain::Result<()> {
 		let last_best = self.backend.blockchain().info().best_hash;
 		let to_finalize_hash = self.backend.blockchain().expect_block_hash_from_id(&id)?;
-		self.apply_finality_with_block_hash(
-			operation,
-			to_finalize_hash,
-			justification,
-			last_best,
-			notify,
-		)
+		self.apply_finality_with_block_hash(operation, to_finalize_hash, justification, last_best, notify)
 	}
 
 	fn finalize_block(
@@ -1862,9 +1819,7 @@ where
 		justification: Option<Justification>,
 		notify: bool,
 	) -> sp_blockchain::Result<()> {
-		self.lock_import_and_run(|operation| {
-			self.apply_finality(operation, id, justification, notify)
-		})
+		self.lock_import_and_run(|operation| self.apply_finality(operation, id, justification, notify))
 	}
 }
 
@@ -1928,17 +1883,16 @@ where
 	E: CallExecutor<Block>,
 	Block: BlockT,
 {
-	fn block_body(
-		&self,
-		id: &BlockId<Block>,
-	) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
+	fn block_body(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
 		self.body(id)
 	}
 
 	fn block(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<SignedBlock<Block>>> {
 		Ok(match (self.header(id)?, self.body(id)?, self.justification(id)?) {
-			(Some(header), Some(extrinsics), justification) =>
-				Some(SignedBlock { block: Block::new(header, extrinsics), justification }),
+			(Some(header), Some(extrinsics), justification) => Some(SignedBlock {
+				block: Block::new(header, extrinsics),
+				justification,
+			}),
 			_ => None,
 		})
 	}
@@ -1946,8 +1900,13 @@ where
 	fn block_status(&self, id: &BlockId<Block>) -> sp_blockchain::Result<BlockStatus> {
 		// this can probably be implemented more efficiently
 		if let BlockId::Hash(ref h) = id {
-			if self.importing_block.read().as_ref().map_or(false, |importing| h == importing) {
-				return Ok(BlockStatus::Queued)
+			if self
+				.importing_block
+				.read()
+				.as_ref()
+				.map_or(false, |importing| h == importing)
+			{
+				return Ok(BlockStatus::Queued);
 			}
 		}
 		let hash_and_number = match id.clone() {
@@ -1955,12 +1914,13 @@ where
 			BlockId::Number(n) => self.backend.blockchain().hash(n)?.map(|hash| (hash, n)),
 		};
 		match hash_and_number {
-			Some((hash, number)) =>
+			Some((hash, number)) => {
 				if self.backend.have_state_at(&hash, number) {
 					Ok(BlockStatus::InChainWithState)
 				} else {
 					Ok(BlockStatus::InChainPruned)
-				},
+				}
+			}
 			None => Ok(BlockStatus::Unknown),
 		}
 	}
@@ -2039,10 +1999,7 @@ where
 	E: CallExecutor<B>,
 	B: BlockT,
 {
-	fn block_status(
-		&self,
-		id: &BlockId<B>,
-	) -> Result<BlockStatus, Box<dyn std::error::Error + Send>> {
+	fn block_status(&self, id: &BlockId<B>) -> Result<BlockStatus, Box<dyn std::error::Error + Send>> {
 		Client::block_status(self, id).map_err(|e| Box::new(e) as Box<_>)
 	}
 }

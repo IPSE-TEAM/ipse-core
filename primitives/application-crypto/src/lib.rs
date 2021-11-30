@@ -60,17 +60,8 @@ pub use traits::*;
 macro_rules! app_crypto {
 	($module:ident, $key_type:expr) => {
 		$crate::app_crypto_public_full_crypto!($module::Public, $key_type, $module::CRYPTO_ID);
-		$crate::app_crypto_public_common!(
-			$module::Public,
-			$module::Signature,
-			$key_type,
-			$module::CRYPTO_ID
-		);
-		$crate::app_crypto_signature_full_crypto!(
-			$module::Signature,
-			$key_type,
-			$module::CRYPTO_ID
-		);
+		$crate::app_crypto_public_common!($module::Public, $module::Signature, $key_type, $module::CRYPTO_ID);
+		$crate::app_crypto_signature_full_crypto!($module::Signature, $key_type, $module::CRYPTO_ID);
 		$crate::app_crypto_signature_common!($module::Signature, $key_type);
 		$crate::app_crypto_pair!($module::Pair, $key_type, $module::CRYPTO_ID);
 	};
@@ -90,17 +81,8 @@ macro_rules! app_crypto {
 macro_rules! app_crypto {
 	($module:ident, $key_type:expr) => {
 		$crate::app_crypto_public_not_full_crypto!($module::Public, $key_type, $module::CRYPTO_ID);
-		$crate::app_crypto_public_common!(
-			$module::Public,
-			$module::Signature,
-			$key_type,
-			$module::CRYPTO_ID
-		);
-		$crate::app_crypto_signature_not_full_crypto!(
-			$module::Signature,
-			$key_type,
-			$module::CRYPTO_ID
-		);
+		$crate::app_crypto_public_common!($module::Public, $module::Signature, $key_type, $module::CRYPTO_ID);
+		$crate::app_crypto_signature_not_full_crypto!($module::Signature, $key_type, $module::CRYPTO_ID);
 		$crate::app_crypto_signature_common!($module::Signature, $key_type);
 	};
 }
@@ -144,18 +126,10 @@ macro_rules! app_crypto_pair {
 			fn sign(&self, msg: &[u8]) -> Self::Signature {
 				Signature(self.0.sign(msg))
 			}
-			fn verify<M: AsRef<[u8]>>(
-				sig: &Self::Signature,
-				message: M,
-				pubkey: &Self::Public,
-			) -> bool {
+			fn verify<M: AsRef<[u8]>>(sig: &Self::Signature, message: M, pubkey: &Self::Public) -> bool {
 				<$pair>::verify(&sig.0, message, pubkey.as_ref())
 			}
-			fn verify_weak<P: AsRef<[u8]>, M: AsRef<[u8]>>(
-				sig: &[u8],
-				message: M,
-				pubkey: P,
-			) -> bool {
+			fn verify_weak<P: AsRef<[u8]>, M: AsRef<[u8]>>(sig: &[u8], message: M, pubkey: P) -> bool {
 				<$pair>::verify_weak(sig, message, pubkey)
 			}
 			fn public(&self) -> Self::Public {
@@ -192,10 +166,7 @@ macro_rules! app_crypto_pair_functions_if_std {
 			(Self(r.0), r.1, r.2)
 		}
 
-		fn from_phrase(
-			phrase: &str,
-			password: Option<&str>,
-		) -> Result<(Self, Self::Seed), $crate::SecretStringError> {
+		fn from_phrase(phrase: &str, password: Option<&str>) -> Result<(Self, Self::Seed), $crate::SecretStringError> {
 			<$pair>::from_phrase(phrase, password).map(|r| (Self(r.0), r.1))
 		}
 	};
@@ -319,7 +290,10 @@ macro_rules! app_crypto_public_common {
 			type Signature = Signature;
 
 			fn all() -> $crate::Vec<Self> {
-				<$public as $crate::RuntimePublic>::all($key_type).into_iter().map(Self).collect()
+				<$public as $crate::RuntimePublic>::all($key_type)
+					.into_iter()
+					.map(Self)
+					.collect()
 			}
 
 			fn generate_pair(seed: Option<$crate::Vec<u8>>) -> Self {
@@ -327,8 +301,7 @@ macro_rules! app_crypto_public_common {
 			}
 
 			fn sign<M: AsRef<[u8]>>(&self, msg: &M) -> Option<Self::Signature> {
-				<$public as $crate::RuntimePublic>::sign(self.as_ref(), $key_type, msg)
-					.map(Signature)
+				<$public as $crate::RuntimePublic>::sign(self.as_ref(), $key_type, msg).map(Signature)
 			}
 
 			fn verify<M: AsRef<[u8]>>(&self, msg: &M, signature: &Self::Signature) -> bool {
@@ -361,10 +334,7 @@ macro_rules! app_crypto_public_common {
 macro_rules! app_crypto_public_common_if_std {
 	() => {
 		impl $crate::Derive for Public {
-			fn derive<Iter: Iterator<Item = $crate::DeriveJunction>>(
-				&self,
-				path: Iter,
-			) -> Option<Self> {
+			fn derive<Iter: Iterator<Item = $crate::DeriveJunction>>(&self, path: Iter) -> Option<Self> {
 				self.0.derive(path).map(Self)
 			}
 		}

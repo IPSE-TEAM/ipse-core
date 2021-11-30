@@ -54,8 +54,7 @@ fn should_return_storage() {
 		.add_extra_storage(b":map:acc2".to_vec(), vec![1, 2, 3])
 		.build();
 	let genesis_hash = client.genesis_hash();
-	let (client, child) =
-		new_full(Arc::new(client), SubscriptionManager::new(Arc::new(TaskExecutor)));
+	let (client, child) = new_full(Arc::new(client), SubscriptionManager::new(Arc::new(TaskExecutor)));
 	let key = StorageKey(KEY.to_vec());
 
 	assert_eq!(
@@ -68,7 +67,10 @@ fn should_return_storage() {
 		VALUE.len(),
 	);
 	assert_matches!(
-		client.storage_hash(key.clone(), Some(genesis_hash).into()).wait().map(|x| x.is_some()),
+		client
+			.storage_hash(key.clone(), Some(genesis_hash).into())
+			.wait()
+			.map(|x| x.is_some()),
 		Ok(true)
 	);
 	assert_eq!(
@@ -76,7 +78,11 @@ fn should_return_storage() {
 		VALUE.len(),
 	);
 	assert_eq!(
-		client.storage_size(StorageKey(b":map".to_vec()), None).wait().unwrap().unwrap() as usize,
+		client
+			.storage_size(StorageKey(b":map".to_vec()), None)
+			.wait()
+			.unwrap()
+			.unwrap() as usize,
 		2 + 3,
 	);
 	assert_eq!(
@@ -120,7 +126,10 @@ fn should_return_child_storage() {
 			.map(|x| x.is_some()),
 		Ok(true)
 	);
-	assert_matches!(child.storage_size(child_key.clone(), key.clone(), None,).wait(), Ok(Some(1)));
+	assert_matches!(
+		child.storage_size(child_key.clone(), key.clone(), None,).wait(),
+		Ok(Some(1))
+	);
 }
 
 #[test]
@@ -130,7 +139,9 @@ fn should_call_contract() {
 	let (client, _child) = new_full(client, SubscriptionManager::new(Arc::new(TaskExecutor)));
 
 	assert_matches!(
-		client.call("balanceOf".into(), Bytes(vec![1, 2, 3]), Some(genesis_hash).into()).wait(),
+		client
+			.call("balanceOf".into(), Bytes(vec![1, 2, 3]), Some(genesis_hash).into())
+			.wait(),
 		Err(Error::Client(_))
 	)
 }
@@ -141,13 +152,15 @@ fn should_notify_about_storage_changes() {
 
 	{
 		let mut client = Arc::new(substrate_test_runtime_client::new());
-		let (api, _child) =
-			new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
+		let (api, _child) = new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
 
 		api.subscribe_storage(Default::default(), subscriber, None.into());
 
 		// assert id assigned
-		assert!(matches!(executor::block_on(id.compat()), Ok(Ok(SubscriptionId::String(_)))));
+		assert!(matches!(
+			executor::block_on(id.compat()),
+			Ok(Ok(SubscriptionId::String(_)))
+		));
 
 		let mut builder = client.new_block(Default::default()).unwrap();
 		builder
@@ -175,11 +188,9 @@ fn should_send_initial_storage_changes_and_notifications() {
 
 	{
 		let mut client = Arc::new(substrate_test_runtime_client::new());
-		let (api, _child) =
-			new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
+		let (api, _child) = new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
 
-		let alice_balance_key =
-			blake2_256(&runtime::system::balance_of_key(AccountKeyring::Alice.into()));
+		let alice_balance_key = blake2_256(&runtime::system::balance_of_key(AccountKeyring::Alice.into()));
 
 		api.subscribe_storage(
 			Default::default(),
@@ -188,7 +199,10 @@ fn should_send_initial_storage_changes_and_notifications() {
 		);
 
 		// assert id assigned
-		assert!(matches!(executor::block_on(id.compat()), Ok(Ok(SubscriptionId::String(_)))));
+		assert!(matches!(
+			executor::block_on(id.compat()),
+			Ok(Ok(SubscriptionId::String(_)))
+		));
 
 		let mut builder = client.new_block(Default::default()).unwrap();
 		builder
@@ -216,8 +230,7 @@ fn should_send_initial_storage_changes_and_notifications() {
 #[test]
 fn should_query_storage() {
 	fn run_tests(mut client: Arc<TestClient>, has_changes_trie_config: bool) {
-		let (api, _child) =
-			new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
+		let (api, _child) = new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
 
 		let mut add_block = |nonce| {
 			let mut builder = client.new_block(Default::default()).unwrap();
@@ -428,13 +441,15 @@ fn should_notify_on_runtime_version_initially() {
 
 	{
 		let client = Arc::new(substrate_test_runtime_client::new());
-		let (api, _child) =
-			new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
+		let (api, _child) = new_full(client.clone(), SubscriptionManager::new(Arc::new(TaskExecutor)));
 
 		api.subscribe_runtime_version(Default::default(), subscriber);
 
 		// assert id assigned
-		assert!(matches!(executor::block_on(id.compat()), Ok(Ok(SubscriptionId::String(_)))));
+		assert!(matches!(
+			executor::block_on(id.compat()),
+			Ok(Ok(SubscriptionId::String(_)))
+		));
 	}
 
 	// assert initial version sent.

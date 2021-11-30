@@ -279,8 +279,7 @@ mod tests {
 	use super::*;
 
 	use frame_support::{
-		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types,
-		weights::Weight,
+		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types, weights::Weight,
 	};
 	use frame_system::EnsureSignedBy;
 	use sp_core::H256;
@@ -383,9 +382,12 @@ mod tests {
 	fn new_test_ext() -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 		// We use default for brevity, but you can configure as desired if needed.
-		GenesisConfig::<Test> { members: vec![10, 20, 30], ..Default::default() }
-			.assimilate_storage(&mut t)
-			.unwrap();
+		GenesisConfig::<Test> {
+			members: vec![10, 20, 30],
+			..Default::default()
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 		t.into()
 	}
 
@@ -401,7 +403,10 @@ mod tests {
 	fn prime_member_works() {
 		new_test_ext().execute_with(|| {
 			assert_noop!(Membership::set_prime(Origin::signed(4), 20), BadOrigin);
-			assert_noop!(Membership::set_prime(Origin::signed(5), 15), Error::<Test, _>::NotMember);
+			assert_noop!(
+				Membership::set_prime(Origin::signed(5), 15),
+				Error::<Test, _>::NotMember
+			);
 			assert_ok!(Membership::set_prime(Origin::signed(5), 20));
 			assert_eq!(Membership::prime(), Some(20));
 			assert_eq!(PRIME.with(|m| *m.borrow()), Membership::prime());
@@ -513,7 +518,10 @@ mod tests {
 	fn reset_members_works() {
 		new_test_ext().execute_with(|| {
 			assert_ok!(Membership::set_prime(Origin::signed(5), 20));
-			assert_noop!(Membership::reset_members(Origin::signed(1), vec![20, 40, 30]), BadOrigin);
+			assert_noop!(
+				Membership::reset_members(Origin::signed(1), vec![20, 40, 30]),
+				BadOrigin
+			);
 
 			assert_ok!(Membership::reset_members(Origin::signed(4), vec![20, 40, 30]));
 			assert_eq!(Membership::members(), vec![20, 30, 40]);

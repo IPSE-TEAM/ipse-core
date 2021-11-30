@@ -24,9 +24,7 @@ use frame_support::{
 	weights::Weight,
 	IterableStorageMap, Parameter, StorageDoubleMap,
 };
-use frame_system::{
-	self as system, ensure_none, ensure_root, ensure_signed, offchain, Origin, RawOrigin,
-};
+use frame_system::{self as system, ensure_none, ensure_root, ensure_signed, offchain, Origin, RawOrigin};
 use hex;
 
 use pallet_authority_discovery as authority_discovery;
@@ -46,8 +44,8 @@ use sp_runtime::{
 	offchain::http,
 	traits::{CheckedAdd, CheckedSub, IdentifyAccount, Member, Printable, Zero},
 	transaction_validity::{
-		InvalidTransaction, TransactionLongevity, TransactionPriority, TransactionSource,
-		TransactionValidity, ValidTransaction,
+		InvalidTransaction, TransactionLongevity, TransactionPriority, TransactionSource, TransactionValidity,
+		ValidTransaction,
 	},
 	AnySignature, MultiSignature, MultiSigner, RuntimeAppPublic,
 };
@@ -447,11 +445,7 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-	fn offchain(
-		block_num: T::BlockNumber,
-		key: T::AuthorityId,
-		local_account: &T::AccountId,
-	) -> DispatchResult {
+	fn offchain(block_num: T::BlockNumber, key: T::AuthorityId, local_account: &T::AccountId) -> DispatchResult {
 		for (tx_key, value) in <TokenStatus<T>>::iter().into_iter() {
 			let (status, accept_account) = value;
 			let tx = tx_key;
@@ -480,20 +474,14 @@ impl<T: Trait> Module<T> {
 						core::str::from_utf8(EOS_NODE_URL).unwrap(),
 						tx_hex
 					);
-					Self::call_record_address(
-						block_num,
-						key.clone(),
-						local_account,
-						&tx,
-						post_tx_transfer_data,
-					)?;
-				},
+					Self::call_record_address(block_num, key.clone(), local_account, &tx, post_tx_transfer_data)?;
+				}
 				Err(e) => {
 					debug::info!("~~~~~~ Error address fetching~~~~~~~~:  {:?}: {:?}", tx_hex, e);
 					Self::call_record_fail_verify(block_num, key.clone(), local_account, &tx, e)?;
-				},
+				}
 			}
-			break
+			break;
 		}
 		Ok(())
 	}
@@ -522,12 +510,10 @@ impl<T: Trait> Module<T> {
 			e.as_bytes().to_vec(),
 			signature,
 		);
-		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(
-			|_| {
-				debug::error!("===record_fail_verify: submit_unsigned_call error===");
-				"===record_fail_verify: submit_unsigned_call error==="
-			},
-		)?;
+		SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|_| {
+			debug::error!("===record_fail_verify: submit_unsigned_call error===");
+			"===record_fail_verify: submit_unsigned_call error==="
+		})?;
 		debug::info!("+++++++record_fail_verify suc++++++++++++++");
 		Ok(())
 	}
@@ -605,10 +591,10 @@ impl<T: Trait> Module<T> {
 			debug::info!("local accounts:{:?}", s);
 			if authorities.contains(&s) {
 				debug::info!("matched account: {:?}", s);
-				return (Some(authority), Some(s))
+				return (Some(authority), Some(s));
 			}
 		}
-		return (None, None)
+		return (None, None);
 	}
 
 	fn verify_handle(tx: &[u8], quantity: u64) -> StdResult<VerifyStatus> {
@@ -625,7 +611,7 @@ impl<T: Trait> Module<T> {
 			if num > 0 {
 				TokenStatusLen::mutate(|n| *n -= 1);
 			}
-			return Err("status < 1000")
+			return Err("status < 1000");
 		}
 
 		debug::info!("--------onchain set status={:?}--------", status);
@@ -656,13 +642,9 @@ impl<T: Trait> Module<T> {
 				if num > 0 {
 					TokenStatusLen::mutate(|n| *n -= 1);
 				}
-				<EosExchangeInfo<T>>::insert(
-					accept_account.clone(),
-					tx.clone(),
-					(AddressStatus::InActive, quantity),
-				);
+				<EosExchangeInfo<T>>::insert(accept_account.clone(), tx.clone(), (AddressStatus::InActive, quantity));
 				// Self::insert_active_status(accept_account.clone(), tx, AddressStatus::InActive);
-			},
+			}
 			VerifyStatus::Pass => {
 				debug::info!("--------exchanged suc--------");
 
@@ -672,17 +654,13 @@ impl<T: Trait> Module<T> {
 				if num > 0 {
 					TokenStatusLen::mutate(|n| *n -= 1);
 				}
-				<EosExchangeInfo<T>>::insert(
-					accept_account.clone(),
-					tx.clone(),
-					(AddressStatus::Active, quantity),
-				);
+				<EosExchangeInfo<T>>::insert(accept_account.clone(), tx.clone(), (AddressStatus::Active, quantity));
 				<SucTxExchange>::insert(tx.clone(), true);
 				// Self::insert_active_status(accept_account.clone(), tx, AddressStatus::active);
-			},
-			_ => {},
+			}
+			_ => {}
 		}
-		return Ok(verify_status)
+		return Ok(verify_status);
 	}
 
 	// fn insert_active_status(accept_account: T::AccountId, tx:&[u8], active_status:
@@ -719,8 +697,7 @@ impl<T: Trait> Module<T> {
 	fn fetch_json<'a>(remote_url: &'a [u8], body: Vec<u8>) -> StdResult<Vec<u8>> {
 		// http get
 		let url = &[remote_url, body.as_slice()].concat();
-		let remote_url_str =
-			core::str::from_utf8(url).map_err(|_| "Error in converting remote_url to string")?;
+		let remote_url_str = core::str::from_utf8(url).map_err(|_| "Error in converting remote_url to string")?;
 		debug::info!("get url: {:?}", remote_url_str);
 		let now = <timestamp::Module<T>>::get();
 		let deadline: u64 = now
@@ -741,7 +718,7 @@ impl<T: Trait> Module<T> {
 			debug::warn!("Unexpected status code: {}", response.code);
 			let json_result: Vec<u8> = response.body().collect::<Vec<u8>>();
 			debug::info!("error body:{:?}", core::str::from_utf8(&json_result).unwrap());
-			return Err("Non-200 status code returned from http request")
+			return Err("Non-200 status code returned from http request");
 		}
 
 		let json_result: Vec<u8> = response.body().collect::<Vec<u8>>();
@@ -757,11 +734,10 @@ impl<T: Trait> Module<T> {
 		debug::info!("json: {}", resp_str);
 
 		// Deserializing JSON to struct, thanks to `serde` and `serde_derive`
-		let post_tx_transfer_data: PostTxTransferData =
-			serde_json::from_str(&resp_str).map_err(|e| {
-				debug::info!("parse error: {:?}", e);
-				"convert to ResponseStatus failed"
-			})?;
+		let post_tx_transfer_data: PostTxTransferData = serde_json::from_str(&resp_str).map_err(|e| {
+			debug::info!("parse error: {:?}", e);
+			"convert to ResponseStatus failed"
+		})?;
 
 		debug::info!("http get status:{:?}", post_tx_transfer_data.code);
 		Ok(post_tx_transfer_data)
@@ -774,22 +750,20 @@ impl<T: Trait> Module<T> {
 			}
 
 			if post_transfer_data.irreversible && post_transfer_data.is_post_transfer {
-				if post_transfer_data.contract_account == CONTRACT_ACCOUNT.to_vec() &&
-					post_transfer_data.to == DESTROY_ACCOUNT.to_vec()
+				if post_transfer_data.contract_account == CONTRACT_ACCOUNT.to_vec()
+					&& post_transfer_data.to == DESTROY_ACCOUNT.to_vec()
 				{
 					match Self::vec_convert_account(post_transfer_data.pk.clone()) {
-						Some(new_acc) =>
+						Some(new_acc) => {
 							if acc == new_acc {
 								debug::info!("expect acc = {:?}", acc);
 								debug::info!("new_acc = {:?}", new_acc);
-								debug::info!(
-									"to = {:?}",
-									core::str::from_utf8(&post_transfer_data.to).unwrap()
-								);
+								debug::info!("to = {:?}", core::str::from_utf8(&post_transfer_data.to).unwrap());
 								post_transfer_data.code = 0;
 							} else {
 								post_transfer_data.code = 2003;
-							},
+							}
+						}
 						None => debug::info!("can not parse account"),
 					}
 				} else {
@@ -804,17 +778,13 @@ impl<T: Trait> Module<T> {
 	}
 
 	fn create_token(who: T::AccountId, quantity: u64) {
-		let decimal = match <BalanceOf<T> as TryFrom<u128>>::try_from(
-			quantity as u128 * currency::DOLLARS / 10,
-		)
-		.ok()
-		{
+		let decimal = match <BalanceOf<T> as TryFrom<u128>>::try_from(quantity as u128 * currency::DOLLARS / 10).ok() {
 			Some(x) => x,
 
 			None => {
 				debug::error!("quantity convert balance error");
-				return
-			},
+				return;
+			}
 		};
 		debug::info!("{:?}exchanged num:{:?}", &who, decimal);
 		T::OnUnbalanced::on_unbalanced(T::Currency::deposit_creating(&who, decimal));
@@ -825,7 +795,7 @@ impl<T: Trait> Module<T> {
 		// debug::info!("------ acc ={:?} -------", hex::encode(&acc.clone()));
 		if acc.len() != 32 {
 			debug::error!("acc len={:?}", acc.len());
-			return None
+			return None;
 		}
 		let acc_u8: [u8; 32] = acc.as_slice().try_into().expect("");
 		let authority_id: T::AuthorityId = acc_u8.into();
@@ -859,14 +829,12 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 				);
 
 				// check signature (this is expensive so we do it last).
-				let signature_valid = &(block_num, account, tx)
-					.using_encoded(|encoded_sign| key.verify(&encoded_sign, &signature));
+				let signature_valid =
+					&(block_num, account, tx).using_encoded(|encoded_sign| key.verify(&encoded_sign, &signature));
 
 				if !signature_valid {
-					debug::error!(
-						"................ record_suc_verify signed fail ....................."
-					);
-					return InvalidTransaction::BadProof.into()
+					debug::error!("................ record_suc_verify signed fail .....................");
+					return InvalidTransaction::BadProof.into();
 				}
 				debug::info!("................ record_suc_verify signed suc .....................");
 				Ok(ValidTransaction {
@@ -876,7 +844,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 					longevity: TransactionLongevity::max_value(),
 					propagate: true,
 				})
-			},
+			}
 
 			Call::record_fail_verify(block, account, key, tx, err, signature) => {
 				debug::info!(
@@ -885,13 +853,11 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 					now
 				);
 				// check signature (this is expensive so we do it last).
-				let signature_valid = &(block, account, tx)
-					.using_encoded(|encoded_sign| key.verify(&encoded_sign, &signature));
+				let signature_valid =
+					&(block, account, tx).using_encoded(|encoded_sign| key.verify(&encoded_sign, &signature));
 				if !signature_valid {
-					debug::error!(
-						"................ record_fail_verify signed fail ....................."
-					);
-					return InvalidTransaction::BadProof.into()
+					debug::error!("................ record_fail_verify signed fail .....................");
+					return InvalidTransaction::BadProof.into();
 				}
 				Ok(ValidTransaction {
 					priority: <T as Trait>::UnsignedPriority::get(),
@@ -900,7 +866,7 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 					longevity: TransactionLongevity::max_value() - 1,
 					propagate: true,
 				})
-			},
+			}
 
 			_ => InvalidTransaction::Call.into(),
 		}

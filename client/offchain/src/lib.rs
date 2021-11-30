@@ -127,19 +127,16 @@ where
 	) -> impl Future<Output = ()> {
 		let runtime = self.client.runtime_api();
 		let at = BlockId::hash(header.hash());
-		let has_api_v1 =
-			runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(&at, |v| v == 1);
-		let has_api_v2 =
-			runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(&at, |v| v == 2);
+		let has_api_v1 = runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(&at, |v| v == 1);
+		let has_api_v2 = runtime.has_api_with::<dyn OffchainWorkerApi<Block, Error = ()>, _>(&at, |v| v == 2);
 		let version = match (has_api_v1, has_api_v2) {
 			(_, Ok(true)) => 2,
 			(Ok(true), _) => 1,
 			err => {
-				let help =
-					"Consider turning off offchain workers if they are not part of your runtime.";
+				let help = "Consider turning off offchain workers if they are not part of your runtime.";
 				log::error!("Unsupported Offchain Worker API version: {:?}. {}.", err, help);
 				0
-			},
+			}
 		};
 		debug!("Checking offchain workers at {:?}: version:{}", at, version);
 		if version > 0 {
@@ -156,17 +153,12 @@ where
 				let runtime = client.runtime_api();
 				let api = Box::new(api);
 				debug!("Running offchain workers at {:?}", at);
-				let context =
-					ExecutionContext::OffchainCall(Some((api, offchain::Capabilities::all())));
+				let context = ExecutionContext::OffchainCall(Some((api, offchain::Capabilities::all())));
 				let run = if version == 2 {
 					runtime.offchain_worker_with_context(&at, context, &header)
 				} else {
 					#[allow(deprecated)]
-					runtime.offchain_worker_before_version_2_with_context(
-						&at,
-						context,
-						*header.number(),
-					)
+					runtime.offchain_worker_before_version_2_with_context(&at, context, *header.number())
 				};
 				if let Err(e) = run {
 					log::error!("Error running offchain workers at {:?}: {:?}", at, e);
@@ -200,8 +192,7 @@ pub async fn notification_future<Client, Storage, Block, Spawner>(
 	network_provider: Arc<dyn NetworkProvider + Send + Sync>,
 ) where
 	Block: traits::Block,
-	Client:
-		ProvideRuntimeApi<Block> + sc_client_api::BlockchainEvents<Block> + Send + Sync + 'static,
+	Client: ProvideRuntimeApi<Block> + sc_client_api::BlockchainEvents<Block> + Send + Sync + 'static,
 	Client::Api: OffchainWorkerApi<Block>,
 	Storage: OffchainStorage + 'static,
 	Spawner: SpawnNamed,
@@ -263,11 +254,7 @@ mod tests {
 	struct TestPool(Arc<BasicPool<FullChainApi<TestClient, Block>, Block>>);
 
 	impl sp_transaction_pool::OffchainSubmitTransaction<Block> for TestPool {
-		fn submit_at(
-			&self,
-			at: &BlockId<Block>,
-			extrinsic: <Block as traits::Block>::Extrinsic,
-		) -> Result<(), ()> {
+		fn submit_at(&self, at: &BlockId<Block>, extrinsic: <Block as traits::Block>::Extrinsic) -> Result<(), ()> {
 			let source = sp_transaction_pool::TransactionSource::Local;
 			futures::executor::block_on(self.0.submit_one(&at, source, extrinsic))
 				.map(|_| ())

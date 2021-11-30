@@ -41,7 +41,7 @@ impl Analysis {
 	// results. Note: We choose the median value because it is more robust to outliers.
 	fn median_value(r: &Vec<BenchmarkResults>, selector: BenchmarkSelector) -> Option<Self> {
 		if r.is_empty() {
-			return None
+			return None;
 		}
 
 		let mut values: Vec<u128> = r
@@ -68,7 +68,7 @@ impl Analysis {
 
 	pub fn median_slopes(r: &Vec<BenchmarkResults>, selector: BenchmarkSelector) -> Option<Self> {
 		if r[0].components.is_empty() {
-			return Self::median_value(r, selector)
+			return Self::median_value(r, selector);
 		}
 
 		let results = r[0]
@@ -82,8 +82,12 @@ impl Analysis {
 					p[i] = 0;
 					*counted.entry(p).or_default() += 1;
 				}
-				let others: Vec<u32> =
-					counted.iter().max_by_key(|i| i.1).expect("r is not empty; qed").0.clone();
+				let others: Vec<u32> = counted
+					.iter()
+					.max_by_key(|i| i.1)
+					.expect("r is not empty; qed")
+					.0
+					.clone();
 				let values = r
 					.iter()
 					.filter(|v| {
@@ -162,7 +166,7 @@ impl Analysis {
 
 	pub fn min_squares_iqr(r: &Vec<BenchmarkResults>, selector: BenchmarkSelector) -> Option<Self> {
 		if r[0].components.is_empty() {
-			return Self::median_value(r, selector)
+			return Self::median_value(r, selector);
 		}
 
 		let mut results = BTreeMap::<Vec<u32>, Vec<u128>>::new();
@@ -182,8 +186,10 @@ impl Analysis {
 			*rs = rs[ql..rs.len() - ql].to_vec();
 		}
 
-		let mut data =
-			vec![("Y", results.iter().flat_map(|x| x.1.iter().map(|v| *v as f64)).collect())];
+		let mut data = vec![(
+			"Y",
+			results.iter().flat_map(|x| x.1.iter().map(|v| *v as f64)).collect(),
+		)];
 
 		let names = r[0].components.iter().map(|x| format!("{:?}", x.0)).collect::<Vec<_>>();
 		data.extend(names.iter().enumerate().map(|(i, p)| {
@@ -217,7 +223,7 @@ impl Analysis {
 			.map(|(p, vs)| {
 				// Avoid divide by zero
 				if vs.len() == 0 {
-					return (p.clone(), 0, 0)
+					return (p.clone(), 0, 0);
 				}
 				let total = vs.iter().fold(0u128, |acc, v| acc + *v);
 				let mean = total / vs.len() as u128;
@@ -245,7 +251,7 @@ fn ms(mut nanos: u128) -> String {
 	while x > 1 {
 		if nanos > x * 1_000 {
 			nanos = nanos / x * x;
-			break
+			break;
 		}
 		x /= 10;
 	}
@@ -259,7 +265,11 @@ impl std::fmt::Display for Analysis {
 			writeln!(
 				f,
 				"{}   mean µs  sigma µs       %",
-				self.names.iter().map(|p| format!("{:>5}", p)).collect::<Vec<_>>().join(" ")
+				self.names
+					.iter()
+					.map(|p| format!("{:>5}", p))
+					.collect::<Vec<_>>()
+					.join(" ")
 			)?;
 			for (param_values, mean, sigma) in value_dists.iter() {
 				if *mean == 0 {
@@ -404,8 +414,7 @@ mod tests {
 			),
 		];
 
-		let extrinsic_time =
-			Analysis::median_slopes(&data, BenchmarkSelector::ExtrinsicTime).unwrap();
+		let extrinsic_time = Analysis::median_slopes(&data, BenchmarkSelector::ExtrinsicTime).unwrap();
 		assert_eq!(extrinsic_time.base, 10_000_000);
 		assert_eq!(extrinsic_time.slopes, vec![1_000_000, 100_000]);
 
@@ -479,8 +488,7 @@ mod tests {
 			),
 		];
 
-		let extrinsic_time =
-			Analysis::min_squares_iqr(&data, BenchmarkSelector::ExtrinsicTime).unwrap();
+		let extrinsic_time = Analysis::min_squares_iqr(&data, BenchmarkSelector::ExtrinsicTime).unwrap();
 		assert_eq!(extrinsic_time.base, 10_000_000);
 		assert_eq!(extrinsic_time.slopes, vec![1_000_000, 100_000]);
 

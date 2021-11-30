@@ -44,9 +44,8 @@ fn setup_proposal<T: Trait<I>, I: Instance>(
 // Create the pre-requisite information needed to create a `report_awesome`.
 fn setup_awesome<T: Trait<I>, I: Instance>(length: u32) -> (T::AccountId, Vec<u8>, T::AccountId) {
 	let caller = whitelisted_caller();
-	let value = T::TipReportDepositBase::get() +
-		T::DataDepositPerByte::get() * length.into() +
-		T::Currency::minimum_balance();
+	let value =
+		T::TipReportDepositBase::get() + T::DataDepositPerByte::get() * length.into() + T::Currency::minimum_balance();
 	let _ = T::Currency::make_free_balance_be(&caller, value);
 	let reason = vec![0; length as usize];
 	let awesome_person = account("awesome", 0, SEED);
@@ -66,7 +65,10 @@ fn setup_tip<T: Trait<I>, I: Instance>(
 		ensure!(T::Tippers::contains(&member), "failed to add tipper");
 	}
 
-	ensure!(T::Tippers::count() == tippers_count + t as usize, "problem creating tippers");
+	ensure!(
+		T::Tippers::count() == tippers_count + t as usize,
+		"problem creating tippers"
+	);
 	let caller = account("member", t - 1, SEED);
 	let reason = vec![0; r as usize];
 	let beneficiary = account("beneficiary", t, SEED);
@@ -76,11 +78,7 @@ fn setup_tip<T: Trait<I>, I: Instance>(
 
 // Create `t` new tips for the tip proposal with `hash`.
 // This function automatically makes the tip able to close.
-fn create_tips<T: Trait<I>, I: Instance>(
-	t: u32,
-	hash: T::Hash,
-	value: BalanceOf<T, I>,
-) -> Result<(), &'static str> {
+fn create_tips<T: Trait<I>, I: Instance>(t: u32, hash: T::Hash, value: BalanceOf<T, I>) -> Result<(), &'static str> {
 	for i in 0..t {
 		let caller = account("member", i, SEED);
 		ensure!(T::Tippers::contains(&caller), "caller is not a tipper");
@@ -114,7 +112,10 @@ fn create_approved_bounties<T: Trait<I>, I: Instance>(n: u32) -> Result<(), &'st
 		let bounty_id = BountyCount::<I>::get() - 1;
 		Treasury::<T, I>::approve_bounty(RawOrigin::Root.into(), bounty_id)?;
 	}
-	ensure!(BountyApprovals::<I>::get().len() == n as usize, "Not all bounty approved");
+	ensure!(
+		BountyApprovals::<I>::get().len() == n as usize,
+		"Not all bounty approved"
+	);
 	Ok(())
 }
 
@@ -134,20 +135,15 @@ fn setup_bounty<T: Trait<I>, I: Instance>(
 	(caller, curator, fee, value, reason)
 }
 
-fn create_bounty<T: Trait<I>, I: Instance>(
-) -> Result<(<T::Lookup as StaticLookup>::Source, BountyIndex), &'static str> {
+fn create_bounty<T: Trait<I>, I: Instance>() -> Result<(<T::Lookup as StaticLookup>::Source, BountyIndex), &'static str>
+{
 	let (caller, curator, fee, value, reason) = setup_bounty::<T, I>(0, MAX_BYTES);
 	let curator_lookup = T::Lookup::unlookup(curator.clone());
 	Treasury::<T, I>::propose_bounty(RawOrigin::Signed(caller).into(), value, reason)?;
 	let bounty_id = BountyCount::<I>::get() - 1;
 	Treasury::<T, I>::approve_bounty(RawOrigin::Root.into(), bounty_id)?;
 	Treasury::<T, I>::on_initialize(T::BlockNumber::zero());
-	Treasury::<T, I>::propose_curator(
-		RawOrigin::Root.into(),
-		bounty_id,
-		curator_lookup.clone(),
-		fee,
-	)?;
+	Treasury::<T, I>::propose_curator(RawOrigin::Root.into(), bounty_id, curator_lookup.clone(), fee)?;
 	Treasury::<T, I>::accept_curator(RawOrigin::Signed(curator).into(), bounty_id)?;
 	Ok((curator_lookup, bounty_id))
 }

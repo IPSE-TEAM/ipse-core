@@ -36,8 +36,8 @@ use crate::communication::{Network as NetworkT, NetworkBridge};
 use crate::consensus_changes::SharedConsensusChanges;
 use crate::notification::GrandpaJustificationSender;
 use crate::{
-	aux_schema::PersistentData, environment, global_communication, CommandOrError, CommunicationIn,
-	Config, Error, LinkHalf, VoterCommand, VoterSetState,
+	aux_schema::PersistentData, environment, global_communication, CommandOrError, CommunicationIn, Config, Error,
+	LinkHalf, VoterCommand, VoterSetState,
 };
 use sp_finality_grandpa::AuthorityId;
 use std::marker::{PhantomData, Unpin};
@@ -47,25 +47,17 @@ struct ObserverChain<'a, Block: BlockT, Client> {
 	_phantom: PhantomData<Block>,
 }
 
-impl<'a, Block, Client> finality_grandpa::Chain<Block::Hash, NumberFor<Block>>
-	for ObserverChain<'a, Block, Client>
+impl<'a, Block, Client> finality_grandpa::Chain<Block::Hash, NumberFor<Block>> for ObserverChain<'a, Block, Client>
 where
 	Block: BlockT,
 	Client: HeaderMetadata<Block, Error = sp_blockchain::Error>,
 	NumberFor<Block>: BlockNumberOps,
 {
-	fn ancestry(
-		&self,
-		base: Block::Hash,
-		block: Block::Hash,
-	) -> Result<Vec<Block::Hash>, GrandpaError> {
+	fn ancestry(&self, base: Block::Hash, block: Block::Hash) -> Result<Vec<Block::Hash>, GrandpaError> {
 		environment::ancestry(&self.client, base, block)
 	}
 
-	fn best_chain_containing(
-		&self,
-		_block: Block::Hash,
-	) -> Option<(Block::Hash, NumberFor<Block>)> {
+	fn best_chain_containing(&self, _block: Block::Hash) -> Option<(Block::Hash, NumberFor<Block>)> {
 		// only used by voter
 		None
 	}
@@ -99,23 +91,26 @@ where
 			voter::CommunicationIn::Commit(round, commit, callback) => {
 				let commit = finality_grandpa::Commit::from(commit);
 				(round, commit, callback)
-			},
+			}
 			voter::CommunicationIn::CatchUp(..) => {
 				// ignore catch up messages
-				return future::ok(last_finalized_number)
-			},
+				return future::ok(last_finalized_number);
+			}
 		};
 
 		// if the commit we've received targets a block lower or equal to the last
 		// finalized, ignore it and continue with the current state
 		if commit.target_number <= last_finalized_number {
-			return future::ok(last_finalized_number)
+			return future::ok(last_finalized_number);
 		}
 
 		let validation_result = match finality_grandpa::validate_commit(
 			&commit,
 			&voters,
-			&ObserverChain { client: &client, _phantom: PhantomData },
+			&ObserverChain {
+				client: &client,
+				_phantom: PhantomData,
+			},
 		) {
 			Ok(r) => r,
 			Err(e) => return future::err(e.into()),
@@ -137,7 +132,7 @@ where
 				false,
 				justification_sender.as_ref(),
 			) {
-				Ok(_) => {},
+				Ok(_) => {}
 				Err(e) => return future::err(e),
 			};
 
@@ -190,8 +185,7 @@ where
 		..
 	} = link;
 
-	let network =
-		NetworkBridge::new(network, config.clone(), persistent_data.set_state.clone(), None);
+	let network = NetworkBridge::new(network, config.clone(), persistent_data.set_state.clone(), None);
 
 	let observer_work = ObserverWork::new(
 		client,
@@ -212,8 +206,7 @@ where
 /// Future that powers the observer.
 #[must_use]
 struct ObserverWork<B: BlockT, BE, Client, N: NetworkT<B>> {
-	observer:
-		Pin<Box<dyn Future<Output = Result<(), CommandOrError<B::Hash, NumberFor<B>>>> + Send>>,
+	observer: Pin<Box<dyn Future<Output = Result<(), CommandOrError<B::Hash, NumberFor<B>>>> + Send>>,
 	client: Arc<Client>,
 	network: NetworkBridge<B, N>,
 	persistent_data: PersistentData<B>,
@@ -306,10 +299,7 @@ where
 		self.observer = Box::pin(observer);
 	}
 
-	fn handle_voter_command(
-		&mut self,
-		command: VoterCommand<B::Hash, NumberFor<B>>,
-	) -> Result<(), Error> {
+	fn handle_voter_command(&mut self, command: VoterCommand<B::Hash, NumberFor<B>>) -> Result<(), Error> {
 		// the observer doesn't use the voter set state, but we need to
 		// update it on-disk in case we restart as validator in the future.
 		self.persistent_data.set_state = match command {
@@ -322,7 +312,7 @@ where
 				crate::aux_schema::write_voter_set_state(&*self.client, &set_state)?;
 
 				set_state
-			},
+			}
 			VoterCommand::ChangeAuthorities(new) => {
 				// start the new authority set using the block where the
 				// set changed (not where the signal happened!) as the base.
@@ -335,7 +325,7 @@ where
 				crate::aux_schema::write_voter_set_state(&*self.client, &set_state)?;
 
 				set_state
-			},
+			}
 		}
 		.into();
 
@@ -356,34 +346,34 @@ where
 
 	fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
 		match Future::poll(Pin::new(&mut self.observer), cx) {
-			Poll::Pending => {},
+			Poll::Pending => {}
 			Poll::Ready(Ok(())) => {
 				// observer commit stream doesn't conclude naturally; this could reasonably be an
 				// error.
-				return Poll::Ready(Ok(()))
-			},
+				return Poll::Ready(Ok(()));
+			}
 			Poll::Ready(Err(CommandOrError::Error(e))) => {
 				// return inner observer error
-				return Poll::Ready(Err(e))
-			},
+				return Poll::Ready(Err(e));
+			}
 			Poll::Ready(Err(CommandOrError::VoterCommand(command))) => {
 				// some command issued internally
 				self.handle_voter_command(command)?;
 				cx.waker().wake_by_ref();
-			},
+			}
 		}
 
 		match Stream::poll_next(Pin::new(&mut self.voter_commands_rx), cx) {
-			Poll::Pending => {},
+			Poll::Pending => {}
 			Poll::Ready(None) => {
 				// the `voter_commands_rx` stream should never conclude since it's never closed.
-				return Poll::Ready(Ok(()))
-			},
+				return Poll::Ready(Ok(()));
+			}
 			Poll::Ready(Some(command)) => {
 				// some command issued externally
 				self.handle_voter_command(command)?;
 				cx.waker().wake_by_ref();
-			},
+			}
 		}
 
 		Future::poll(Pin::new(&mut self.network), cx)
@@ -431,8 +421,7 @@ mod tests {
 		let voters = vec![(sp_keyring::Ed25519Keyring::Alice.public().into(), 1)];
 
 		let persistent_data =
-			aux_schema::load_persistent(&*backend, client.info().genesis_hash, 0, || Ok(voters))
-				.unwrap();
+			aux_schema::load_persistent(&*backend, client.info().genesis_hash, 0, || Ok(voters)).unwrap();
 
 		let (_tx, voter_command_rx) = tracing_unbounded("");
 
@@ -456,7 +445,7 @@ mod tests {
 
 			// Ignore initial event stream request by gossip engine.
 			match tester.events.next().now_or_never() {
-				Some(Some(Event::EventStream(_))) => {},
+				Some(Some(Event::EventStream(_))) => {}
 				_ => panic!("expected event stream request"),
 			};
 

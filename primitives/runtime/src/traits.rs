@@ -20,8 +20,7 @@
 use crate::codec::{Codec, Decode, Encode};
 use crate::generic::{Digest, DigestItem};
 use crate::transaction_validity::{
-	TransactionSource, TransactionValidity, TransactionValidityError, UnknownTransaction,
-	ValidTransaction,
+	TransactionSource, TransactionValidity, TransactionValidityError, UnknownTransaction, ValidTransaction,
 };
 use crate::DispatchResult;
 use impl_trait_for_tuples::impl_for_tuples;
@@ -29,9 +28,9 @@ use impl_trait_for_tuples::impl_for_tuples;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sp_application_crypto::AppKey;
 pub use sp_arithmetic::traits::{
-	AtLeast32Bit, AtLeast32BitUnsigned, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedShl,
-	CheckedShr, CheckedSub, IntegerSquareRoot, One, SaturatedConversion, Saturating,
-	UniqueSaturatedFrom, UniqueSaturatedInto, Zero,
+	AtLeast32Bit, AtLeast32BitUnsigned, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedShl, CheckedShr,
+	CheckedSub, IntegerSquareRoot, One, SaturatedConversion, Saturating, UniqueSaturatedFrom, UniqueSaturatedInto,
+	Zero,
 };
 use sp_core::{self, Hasher, RuntimeDebug, TypeId};
 use sp_io;
@@ -98,11 +97,7 @@ pub trait Verify {
 	/// Verify a signature.
 	///
 	/// Return `true` if signature is valid for the value.
-	fn verify<L: Lazy<[u8]>>(
-		&self,
-		msg: L,
-		signer: &<Self::Signer as IdentifyAccount>::AccountId,
-	) -> bool;
+	fn verify<L: Lazy<[u8]>>(&self, msg: L, signer: &<Self::Signer as IdentifyAccount>::AccountId) -> bool;
 }
 
 impl Verify for sp_core::ed25519::Signature {
@@ -124,10 +119,7 @@ impl Verify for sp_core::sr25519::Signature {
 impl Verify for sp_core::ecdsa::Signature {
 	type Signer = sp_core::ecdsa::Public;
 	fn verify<L: Lazy<[u8]>>(&self, mut msg: L, signer: &sp_core::ecdsa::Public) -> bool {
-		match sp_io::crypto::secp256k1_ecdsa_recover_compressed(
-			self.as_ref(),
-			&sp_io::hashing::blake2_256(msg.get()),
-		) {
+		match sp_io::crypto::secp256k1_ecdsa_recover_compressed(self.as_ref(), &sp_io::hashing::blake2_256(msg.get())) {
 			Ok(pubkey) => &signer.as_ref()[..] == &pubkey[..],
 			_ => false,
 		}
@@ -143,8 +135,7 @@ pub trait AppVerify {
 }
 
 impl<
-		S: Verify<Signer = <<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic>
-			+ From<T>,
+		S: Verify<Signer = <<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic> + From<T>,
 		T: sp_application_crypto::Wraps<Inner = S>
 			+ sp_application_crypto::AppKey
 			+ sp_application_crypto::AppSignature
@@ -154,16 +145,14 @@ impl<
 	> AppVerify for T
 where
 	<S as Verify>::Signer: IdentifyAccount<AccountId = <S as Verify>::Signer>,
-	<<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic: IdentifyAccount<
-		AccountId = <<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic,
-	>,
+	<<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic:
+		IdentifyAccount<AccountId = <<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic>,
 {
 	type AccountId = <T as AppKey>::Public;
 	fn verify<L: Lazy<[u8]>>(&self, msg: L, signer: &<T as AppKey>::Public) -> bool {
 		use sp_application_crypto::IsWrappedBy;
 		let inner: &S = self.as_ref();
-		let inner_pubkey =
-			<<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic::from_ref(&signer);
+		let inner_pubkey = <<T as AppKey>::Public as sp_application_crypto::AppPublic>::Generic::from_ref(&signer);
 		Verify::verify(inner, msg, inner_pubkey)
 	}
 }
@@ -386,13 +375,7 @@ impl<
 // Stupid bug in the Rust compiler believes derived
 // traits must be fulfilled by all type parameters.
 pub trait Hash:
-	'static
-	+ MaybeSerializeDeserialize
-	+ Debug
-	+ Clone
-	+ Eq
-	+ PartialEq
-	+ Hasher<Out = <Self as Hash>::Output>
+	'static + MaybeSerializeDeserialize + Debug + Clone + Eq + PartialEq + Hasher<Out = <Self as Hash>::Output>
 {
 	/// The hash type produced.
 	type Output: Member
@@ -562,9 +545,7 @@ pub trait IsMember<MemberId> {
 /// `parent_hash`, as well as a `digest` and a block `number`.
 ///
 /// You can also create a `new` one from those fields.
-pub trait Header:
-	Clone + Send + Sync + Codec + Eq + MaybeSerialize + Debug + MaybeMallocSizeOf + 'static
-{
+pub trait Header: Clone + Send + Sync + Codec + Eq + MaybeSerialize + Debug + MaybeMallocSizeOf + 'static {
 	/// Header number.
 	type Number: Member
 		+ MaybeSerializeDeserialize
@@ -637,9 +618,7 @@ pub trait Header:
 /// `Extrinsic` pieces of information as well as a `Header`.
 ///
 /// You can get an iterator over each of the `extrinsics` and retrieve the `header`.
-pub trait Block:
-	Clone + Send + Sync + Codec + Eq + MaybeSerialize + Debug + MaybeMallocSizeOf + 'static
-{
+pub trait Block: Clone + Send + Sync + Codec + Eq + MaybeSerialize + Debug + MaybeMallocSizeOf + 'static {
 	/// Type for extrinsics.
 	type Extrinsic: Member + Codec + Extrinsic + MaybeSerialize + MaybeMallocSizeOf;
 	/// Header type.
@@ -851,7 +830,9 @@ pub trait SignedExtension: Codec + Debug + Sync + Send + Clone + Eq + PartialEq 
 		info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
-		self.validate(who, call, info, len).map(|_| Self::Pre::default()).map_err(Into::into)
+		self.validate(who, call, info, len)
+			.map(|_| Self::Pre::default())
+			.map_err(Into::into)
 	}
 
 	/// Validate an unsigned transaction for the transaction queue.
@@ -862,11 +843,7 @@ pub trait SignedExtension: Codec + Debug + Sync + Send + Clone + Eq + PartialEq 
 	/// and quickly eliminate ones that are stale or incorrect.
 	///
 	/// Make sure to perform the same checks in `pre_dispatch_unsigned` function.
-	fn validate_unsigned(
-		_call: &Self::Call,
-		_info: &DispatchInfoOf<Self::Call>,
-		_len: usize,
-	) -> TransactionValidity {
+	fn validate_unsigned(_call: &Self::Call, _info: &DispatchInfoOf<Self::Call>, _len: usize) -> TransactionValidity {
 		Ok(ValidTransaction::default())
 	}
 
@@ -883,7 +860,9 @@ pub trait SignedExtension: Codec + Debug + Sync + Send + Clone + Eq + PartialEq 
 		info: &DispatchInfoOf<Self::Call>,
 		len: usize,
 	) -> Result<Self::Pre, TransactionValidityError> {
-		Self::validate_unsigned(call, info, len).map(|_| Self::Pre::default()).map_err(Into::into)
+		Self::validate_unsigned(call, info, len)
+			.map(|_| Self::Pre::default())
+			.map_err(Into::into)
 	}
 
 	/// Do any post-flight stuff for an extrinsic.
@@ -956,11 +935,7 @@ impl<AccountId, Call: Dispatchable> SignedExtension for Tuple {
 		Ok(for_tuples!( ( #( Tuple.pre_dispatch(who, call, info, len)? ),* ) ))
 	}
 
-	fn validate_unsigned(
-		call: &Self::Call,
-		info: &DispatchInfoOf<Self::Call>,
-		len: usize,
-	) -> TransactionValidity {
+	fn validate_unsigned(call: &Self::Call, info: &DispatchInfoOf<Self::Call>, len: usize) -> TransactionValidity {
 		let valid = ValidTransaction::default();
 		for_tuples!( #( let valid = valid.combine_with(Tuple::validate_unsigned(call, info, len)?); )* );
 		Ok(valid)
@@ -1065,7 +1040,9 @@ pub trait ValidateUnsigned {
 	///
 	/// Changes made to storage WILL be persisted if the call returns `Ok`.
 	fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
-		Self::validate_unsigned(TransactionSource::InBlock, call).map(|_| ()).map_err(Into::into)
+		Self::validate_unsigned(TransactionSource::InBlock, call)
+			.map(|_| ())
+			.map_err(Into::into)
 	}
 
 	/// Return the validity of the call
@@ -1130,7 +1107,7 @@ impl<'a, T: codec::Input> codec::Input for AppendZerosInput<'a, T> {
 					into[i] = b;
 					i += 1;
 				} else {
-					break
+					break;
 				}
 			}
 			i
@@ -1209,7 +1186,7 @@ impl<T: Encode + Decode + Default, Id: Encode + Decode + TypeId> AccountIdConver
 	fn try_from_sub_account<S: Decode>(x: &T) -> Option<(Self, S)> {
 		x.using_encoded(|d| {
 			if &d[0..4] != Id::TYPE_ID {
-				return None
+				return None;
 			}
 			let mut cursor = &d[4..];
 			let result = Decode::decode(&mut cursor).ok()?;
@@ -1452,16 +1429,10 @@ pub trait BlockIdTo<Block: self::Block> {
 	type Error: std::fmt::Debug;
 
 	/// Convert the given `block_id` to the corresponding block hash.
-	fn to_hash(
-		&self,
-		block_id: &crate::generic::BlockId<Block>,
-	) -> Result<Option<Block::Hash>, Self::Error>;
+	fn to_hash(&self, block_id: &crate::generic::BlockId<Block>) -> Result<Option<Block::Hash>, Self::Error>;
 
 	/// Convert the given `block_id` to the corresponding block number.
-	fn to_number(
-		&self,
-		block_id: &crate::generic::BlockId<Block>,
-	) -> Result<Option<NumberFor<Block>>, Self::Error>;
+	fn to_number(&self, block_id: &crate::generic::BlockId<Block>) -> Result<Option<NumberFor<Block>>, Self::Error>;
 }
 
 #[cfg(test)]

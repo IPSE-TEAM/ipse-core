@@ -56,9 +56,7 @@
 
 pub use self::bridge::GossipEngine;
 pub use self::state_machine::TopicNotification;
-pub use self::validator::{
-	DiscardAll, MessageIntent, ValidationResult, Validator, ValidatorContext,
-};
+pub use self::validator::{DiscardAll, MessageIntent, ValidationResult, Validator, ValidatorContext};
 
 use futures::prelude::*;
 use sc_network::{Event, ExHashT, NetworkService, PeerId, ReputationChange};
@@ -87,11 +85,7 @@ pub trait Network<B: BlockT> {
 	///
 	/// See the documentation of [`NetworkService:register_notifications_protocol`] for more
 	/// information.
-	fn register_notifications_protocol(
-		&self,
-		engine_id: ConsensusEngineId,
-		protocol_name: Cow<'static, str>,
-	);
+	fn register_notifications_protocol(&self, engine_id: ConsensusEngineId, protocol_name: Cow<'static, str>);
 
 	/// Notify everyone we're connected to that we have the given block.
 	///
@@ -117,11 +111,7 @@ impl<B: BlockT, H: ExHashT> Network<B> for Arc<NetworkService<B, H>> {
 		NetworkService::write_notification(self, who, engine_id, message)
 	}
 
-	fn register_notifications_protocol(
-		&self,
-		engine_id: ConsensusEngineId,
-		protocol_name: Cow<'static, str>,
-	) {
+	fn register_notifications_protocol(&self, engine_id: ConsensusEngineId, protocol_name: Cow<'static, str>) {
 		NetworkService::register_notifications_protocol(self, engine_id, protocol_name)
 	}
 

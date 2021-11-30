@@ -17,9 +17,7 @@
 
 //! Helper methods for npos-elections.
 
-use crate::{
-	Assignment, Error, ExtendedBalance, IdentifierT, StakedAssignment, VoteWeight, WithApprovalOf,
-};
+use crate::{Assignment, Error, ExtendedBalance, IdentifierT, StakedAssignment, VoteWeight, WithApprovalOf};
 use sp_arithmetic::{InnerOf, PerThing};
 use sp_std::prelude::*;
 
@@ -58,7 +56,8 @@ where
 	staked
 		.iter_mut()
 		.map(|a| {
-			a.try_normalize(stake_of(&a.who).into()).map_err(|err| Error::ArithmeticError(err))
+			a.try_normalize(stake_of(&a.who).into())
+				.map_err(|err| Error::ArithmeticError(err))
 		})
 		.collect::<Result<_, _>>()?;
 	Ok(staked)
@@ -106,17 +105,11 @@ mod tests {
 		let assignments = vec![
 			Assignment {
 				who: 1u32,
-				distribution: vec![
-					(10u32, Perbill::from_fraction(0.5)),
-					(20, Perbill::from_fraction(0.5)),
-				],
+				distribution: vec![(10u32, Perbill::from_fraction(0.5)), (20, Perbill::from_fraction(0.5))],
 			},
 			Assignment {
 				who: 2u32,
-				distribution: vec![
-					(10, Perbill::from_fraction(0.33)),
-					(20, Perbill::from_fraction(0.67)),
-				],
+				distribution: vec![(10, Perbill::from_fraction(0.33)), (20, Perbill::from_fraction(0.67))],
 			},
 		];
 
@@ -126,8 +119,14 @@ mod tests {
 		assert_eq!(
 			staked,
 			vec![
-				StakedAssignment { who: 1u32, distribution: vec![(10u32, 50), (20, 50),] },
-				StakedAssignment { who: 2u32, distribution: vec![(10u32, 33), (20, 67),] }
+				StakedAssignment {
+					who: 1u32,
+					distribution: vec![(10u32, 50), (20, 50),]
+				},
+				StakedAssignment {
+					who: 2u32,
+					distribution: vec![(10u32, 33), (20, 67),]
+				}
 			]
 		);
 	}

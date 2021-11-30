@@ -184,7 +184,13 @@ fn last_event() -> RawEvent<u64, u128, H256, DefaultInstance> {
 	System::events()
 		.into_iter()
 		.map(|r| r.event)
-		.filter_map(|e| if let Event::treasury(inner) = e { Some(inner) } else { None })
+		.filter_map(|e| {
+			if let Event::treasury(inner) = e {
+				Some(inner)
+			} else {
+				None
+			}
+		})
 		.last()
 		.unwrap()
 }
@@ -274,13 +280,19 @@ fn close_tip_works() {
 
 		assert_ok!(Treasury::tip(Origin::signed(11), h.clone(), 10));
 
-		assert_noop!(Treasury::close_tip(Origin::signed(0), h.into()), Error::<Test, _>::StillOpen);
+		assert_noop!(
+			Treasury::close_tip(Origin::signed(0), h.into()),
+			Error::<Test, _>::StillOpen
+		);
 
 		assert_ok!(Treasury::tip(Origin::signed(12), h.clone(), 10));
 
 		assert_eq!(last_event(), RawEvent::TipClosing(h));
 
-		assert_noop!(Treasury::close_tip(Origin::signed(0), h.into()), Error::<Test, _>::Premature);
+		assert_noop!(
+			Treasury::close_tip(Origin::signed(0), h.into()),
+			Error::<Test, _>::Premature
+		);
 
 		System::set_block_number(2);
 		assert_noop!(Treasury::close_tip(Origin::none(), h.into()), BadOrigin);
@@ -454,21 +466,30 @@ fn reject_already_rejected_spend_proposal_fails() {
 
 		assert_ok!(Treasury::propose_spend(Origin::signed(0), 100, 3));
 		assert_ok!(Treasury::reject_proposal(Origin::root(), 0));
-		assert_noop!(Treasury::reject_proposal(Origin::root(), 0), Error::<Test, _>::InvalidIndex);
+		assert_noop!(
+			Treasury::reject_proposal(Origin::root(), 0),
+			Error::<Test, _>::InvalidIndex
+		);
 	});
 }
 
 #[test]
 fn reject_non_existent_spend_proposal_fails() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(Treasury::reject_proposal(Origin::root(), 0), Error::<Test, _>::InvalidIndex);
+		assert_noop!(
+			Treasury::reject_proposal(Origin::root(), 0),
+			Error::<Test, _>::InvalidIndex
+		);
 	});
 }
 
 #[test]
 fn accept_non_existent_spend_proposal_fails() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(Treasury::approve_proposal(Origin::root(), 0), Error::<Test, _>::InvalidIndex);
+		assert_noop!(
+			Treasury::approve_proposal(Origin::root(), 0),
+			Error::<Test, _>::InvalidIndex
+		);
 	});
 }
 
@@ -479,7 +500,10 @@ fn accept_already_rejected_spend_proposal_fails() {
 
 		assert_ok!(Treasury::propose_spend(Origin::signed(0), 100, 3));
 		assert_ok!(Treasury::reject_proposal(Origin::root(), 0));
-		assert_noop!(Treasury::approve_proposal(Origin::root(), 0), Error::<Test, _>::InvalidIndex);
+		assert_noop!(
+			Treasury::approve_proposal(Origin::root(), 0),
+			Error::<Test, _>::InvalidIndex
+		);
 	});
 }
 
@@ -546,9 +570,11 @@ fn treasury_account_doesnt_get_deleted() {
 #[test]
 fn inexistent_account_works() {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	pallet_balances::GenesisConfig::<Test> { balances: vec![(0, 100), (1, 99), (2, 1)] }
-		.assimilate_storage(&mut t)
-		.unwrap();
+	pallet_balances::GenesisConfig::<Test> {
+		balances: vec![(0, 100), (1, 99), (2, 1)],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
 	// Treasury genesis config is not build thus treasury account does not exist
 	let mut t: sp_io::TestExternalities = t.into();
 
@@ -639,7 +665,10 @@ fn close_bounty_works() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 		Balances::make_free_balance_be(&Treasury::account_id(), 101);
-		assert_noop!(Treasury::close_bounty(Origin::root(), 0), Error::<Test, _>::InvalidIndex);
+		assert_noop!(
+			Treasury::close_bounty(Origin::root(), 0),
+			Error::<Test, _>::InvalidIndex
+		);
 
 		assert_ok!(Treasury::propose_bounty(Origin::signed(0), 10, b"12345".to_vec()));
 
@@ -663,7 +692,10 @@ fn approve_bounty_works() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 		Balances::make_free_balance_be(&Treasury::account_id(), 101);
-		assert_noop!(Treasury::approve_bounty(Origin::root(), 0), Error::<Test, _>::InvalidIndex);
+		assert_noop!(
+			Treasury::approve_bounty(Origin::root(), 0),
+			Error::<Test, _>::InvalidIndex
+		);
 
 		assert_ok!(Treasury::propose_bounty(Origin::signed(0), 50, b"12345".to_vec()));
 
@@ -684,7 +716,10 @@ fn approve_bounty_works() {
 		);
 		assert_eq!(Treasury::bounty_approvals(), vec![0]);
 
-		assert_noop!(Treasury::close_bounty(Origin::root(), 0), Error::<Test, _>::UnexpectedStatus);
+		assert_noop!(
+			Treasury::close_bounty(Origin::root(), 0),
+			Error::<Test, _>::UnexpectedStatus
+		);
 
 		// deposit not returned yet
 		assert_eq!(Balances::reserved_balance(0), deposit);
@@ -770,7 +805,10 @@ fn assign_curator_works() {
 				curator_deposit: 2,
 				value: 50,
 				bond: 85,
-				status: BountyStatus::Active { curator: 4, update_due: 22 },
+				status: BountyStatus::Active {
+					curator: 4,
+					update_due: 22
+				},
 			}
 		);
 
@@ -867,16 +905,27 @@ fn award_and_claim_bounty_works() {
 				curator_deposit: 2,
 				value: 50,
 				bond: 85,
-				status: BountyStatus::PendingPayout { curator: 4, beneficiary: 3, unlock_at: 5 },
+				status: BountyStatus::PendingPayout {
+					curator: 4,
+					beneficiary: 3,
+					unlock_at: 5
+				},
 			}
 		);
 
-		assert_noop!(Treasury::claim_bounty(Origin::signed(1), 0), Error::<Test, _>::Premature);
+		assert_noop!(
+			Treasury::claim_bounty(Origin::signed(1), 0),
+			Error::<Test, _>::Premature
+		);
 
 		System::set_block_number(5);
 		<Treasury as OnInitialize<u64>>::on_initialize(5);
 
-		assert_ok!(Balances::transfer(Origin::signed(0), Treasury::bounty_account_id(0), 10));
+		assert_ok!(Balances::transfer(
+			Origin::signed(0),
+			Treasury::bounty_account_id(0),
+			10
+		));
 
 		assert_ok!(Treasury::claim_bounty(Origin::signed(1), 0));
 
@@ -940,7 +989,11 @@ fn cancel_and_refund() {
 		System::set_block_number(2);
 		<Treasury as OnInitialize<u64>>::on_initialize(2);
 
-		assert_ok!(Balances::transfer(Origin::signed(0), Treasury::bounty_account_id(0), 10));
+		assert_ok!(Balances::transfer(
+			Origin::signed(0),
+			Treasury::bounty_account_id(0),
+			10
+		));
 
 		assert_eq!(
 			Treasury::bounties(0).unwrap(),
@@ -960,7 +1013,7 @@ fn cancel_and_refund() {
 
 		assert_ok!(Treasury::close_bounty(Origin::root(), 0));
 
-		assert_eq!(Treasury::pot(), 85); // 
+		assert_eq!(Treasury::pot(), 85); //
 		                         // - 25 + 10
 	});
 }
@@ -986,7 +1039,10 @@ fn award_and_cancel() {
 		assert_ok!(Treasury::award_bounty(Origin::signed(0), 0, 3));
 
 		// Cannot close bounty directly when payout is happening...
-		assert_noop!(Treasury::close_bounty(Origin::root(), 0), Error::<Test, _>::PendingPayout);
+		assert_noop!(
+			Treasury::close_bounty(Origin::root(), 0),
+			Error::<Test, _>::PendingPayout
+		);
 
 		// Instead unassign the curator to slash them and then close.
 		assert_ok!(Treasury::unassign_curator(Origin::root(), 0));
@@ -1025,7 +1081,10 @@ fn expire_and_unassign() {
 		System::set_block_number(22);
 		<Treasury as OnInitialize<u64>>::on_initialize(22);
 
-		assert_noop!(Treasury::unassign_curator(Origin::signed(0), 0), Error::<Test, _>::Premature);
+		assert_noop!(
+			Treasury::unassign_curator(Origin::signed(0), 0),
+			Error::<Test, _>::Premature
+		);
 
 		System::set_block_number(23);
 		<Treasury as OnInitialize<u64>>::on_initialize(23);
@@ -1090,7 +1149,10 @@ fn extend_expiry() {
 				curator_deposit: 5,
 				value: 50,
 				bond: 85,
-				status: BountyStatus::Active { curator: 4, update_due: 30 },
+				status: BountyStatus::Active {
+					curator: 4,
+					update_due: 30
+				},
 			}
 		);
 
@@ -1104,14 +1166,20 @@ fn extend_expiry() {
 				curator_deposit: 5,
 				value: 50,
 				bond: 85,
-				status: BountyStatus::Active { curator: 4, update_due: 30 }, // still the same
+				status: BountyStatus::Active {
+					curator: 4,
+					update_due: 30
+				}, // still the same
 			}
 		);
 
 		System::set_block_number(25);
 		<Treasury as OnInitialize<u64>>::on_initialize(25);
 
-		assert_noop!(Treasury::unassign_curator(Origin::signed(0), 0), Error::<Test, _>::Premature);
+		assert_noop!(
+			Treasury::unassign_curator(Origin::signed(0), 0),
+			Error::<Test, _>::Premature
+		);
 		assert_ok!(Treasury::unassign_curator(Origin::signed(4), 0));
 
 		assert_eq!(Balances::free_balance(4), 10); // not slashed
@@ -1126,12 +1194,7 @@ fn test_last_reward_migration() {
 	let mut s = Storage::default();
 
 	#[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug)]
-	pub struct OldOpenTip<
-		AccountId: Parameter,
-		Balance: Parameter,
-		BlockNumber: Parameter,
-		Hash: Parameter,
-	> {
+	pub struct OldOpenTip<AccountId: Parameter, Balance: Parameter, BlockNumber: Parameter, Hash: Parameter> {
 		/// The hash of the reason for the tip. The reason should be a human-readable UTF-8 encoded
 		/// string. A URL would be sensible.
 		reason: Hash,

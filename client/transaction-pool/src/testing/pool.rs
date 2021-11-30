@@ -41,10 +41,12 @@ fn pool() -> Pool<TestApi> {
 	Pool::new(Default::default(), TestApi::with_alice_nonce(209).into())
 }
 
-fn maintained_pool(
-) -> (BasicPool<TestApi, Block>, futures::executor::ThreadPool, intervalier::BackSignalControl) {
-	let (pool, background_task, notifier) =
-		BasicPool::new_test(Arc::new(TestApi::with_alice_nonce(209)));
+fn maintained_pool() -> (
+	BasicPool<TestApi, Block>,
+	futures::executor::ThreadPool,
+	intervalier::BackSignalControl,
+) {
+	let (pool, background_task, notifier) = BasicPool::new_test(Arc::new(TestApi::with_alice_nonce(209)));
 
 	let thread_pool = futures::executor::ThreadPool::new().unwrap();
 	thread_pool.spawn_ok(background_task);
@@ -104,8 +106,7 @@ fn prune_tags_should_work() {
 	assert_eq!(pending, vec![209, 210]);
 
 	pool.validated_pool().api().push_block(1, Vec::new(), true);
-	block_on(pool.prune_tags(&BlockId::number(1), vec![vec![209]], vec![hash209]))
-		.expect("Prune tags");
+	block_on(pool.prune_tags(&BlockId::number(1), vec![vec![209]], vec![hash209])).expect("Prune tags");
 
 	let pending: Vec<_> = pool.validated_pool().ready().map(|a| a.data.transfer().nonce).collect();
 	assert_eq!(pending, vec![210]);
@@ -132,13 +133,15 @@ fn only_prune_on_new_best() {
 	let pool = maintained_pool().0;
 	let uxt = uxt(Alice, 209);
 
-	let _ = block_on(pool.submit_and_watch(&BlockId::number(0), SOURCE, uxt.clone()))
-		.expect("1. Imported");
+	let _ = block_on(pool.submit_and_watch(&BlockId::number(0), SOURCE, uxt.clone())).expect("1. Imported");
 	pool.api.push_block(1, vec![uxt.clone()], true);
 	assert_eq!(pool.status().ready, 1);
 
 	let header = pool.api.push_block(2, vec![uxt], true);
-	let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+	let event = ChainEvent::NewBestBlock {
+		hash: header.hash(),
+		tree_route: None,
+	};
 	block_on(pool.maintain(event));
 	assert_eq!(pool.status().ready, 0);
 }
@@ -181,18 +184,21 @@ fn should_correctly_prune_transactions_providing_more_than_one_tag() {
 }
 
 fn block_event(header: Header) -> ChainEvent<Block> {
-	ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None }
+	ChainEvent::NewBestBlock {
+		hash: header.hash(),
+		tree_route: None,
+	}
 }
 
-fn block_event_with_retracted(
-	header: Header,
-	retracted_start: Hash,
-	api: &TestApi,
-) -> ChainEvent<Block> {
-	let tree_route =
-		api.tree_route(retracted_start, header.parent_hash).expect("Tree route exists");
+fn block_event_with_retracted(header: Header, retracted_start: Hash, api: &TestApi) -> ChainEvent<Block> {
+	let tree_route = api
+		.tree_route(retracted_start, header.parent_hash)
+		.expect("Tree route exists");
 
-	ChainEvent::NewBestBlock { hash: header.hash(), tree_route: Some(Arc::new(tree_route)) }
+	ChainEvent::NewBestBlock {
+		hash: header.hash(),
+		tree_route: Some(Arc::new(tree_route)),
+	}
 }
 
 #[test]
@@ -351,20 +357,15 @@ fn should_push_watchers_during_maintaince() {
 	let (pool, _guard, mut notifier) = maintained_pool();
 
 	let tx0 = alice_uxt(0);
-	let watcher0 =
-		block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx0.clone())).unwrap();
+	let watcher0 = block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx0.clone())).unwrap();
 	let tx1 = alice_uxt(1);
-	let watcher1 =
-		block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx1.clone())).unwrap();
+	let watcher1 = block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx1.clone())).unwrap();
 	let tx2 = alice_uxt(2);
-	let watcher2 =
-		block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx2.clone())).unwrap();
+	let watcher2 = block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx2.clone())).unwrap();
 	let tx3 = alice_uxt(3);
-	let watcher3 =
-		block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx3.clone())).unwrap();
+	let watcher3 = block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx3.clone())).unwrap();
 	let tx4 = alice_uxt(4);
-	let watcher4 =
-		block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx4.clone())).unwrap();
+	let watcher4 = block_on(pool.submit_and_watch(&BlockId::Number(0), SOURCE, tx4.clone())).unwrap();
 	assert_eq!(pool.status().ready, 5);
 
 	// when
@@ -394,7 +395,9 @@ fn should_push_watchers_during_maintaince() {
 	let header_hash = header.hash();
 	block_on(pool.maintain(block_event(header)));
 
-	let event = ChainEvent::Finalized { hash: header_hash.clone() };
+	let event = ChainEvent::Finalized {
+		hash: header_hash.clone(),
+	};
 	block_on(pool.maintain(event));
 
 	// then
@@ -444,12 +447,17 @@ fn finalization() {
 	let api = TestApi::with_alice_nonce(209);
 	api.push_block(1, vec![], true);
 	let (pool, _background, _) = BasicPool::new_test(api.into());
-	let watcher = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, xt.clone()))
-		.expect("1. Imported");
+	let watcher = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, xt.clone())).expect("1. Imported");
 	pool.api.push_block(2, vec![xt.clone()], true);
 
-	let header = pool.api.chain().read().block_by_number.get(&2).unwrap()[0].0.header().clone();
-	let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+	let header = pool.api.chain().read().block_by_number.get(&2).unwrap()[0]
+		.0
+		.header()
+		.clone();
+	let event = ChainEvent::NewBestBlock {
+		hash: header.hash(),
+		tree_route: None,
+	};
 	block_on(pool.maintain(event));
 
 	let event = ChainEvent::Finalized { hash: header.hash() };
@@ -490,13 +498,15 @@ fn fork_aware_finalization() {
 	// block B1
 	{
 		let watcher =
-			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_alice.clone()))
-				.expect("1. Imported");
+			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_alice.clone())).expect("1. Imported");
 		let header = pool.api.push_block(2, vec![from_alice.clone()], true);
 		canon_watchers.push((watcher, header.hash()));
 		assert_eq!(pool.status().ready, 1);
 
-		let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+		let event = ChainEvent::NewBestBlock {
+			hash: header.hash(),
+			tree_route: None,
+		};
 		b1 = header.hash();
 		block_on(pool.maintain(event));
 		assert_eq!(pool.status().ready, 0);
@@ -508,10 +518,12 @@ fn fork_aware_finalization() {
 	{
 		let header = pool.api.push_block_with_parent(b1, vec![from_dave.clone()], true);
 		from_dave_watcher =
-			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_dave.clone()))
-				.expect("1. Imported");
+			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_dave.clone())).expect("1. Imported");
 		assert_eq!(pool.status().ready, 1);
-		let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+		let event = ChainEvent::NewBestBlock {
+			hash: header.hash(),
+			tree_route: None,
+		};
 		c2 = header.hash();
 		block_on(pool.maintain(event));
 		assert_eq!(pool.status().ready, 0);
@@ -520,12 +532,14 @@ fn fork_aware_finalization() {
 	// block D2
 	{
 		from_bob_watcher =
-			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_bob.clone()))
-				.expect("1. Imported");
+			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_bob.clone())).expect("1. Imported");
 		assert_eq!(pool.status().ready, 1);
 		let header = pool.api.push_block_with_parent(c2, vec![from_bob.clone()], true);
 
-		let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+		let event = ChainEvent::NewBestBlock {
+			hash: header.hash(),
+			tree_route: None,
+		};
 		d2 = header.hash();
 		block_on(pool.maintain(event));
 		assert_eq!(pool.status().ready, 0);
@@ -534,8 +548,7 @@ fn fork_aware_finalization() {
 	// block C1
 	{
 		let watcher =
-			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_charlie.clone()))
-				.expect("1.Imported");
+			block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_charlie.clone())).expect("1.Imported");
 		assert_eq!(pool.status().ready, 1);
 		let header = pool.api.push_block(3, vec![from_charlie.clone()], true);
 
@@ -551,13 +564,15 @@ fn fork_aware_finalization() {
 	// block D1
 	{
 		let xt = uxt(Eve, 0);
-		let w = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, xt.clone()))
-			.expect("1. Imported");
+		let w = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, xt.clone())).expect("1. Imported");
 		assert_eq!(pool.status().ready, 3);
 		let header = pool.api.push_block(4, vec![xt.clone()], true);
 		canon_watchers.push((w, header.hash()));
 
-		let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+		let event = ChainEvent::NewBestBlock {
+			hash: header.hash(),
+			tree_route: None,
+		};
 		d1 = header.hash();
 		block_on(pool.maintain(event));
 		assert_eq!(pool.status().ready, 2);
@@ -571,7 +586,10 @@ fn fork_aware_finalization() {
 	{
 		let header = pool.api.push_block(5, vec![from_dave, from_bob], true);
 		e1 = header.hash();
-		let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+		let event = ChainEvent::NewBestBlock {
+			hash: header.hash(),
+			tree_route: None,
+		};
 		block_on(pool.maintain(event));
 		assert_eq!(pool.status().ready, 0);
 		block_on(pool.maintain(ChainEvent::Finalized { hash: e1 }));
@@ -621,15 +639,18 @@ fn prune_and_retract_tx_at_same_time() {
 	let from_alice = uxt(Alice, 1);
 	pool.api.increment_nonce(Alice.into());
 
-	let watcher = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_alice.clone()))
-		.expect("1. Imported");
+	let watcher =
+		block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, from_alice.clone())).expect("1. Imported");
 
 	// Block B1
 	let b1 = {
 		let header = pool.api.push_block(2, vec![from_alice.clone()], true);
 		assert_eq!(pool.status().ready, 1);
 
-		let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+		let event = ChainEvent::NewBestBlock {
+			hash: header.hash(),
+			tree_route: None,
+		};
 		block_on(pool.maintain(event));
 		assert_eq!(pool.status().ready, 0);
 		header.hash()
@@ -693,12 +714,14 @@ fn resubmit_tx_of_fork_that_is_not_part_of_retracted() {
 
 	// Block D0
 	{
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx0.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx0.clone())).expect("1. Imported");
 		let header = pool.api.push_block(2, vec![tx0.clone()], true);
 		assert_eq!(pool.status().ready, 1);
 
-		let event = ChainEvent::NewBestBlock { hash: header.hash(), tree_route: None };
+		let event = ChainEvent::NewBestBlock {
+			hash: header.hash(),
+			tree_route: None,
+		};
 		d0 = header.hash();
 		block_on(pool.maintain(event));
 		assert_eq!(pool.status().ready, 0);
@@ -706,8 +729,7 @@ fn resubmit_tx_of_fork_that_is_not_part_of_retracted() {
 
 	// Block D1
 	{
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx1.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx1.clone())).expect("1. Imported");
 		pool.api.push_block(2, vec![tx1.clone()], false);
 		assert_eq!(pool.status().ready, 1);
 	}
@@ -747,8 +769,7 @@ fn resubmit_from_retracted_fork() {
 
 	// Block D0
 	{
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx0.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx0.clone())).expect("1. Imported");
 		let header = pool.api.push_block(2, vec![tx0.clone()], true);
 		assert_eq!(pool.status().ready, 1);
 
@@ -758,8 +779,7 @@ fn resubmit_from_retracted_fork() {
 
 	// Block E0
 	{
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx1.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx1.clone())).expect("1. Imported");
 		let header = pool.api.push_block(3, vec![tx1.clone()], true);
 		block_on(pool.maintain(block_event(header)));
 		assert_eq!(pool.status().ready, 0);
@@ -767,8 +787,7 @@ fn resubmit_from_retracted_fork() {
 
 	// Block F0
 	let f0 = {
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx2.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx2.clone())).expect("1. Imported");
 		let header = pool.api.push_block(4, vec![tx2.clone()], true);
 		block_on(pool.maintain(block_event(header.clone())));
 		assert_eq!(pool.status().ready, 0);
@@ -777,8 +796,7 @@ fn resubmit_from_retracted_fork() {
 
 	// Block D1
 	let d1 = {
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx3.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx3.clone())).expect("1. Imported");
 		let header = pool.api.push_block(2, vec![tx3.clone()], true);
 		assert_eq!(pool.status().ready, 1);
 		header.hash()
@@ -786,8 +804,7 @@ fn resubmit_from_retracted_fork() {
 
 	// Block E1
 	let e1 = {
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx4.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx4.clone())).expect("1. Imported");
 		let header = pool.api.push_block_with_parent(d1.clone(), vec![tx4.clone()], true);
 		assert_eq!(pool.status().ready, 2);
 		header.hash()
@@ -795,8 +812,7 @@ fn resubmit_from_retracted_fork() {
 
 	// Block F1
 	let f1_header = {
-		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx5.clone()))
-			.expect("1. Imported");
+		let _ = block_on(pool.submit_and_watch(&BlockId::number(1), SOURCE, tx5.clone())).expect("1. Imported");
 		let header = pool.api.push_block_with_parent(e1.clone(), vec![tx5.clone()], true);
 		// Don't announce the block event to the pool directly, because we will
 		// re-org to this block.
@@ -861,11 +877,11 @@ fn ready_set_should_eventually_resolve_when_block_update_arrives() {
 	match ready_set_future.poll_unpin(&mut context) {
 		Poll::Pending => {
 			panic!("Ready set should become ready after block update!");
-		},
+		}
 		Poll::Ready(iterator) => {
 			let data = iterator.collect::<Vec<_>>();
 			assert_eq!(data.len(), 1);
-		},
+		}
 	}
 }
 
@@ -877,7 +893,12 @@ fn should_not_accept_old_signatures() {
 
 	let pool = Arc::new(BasicPool::new_test(Arc::new(FullChainApi::new(client, None))).0);
 
-	let transfer = Transfer { from: Alice.into(), to: Bob.into(), nonce: 0, amount: 1 };
+	let transfer = Transfer {
+		from: Alice.into(),
+		to: Bob.into(),
+		nonce: 0,
+		amount: 1,
+	};
 	let _bytes: sp_core::sr25519::Signature = transfer.using_encoded(|e| Alice.sign(e)).into();
 
 	// generated with schnorrkel 0.1.1 from `_bytes`
@@ -893,9 +914,9 @@ fn should_not_accept_old_signatures() {
 
 	assert_matches::assert_matches!(
 		block_on(pool.submit_one(&BlockId::number(0), SOURCE, xt.clone())),
-		Err(error::Error::Pool(sp_transaction_pool::error::Error::InvalidTransaction(
-			InvalidTransaction::BadProof
-		))),
+		Err(error::Error::Pool(
+			sp_transaction_pool::error::Error::InvalidTransaction(InvalidTransaction::BadProof)
+		)),
 		"Should be invalid transaction with bad proof",
 	);
 }

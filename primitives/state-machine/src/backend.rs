@@ -18,8 +18,8 @@
 //! State machine backends. These manage the code and storage of contracts.
 
 use crate::{
-	trie_backend::TrieBackend, trie_backend_essence::TrieBackendStorage, ChildStorageCollection,
-	StorageCollection, StorageKey, StorageValue, UsageInfo,
+	trie_backend::TrieBackend, trie_backend_essence::TrieBackendStorage, ChildStorageCollection, StorageCollection,
+	StorageKey, StorageValue, UsageInfo,
 };
 use codec::{Decode, Encode};
 use hash_db::Hasher;
@@ -51,18 +51,10 @@ pub trait Backend<H: Hasher>: sp_std::fmt::Debug {
 	}
 
 	/// Get keyed child storage or None if there is nothing associated.
-	fn child_storage(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageValue>, Self::Error>;
+	fn child_storage(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageValue>, Self::Error>;
 
 	/// Get child keyed storage value hash or None if there is nothing associated.
-	fn child_storage_hash(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<H::Out>, Self::Error> {
+	fn child_storage_hash(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<H::Out>, Self::Error> {
 		self.child_storage(child_info, key).map(|v| v.map(|v| H::hash(&v)))
 	}
 
@@ -72,11 +64,7 @@ pub trait Backend<H: Hasher>: sp_std::fmt::Debug {
 	}
 
 	/// true if a key exists in child storage.
-	fn exists_child_storage(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<bool, Self::Error> {
+	fn exists_child_storage(&self, child_info: &ChildInfo, key: &[u8]) -> Result<bool, Self::Error> {
 		Ok(self.child_storage(child_info, key)?.is_some())
 	}
 
@@ -84,11 +72,7 @@ pub trait Backend<H: Hasher>: sp_std::fmt::Debug {
 	fn next_storage_key(&self, key: &[u8]) -> Result<Option<StorageKey>, Self::Error>;
 
 	/// Return the next key in child storage in lexicographic order or `None` if there is no value.
-	fn next_child_storage_key(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageKey>, Self::Error>;
+	fn next_child_storage_key(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageKey>, Self::Error>;
 
 	/// Retrieve all entries keys of child storage and call `f` for each of those keys.
 	fn for_keys_in_child_storage<F: FnMut(&[u8])>(&self, child_info: &ChildInfo, f: F);
@@ -105,12 +89,7 @@ pub trait Backend<H: Hasher>: sp_std::fmt::Debug {
 
 	/// Retrieve all child entries keys which start with the given prefix and
 	/// call `f` for each of those keys.
-	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(
-		&self,
-		child_info: &ChildInfo,
-		prefix: &[u8],
-		f: F,
-	);
+	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(&self, child_info: &ChildInfo, prefix: &[u8], f: F);
 
 	/// Calculate the storage root, with given delta over what is already stored in
 	/// the backend, and produce a "transaction" that can be used to commit.
@@ -161,9 +140,7 @@ pub trait Backend<H: Hasher>: sp_std::fmt::Debug {
 	fn full_storage_root<'a>(
 		&self,
 		delta: impl Iterator<Item = (&'a [u8], Option<&'a [u8]>)>,
-		child_deltas: impl Iterator<
-			Item = (&'a ChildInfo, impl Iterator<Item = (&'a [u8], Option<&'a [u8]>)>),
-		>,
+		child_deltas: impl Iterator<Item = (&'a ChildInfo, impl Iterator<Item = (&'a [u8], Option<&'a [u8]>)>)>,
 	) -> (H::Out, Self::Transaction)
 	where
 		H::Out: Ord + Encode,
@@ -245,11 +222,7 @@ impl<'a, T: Backend<H>, H: Hasher> Backend<H> for &'a T {
 		(*self).storage(key)
 	}
 
-	fn child_storage(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageKey>, Self::Error> {
+	fn child_storage(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageKey>, Self::Error> {
 		(*self).child_storage(child_info, key)
 	}
 
@@ -261,11 +234,7 @@ impl<'a, T: Backend<H>, H: Hasher> Backend<H> for &'a T {
 		(*self).next_storage_key(key)
 	}
 
-	fn next_child_storage_key(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageKey>, Self::Error> {
+	fn next_child_storage_key(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageKey>, Self::Error> {
 		(*self).next_child_storage_key(child_info, key)
 	}
 
@@ -273,19 +242,11 @@ impl<'a, T: Backend<H>, H: Hasher> Backend<H> for &'a T {
 		(*self).for_keys_with_prefix(prefix, f)
 	}
 
-	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(
-		&self,
-		child_info: &ChildInfo,
-		prefix: &[u8],
-		f: F,
-	) {
+	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(&self, child_info: &ChildInfo, prefix: &[u8], f: F) {
 		(*self).for_child_keys_with_prefix(child_info, prefix, f)
 	}
 
-	fn storage_root<'b>(
-		&self,
-		delta: impl Iterator<Item = (&'b [u8], Option<&'b [u8]>)>,
-	) -> (H::Out, Self::Transaction)
+	fn storage_root<'b>(&self, delta: impl Iterator<Item = (&'b [u8], Option<&'b [u8]>)>) -> (H::Out, Self::Transaction)
 	where
 		H::Out: Ord,
 	{
@@ -344,10 +305,7 @@ impl<H: Hasher, KF: sp_trie::KeyFunction<H>> Consolidate for sp_trie::GenericMem
 
 /// Insert input pairs into memory db.
 #[cfg(test)]
-pub(crate) fn insert_into_memory_db<H, I>(
-	mdb: &mut sp_trie::MemoryDB<H>,
-	input: I,
-) -> Option<H::Out>
+pub(crate) fn insert_into_memory_db<H, I>(mdb: &mut sp_trie::MemoryDB<H>, input: I) -> Option<H::Out>
 where
 	H: Hasher,
 	I: IntoIterator<Item = (StorageKey, StorageValue)>,
@@ -360,7 +318,7 @@ where
 		for (key, value) in input {
 			if let Err(e) = trie.insert(&key, &value) {
 				log::warn!(target: "trie", "Failed to write to trie: {}", e);
-				return None
+				return None;
 			}
 		}
 	}
@@ -376,11 +334,13 @@ pub struct BackendRuntimeCode<'a, B, H> {
 }
 
 #[cfg(feature = "std")]
-impl<'a, B: Backend<H>, H: Hasher> sp_core::traits::FetchRuntimeCode
-	for BackendRuntimeCode<'a, B, H>
-{
+impl<'a, B: Backend<H>, H: Hasher> sp_core::traits::FetchRuntimeCode for BackendRuntimeCode<'a, B, H> {
 	fn fetch_runtime_code<'b>(&'b self) -> Option<std::borrow::Cow<'b, [u8]>> {
-		self.backend.storage(well_known_keys::CODE).ok().flatten().map(Into::into)
+		self.backend
+			.storage(well_known_keys::CODE)
+			.ok()
+			.flatten()
+			.map(Into::into)
 	}
 }
 
@@ -391,7 +351,10 @@ where
 {
 	/// Create a new instance.
 	pub fn new(backend: &'a B) -> Self {
-		Self { backend, _marker: std::marker::PhantomData }
+		Self {
+			backend,
+			_marker: std::marker::PhantomData,
+		}
 	}
 
 	/// Return the [`RuntimeCode`] build from the wrapped `backend`.
@@ -410,6 +373,10 @@ where
 			.flatten()
 			.and_then(|d| Decode::decode(&mut &d[..]).ok());
 
-		Ok(RuntimeCode { code_fetcher: self, hash, heap_pages })
+		Ok(RuntimeCode {
+			code_fetcher: self,
+			hash,
+			heap_pages,
+		})
 	}
 }

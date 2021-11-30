@@ -56,19 +56,14 @@ impl SignCmd {
 		let suri = utils::read_uri(self.suri.as_ref())?;
 		let password = self.keystore_params.read_password()?;
 
-		let signature =
-			with_crypto_scheme!(self.crypto_scheme.scheme, sign(&suri, password, message))?;
+		let signature = with_crypto_scheme!(self.crypto_scheme.scheme, sign(&suri, password, message))?;
 
 		println!("{}", signature);
 		Ok(())
 	}
 }
 
-fn sign<P: sp_core::Pair>(
-	suri: &str,
-	password: Option<SecretString>,
-	message: Vec<u8>,
-) -> error::Result<String> {
+fn sign<P: sp_core::Pair>(suri: &str, password: Option<SecretString>, message: Vec<u8>) -> error::Result<String> {
 	let pair = utils::pair_from_suri::<P>(suri, password)?;
 	Ok(format!("{}", hex::encode(pair.sign(&message))))
 }
@@ -82,15 +77,7 @@ mod test {
 	fn sign() {
 		let seed = "0xad1fb77243b536b90cfe5f0d351ab1b1ac40e3890b41dc64f766ee56340cfca5";
 
-		let sign = SignCmd::from_iter(&[
-			"sign",
-			"--suri",
-			seed,
-			"--message",
-			&seed[2..],
-			"--password",
-			"12345",
-		]);
+		let sign = SignCmd::from_iter(&["sign", "--suri", seed, "--message", &seed[2..], "--password", "12345"]);
 		assert!(sign.run().is_ok());
 	}
 }

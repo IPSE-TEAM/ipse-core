@@ -63,8 +63,8 @@ pub struct TestShouldEndSession;
 impl ShouldEndSession<u64> for TestShouldEndSession {
 	fn should_end_session(now: u64) -> bool {
 		let l = SESSION_LENGTH.with(|l| *l.borrow());
-		now % l == 0 ||
-			FORCE_SESSION_END.with(|l| {
+		now % l == 0
+			|| FORCE_SESSION_END.with(|l| {
 				let r = *l.borrow();
 				*l.borrow_mut() = false;
 				r
@@ -76,11 +76,7 @@ pub struct TestSessionHandler;
 impl SessionHandler<u64> for TestSessionHandler {
 	const KEY_TYPE_IDS: &'static [sp_runtime::KeyTypeId] = &[UintAuthorityId::ID];
 	fn on_genesis_session<T: OpaqueKeys>(_validators: &[(u64, T)]) {}
-	fn on_new_session<T: OpaqueKeys>(
-		changed: bool,
-		validators: &[(u64, T)],
-		_queued_validators: &[(u64, T)],
-	) {
+	fn on_new_session<T: OpaqueKeys>(changed: bool, validators: &[(u64, T)], _queued_validators: &[(u64, T)]) {
 		SESSION_CHANGED.with(|l| *l.borrow_mut() = changed);
 		AUTHORITIES.with(|l| {
 			*l.borrow_mut() = validators
@@ -123,8 +119,7 @@ impl crate::historical::SessionManager<u64, u64> for TestSessionManager {
 	fn end_session(_: SessionIndex) {}
 	fn start_session(_: SessionIndex) {}
 	fn new_session(new_index: SessionIndex) -> Option<Vec<(u64, u64)>> {
-		<Self as SessionManager<_>>::new_session(new_index)
-			.map(|vals| vals.into_iter().map(|val| (val, val)).collect())
+		<Self as SessionManager<_>>::new_session(new_index).map(|vals| vals.into_iter().map(|val| (val, val)).collect())
 	}
 }
 
@@ -160,7 +155,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	GenesisConfig::<Test> {
 		keys: NEXT_VALIDATORS.with(|l| {
-			l.borrow().iter().cloned().map(|i| (i, i, UintAuthorityId(i).into())).collect()
+			l.borrow()
+				.iter()
+				.cloned()
+				.map(|i| (i, i, UintAuthorityId(i).into()))
+				.collect()
 		}),
 	}
 	.assimilate_storage(&mut t)

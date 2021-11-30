@@ -91,13 +91,11 @@ mod types;
 use tracing;
 
 pub use tracing::{
-	debug, debug_span, error, error_span, event, info, info_span, span, trace, trace_span, warn,
-	warn_span, Level, Span,
+	debug, debug_span, error, error_span, event, info, info_span, span, trace, trace_span, warn, warn_span, Level, Span,
 };
 
 pub use crate::types::{
-	WasmEntryAttributes, WasmFieldName, WasmFields, WasmLevel, WasmMetadata, WasmValue,
-	WasmValuesSet,
+	WasmEntryAttributes, WasmFieldName, WasmFields, WasmLevel, WasmMetadata, WasmValue, WasmValuesSet,
 };
 
 /// Try to init a simple tracing subscriber with log compatibility layer.

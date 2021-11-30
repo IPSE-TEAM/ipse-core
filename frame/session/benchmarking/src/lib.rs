@@ -34,18 +34,15 @@ use frame_support::{
 use frame_system::RawOrigin;
 use pallet_session::{historical::Module as Historical, Module as Session, *};
 use pallet_staking::{
-	benchmarking::create_validator_with_nominators, testing_utils::create_validators,
-	RewardDestination, MAX_NOMINATIONS,
+	benchmarking::create_validator_with_nominators, testing_utils::create_validators, RewardDestination,
+	MAX_NOMINATIONS,
 };
 use sp_runtime::traits::{One, StaticLookup};
 
 const MAX_VALIDATORS: u32 = 1000;
 
 pub struct Module<T: Trait>(pallet_session::Module<T>);
-pub trait Trait:
-	pallet_session::Trait + pallet_session::historical::Trait + pallet_staking::Trait
-{
-}
+pub trait Trait: pallet_session::Trait + pallet_session::historical::Trait + pallet_staking::Trait {}
 
 impl<T: Trait> OnInitialize<T::BlockNumber> for Module<T> {
 	fn on_initialize(n: T::BlockNumber) -> frame_support::weights::Weight {

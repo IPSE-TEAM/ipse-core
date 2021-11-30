@@ -88,9 +88,9 @@ macro_rules! impl_non_endians {
 }
 
 impl_non_endians!(
-	[u8; 1], [u8; 2], [u8; 3], [u8; 4], [u8; 5], [u8; 6], [u8; 7], [u8; 8], [u8; 10], [u8; 12],
-	[u8; 14], [u8; 16], [u8; 20], [u8; 24], [u8; 28], [u8; 32], [u8; 40], [u8; 48], [u8; 56],
-	[u8; 64], [u8; 65], [u8; 80], [u8; 96], [u8; 112], [u8; 128]
+	[u8; 1], [u8; 2], [u8; 3], [u8; 4], [u8; 5], [u8; 6], [u8; 7], [u8; 8], [u8; 10], [u8; 12], [u8; 14], [u8; 16],
+	[u8; 20], [u8; 24], [u8; 28], [u8; 32], [u8; 40], [u8; 48], [u8; 56], [u8; 64], [u8; 65], [u8; 80], [u8; 96],
+	[u8; 112], [u8; 128]
 );
 
 /// Format into ASCII + # + hex, suitable for storage key preimages.
@@ -107,7 +107,7 @@ pub fn ascii_format(asciish: &[u8]) -> String {
 					latch = true;
 				}
 				r.push_str(&format!("{:02x}", *c));
-			},
+			}
 		}
 	}
 	r

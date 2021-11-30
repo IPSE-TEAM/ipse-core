@@ -65,13 +65,15 @@ pub struct InherentDataProvider<F, H> {
 #[cfg(feature = "std")]
 impl<F, H> InherentDataProvider<F, H> {
 	pub fn new(uncles_oracle: F) -> Self {
-		InherentDataProvider { inner: uncles_oracle, _marker: Default::default() }
+		InherentDataProvider {
+			inner: uncles_oracle,
+			_marker: Default::default(),
+		}
 	}
 }
 
 #[cfg(feature = "std")]
-impl<F, H: Encode + std::fmt::Debug> sp_inherents::ProvideInherentData
-	for InherentDataProvider<F, H>
+impl<F, H: Encode + std::fmt::Debug> sp_inherents::ProvideInherentData for InherentDataProvider<F, H>
 where
 	F: Fn() -> Vec<H>,
 {

@@ -117,8 +117,7 @@ impl From<Keyring> for sp_runtime::MultiSigner {
 }
 
 lazy_static! {
-	static ref PRIVATE_KEYS: HashMap<Keyring, Pair> =
-		{ Keyring::iter().map(|i| (i, i.pair())).collect() };
+	static ref PRIVATE_KEYS: HashMap<Keyring, Pair> = { Keyring::iter().map(|i| (i, i.pair())).collect() };
 	static ref PUBLIC_KEYS: HashMap<Keyring, Public> =
 		{ PRIVATE_KEYS.iter().map(|(&name, pair)| (name, pair.public())).collect() };
 }

@@ -17,9 +17,7 @@
 
 //! Transaction pool errors.
 
-use sp_runtime::transaction_validity::{
-	InvalidTransaction, TransactionPriority as Priority, UnknownTransaction,
-};
+use sp_runtime::transaction_validity::{InvalidTransaction, TransactionPriority as Priority, UnknownTransaction};
 
 /// Transaction pool result.
 pub type Result<T> = std::result::Result<T, Error>;

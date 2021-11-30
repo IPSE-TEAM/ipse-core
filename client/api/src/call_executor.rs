@@ -87,9 +87,7 @@ pub trait CallExecutor<B: BlockT> {
 		changes: &RefCell<OverlayedChanges>,
 		offchain_changes: &RefCell<OffchainOverlayedChanges>,
 		storage_transaction_cache: Option<
-			&RefCell<
-				StorageTransactionCache<B, <Self::Backend as crate::backend::Backend<B>>::State>,
-			>,
+			&RefCell<StorageTransactionCache<B, <Self::Backend as crate::backend::Backend<B>>::State>>,
 		>,
 		initialize_block: InitializeBlock<'a, B>,
 		execution_manager: ExecutionManager<EM>,
@@ -116,8 +114,7 @@ pub trait CallExecutor<B: BlockT> {
 		call_data: &[u8],
 	) -> Result<(Vec<u8>, StorageProof), sp_blockchain::Error> {
 		let trie_state = state.as_trie_backend().ok_or_else(|| {
-			Box::new(sp_state_machine::ExecutionError::UnableToGenerateProof)
-				as Box<dyn sp_state_machine::Error>
+			Box::new(sp_state_machine::ExecutionError::UnableToGenerateProof) as Box<dyn sp_state_machine::Error>
 		})?;
 		self.prove_at_trie_state(trie_state, overlay, method, call_data)
 	}

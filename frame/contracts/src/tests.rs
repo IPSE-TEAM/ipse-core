@@ -15,9 +15,8 @@
 // along with Substrate. If not, see <http://www.gnu.org/licenses/>.
 
 use crate::{
-	gas::Gas, BalanceOf, Config, ContractAddressFor, ContractInfo, ContractInfoOf, Error,
-	GenesisConfig, Module, RawAliveContractInfo, RawEvent, RuntimeReturnCode, Schedule, Trait,
-	TrieId, TrieIdGenerator,
+	gas::Gas, BalanceOf, Config, ContractAddressFor, ContractInfo, ContractInfoOf, Error, GenesisConfig, Module,
+	RawAliveContractInfo, RawEvent, RuntimeReturnCode, Schedule, Trait, TrieId, TrieIdGenerator,
 };
 use assert_matches::assert_matches;
 use codec::Encode;
@@ -261,9 +260,14 @@ impl ExtBuilder {
 		pallet_balances::GenesisConfig::<Test> { balances: vec![] }
 			.assimilate_storage(&mut t)
 			.unwrap();
-		GenesisConfig { current_schedule: Schedule { enable_println: true, ..Default::default() } }
-			.assimilate_storage(&mut t)
-			.unwrap();
+		GenesisConfig {
+			current_schedule: Schedule {
+				enable_println: true,
+				..Default::default()
+			},
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
 		ext
@@ -379,13 +383,7 @@ fn instantiate_and_call_and_deposit_event() {
 		assert_ok!(Contracts::put_code(Origin::signed(ALICE), wasm));
 
 		// Check at the end to get hash on error easily
-		let creation = Contracts::instantiate(
-			Origin::signed(ALICE),
-			subsistence,
-			GAS_LIMIT,
-			code_hash.into(),
-			vec![],
-		);
+		let creation = Contracts::instantiate(Origin::signed(ALICE), subsistence, GAS_LIMIT, code_hash.into(), vec![]);
 
 		pretty_assertions::assert_eq!(
 			System::events(),
@@ -412,19 +410,12 @@ fn instantiate_and_call_and_deposit_event() {
 				},
 				EventRecord {
 					phase: Phase::Initialization,
-					event: MetaEvent::balances(pallet_balances::RawEvent::Endowed(
-						BOB,
-						subsistence
-					)),
+					event: MetaEvent::balances(pallet_balances::RawEvent::Endowed(BOB, subsistence)),
 					topics: vec![],
 				},
 				EventRecord {
 					phase: Phase::Initialization,
-					event: MetaEvent::balances(pallet_balances::RawEvent::Transfer(
-						ALICE,
-						BOB,
-						subsistence
-					)),
+					event: MetaEvent::balances(pallet_balances::RawEvent::Transfer(ALICE, BOB, subsistence)),
 					topics: vec![],
 				},
 				EventRecord {
@@ -795,7 +786,11 @@ fn removals(trigger_call: impl Fn() -> bool) {
 		// Trigger rent must have no effect
 		assert!(trigger_call());
 		assert_eq!(
-			ContractInfoOf::<Test>::get(BOB).unwrap().get_alive().unwrap().rent_allowance,
+			ContractInfoOf::<Test>::get(BOB)
+				.unwrap()
+				.get_alive()
+				.unwrap()
+				.rent_allowance,
 			1_000
 		);
 		assert_eq!(Balances::free_balance(BOB), 100);
@@ -833,7 +828,11 @@ fn removals(trigger_call: impl Fn() -> bool) {
 		// Trigger rent must have no effect
 		assert!(trigger_call());
 		assert_eq!(
-			ContractInfoOf::<Test>::get(BOB).unwrap().get_alive().unwrap().rent_allowance,
+			ContractInfoOf::<Test>::get(BOB)
+				.unwrap()
+				.get_alive()
+				.unwrap()
+				.rent_allowance,
 			100
 		);
 		assert_eq!(Balances::free_balance(BOB), 1_000);
@@ -860,8 +859,7 @@ fn removals(trigger_call: impl Fn() -> bool) {
 	ExtBuilder::default().existential_deposit(50).build().execute_with(|| {
 		// Create
 		let _ = Balances::deposit_creating(&ALICE, 1_000_000);
-		let subsistence_threshold =
-			Balances::minimum_balance() + <Test as Trait>::TombstoneDeposit::get();
+		let subsistence_threshold = Balances::minimum_balance() + <Test as Trait>::TombstoneDeposit::get();
 		assert_ok!(Contracts::put_code(Origin::signed(ALICE), wasm.clone()));
 		assert_ok!(Contracts::instantiate(
 			Origin::signed(ALICE),
@@ -874,15 +872,29 @@ fn removals(trigger_call: impl Fn() -> bool) {
 		// Trigger rent must have no effect
 		assert!(trigger_call());
 		assert_eq!(
-			ContractInfoOf::<Test>::get(BOB).unwrap().get_alive().unwrap().rent_allowance,
+			ContractInfoOf::<Test>::get(BOB)
+				.unwrap()
+				.get_alive()
+				.unwrap()
+				.rent_allowance,
 			1_000
 		);
 		assert_eq!(Balances::free_balance(BOB), 50 + subsistence_threshold,);
 
 		// Transfer funds
-		assert_ok!(Contracts::call(Origin::signed(ALICE), BOB, 0, GAS_LIMIT, call::transfer()));
+		assert_ok!(Contracts::call(
+			Origin::signed(ALICE),
+			BOB,
+			0,
+			GAS_LIMIT,
+			call::transfer()
+		));
 		assert_eq!(
-			ContractInfoOf::<Test>::get(BOB).unwrap().get_alive().unwrap().rent_allowance,
+			ContractInfoOf::<Test>::get(BOB)
+				.unwrap()
+				.get_alive()
+				.unwrap()
+				.rent_allowance,
 			1_000
 		);
 		assert_eq!(Balances::free_balance(BOB), subsistence_threshold);
@@ -1098,8 +1110,11 @@ fn restoration(test_different_storage: bool, test_restore_to_with_dirty_storage:
 		));
 
 		// Before performing a call to `DJANGO` save its original trie id.
-		let django_trie_id =
-			ContractInfoOf::<Test>::get(DJANGO).unwrap().get_alive().unwrap().trie_id;
+		let django_trie_id = ContractInfoOf::<Test>::get(DJANGO)
+			.unwrap()
+			.get_alive()
+			.unwrap()
+			.trie_id;
 
 		if !test_restore_to_with_dirty_storage {
 			// Advance 1 block, to the 6th.
@@ -1132,7 +1147,7 @@ fn restoration(test_different_storage: bool, test_restore_to_with_dirty_storage:
 			match (test_different_storage, test_restore_to_with_dirty_storage) {
 				(true, false) => {
 					assert_eq!(System::events(), vec![]);
-				},
+				}
 				(_, true) => {
 					pretty_assertions::assert_eq!(
 						System::events(),
@@ -1144,30 +1159,22 @@ fn restoration(test_different_storage: bool, test_restore_to_with_dirty_storage:
 							},
 							EventRecord {
 								phase: Phase::Initialization,
-								event: MetaEvent::system(frame_system::RawEvent::NewAccount(
-									CHARLIE
-								)),
+								event: MetaEvent::system(frame_system::RawEvent::NewAccount(CHARLIE)),
 								topics: vec![],
 							},
 							EventRecord {
 								phase: Phase::Initialization,
-								event: MetaEvent::balances(pallet_balances::RawEvent::Endowed(
-									CHARLIE, 1_000_000
-								)),
+								event: MetaEvent::balances(pallet_balances::RawEvent::Endowed(CHARLIE, 1_000_000)),
 								topics: vec![],
 							},
 							EventRecord {
 								phase: Phase::Initialization,
-								event: MetaEvent::system(frame_system::RawEvent::NewAccount(
-									DJANGO
-								)),
+								event: MetaEvent::system(frame_system::RawEvent::NewAccount(DJANGO)),
 								topics: vec![],
 							},
 							EventRecord {
 								phase: Phase::Initialization,
-								event: MetaEvent::balances(pallet_balances::RawEvent::Endowed(
-									DJANGO, 30_000
-								)),
+								event: MetaEvent::balances(pallet_balances::RawEvent::Endowed(DJANGO, 30_000)),
 								topics: vec![],
 							},
 							EventRecord {
@@ -1179,14 +1186,12 @@ fn restoration(test_different_storage: bool, test_restore_to_with_dirty_storage:
 							},
 							EventRecord {
 								phase: Phase::Initialization,
-								event: MetaEvent::contracts(RawEvent::Instantiated(
-									CHARLIE, DJANGO
-								)),
+								event: MetaEvent::contracts(RawEvent::Instantiated(CHARLIE, DJANGO)),
 								topics: vec![],
 							},
 						]
 					);
-				},
+				}
 				_ => unreachable!(),
 			}
 		} else {
@@ -1211,12 +1216,7 @@ fn restoration(test_different_storage: bool, test_restore_to_with_dirty_storage:
 					},
 					EventRecord {
 						phase: Phase::Initialization,
-						event: MetaEvent::contracts(RawEvent::Restored(
-							DJANGO,
-							BOB,
-							bob_contract.code_hash,
-							50
-						)),
+						event: MetaEvent::contracts(RawEvent::Restored(DJANGO, BOB, bob_contract.code_hash, 50)),
 						topics: vec![],
 					},
 				]
@@ -1375,7 +1375,10 @@ fn self_destruct_works() {
 		assert_matches!(ContractInfoOf::<Test>::get(BOB), Some(ContractInfo::Alive(_)));
 
 		// Call BOB without input data which triggers termination.
-		assert_matches!(Contracts::call(Origin::signed(ALICE), BOB, 0, GAS_LIMIT, vec![],), Ok(_));
+		assert_matches!(
+			Contracts::call(Origin::signed(ALICE), BOB, 0, GAS_LIMIT, vec![],),
+			Ok(_)
+		);
 
 		// Check that account is gone
 		assert!(ContractInfoOf::<Test>::get(BOB).is_none());
@@ -1412,7 +1415,13 @@ fn destroy_contract_and_transfer_funds() {
 		assert_matches!(ContractInfoOf::<Test>::get(CHARLIE), Some(ContractInfo::Alive(_)));
 
 		// Call BOB, which calls CHARLIE, forcing CHARLIE to self-destruct.
-		assert_ok!(Contracts::call(Origin::signed(ALICE), BOB, 0, GAS_LIMIT, CHARLIE.encode(),));
+		assert_ok!(Contracts::call(
+			Origin::signed(ALICE),
+			BOB,
+			0,
+			GAS_LIMIT,
+			CHARLIE.encode(),
+		));
 
 		// Check that CHARLIE has moved on to the great beyond (ie. died).
 		assert!(ContractInfoOf::<Test>::get(CHARLIE).is_none());
@@ -1428,13 +1437,7 @@ fn cannot_self_destruct_in_constructor() {
 
 		// Fail to instantiate the BOB because the contructor calls seal_terminate.
 		assert_err_ignore_postinfo!(
-			Contracts::instantiate(
-				Origin::signed(ALICE),
-				100_000,
-				GAS_LIMIT,
-				code_hash.into(),
-				vec![],
-			),
+			Contracts::instantiate(Origin::signed(ALICE), 100_000, GAS_LIMIT, code_hash.into(), vec![],),
 			Error::<Test>::NewContractNotFunded,
 		);
 	});

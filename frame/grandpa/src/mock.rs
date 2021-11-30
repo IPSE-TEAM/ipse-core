@@ -254,13 +254,10 @@ impl Trait for Test {
 
 	type KeyOwnerProofSystem = Historical;
 
-	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::Proof;
+	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::Proof;
 
-	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		AuthorityId,
-	)>>::IdentificationTuple;
+	type KeyOwnerIdentification =
+		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, AuthorityId)>>::IdentificationTuple;
 
 	type HandleEquivocation = super::EquivocationHandler<Self::KeyOwnerIdentification, Offences>;
 
@@ -311,7 +308,9 @@ pub fn new_test_ext_raw_authorities(authorities: AuthorityList) -> sp_io::TestEx
 			(
 				i as u64,
 				i as u64,
-				TestSessionKeys { grandpa_authority: AuthorityId::from(k.clone()) },
+				TestSessionKeys {
+					grandpa_authority: AuthorityId::from(k.clone()),
+				},
 			)
 		})
 		.collect();
@@ -319,7 +318,12 @@ pub fn new_test_ext_raw_authorities(authorities: AuthorityList) -> sp_io::TestEx
 	// controllers are the index + 1000
 	let stakers: Vec<_> = (0..authorities.len())
 		.map(|i| {
-			(i as u64, i as u64 + 1000, 10_000, pallet_staking::StakerStatus::<u64>::Validator)
+			(
+				i as u64,
+				i as u64 + 1000,
+				10_000,
+				pallet_staking::StakerStatus::<u64>::Validator,
+			)
 		})
 		.collect();
 
@@ -331,7 +335,9 @@ pub fn new_test_ext_raw_authorities(authorities: AuthorityList) -> sp_io::TestEx
 		.assimilate_storage(&mut t)
 		.unwrap();
 
-	pallet_balances::GenesisConfig::<Test> { balances }.assimilate_storage(&mut t).unwrap();
+	pallet_balances::GenesisConfig::<Test> { balances }
+		.assimilate_storage(&mut t)
+		.unwrap();
 
 	let staking_config = pallet_staking::GenesisConfig::<Test> {
 		stakers,
@@ -401,7 +407,10 @@ pub fn generate_equivocation_proof(
 	vote2: (RoundNumber, H256, u64, &Ed25519Keyring),
 ) -> sp_finality_grandpa::EquivocationProof<H256, u64> {
 	let signed_prevote = |round, hash, number, keyring: &Ed25519Keyring| {
-		let prevote = finality_grandpa::Prevote { target_hash: hash, target_number: number };
+		let prevote = finality_grandpa::Prevote {
+			target_hash: hash,
+			target_number: number,
+		};
 
 		let prevote_msg = finality_grandpa::Message::Prevote(prevote.clone());
 		let payload = sp_finality_grandpa::localized_payload(round, set_id, &prevote_msg);

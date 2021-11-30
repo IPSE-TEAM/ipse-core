@@ -45,10 +45,8 @@ fn should_submit_unsigned_transaction() {
 		};
 
 		let call = pallet_im_online::Call::heartbeat(heartbeat_data, signature);
-		SubmitTransaction::<Runtime, pallet_im_online::Call<Runtime>>::submit_unsigned_transaction(
-			call.into(),
-		)
-		.unwrap();
+		SubmitTransaction::<Runtime, pallet_im_online::Call<Runtime>>::submit_unsigned_transaction(call.into())
+			.unwrap();
 
 		assert_eq!(state.read().transactions.len(), 1)
 	});
@@ -78,10 +76,8 @@ fn should_submit_signed_transaction() {
 	t.register_extension(KeystoreExt(keystore));
 
 	t.execute_with(|| {
-		let results =
-			Signer::<Runtime, TestAuthorityId>::all_accounts().send_signed_transaction(|_| {
-				pallet_balances::Call::transfer(Default::default(), Default::default())
-			});
+		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
+			.send_signed_transaction(|_| pallet_balances::Call::transfer(Default::default(), Default::default()));
 
 		let len = results.len();
 		assert_eq!(len, 3);
@@ -108,19 +104,15 @@ fn should_submit_signed_twice_from_the_same_account() {
 	t.register_extension(KeystoreExt(keystore));
 
 	t.execute_with(|| {
-		let result =
-			Signer::<Runtime, TestAuthorityId>::any_account().send_signed_transaction(|_| {
-				pallet_balances::Call::transfer(Default::default(), Default::default())
-			});
+		let result = Signer::<Runtime, TestAuthorityId>::any_account()
+			.send_signed_transaction(|_| pallet_balances::Call::transfer(Default::default(), Default::default()));
 
 		assert!(result.is_some());
 		assert_eq!(state.read().transactions.len(), 1);
 
 		// submit another one from the same account. The nonce should be incremented.
-		let result =
-			Signer::<Runtime, TestAuthorityId>::any_account().send_signed_transaction(|_| {
-				pallet_balances::Call::transfer(Default::default(), Default::default())
-			});
+		let result = Signer::<Runtime, TestAuthorityId>::any_account()
+			.send_signed_transaction(|_| pallet_balances::Call::transfer(Default::default(), Default::default()));
 
 		assert!(result.is_some());
 		assert_eq!(state.read().transactions.len(), 2);
@@ -133,7 +125,11 @@ fn should_submit_signed_twice_from_the_same_account() {
 		}
 		let nonce1 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[0]).unwrap());
 		let nonce2 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[1]).unwrap());
-		assert!(nonce1 != nonce2, "Transactions should have different nonces. Got: {:?}", nonce1);
+		assert!(
+			nonce1 != nonce2,
+			"Transactions should have different nonces. Got: {:?}",
+			nonce1
+		);
 	});
 }
 
@@ -156,9 +152,7 @@ fn should_submit_signed_twice_from_all_accounts() {
 
 	t.execute_with(|| {
 		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
-			.send_signed_transaction(|_| {
-				pallet_balances::Call::transfer(Default::default(), Default::default())
-			});
+			.send_signed_transaction(|_| pallet_balances::Call::transfer(Default::default(), Default::default()));
 
 		let len = results.len();
 		assert_eq!(len, 2);
@@ -167,9 +161,7 @@ fn should_submit_signed_twice_from_all_accounts() {
 
 		// submit another one from the same account. The nonce should be incremented.
 		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
-			.send_signed_transaction(|_| {
-				pallet_balances::Call::transfer(Default::default(), Default::default())
-			});
+			.send_signed_transaction(|_| pallet_balances::Call::transfer(Default::default(), Default::default()));
 
 		let len = results.len();
 		assert_eq!(len, 2);
@@ -188,11 +180,15 @@ fn should_submit_signed_twice_from_all_accounts() {
 		let nonce4 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[3]).unwrap());
 		assert!(
 			nonce1 != nonce3,
-			"Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd nonce: {:?}", nonce1, nonce3
+			"Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd nonce: {:?}",
+			nonce1,
+			nonce3
 		);
 		assert!(
 			nonce2 != nonce4,
-			"Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd tx nonce: {:?}", nonce2, nonce4
+			"Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd tx nonce: {:?}",
+			nonce2,
+			nonce4
 		);
 	});
 }
@@ -216,10 +212,8 @@ fn submitted_transaction_should_be_valid() {
 	t.register_extension(KeystoreExt(keystore));
 
 	t.execute_with(|| {
-		let results =
-			Signer::<Runtime, TestAuthorityId>::all_accounts().send_signed_transaction(|_| {
-				pallet_balances::Call::transfer(Default::default(), Default::default())
-			});
+		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
+			.send_signed_transaction(|_| pallet_balances::Call::transfer(Default::default(), Default::default()));
 		let len = results.len();
 		assert_eq!(len, 1);
 		assert_eq!(results.into_iter().filter_map(|x| x.1.ok()).count(), len);
@@ -235,8 +229,15 @@ fn submitted_transaction_should_be_valid() {
 		// add balance to the account
 		let author = extrinsic.signature.clone().unwrap().0;
 		let address = Indices::lookup(author).unwrap();
-		let data = pallet_balances::AccountData { free: 5_000_000_000_000, ..Default::default() };
-		let account = frame_system::AccountInfo { nonce: 0, refcount: 0, data };
+		let data = pallet_balances::AccountData {
+			free: 5_000_000_000_000,
+			..Default::default()
+		};
+		let account = frame_system::AccountInfo {
+			nonce: 0,
+			refcount: 0,
+			data,
+		};
 		<frame_system::Account<Runtime>>::insert(&address, account);
 
 		// check validity

@@ -68,8 +68,7 @@ mod implementation {
 	pub fn derive(name_str: &str, data: &Data) -> TokenStream {
 		match *data {
 			Data::Struct(ref s) => derive_struct(&name_str, &s.fields),
-			Data::Union(ref u) =>
-				derive_fields(&name_str, Fields::new(u.fields.named.iter(), None)),
+			Data::Union(ref u) => derive_fields(&name_str, Fields::new(u.fields.named.iter(), None)),
 			Data::Enum(ref e) => derive_enum(&name_str, &e),
 		}
 	}
@@ -116,21 +115,21 @@ mod implementation {
 						#fields
 						.finish()
 				}
-			},
+			}
 			Fields::Indexed { indices } => {
 				quote! {
 					fmt.debug_tuple(#name_str)
 						#( .field(&self.#indices) )*
 						.finish()
 				}
-			},
+			}
 			Fields::Unnamed { vars } => {
 				quote! {
 					fmt.debug_tuple(#name_str)
 						#( .field(#vars) )*
 						.finish()
 				}
-			},
+			}
 		}
 	}
 
@@ -141,10 +140,15 @@ mod implementation {
 			match v.fields {
 				syn::Fields::Named(ref f) => {
 					let names: Vec<_> = f.named.iter().flat_map(|f| f.ident.clone()).collect();
-					let fields_impl =
-						derive_fields(&name, Fields::Named { names: names.clone(), this: None });
+					let fields_impl = derive_fields(
+						&name,
+						Fields::Named {
+							names: names.clone(),
+							this: None,
+						},
+					);
 					(ident, (quote! { { #( ref #names ),* } }, fields_impl))
-				},
+				}
 				syn::Fields::Unnamed(ref f) => {
 					let names = f
 						.unnamed
@@ -154,11 +158,11 @@ mod implementation {
 						.collect::<Vec<_>>();
 					let fields_impl = derive_fields(&name, Fields::Unnamed { vars: names.clone() });
 					(ident, (quote! { ( #( ref #names ),* ) }, fields_impl))
-				},
+				}
 				syn::Fields::Unit => {
 					let fields_impl = derive_fields(&name, Fields::Indexed { indices: vec![] });
 					(ident, (quote! {}, fields_impl))
-				},
+				}
 			}
 		});
 
@@ -180,8 +184,7 @@ mod implementation {
 				name_str,
 				Fields::new(f.named.iter(), Some(syn::Token!(self)(Span::call_site()))),
 			),
-			syn::Fields::Unnamed(ref f) =>
-				derive_fields(name_str, Fields::new(f.unnamed.iter(), None)),
+			syn::Fields::Unnamed(ref f) => derive_fields(name_str, Fields::new(f.unnamed.iter(), None)),
 			syn::Fields::Unit => derive_fields(name_str, Fields::Indexed { indices: vec![] }),
 		}
 	}

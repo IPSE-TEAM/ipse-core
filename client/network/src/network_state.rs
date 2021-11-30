@@ -101,8 +101,13 @@ impl From<ConnectedPoint> for PeerEndpoint {
 	fn from(endpoint: ConnectedPoint) -> Self {
 		match endpoint {
 			ConnectedPoint::Dialer { address } => PeerEndpoint::Dialing(address),
-			ConnectedPoint::Listener { local_addr, send_back_addr } =>
-				PeerEndpoint::Listening { local_addr, send_back_addr },
+			ConnectedPoint::Listener {
+				local_addr,
+				send_back_addr,
+			} => PeerEndpoint::Listening {
+				local_addr,
+				send_back_addr,
+			},
 		}
 	}
 }

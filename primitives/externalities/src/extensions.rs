@@ -100,11 +100,7 @@ pub trait ExtensionStore {
 	/// Register extension `extension` with speciifed `type_id`.
 	///
 	/// It should return error if extension is already registered.
-	fn register_extension_with_type_id(
-		&mut self,
-		type_id: TypeId,
-		extension: Box<dyn Extension>,
-	) -> Result<(), Error>;
+	fn register_extension_with_type_id(&mut self, type_id: TypeId, extension: Box<dyn Extension>) -> Result<(), Error>;
 
 	/// Deregister extension with speicifed 'type_id' and drop it.
 	///
@@ -138,23 +134,22 @@ impl Extensions {
 	}
 
 	/// Register extension `extension` using the given `type_id`.
-	pub fn register_with_type_id(
-		&mut self,
-		type_id: TypeId,
-		extension: Box<dyn Extension>,
-	) -> Result<(), Error> {
+	pub fn register_with_type_id(&mut self, type_id: TypeId, extension: Box<dyn Extension>) -> Result<(), Error> {
 		match self.extensions.entry(type_id) {
 			Entry::Vacant(vacant) => {
 				vacant.insert(extension);
 				Ok(())
-			},
+			}
 			Entry::Occupied(_) => Err(Error::ExtensionAlreadyRegistered),
 		}
 	}
 
 	/// Return a mutable reference to the requested extension.
 	pub fn get_mut(&mut self, ext_type_id: TypeId) -> Option<&mut dyn Any> {
-		self.extensions.get_mut(&ext_type_id).map(DerefMut::deref_mut).map(Extension::as_mut_any)
+		self.extensions
+			.get_mut(&ext_type_id)
+			.map(DerefMut::deref_mut)
+			.map(Extension::as_mut_any)
 	}
 
 	/// Deregister extension for the given `type_id`.
@@ -165,9 +160,7 @@ impl Extensions {
 	}
 
 	/// Returns a mutable iterator over all extensions.
-	pub fn iter_mut<'a>(
-		&'a mut self,
-	) -> impl Iterator<Item = (&'a TypeId, &'a mut Box<dyn Extension>)> {
+	pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = (&'a TypeId, &'a mut Box<dyn Extension>)> {
 		self.extensions.iter_mut()
 	}
 }

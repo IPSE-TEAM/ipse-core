@@ -21,8 +21,8 @@ extern crate pallet_timestamp as timestamp;
 use codec::{Decode, Encode};
 use frame_support::traits::{BalanceStatus, Currency, Get, ReservableCurrency};
 use frame_support::{
-	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-	StorageMap, StorageValue,
+	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
+	StorageValue,
 };
 use sp_std::vec;
 
@@ -52,12 +52,10 @@ pub const NUM_LIST_ORDER_LEN: usize = 500;
 // history len
 pub const NUM_LIST_HISTORY_LEN: usize = 500;
 
-pub type BalanceOf<T> =
-	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+pub type BalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
-pub type NegativeImbalanceOf<T> = <<T as Trait>::StakingCurrency as Currency<
-	<T as frame_system::Trait>::AccountId,
->>::NegativeImbalance;
+pub type NegativeImbalanceOf<T> =
+	<<T as Trait>::StakingCurrency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait Trait: system::Trait + timestamp::Trait {
 	/// default event
@@ -491,16 +489,13 @@ impl<T: Trait> Module<T> {
 	) -> Option<&mut MinerOrder<T::AccountId, BalanceOf<T>>> {
 		for o in os {
 			if o.miner == miner {
-				return Some(o)
+				return Some(o);
 			}
 		}
-		return None
+		return None;
 	}
 
-	fn sort_account_by_amount(
-		miner: T::AccountId,
-		mut amount: BalanceOf<T>,
-	) -> result::Result<(), DispatchError> {
+	fn sort_account_by_amount(miner: T::AccountId, mut amount: BalanceOf<T>) -> result::Result<(), DispatchError> {
 		let mut old_list = <RecommendList<T>>::get();
 		let mut miner_old_info: Option<(T::AccountId, BalanceOf<T>)> = None;
 
@@ -510,7 +505,10 @@ impl<T: Trait> Module<T> {
 		if miner_old_info.is_some() {
 			let old_amount = miner_old_info.clone().unwrap().1;
 
-			ensure!(T::StakingCurrency::can_reserve(&miner, amount), Error::<T>::AmountNotEnough);
+			ensure!(
+				T::StakingCurrency::can_reserve(&miner, amount),
+				Error::<T>::AmountNotEnough
+			);
 
 			T::StakingCurrency::unreserve(&miner, old_amount);
 
@@ -525,7 +523,7 @@ impl<T: Trait> Module<T> {
 				if i.1 >= amount {
 					index += 1;
 				} else {
-					break
+					break;
 				}
 			}
 

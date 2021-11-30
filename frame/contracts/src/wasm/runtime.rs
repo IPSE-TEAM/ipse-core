@@ -150,22 +150,28 @@ pub(crate) fn to_execution_result<E: Ext>(
 		return match trap_reason {
 			// The trap was the result of the execution `return` host function.
 			TrapReason::Return(ReturnData { flags, data }) => {
-				let flags = ReturnFlags::from_bits(flags)
-					.ok_or_else(|| "used reserved bit in return flags")?;
+				let flags = ReturnFlags::from_bits(flags).ok_or_else(|| "used reserved bit in return flags")?;
 				Ok(ExecReturnValue { flags, data })
-			},
-			TrapReason::Termination =>
-				Ok(ExecReturnValue { flags: ReturnFlags::empty(), data: Vec::new() }),
-			TrapReason::Restoration =>
-				Ok(ExecReturnValue { flags: ReturnFlags::empty(), data: Vec::new() }),
+			}
+			TrapReason::Termination => Ok(ExecReturnValue {
+				flags: ReturnFlags::empty(),
+				data: Vec::new(),
+			}),
+			TrapReason::Restoration => Ok(ExecReturnValue {
+				flags: ReturnFlags::empty(),
+				data: Vec::new(),
+			}),
 			TrapReason::SupervisorError(error) => Err(error)?,
-		}
+		};
 	}
 
 	// Check the exact type of the error.
 	match sandbox_result {
 		// No traps were generated. Proceed normally.
-		Ok(_) => Ok(ExecReturnValue { flags: ReturnFlags::empty(), data: Vec::new() }),
+		Ok(_) => Ok(ExecReturnValue {
+			flags: ReturnFlags::empty(),
+			data: Vec::new(),
+		}),
 		// `Error::Module` is returned only if instantiation or linking failed (i.e.
 		// wasm binary tried to import a function that is not provided by the host).
 		// This shouldn't happen because validation process ought to reject such binaries.
@@ -174,8 +180,7 @@ pub(crate) fn to_execution_result<E: Ext>(
 		// a trap for now. Eventually, we might want to revisit this.
 		Err(sp_sandbox::Error::Module) => Err("validation error")?,
 		// Any other kind of a trap should result in a failure.
-		Err(sp_sandbox::Error::Execution) | Err(sp_sandbox::Error::OutOfBounds) =>
-			Err(Error::<E::T>::ContractTrapped)?,
+		Err(sp_sandbox::Error::Execution) | Err(sp_sandbox::Error::OutOfBounds) => Err(Error::<E::T>::ContractTrapped)?,
 	}
 }
 
@@ -204,26 +209,18 @@ impl<T: Trait> Token<T> for RuntimeToken {
 		use self::RuntimeToken::*;
 		let value = match *self {
 			Explicit(amount) => Some(amount.into()),
-			ReadMemory(byte_count) =>
-				metadata.sandbox_data_read_cost.checked_mul(byte_count.into()),
-			WriteMemory(byte_count) =>
-				metadata.sandbox_data_write_cost.checked_mul(byte_count.into()),
-			ReturnData(byte_count) =>
-				metadata.return_data_per_byte_cost.checked_mul(byte_count.into()),
+			ReadMemory(byte_count) => metadata.sandbox_data_read_cost.checked_mul(byte_count.into()),
+			WriteMemory(byte_count) => metadata.sandbox_data_write_cost.checked_mul(byte_count.into()),
+			ReturnData(byte_count) => metadata.return_data_per_byte_cost.checked_mul(byte_count.into()),
 			DepositEvent(topic_count, data_byte_count) => {
-				let data_cost =
-					metadata.event_data_per_byte_cost.checked_mul(data_byte_count.into());
+				let data_cost = metadata.event_data_per_byte_cost.checked_mul(data_byte_count.into());
 
 				let topics_cost = metadata.event_per_topic_cost.checked_mul(topic_count.into());
 
 				data_cost
-					.and_then(|data_cost| {
-						topics_cost.and_then(|topics_cost| data_cost.checked_add(topics_cost))
-					})
-					.and_then(|data_and_topics_cost| {
-						data_and_topics_cost.checked_add(metadata.event_base_cost)
-					})
-			},
+					.and_then(|data_cost| topics_cost.and_then(|topics_cost| data_cost.checked_add(topics_cost)))
+					.and_then(|data_and_topics_cost| data_and_topics_cost.checked_add(metadata.event_base_cost))
+			}
 		};
 
 		value.unwrap_or_else(|| Bounded::max_value())
@@ -244,7 +241,7 @@ fn charge_gas<T: Trait, Tok: Token<T>>(
 		GasMeterResult::OutOfGas => {
 			*trap_reason = Some(TrapReason::SupervisorError(Error::<T>::OutOfGas.into()));
 			Err(sp_sandbox::HostError)
-		},
+		}
 	}
 }
 
@@ -256,12 +253,13 @@ fn charge_gas<T: Trait, Tok: Token<T>>(
 /// - calculating the gas cost resulted in overflow.
 /// - out of gas
 /// - requested buffer is not within the bounds of the sandbox memory.
-fn read_sandbox_memory<E: Ext>(
-	ctx: &mut Runtime<E>,
-	ptr: u32,
-	len: u32,
-) -> Result<Vec<u8>, sp_sandbox::HostError> {
-	charge_gas(ctx.gas_meter, ctx.schedule, &mut ctx.trap_reason, RuntimeToken::ReadMemory(len))?;
+fn read_sandbox_memory<E: Ext>(ctx: &mut Runtime<E>, ptr: u32, len: u32) -> Result<Vec<u8>, sp_sandbox::HostError> {
+	charge_gas(
+		ctx.gas_meter,
+		ctx.schedule,
+		&mut ctx.trap_reason,
+		RuntimeToken::ReadMemory(len),
+	)?;
 
 	let mut buf = vec![0u8; len as usize];
 	ctx.memory
@@ -290,7 +288,9 @@ fn read_sandbox_memory_into_buf<E: Ext>(
 		RuntimeToken::ReadMemory(buf.len() as u32),
 	)?;
 
-	ctx.memory.get(ptr, buf).map_err(|_| store_err(ctx, Error::<E::T>::OutOfBounds))
+	ctx.memory
+		.get(ptr, buf)
+		.map_err(|_| store_err(ctx, Error::<E::T>::OutOfBounds))
 }
 
 /// Read designated chunk from the sandbox memory, consuming an appropriate amount of
@@ -319,11 +319,7 @@ fn read_sandbox_memory_as<E: Ext, D: Decode>(
 /// - calculating the gas cost resulted in overflow.
 /// - out of gas
 /// - designated area is not within the bounds of the sandbox memory.
-fn write_sandbox_memory<E: Ext>(
-	ctx: &mut Runtime<E>,
-	ptr: u32,
-	buf: &[u8],
-) -> Result<(), sp_sandbox::HostError> {
+fn write_sandbox_memory<E: Ext>(ctx: &mut Runtime<E>, ptr: u32, buf: &[u8]) -> Result<(), sp_sandbox::HostError> {
 	charge_gas(
 		ctx.gas_meter,
 		ctx.schedule,
@@ -331,7 +327,9 @@ fn write_sandbox_memory<E: Ext>(
 		RuntimeToken::WriteMemory(buf.len() as u32),
 	)?;
 
-	ctx.memory.set(ptr, buf).map_err(|_| store_err(ctx, Error::<E::T>::OutOfBounds))
+	ctx.memory
+		.set(ptr, buf)
+		.map_err(|_| store_err(ctx, Error::<E::T>::OutOfBounds))
 }
 
 /// Write the given buffer and its length to the designated locations in sandbox memory.
@@ -356,7 +354,7 @@ fn write_sandbox_output<E: Ext>(
 	allow_skip: bool,
 ) -> Result<(), sp_sandbox::HostError> {
 	if allow_skip && out_ptr == u32::max_value() {
-		return Ok(())
+		return Ok(());
 	}
 
 	let buf_len = buf.len() as u32;
@@ -432,10 +430,7 @@ fn exec_into_return_code<T: Trait>(from: ExecResult) -> Result<ReturnCode, Dispa
 /// a `ReturnCode`. If this conversion fails because the `ExecResult` constitutes a
 /// a fatal error then this error is stored in the `ExecutionContext` so it can be
 /// extracted for display in the UI.
-fn map_exec_result<E: Ext>(
-	ctx: &mut Runtime<E>,
-	result: ExecResult,
-) -> Result<ReturnCode, sp_sandbox::HostError> {
+fn map_exec_result<E: Ext>(ctx: &mut Runtime<E>, result: ExecResult) -> Result<ReturnCode, sp_sandbox::HostError> {
 	match exec_into_return_code::<E::T>(result) {
 		Ok(code) => Ok(code),
 		Err(err) => Err(store_err(ctx, err)),
@@ -449,7 +444,11 @@ fn map_dispatch_result<T, E: Ext>(
 	ctx: &mut Runtime<E>,
 	result: Result<T, DispatchError>,
 ) -> Result<ReturnCode, sp_sandbox::HostError> {
-	let err = if let Err(err) = result { err } else { return Ok(ReturnCode::Success) };
+	let err = if let Err(err) = result {
+		err
+	} else {
+		return Ok(ReturnCode::Success);
+	};
 
 	match err_into_return_code::<E::T>(err) {
 		Ok(code) => Ok(code),

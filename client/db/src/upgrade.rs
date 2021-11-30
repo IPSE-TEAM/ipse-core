@@ -30,10 +30,7 @@ const VERSION_FILE_NAME: &'static str = "db_version";
 const CURRENT_VERSION: u32 = 1;
 
 /// Upgrade database to current version.
-pub fn upgrade_db<Block: BlockT>(
-	db_path: &Path,
-	_db_type: DatabaseType,
-) -> sp_blockchain::Result<()> {
+pub fn upgrade_db<Block: BlockT>(db_path: &Path, _db_type: DatabaseType) -> sp_blockchain::Result<()> {
 	let is_empty = db_path.read_dir().map_or(true, |mut d| d.next().is_none());
 	if !is_empty {
 		let db_version = current_version(db_path)?;
@@ -65,7 +62,7 @@ fn current_version(path: &Path) -> sp_blockchain::Result<u32> {
 			let mut s = String::new();
 			file.read_to_string(&mut s).map_err(|_| unknown_version_err())?;
 			u32::from_str_radix(&s, 10).map_err(|_| unknown_version_err())
-		},
+		}
 	}
 }
 
@@ -79,7 +76,8 @@ fn db_err(err: std::io::Error) -> sp_blockchain::Error {
 fn update_version(path: &Path) -> sp_blockchain::Result<()> {
 	fs::create_dir_all(path).map_err(db_err)?;
 	let mut file = fs::File::create(version_file_path(path)).map_err(db_err)?;
-	file.write_all(format!("{}", CURRENT_VERSION).as_bytes()).map_err(db_err)?;
+	file.write_all(format!("{}", CURRENT_VERSION).as_bytes())
+		.map_err(db_err)?;
 	Ok(())
 }
 
@@ -111,7 +109,10 @@ mod tests {
 				state_cache_size: 0,
 				state_cache_child_ratio: None,
 				pruning: PruningMode::ArchiveAll,
-				source: DatabaseSettingsSrc::RocksDb { path: db_path.to_owned(), cache_size: 128 },
+				source: DatabaseSettingsSrc::RocksDb {
+					path: db_path.to_owned(),
+					cache_size: 128,
+				},
 			},
 			DatabaseType::Full,
 		)

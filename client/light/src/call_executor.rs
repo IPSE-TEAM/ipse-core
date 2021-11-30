@@ -34,17 +34,15 @@ use sp_runtime::{
 	traits::{Block as BlockT, HashFor, Header as HeaderT, One},
 };
 use sp_state_machine::{
-	self, create_proof_check_backend, execution_proof_check_on_trie_backend,
-	Backend as StateBackend, ExecutionManager, ExecutionStrategy, OverlayedChanges, StorageProof,
+	self, create_proof_check_backend, execution_proof_check_on_trie_backend, Backend as StateBackend, ExecutionManager,
+	ExecutionStrategy, OverlayedChanges, StorageProof,
 };
 
 use sp_api::{InitializeBlock, ProofRecorder, StorageTransactionCache};
 
 use sp_blockchain::{Error as ClientError, Result as ClientResult};
 
-use sc_client_api::{
-	backend::RemoteBackend, call_executor::CallExecutor, light::RemoteCallRequest,
-};
+use sc_client_api::{backend::RemoteBackend, call_executor::CallExecutor, light::RemoteCallRequest};
 use sc_executor::{NativeVersion, RuntimeVersion};
 
 /// Call executor that is able to execute calls only on genesis state.
@@ -64,7 +62,10 @@ impl<B, L> GenesisCallExecutor<B, L> {
 
 impl<B, L: Clone> Clone for GenesisCallExecutor<B, L> {
 	fn clone(&self) -> Self {
-		GenesisCallExecutor { backend: self.backend.clone(), local: self.local.clone() }
+		GenesisCallExecutor {
+			backend: self.backend.clone(),
+			local: self.local.clone(),
+		}
 	}
 }
 
@@ -190,22 +191,16 @@ where
 	E: CallExecutor<Block>,
 {
 	let trie_state = state.as_trie_backend().ok_or_else(|| {
-		Box::new(sp_state_machine::ExecutionError::UnableToGenerateProof)
-			as Box<dyn sp_state_machine::Error>
+		Box::new(sp_state_machine::ExecutionError::UnableToGenerateProof) as Box<dyn sp_state_machine::Error>
 	})?;
 
 	// prepare execution environment + record preparation proof
 	let mut changes = Default::default();
-	let (_, init_proof) = executor.prove_at_trie_state(
-		trie_state,
-		&mut changes,
-		"Core_initialize_block",
-		&header.encode(),
-	)?;
+	let (_, init_proof) =
+		executor.prove_at_trie_state(trie_state, &mut changes, "Core_initialize_block", &header.encode())?;
 
 	// execute method + record execution proof
-	let (result, exec_proof) =
-		executor.prove_at_trie_state(&trie_state, &mut changes, method, call_data)?;
+	let (result, exec_proof) = executor.prove_at_trie_state(&trie_state, &mut changes, method, call_data)?;
 	let total_proof = StorageProof::merge(vec![init_proof, exec_proof]);
 
 	Ok((result, total_proof))
@@ -227,21 +222,15 @@ where
 	H: Hasher,
 	H::Out: Ord + codec::Codec + 'static,
 {
-	check_execution_proof_with_make_header::<Header, E, H, _>(
-		executor,
-		spawn_handle,
-		request,
-		remote_proof,
-		|header| {
-			<Header as HeaderT>::new(
-				*header.number() + One::one(),
-				Default::default(),
-				Default::default(),
-				header.hash(),
-				Default::default(),
-			)
-		},
-	)
+	check_execution_proof_with_make_header::<Header, E, H, _>(executor, spawn_handle, request, remote_proof, |header| {
+		<Header as HeaderT>::new(
+			*header.number() + One::one(),
+			Default::default(),
+			Default::default(),
+			header.hash(),
+			Default::default(),
+		)
+	})
 }
 
 /// Check remote contextual execution proof using given backend and header factory.

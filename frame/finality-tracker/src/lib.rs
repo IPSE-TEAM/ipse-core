@@ -109,9 +109,7 @@ impl<T: Trait> Module<T> {
 		let mut ordered = Self::ordered_hints();
 		let window_size = cmp::max(T::BlockNumber::one(), T::WindowSize::get());
 
-		let hint = hint.unwrap_or_else(|| {
-			recent.last().expect("always at least one recent sample; qed").clone()
-		});
+		let hint = hint.unwrap_or_else(|| recent.last().expect("always at least one recent sample; qed").clone());
 
 		// prune off the front of the list -- typically 1 except for when
 		// the sample size has just been shrunk.
@@ -138,7 +136,10 @@ impl<T: Trait> Module<T> {
 
 		let median = {
 			let len = ordered.len();
-			assert!(len > 0, "pruning dictated by window_size which is always saturated at 1; qed");
+			assert!(
+				len > 0,
+				"pruning dictated by window_size which is always saturated at 1; qed"
+			);
 
 			if len % 2 == 0 {
 				let a = ordered[len / 2];
@@ -208,9 +209,7 @@ impl<T: Trait> ProvideInherent for Module<T> {
 mod tests {
 	use super::*;
 
-	use frame_support::{
-		assert_ok, impl_outer_origin, parameter_types, traits::OnFinalize, weights::Weight,
-	};
+	use frame_support::{assert_ok, impl_outer_origin, parameter_types, traits::OnFinalize, weights::Weight};
 	use frame_system as system;
 	use sp_core::H256;
 	use sp_io::TestExternalities;
@@ -322,7 +321,10 @@ mod tests {
 
 			assert_eq!(
 				NOTIFICATIONS.with(|n| n.borrow().clone()),
-				vec![StallEvent { at: 105, further_wait: 10 }]
+				vec![StallEvent {
+					at: 105,
+					further_wait: 10
+				}]
 			)
 		});
 	}

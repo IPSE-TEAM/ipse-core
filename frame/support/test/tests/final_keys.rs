@@ -156,14 +156,20 @@ fn final_keys_default_instance() {
 		k.extend(1u32.using_encoded(blake2_128_concat));
 		k.extend(2u32.using_encoded(blake2_128_concat));
 		assert_eq!(unhashed::get::<u32>(&k), Some(3u32));
-		assert_eq!(&k[..32], &<instance::DoubleMap<instance::DefaultInstance>>::final_prefix());
+		assert_eq!(
+			&k[..32],
+			&<instance::DoubleMap<instance::DefaultInstance>>::final_prefix()
+		);
 
 		<instance::DoubleMap2<instance::DefaultInstance>>::insert(&1, &2, &3);
 		let mut k = [twox_128(b"FinalKeysSome"), twox_128(b"DoubleMap2")].concat();
 		k.extend(1u32.using_encoded(twox_64_concat));
 		k.extend(2u32.using_encoded(twox_64_concat));
 		assert_eq!(unhashed::get::<u32>(&k), Some(3u32));
-		assert_eq!(&k[..32], &<instance::DoubleMap2<instance::DefaultInstance>>::final_prefix());
+		assert_eq!(
+			&k[..32],
+			&<instance::DoubleMap2<instance::DefaultInstance>>::final_prefix()
+		);
 	});
 }
 

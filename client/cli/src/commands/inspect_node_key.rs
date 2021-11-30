@@ -42,10 +42,8 @@ pub struct InspectNodeKeyCmd {
 impl InspectNodeKeyCmd {
 	/// runs the command
 	pub fn run(&self) -> Result<(), Error> {
-		let mut file_content =
-			hex::decode(fs::read(&self.file)?).map_err(|_| "failed to decode secret as hex")?;
-		let secret =
-			ed25519::SecretKey::from_bytes(&mut file_content).map_err(|_| "Bad node key file")?;
+		let mut file_content = hex::decode(fs::read(&self.file)?).map_err(|_| "failed to decode secret as hex")?;
+		let secret = ed25519::SecretKey::from_bytes(&mut file_content).map_err(|_| "Bad node key file")?;
 
 		let keypair = ed25519::Keypair::from(secret);
 		let peer_id = PublicKey::Ed25519(keypair.public()).into_peer_id();
@@ -63,7 +61,11 @@ mod tests {
 
 	#[test]
 	fn inspect_node_key() {
-		let path = tempfile::tempdir().unwrap().into_path().join("node-id").into_os_string();
+		let path = tempfile::tempdir()
+			.unwrap()
+			.into_path()
+			.join("node-id")
+			.into_os_string();
 		let path = path.to_str().unwrap();
 		let cmd = GenerateNodeKeyCmd::from_iter(&["generate-node-key", "--file", path.clone()]);
 

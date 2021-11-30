@@ -93,10 +93,7 @@ impl Drop for WorkspaceLock {
 ///
 /// # Returns
 /// The path to the compact WASM binary and the bloaty WASM binary.
-pub fn create_and_compile(
-	cargo_manifest: &Path,
-	default_rustflags: &str,
-) -> (Option<WasmBinary>, WasmBinaryBloaty) {
+pub fn create_and_compile(cargo_manifest: &Path, default_rustflags: &str) -> (Option<WasmBinary>, WasmBinaryBloaty) {
 	let wasm_workspace_root = get_wasm_workspace_root();
 	let wasm_workspace = wasm_workspace_root.join("wbuild");
 
@@ -130,21 +127,21 @@ fn find_cargo_lock(cargo_manifest: &Path) -> Option<PathBuf> {
 	fn find_impl(mut path: PathBuf) -> Option<PathBuf> {
 		loop {
 			if path.join("Cargo.lock").exists() {
-				return Some(path.join("Cargo.lock"))
+				return Some(path.join("Cargo.lock"));
 			}
 
 			if !path.pop() {
-				return None
+				return None;
 			}
 		}
 	}
 
 	if let Some(path) = find_impl(build_helper::out_dir()) {
-		return Some(path)
+		return Some(path);
 	}
 
 	if let Some(path) = find_impl(cargo_manifest.to_path_buf()) {
-		return Some(path)
+		return Some(path);
 	}
 
 	build_helper::warning!(
@@ -158,10 +155,9 @@ fn find_cargo_lock(cargo_manifest: &Path) -> Option<PathBuf> {
 
 /// Extract the crate name from the given `Cargo.toml`.
 fn get_crate_name(cargo_manifest: &Path) -> String {
-	let cargo_toml: Table = toml::from_str(
-		&fs::read_to_string(cargo_manifest).expect("File exists as checked before; qed"),
-	)
-	.expect("Cargo manifest is a valid toml file; qed");
+	let cargo_toml: Table =
+		toml::from_str(&fs::read_to_string(cargo_manifest).expect("File exists as checked before; qed"))
+			.expect("Cargo manifest is a valid toml file; qed");
 
 	let package = cargo_toml
 		.get("package")
@@ -187,10 +183,11 @@ fn get_wasm_workspace_root() -> PathBuf {
 	loop {
 		match out_dir.parent() {
 			Some(parent) if out_dir.ends_with("build") => return parent.to_path_buf(),
-			_ =>
+			_ => {
 				if !out_dir.pop() {
-					break
-				},
+					break;
+				}
+			}
 		}
 	}
 
@@ -232,17 +229,13 @@ fn find_and_clear_workspace_members(wasm_workspace: &Path) -> Vec<String> {
 			.and_then(|mut t| t.remove("wasm_project"))
 			.and_then(|p| p.try_into::<Table>().ok())
 		{
-			if let Some(path) =
-				wasm_project.remove("path").and_then(|p| p.try_into::<String>().ok())
-			{
-				if let Some(name) =
-					wasm_project.remove("package").and_then(|p| p.try_into::<String>().ok())
-				{
+			if let Some(path) = wasm_project.remove("path").and_then(|p| p.try_into::<String>().ok()) {
+				if let Some(name) = wasm_project.remove("package").and_then(|p| p.try_into::<String>().ok()) {
 					let path = PathBuf::from(path);
 					if path.exists() {
 						if name == get_crate_name(&path.join("Cargo.toml")) {
 							i += 1;
-							continue
+							continue;
 						}
 					}
 				}
@@ -261,8 +254,7 @@ fn create_wasm_workspace_project(wasm_workspace: &Path, workspace_root_path: &Pa
 	let members = find_and_clear_workspace_members(wasm_workspace);
 
 	let mut workspace_toml: Table = toml::from_str(
-		&fs::read_to_string(workspace_root_path.join("Cargo.toml"))
-			.expect("Workspace root `Cargo.toml` exists; qed"),
+		&fs::read_to_string(workspace_root_path.join("Cargo.toml")).expect("Workspace root `Cargo.toml` exists; qed"),
 	)
 	.expect("Workspace root `Cargo.toml` is a valid toml file; qed");
 
@@ -289,13 +281,13 @@ fn create_wasm_workspace_project(wasm_workspace: &Path, workspace_root_path: &Pa
 	wasm_workspace_toml.insert("workspace".into(), workspace.into());
 
 	// Add patch section from the project root `Cargo.toml`
-	if let Some(mut patch) = workspace_toml.remove("patch").and_then(|p| p.try_into::<Table>().ok())
-	{
+	if let Some(mut patch) = workspace_toml.remove("patch").and_then(|p| p.try_into::<Table>().ok()) {
 		// Iterate over all patches and make the patch path absolute from the workspace root path.
 		patch
 			.iter_mut()
 			.filter_map(|p| {
-				p.1.as_table_mut().map(|t| t.iter_mut().filter_map(|t| t.1.as_table_mut()))
+				p.1.as_table_mut()
+					.map(|t| t.iter_mut().filter_map(|t| t.1.as_table_mut()))
 			})
 			.flatten()
 			.for_each(|p| {
@@ -332,10 +324,7 @@ fn find_package_by_manifest_path<'a>(
 }
 
 /// Get a list of enabled features for the project.
-fn project_enabled_features(
-	cargo_manifest: &Path,
-	crate_metadata: &cargo_metadata::Metadata,
-) -> Vec<String> {
+fn project_enabled_features(cargo_manifest: &Path, crate_metadata: &cargo_metadata::Metadata) -> Vec<String> {
 	let package = find_package_by_manifest_path(cargo_manifest, crate_metadata);
 
 	let mut enabled_features = package
@@ -347,10 +336,11 @@ fn project_enabled_features(
 
 			// We don't want to enable the `std`/`default` feature for the wasm build and
 			// we need to check if the feature is enabled by checking the env variable.
-			*f != "std" &&
-				*f != "default" && env::var(format!("CARGO_FEATURE_{}", feature_env))
-				.map(|v| v == "1")
-				.unwrap_or_default()
+			*f != "std"
+				&& *f != "default"
+				&& env::var(format!("CARGO_FEATURE_{}", feature_env))
+					.map(|v| v == "1")
+					.unwrap_or_default()
 		})
 		.cloned()
 		.collect::<Vec<_>>();
@@ -360,10 +350,7 @@ fn project_enabled_features(
 }
 
 /// Returns if the project has the `runtime-wasm` feature
-fn has_runtime_wasm_feature_declared(
-	cargo_manifest: &Path,
-	crate_metadata: &cargo_metadata::Metadata,
-) -> bool {
+fn has_runtime_wasm_feature_declared(cargo_manifest: &Path, crate_metadata: &cargo_metadata::Metadata) -> bool {
 	let package = find_package_by_manifest_path(cargo_manifest, crate_metadata);
 
 	package.features.keys().any(|k| k == "runtime-wasm")
@@ -373,18 +360,13 @@ fn has_runtime_wasm_feature_declared(
 ///
 /// # Returns
 /// The path to the created project.
-fn create_project(
-	cargo_manifest: &Path,
-	wasm_workspace: &Path,
-	crate_metadata: &Metadata,
-) -> PathBuf {
+fn create_project(cargo_manifest: &Path, wasm_workspace: &Path, crate_metadata: &Metadata) -> PathBuf {
 	let crate_name = get_crate_name(cargo_manifest);
 	let crate_path = cargo_manifest.parent().expect("Parent path exists; qed");
 	let wasm_binary = get_wasm_binary_name(cargo_manifest);
 	let project_folder = wasm_workspace.join(&crate_name);
 
-	fs::create_dir_all(project_folder.join("src"))
-		.expect("Wasm project dir create can not fail; qed");
+	fs::create_dir_all(project_folder.join("src")).expect("Wasm project dir create can not fail; qed");
 
 	let mut enabled_features = project_enabled_features(&cargo_manifest, &crate_metadata);
 
@@ -474,7 +456,7 @@ fn build_project(project: &Path, default_rustflags: &str) {
 	println!("Executing build command: {:?}", build_cmd);
 
 	match build_cmd.status().map(|s| s.success()) {
-		Ok(true) => {},
+		Ok(true) => {}
 		// Use `process.exit(1)` to have a clean error output.
 		_ => process::exit(1),
 	}
@@ -546,11 +528,7 @@ impl<'a> Deref for DeduplicatePackage<'a> {
 
 /// Generate the `rerun-if-changed` instructions for cargo to make sure that the WASM binary is
 /// rebuilt when needed.
-fn generate_rerun_if_changed_instructions(
-	cargo_manifest: &Path,
-	project_folder: &Path,
-	wasm_workspace: &Path,
-) {
+fn generate_rerun_if_changed_instructions(cargo_manifest: &Path, project_folder: &Path, wasm_workspace: &Path) {
 	// Rerun `build.rs` if the `Cargo.lock` changes
 	if let Some(cargo_lock) = find_cargo_lock(cargo_manifest) {
 		rerun_if_changed(cargo_lock);
@@ -575,8 +553,11 @@ fn generate_rerun_if_changed_instructions(
 	packages.insert(DeduplicatePackage::from(package));
 
 	while let Some(dependency) = dependencies.pop() {
-		let path_or_git_dep =
-			dependency.source.as_ref().map(|s| s.starts_with("git+")).unwrap_or(true);
+		let path_or_git_dep = dependency
+			.source
+			.as_ref()
+			.map(|s| s.starts_with("git+"))
+			.unwrap_or(true);
 
 		let package = metadata
 			.packages
@@ -624,9 +605,7 @@ fn package_rerun_if_changed(package: &DeduplicatePackage) {
 			p.path() == manifest_path || !p.path().is_dir() || !p.path().join("Cargo.toml").exists()
 		})
 		.filter_map(|p| p.ok().map(|p| p.into_path()))
-		.filter(|p| {
-			p.is_dir() || p.extension().map(|e| e == "rs" || e == "toml").unwrap_or_default()
-		})
+		.filter(|p| p.is_dir() || p.extension().map(|e| e == "rs" || e == "toml").unwrap_or_default())
 		.for_each(|p| rerun_if_changed(p));
 }
 

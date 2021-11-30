@@ -148,13 +148,9 @@ pub fn build_project(file_name: &str, cargo_manifest: &str) {
 ///               constant `WASM_BINARY`, which contains the built WASM binary.
 /// `cargo_manifest` - The path to the `Cargo.toml` of the project that should be built.
 /// `default_rustflags` - Default `RUSTFLAGS` that will always be set for the build.
-pub fn build_project_with_default_rustflags(
-	file_name: &str,
-	cargo_manifest: &str,
-	default_rustflags: &str,
-) {
+pub fn build_project_with_default_rustflags(file_name: &str, cargo_manifest: &str, default_rustflags: &str) {
 	if check_skip_build() {
-		return
+		return;
 	}
 
 	let cargo_manifest = PathBuf::from(cargo_manifest);
@@ -172,13 +168,18 @@ pub fn build_project_with_default_rustflags(
 		process::exit(1);
 	}
 
-	let (wasm_binary, bloaty) =
-		wasm_project::create_and_compile(&cargo_manifest, default_rustflags);
+	let (wasm_binary, bloaty) = wasm_project::create_and_compile(&cargo_manifest, default_rustflags);
 
 	let (wasm_binary, wasm_binary_bloaty) = if let Some(wasm_binary) = wasm_binary {
-		(wasm_binary.wasm_binary_path_escaped(), bloaty.wasm_binary_bloaty_path_escaped())
+		(
+			wasm_binary.wasm_binary_path_escaped(),
+			bloaty.wasm_binary_bloaty_path_escaped(),
+		)
 	} else {
-		(bloaty.wasm_binary_bloaty_path_escaped(), bloaty.wasm_binary_bloaty_path_escaped())
+		(
+			bloaty.wasm_binary_bloaty_path_escaped(),
+			bloaty.wasm_binary_bloaty_path_escaped(),
+		)
 	};
 
 	write_file_if_changed(
@@ -202,8 +203,7 @@ fn check_skip_build() -> bool {
 /// Write to the given `file` if the `content` is different.
 fn write_file_if_changed(file: PathBuf, content: String) {
 	if fs::read_to_string(&file).ok().as_ref() != Some(&content) {
-		fs::write(&file, content)
-			.unwrap_or_else(|_| panic!("Writing `{}` can not fail!", file.display()));
+		fs::write(&file, content).unwrap_or_else(|_| panic!("Writing `{}` can not fail!", file.display()));
 	}
 }
 
@@ -213,16 +213,14 @@ fn copy_file_if_changed(src: PathBuf, dst: PathBuf) {
 	let dst_file = fs::read_to_string(&dst).ok();
 
 	if src_file != dst_file {
-		fs::copy(&src, &dst).unwrap_or_else(|_| {
-			panic!("Copying `{}` to `{}` can not fail; qed", src.display(), dst.display())
-		});
+		fs::copy(&src, &dst)
+			.unwrap_or_else(|_| panic!("Copying `{}` to `{}` can not fail; qed", src.display(), dst.display()));
 	}
 }
 
 /// Get a cargo command that compiles with nightly
 fn get_nightly_cargo() -> CargoCommand {
-	let env_cargo =
-		CargoCommand::new(&env::var("CARGO").expect("`CARGO` env variable is always set by cargo"));
+	let env_cargo = CargoCommand::new(&env::var("CARGO").expect("`CARGO` env variable is always set by cargo"));
 	let default_cargo = CargoCommand::new("cargo");
 	let rustup_run_nightly = CargoCommand::new_with_args("rustup", &["run", "nightly", "cargo"]);
 	let wasm_toolchain = env::var(WASM_BUILD_TOOLCHAIN).ok();
@@ -252,7 +250,11 @@ fn get_rustup_nightly(selected: Option<String>) -> Option<CargoCommand> {
 	let version = match selected {
 		Some(selected) => selected,
 		None => {
-			let output = Command::new("rustup").args(&["toolchain", "list"]).output().ok()?.stdout;
+			let output = Command::new("rustup")
+				.args(&["toolchain", "list"])
+				.output()
+				.ok()?
+				.stdout;
 			let lines = output.as_slice().lines();
 
 			let mut latest_nightly = None;
@@ -264,7 +266,7 @@ fn get_rustup_nightly(selected: Option<String>) -> Option<CargoCommand> {
 			}
 
 			latest_nightly?.trim_end_matches(&host).into()
-		},
+		}
 	};
 
 	Some(CargoCommand::new_with_args("rustup", &["run", &version, "cargo"]))
@@ -279,7 +281,10 @@ struct CargoCommand {
 
 impl CargoCommand {
 	fn new(program: &str) -> Self {
-		CargoCommand { program: program.into(), args: Vec::new() }
+		CargoCommand {
+			program: program.into(),
+			args: Vec::new(),
+		}
 	}
 
 	fn new_with_args(program: &str, args: &[&str]) -> Self {
@@ -301,8 +306,9 @@ impl CargoCommand {
 		// variable is set, we can assume that whatever rust compiler we have, it is a nightly
 		// compiler. For "more" information, see:
 		// https://github.com/rust-lang/rust/blob/fa0f7d0080d8e7e9eb20aa9cbf8013f96c81287f/src/libsyntax/feature_gate/check.rs#L891
-		env::var("RUSTC_BOOTSTRAP").is_ok() ||
-			self.command()
+		env::var("RUSTC_BOOTSTRAP").is_ok()
+			|| self
+				.command()
 				.arg("--version")
 				.output()
 				.map_err(|_| ())

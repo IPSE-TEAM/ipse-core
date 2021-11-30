@@ -134,7 +134,9 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		},
 	);
 
-	pallet_balances::GenesisConfig::<Test>::default().assimilate_storage(&mut t).unwrap();
+	pallet_balances::GenesisConfig::<Test>::default()
+		.assimilate_storage(&mut t)
+		.unwrap();
 	GenesisConfig { accounts }.assimilate_storage::<Test>(&mut t).unwrap();
 	t.into()
 }
@@ -171,14 +173,18 @@ fn mutate_account_works() {
 	new_test_ext().execute_with(|| {
 		EVM::mutate_account_basic(
 			&H160::from_str("1000000000000000000000000000000000000001").unwrap(),
-			Account { nonce: U256::from(10), balance: U256::from(1000) },
+			Account {
+				nonce: U256::from(10),
+				balance: U256::from(1000),
+			},
 		);
 
 		assert_eq!(
-			EVM::account_basic(
-				&H160::from_str("1000000000000000000000000000000000000001").unwrap()
-			),
-			Account { nonce: U256::from(10), balance: U256::from(1000) }
+			EVM::account_basic(&H160::from_str("1000000000000000000000000000000000000001").unwrap()),
+			Account {
+				nonce: U256::from(10),
+				balance: U256::from(1000)
+			}
 		);
 	});
 }

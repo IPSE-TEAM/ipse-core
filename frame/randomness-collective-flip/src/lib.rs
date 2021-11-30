@@ -67,7 +67,10 @@ const RANDOM_MATERIAL_LEN: u32 = 81;
 fn block_number_to_index<T: Trait>(block_number: T::BlockNumber) -> usize {
 	// on_initialize is called on the first block after genesis
 	let index = (block_number - 1.into()) % RANDOM_MATERIAL_LEN.into();
-	index.try_into().ok().expect("Something % 81 is always smaller than usize; qed")
+	index
+		.try_into()
+		.ok()
+		.expect("Something % 81 is always smaller than usize; qed")
 }
 
 decl_module! {

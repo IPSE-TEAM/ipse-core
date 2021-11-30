@@ -16,9 +16,7 @@
 
 //! Prometheus basic proposer metrics.
 
-use prometheus_endpoint::{
-	register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64,
-};
+use prometheus_endpoint::{register, Gauge, Histogram, HistogramOpts, PrometheusError, Registry, U64};
 
 /// Optional shareable link to basic authorship metrics.
 #[derive(Clone, Default)]
@@ -28,9 +26,7 @@ impl MetricsLink {
 	pub fn new(registry: Option<&Registry>) -> Self {
 		Self(registry.and_then(|registry| {
 			Metrics::register(registry)
-				.map_err(|err| {
-					log::warn!("Failed to register proposer prometheus metrics: {}", err)
-				})
+				.map_err(|err| log::warn!("Failed to register proposer prometheus metrics: {}", err))
 				.ok()
 		}))
 	}

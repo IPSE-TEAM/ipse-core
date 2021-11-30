@@ -23,8 +23,8 @@ pub use http::SharedClient;
 use log::error;
 use sc_network::{Multiaddr, PeerId};
 use sp_core::offchain::{
-	Externalities as OffchainExt, HttpError, HttpRequestId, HttpRequestStatus, OffchainStorage,
-	OpaqueMultiaddr, OpaqueNetworkState, StorageKind, Timestamp,
+	Externalities as OffchainExt, HttpError, HttpRequestId, HttpRequestStatus, OffchainStorage, OpaqueMultiaddr,
+	OpaqueNetworkState, StorageKind, Timestamp,
 };
 use sp_core::OpaquePeerId;
 pub use sp_offchain::STORAGE_PREFIX;
@@ -111,8 +111,7 @@ impl<Storage: OffchainStorage> OffchainExt for Api<Storage> {
 		new_value: &[u8],
 	) -> bool {
 		match kind {
-			StorageKind::PERSISTENT =>
-				self.db.compare_and_set(STORAGE_PREFIX, key, old_value, new_value),
+			StorageKind::PERSISTENT => self.db.compare_and_set(STORAGE_PREFIX, key, old_value, new_value),
 			StorageKind::LOCAL => unavailable_yet(LOCAL_DB),
 		}
 	}
@@ -124,21 +123,11 @@ impl<Storage: OffchainStorage> OffchainExt for Api<Storage> {
 		}
 	}
 
-	fn http_request_start(
-		&mut self,
-		method: &str,
-		uri: &str,
-		_meta: &[u8],
-	) -> Result<HttpRequestId, ()> {
+	fn http_request_start(&mut self, method: &str, uri: &str, _meta: &[u8]) -> Result<HttpRequestId, ()> {
 		self.http.request_start(method, uri)
 	}
 
-	fn http_request_add_header(
-		&mut self,
-		request_id: HttpRequestId,
-		name: &str,
-		value: &str,
-	) -> Result<(), ()> {
+	fn http_request_add_header(&mut self, request_id: HttpRequestId, name: &str, value: &str) -> Result<(), ()> {
 		self.http.request_add_header(request_id, name, value)
 	}
 
@@ -151,11 +140,7 @@ impl<Storage: OffchainStorage> OffchainExt for Api<Storage> {
 		self.http.request_write_body(request_id, chunk, deadline)
 	}
 
-	fn http_response_wait(
-		&mut self,
-		ids: &[HttpRequestId],
-		deadline: Option<Timestamp>,
-	) -> Vec<HttpRequestStatus> {
+	fn http_response_wait(&mut self, ids: &[HttpRequestId], deadline: Option<Timestamp>) -> Vec<HttpRequestStatus> {
 		self.http.response_wait(ids, deadline)
 	}
 
@@ -173,8 +158,10 @@ impl<Storage: OffchainStorage> OffchainExt for Api<Storage> {
 	}
 
 	fn set_authorized_nodes(&mut self, nodes: Vec<OpaquePeerId>, authorized_only: bool) {
-		let peer_ids: HashSet<PeerId> =
-			nodes.into_iter().filter_map(|node| PeerId::from_bytes(node.0).ok()).collect();
+		let peer_ids: HashSet<PeerId> = nodes
+			.into_iter()
+			.filter_map(|node| PeerId::from_bytes(node.0).ok())
+			.collect();
 
 		self.network_provider.set_authorized_peers(peer_ids);
 		self.network_provider.set_authorized_only(authorized_only);
@@ -190,7 +177,10 @@ pub struct NetworkState {
 
 impl NetworkState {
 	fn new(peer_id: PeerId, external_addresses: Vec<Multiaddr>) -> Self {
-		NetworkState { peer_id, external_addresses }
+		NetworkState {
+			peer_id,
+			external_addresses,
+		}
 	}
 }
 
@@ -208,7 +198,10 @@ impl From<NetworkState> for OpaqueNetworkState {
 			})
 			.collect();
 
-		OpaqueNetworkState { peer_id, external_addresses }
+		OpaqueNetworkState {
+			peer_id,
+			external_addresses,
+		}
 	}
 }
 
@@ -234,7 +227,10 @@ impl TryFrom<OpaqueNetworkState> for NetworkState {
 			.collect();
 		let external_addresses = external_addresses?;
 
-		Ok(NetworkState { peer_id, external_addresses })
+		Ok(NetworkState {
+			peer_id,
+			external_addresses,
+		})
 	}
 }
 
@@ -256,9 +252,16 @@ impl AsyncApi {
 	) -> (Api<S>, Self) {
 		let (http_api, http_worker) = http::http(shared_client);
 
-		let api = Api { db, network_provider, is_validator, http: http_api };
+		let api = Api {
+			db,
+			network_provider,
+			is_validator,
+			http: http_api,
+		};
 
-		let async_api = Self { http: Some(http_worker) };
+		let async_api = Self {
+			http: Some(http_worker),
+		};
 
 		(api, async_api)
 	}
@@ -318,8 +321,12 @@ mod tests {
 
 		// Get timestamp from std.
 		let now = SystemTime::now();
-		let d: u64 =
-			now.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().try_into().unwrap();
+		let d: u64 = now
+			.duration_since(SystemTime::UNIX_EPOCH)
+			.unwrap()
+			.as_millis()
+			.try_into()
+			.unwrap();
 
 		// Get timestamp from offchain api.
 		let timestamp = api.timestamp();
@@ -371,11 +378,17 @@ mod tests {
 		api.local_storage_set(kind, key, b"value");
 
 		// when
-		assert_eq!(api.local_storage_compare_and_set(kind, key, Some(b"val"), b"xxx"), false);
+		assert_eq!(
+			api.local_storage_compare_and_set(kind, key, Some(b"val"), b"xxx"),
+			false
+		);
 		assert_eq!(api.local_storage_get(kind, key), Some(b"value".to_vec()));
 
 		// when
-		assert_eq!(api.local_storage_compare_and_set(kind, key, Some(b"value"), b"xxx"), true);
+		assert_eq!(
+			api.local_storage_compare_and_set(kind, key, Some(b"value"), b"xxx"),
+			true
+		);
 		assert_eq!(api.local_storage_get(kind, key), Some(b"xxx".to_vec()));
 	}
 

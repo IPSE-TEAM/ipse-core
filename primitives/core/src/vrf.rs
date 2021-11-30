@@ -54,10 +54,10 @@ pub fn make_transcript(data: VRFTranscriptData) -> Transcript {
 		match value {
 			VRFTranscriptValue::Bytes(bytes) => {
 				transcript.append_message(label.as_bytes(), &bytes);
-			},
+			}
 			VRFTranscriptValue::U64(val) => {
 				transcript.append_u64(label.as_bytes(), val);
-			},
+			}
 		}
 	}
 	transcript
@@ -85,7 +85,9 @@ mod tests {
 		});
 		let test = |t: Transcript| -> [u8; 16] {
 			let mut b = [0u8; 16];
-			t.build_rng().finalize(&mut ChaChaRng::from_seed([0u8; 32])).fill_bytes(&mut b);
+			t.build_rng()
+				.finalize(&mut ChaChaRng::from_seed([0u8; 32]))
+				.fill_bytes(&mut b);
 			b
 		};
 		debug_assert!(test(orig_transcript) == test(new_transcript));

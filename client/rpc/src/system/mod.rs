@@ -36,7 +36,7 @@ pub use sc_rpc_api::system::*;
 macro_rules! bail_if_unsafe {
 	($value: expr) => {
 		if let Err(err) = $value.check_if_safe() {
-			return async move { Err(err.into()) }.boxed().compat()
+			return async move { Err(err.into()) }.boxed().compat();
 			}
 	};
 }
@@ -74,12 +74,12 @@ impl<B: traits::Block> System<B> {
 	///
 	/// The `send_back` will be used to transmit some of the requests. The user is responsible for
 	/// reading from that channel and answering the requests.
-	pub fn new(
-		info: SystemInfo,
-		send_back: TracingUnboundedSender<Request<B>>,
-		deny_unsafe: DenyUnsafe,
-	) -> Self {
-		System { info, send_back, deny_unsafe }
+	pub fn new(info: SystemInfo, send_back: TracingUnboundedSender<Request<B>>, deny_unsafe: DenyUnsafe) -> Self {
+		System {
+			info,
+			send_back,
+			deny_unsafe,
+		}
 	}
 }
 
@@ -124,15 +124,15 @@ impl<B: traits::Block> SystemApi<B::Hash, <B::Header as HeaderT>::Number> for Sy
 
 	fn system_peers(
 		&self,
-	) -> Compat<
-		BoxFuture<'static, rpc::Result<Vec<PeerInfo<B::Hash, <B::Header as HeaderT>::Number>>>>,
-	> {
+	) -> Compat<BoxFuture<'static, rpc::Result<Vec<PeerInfo<B::Hash, <B::Header as HeaderT>::Number>>>>> {
 		bail_if_unsafe!(self.deny_unsafe);
 
 		let (tx, rx) = oneshot::channel();
 		let _ = self.send_back.unbounded_send(Request::Peers(tx));
 
-		async move { rx.await.map_err(|_| rpc::Error::internal_error()) }.boxed().compat()
+		async move { rx.await.map_err(|_| rpc::Error::internal_error()) }
+			.boxed()
+			.compat()
 	}
 
 	fn system_network_state(&self) -> Compat<BoxFuture<'static, rpc::Result<rpc::Value>>> {
@@ -141,7 +141,9 @@ impl<B: traits::Block> SystemApi<B::Hash, <B::Header as HeaderT>::Number> for Sy
 		let (tx, rx) = oneshot::channel();
 		let _ = self.send_back.unbounded_send(Request::NetworkState(tx));
 
-		async move { rx.await.map_err(|_| rpc::Error::internal_error()) }.boxed().compat()
+		async move { rx.await.map_err(|_| rpc::Error::internal_error()) }
+			.boxed()
+			.compat()
 	}
 
 	fn system_add_reserved_peer(
@@ -170,7 +172,9 @@ impl<B: traits::Block> SystemApi<B::Hash, <B::Header as HeaderT>::Number> for Sy
 		bail_if_unsafe!(self.deny_unsafe);
 
 		let (tx, rx) = oneshot::channel();
-		let _ = self.send_back.unbounded_send(Request::NetworkRemoveReservedPeer(peer, tx));
+		let _ = self
+			.send_back
+			.unbounded_send(Request::NetworkRemoveReservedPeer(peer, tx));
 		async move {
 			match rx.await {
 				Ok(Ok(())) => Ok(()),

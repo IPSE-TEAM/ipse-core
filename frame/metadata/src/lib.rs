@@ -196,10 +196,8 @@ impl<E: Encode + serde::Serialize> serde::Serialize for FnEncode<E> {
 #[cfg_attr(feature = "std", derive(Decode, Serialize))]
 pub struct OuterEventMetadata {
 	pub name: DecodeDifferentStr,
-	pub events: DecodeDifferentArray<
-		(&'static str, FnEncode<&'static [EventMetadata]>),
-		(StringBuf, Vec<EventMetadata>),
-	>,
+	pub events:
+		DecodeDifferentArray<(&'static str, FnEncode<&'static [EventMetadata]>), (StringBuf, Vec<EventMetadata>)>,
 }
 
 /// All the metadata about an event.

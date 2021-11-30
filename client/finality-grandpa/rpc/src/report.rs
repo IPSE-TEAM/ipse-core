@@ -44,8 +44,7 @@ where
 	H: Clone + Debug + Eq,
 {
 	fn get(&self) -> (u64, HashSet<AuthorityId>) {
-		let current_voters: HashSet<AuthorityId> =
-			self.current_authorities().iter().map(|p| p.0.clone()).collect();
+		let current_voters: HashSet<AuthorityId> = self.current_authorities().iter().map(|p| p.0.clone()).collect();
 
 		(self.set_id(), current_voters)
 	}
@@ -122,10 +121,7 @@ pub struct ReportedRoundStates {
 }
 
 impl ReportedRoundStates {
-	pub fn from<AuthoritySet, VoterState>(
-		authority_set: &AuthoritySet,
-		voter_state: &VoterState,
-	) -> Result<Self, Error>
+	pub fn from<AuthoritySet, VoterState>(authority_set: &AuthoritySet, voter_state: &VoterState) -> Result<Self, Error>
 	where
 		AuthoritySet: ReportAuthoritySet,
 		VoterState: ReportVoterState,
@@ -135,8 +131,7 @@ impl ReportedRoundStates {
 		let voter_state = voter_state.get().ok_or(Error::EndpointNotReady)?;
 
 		let (set_id, current_voters) = authority_set.get();
-		let set_id =
-			u32::try_from(set_id).map_err(|_| Error::AuthoritySetIdReportedAsUnreasonablyLarge)?;
+		let set_id = u32::try_from(set_id).map_err(|_| Error::AuthoritySetIdReportedAsUnreasonablyLarge)?;
 
 		let best = {
 			let (round, round_state) = voter_state.best_round;
@@ -149,6 +144,10 @@ impl ReportedRoundStates {
 			.map(|(round, round_state)| RoundState::from(*round, round_state, &current_voters))
 			.collect::<Result<Vec<_>, Error>>()?;
 
-		Ok(Self { set_id, best, background })
+		Ok(Self {
+			set_id,
+			best,
+			background,
+		})
 	}
 }

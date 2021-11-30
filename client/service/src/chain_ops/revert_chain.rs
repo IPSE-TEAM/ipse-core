@@ -21,11 +21,7 @@ use sp_runtime::traits::{Block as BlockT, NumberFor, Zero};
 use std::sync::Arc;
 
 /// Performs a revert of `blocks` blocks.
-pub fn revert_chain<B, BA, C>(
-	client: Arc<C>,
-	backend: Arc<BA>,
-	blocks: NumberFor<B>,
-) -> Result<(), Error>
+pub fn revert_chain<B, BA, C>(client: Arc<C>, backend: Arc<BA>, blocks: NumberFor<B>) -> Result<(), Error>
 where
 	B: BlockT,
 	C: UsageProvider<B>,
@@ -37,7 +33,10 @@ where
 	if reverted.0.is_zero() {
 		info!("There aren't any non-finalized blocks to revert.");
 	} else {
-		info!("Reverted {} blocks. Best: #{} ({})", reverted.0, info.best_number, info.best_hash);
+		info!(
+			"Reverted {} blocks. Best: #{} ({})",
+			reverted.0, info.best_number, info.best_hash
+		);
 	}
 	Ok(())
 }

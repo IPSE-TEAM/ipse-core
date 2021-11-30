@@ -45,7 +45,7 @@ impl<'a> PiecewiseLinear<'a> {
 		let n = n.min(d.clone());
 
 		if self.points.len() == 0 {
-			return N::zero()
+			return N::zero();
 		}
 
 		let next_point_index = self.points.iter().position(|p| n < p.0 * d.clone());
@@ -55,11 +55,11 @@ impl<'a> PiecewiseLinear<'a> {
 				(self.points[previous_point_index], self.points[next_point_index])
 			} else {
 				// There is no previous points, take first point ordinate
-				return self.points.first().map(|p| p.1).unwrap_or_else(Perbill::zero) * d
+				return self.points.first().map(|p| p.1).unwrap_or_else(Perbill::zero) * d;
 			}
 		} else {
 			// There is no next points, take last point ordinate
-			return self.points.last().map(|p| p.1).unwrap_or_else(Perbill::zero) * d
+			return self.points.last().map(|p| p.1).unwrap_or_else(Perbill::zero) * d;
 		};
 
 		let delta_y = multiply_by_rational_saturating(
@@ -116,14 +116,17 @@ fn test_multiply_by_rational_saturating() {
 	for value in 0..=div {
 		for p in 0..=div {
 			for q in 1..=div {
-				let value: u64 =
-					(value as u128 * u64::max_value() as u128 / div as u128).try_into().unwrap();
+				let value: u64 = (value as u128 * u64::max_value() as u128 / div as u128)
+					.try_into()
+					.unwrap();
 				let p = (p as u64 * u32::max_value() as u64 / div as u64).try_into().unwrap();
 				let q = (q as u64 * u32::max_value() as u64 / div as u64).try_into().unwrap();
 
 				assert_eq!(
 					multiply_by_rational_saturating(value, p, q),
-					(value as u128 * p as u128 / q as u128).try_into().unwrap_or(u64::max_value())
+					(value as u128 * p as u128 / q as u128)
+						.try_into()
+						.unwrap_or(u64::max_value())
 				);
 			}
 		}

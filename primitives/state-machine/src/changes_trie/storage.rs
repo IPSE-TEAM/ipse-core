@@ -55,7 +55,10 @@ impl<H: Hasher, Number: BlockNumber> InMemoryStorage<H, Number> {
 	/// Creates storage from given in-memory database.
 	pub fn with_db(mdb: MemoryDB<H>) -> Self {
 		Self {
-			data: RwLock::new(InMemoryStorageData { roots: BTreeMap::new(), mdb }),
+			data: RwLock::new(InMemoryStorageData {
+				roots: BTreeMap::new(),
+				mdb,
+			}),
 			cache: BuildCache::new(),
 		}
 	}
@@ -101,8 +104,7 @@ impl<H: Hasher, Number: BlockNumber> InMemoryStorage<H, Number> {
 		let mut roots = BTreeMap::new();
 		for (storage_key, child_input) in children_inputs {
 			for (block, pairs) in child_input {
-				let root =
-					insert_into_memory_db::<H, _>(&mut mdb, pairs.into_iter().map(Into::into));
+				let root = insert_into_memory_db::<H, _>(&mut mdb, pairs.into_iter().map(Into::into));
 
 				if let Some(root) = root {
 					let ix = if let Some(ix) = top_inputs.iter().position(|v| v.0 == block) {
@@ -112,7 +114,10 @@ impl<H: Hasher, Number: BlockNumber> InMemoryStorage<H, Number> {
 						top_inputs.len() - 1
 					};
 					top_inputs[ix].1.push(InputPair::ChildIndex(
-						ChildIndex { block: block.clone(), storage_key: storage_key.clone() },
+						ChildIndex {
+							block: block.clone(),
+							storage_key: storage_key.clone(),
+						},
 						root.as_ref().to_vec(),
 					));
 				}
@@ -165,15 +170,14 @@ impl<H: Hasher, Number: BlockNumber> RootsStorage<H, Number> for InMemoryStorage
 			.roots
 			.iter()
 			.find(|(_, v)| **v == parent_hash)
-			.map(|(k, _)| AnchorBlockId { hash: parent_hash, number: k.clone() })
+			.map(|(k, _)| AnchorBlockId {
+				hash: parent_hash,
+				number: k.clone(),
+			})
 			.ok_or_else(|| format!("Can't find associated number for block {:?}", parent_hash))
 	}
 
-	fn root(
-		&self,
-		_anchor_block: &AnchorBlockId<H::Out, Number>,
-		block: Number,
-	) -> Result<Option<H::Out>, String> {
+	fn root(&self, _anchor_block: &AnchorBlockId<H::Out, Number>, block: Number) -> Result<Option<H::Out>, String> {
 		Ok(self.data.read().roots.get(&block).cloned())
 	}
 }
@@ -198,7 +202,10 @@ impl<H: Hasher, Number: BlockNumber> Storage<H, Number> for InMemoryStorage<H, N
 
 impl<'a, H: Hasher, Number: BlockNumber> TrieBackendAdapter<'a, H, Number> {
 	pub fn new(storage: &'a dyn Storage<H, Number>) -> Self {
-		Self { storage, _hasher: Default::default() }
+		Self {
+			storage,
+			_hasher: Default::default(),
+		}
 	}
 }
 

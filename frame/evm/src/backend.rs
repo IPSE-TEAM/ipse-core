@@ -55,7 +55,10 @@ pub struct Backend<'vicinity, T> {
 impl<'vicinity, T> Backend<'vicinity, T> {
 	/// Create a new backend with given vicinity.
 	pub fn new(vicinity: &'vicinity Vicinity) -> Self {
-		Self { vicinity, _marker: PhantomData }
+		Self {
+			vicinity,
+			_marker: PhantomData,
+		}
 	}
 }
 
@@ -109,7 +112,10 @@ impl<'vicinity, T: Trait> BackendT for Backend<'vicinity, T> {
 	fn basic(&self, address: H160) -> evm::backend::Basic {
 		let account = Module::<T>::account_basic(&address);
 
-		evm::backend::Basic { balance: account.balance, nonce: account.nonce }
+		evm::backend::Basic {
+			balance: account.balance,
+			nonce: account.nonce,
+		}
 	}
 
 	fn code_size(&self, address: H160) -> usize {
@@ -138,10 +144,19 @@ impl<'vicinity, T: Trait> ApplyBackend for Backend<'vicinity, T> {
 	{
 		for apply in values {
 			match apply {
-				Apply::Modify { address, basic, code, storage, reset_storage } => {
+				Apply::Modify {
+					address,
+					basic,
+					code,
+					storage,
+					reset_storage,
+				} => {
 					Module::<T>::mutate_account_basic(
 						&address,
-						Account { nonce: basic.nonce, balance: basic.balance },
+						Account {
+							nonce: basic.nonce,
+							balance: basic.balance,
+						},
 					);
 
 					if let Some(code) = code {
@@ -182,7 +197,7 @@ impl<'vicinity, T: Trait> ApplyBackend for Backend<'vicinity, T> {
 					if delete_empty {
 						Module::<T>::remove_account_if_empty(&address);
 					}
-				},
+				}
 				Apply::Delete { address } => {
 					debug::debug!(
 						target: "evm",
@@ -190,7 +205,7 @@ impl<'vicinity, T: Trait> ApplyBackend for Backend<'vicinity, T> {
 						address
 					);
 					Module::<T>::remove_account(&address)
-				},
+				}
 			}
 		}
 

@@ -28,10 +28,7 @@
 
 use codec::Encode;
 
-use sp_api::{
-	ApiErrorFor, ApiExt, ApiRef, Core, ProvideRuntimeApi, StorageChanges, StorageProof,
-	TransactionOutcome,
-};
+use sp_api::{ApiErrorFor, ApiExt, ApiRef, Core, ProvideRuntimeApi, StorageChanges, StorageProof, TransactionOutcome};
 use sp_blockchain::{ApplyExtrinsicFailed, Error};
 use sp_consensus::RecordProof;
 use sp_core::ExecutionContext;
@@ -59,9 +56,7 @@ pub struct BuiltBlock<Block: BlockT, StateBackend: backend::StateBackend<HashFor
 	pub proof: Option<StorageProof>,
 }
 
-impl<Block: BlockT, StateBackend: backend::StateBackend<HashFor<Block>>>
-	BuiltBlock<Block, StateBackend>
-{
+impl<Block: BlockT, StateBackend: backend::StateBackend<HashFor<Block>>> BuiltBlock<Block, StateBackend> {
 	/// Convert into the inner values.
 	pub fn into_inner(self) -> (Block, StorageChanges<StateBackend, Block>, Option<StorageProof>) {
 		(self.block, self.storage_changes, self.proof)
@@ -89,10 +84,7 @@ where
 	) -> sp_blockchain::Result<BlockBuilder<Block, RA, B>>;
 
 	/// Create a new block, built on the head of the chain.
-	fn new_block(
-		&self,
-		inherent_digests: DigestFor<Block>,
-	) -> sp_blockchain::Result<BlockBuilder<Block, RA, B>>;
+	fn new_block(&self, inherent_digests: DigestFor<Block>) -> sp_blockchain::Result<BlockBuilder<Block, RA, B>>;
 }
 
 /// Utility for building new (valid) blocks from a stream of extrinsics.
@@ -108,8 +100,7 @@ impl<'a, Block, A, B> BlockBuilder<'a, Block, A, B>
 where
 	Block: BlockT,
 	A: ProvideRuntimeApi<Block> + 'a,
-	A::Api: BlockBuilderApi<Block, Error = Error>
-		+ ApiExt<Block, StateBackend = backend::StateBackendFor<B, Block>>,
+	A::Api: BlockBuilderApi<Block, Error = Error> + ApiExt<Block, StateBackend = backend::StateBackendFor<B, Block>>,
 	B: backend::Backend<Block>,
 {
 	/// Create a new instance of builder based on the given `parent_hash` and `parent_number`.
@@ -143,7 +134,13 @@ where
 
 		api.initialize_block_with_context(&block_id, ExecutionContext::BlockConstruction, &header)?;
 
-		Ok(Self { parent_hash, extrinsics: Vec::new(), api, block_id, backend })
+		Ok(Self {
+			parent_hash,
+			extrinsics: Vec::new(),
+			api,
+			block_id,
+			backend,
+		})
 	}
 
 	/// Push onto the block's list of extrinsics.
@@ -154,18 +151,14 @@ where
 		let extrinsics = &mut self.extrinsics;
 
 		self.api.execute_in_transaction(|api| {
-			match api.apply_extrinsic_with_context(
-				block_id,
-				ExecutionContext::BlockConstruction,
-				xt.clone(),
-			) {
+			match api.apply_extrinsic_with_context(block_id, ExecutionContext::BlockConstruction, xt.clone()) {
 				Ok(Ok(_)) => {
 					extrinsics.push(xt);
 					TransactionOutcome::Commit(Ok(()))
-				},
-				Ok(Err(tx_validity)) => TransactionOutcome::Rollback(Err(
-					ApplyExtrinsicFailed::Validity(tx_validity).into(),
-				)),
+				}
+				Ok(Err(tx_validity)) => {
+					TransactionOutcome::Rollback(Err(ApplyExtrinsicFailed::Validity(tx_validity).into()))
+				}
 				Err(e) => TransactionOutcome::Rollback(Err(e)),
 			}
 		})
@@ -176,31 +169,26 @@ where
 	/// Returns the build `Block`, the changes to the storage and an optional `StorageProof`
 	/// supplied by `self.api`, combined as [`BuiltBlock`].
 	/// The storage proof will be `Some(_)` when proof recording was enabled.
-	pub fn build(
-		mut self,
-	) -> Result<BuiltBlock<Block, backend::StateBackendFor<B, Block>>, ApiErrorFor<A, Block>> {
+	pub fn build(mut self) -> Result<BuiltBlock<Block, backend::StateBackendFor<B, Block>>, ApiErrorFor<A, Block>> {
 		let header = self
 			.api
 			.finalize_block_with_context(&self.block_id, ExecutionContext::BlockConstruction)?;
 
 		debug_assert_eq!(
 			header.extrinsics_root().clone(),
-			HashFor::<Block>::ordered_trie_root(
-				self.extrinsics.iter().map(Encode::encode).collect(),
-			),
+			HashFor::<Block>::ordered_trie_root(self.extrinsics.iter().map(Encode::encode).collect(),),
 		);
 
 		let proof = self.api.extract_proof();
 
 		let state = self.backend.state_at(self.block_id)?;
-		let changes_trie_state = backend::changes_tries_state_at_block(
-			&self.block_id,
-			self.backend.changes_trie_storage(),
-		)?;
+		let changes_trie_state =
+			backend::changes_tries_state_at_block(&self.block_id, self.backend.changes_trie_storage())?;
 		let parent_hash = self.parent_hash;
 
-		let storage_changes =
-			self.api.into_storage_changes(&state, changes_trie_state.as_ref(), parent_hash)?;
+		let storage_changes = self
+			.api
+			.into_storage_changes(&state, changes_trie_state.as_ref(), parent_hash)?;
 
 		Ok(BuiltBlock {
 			block: <Block as BlockT>::new(header, self.extrinsics),

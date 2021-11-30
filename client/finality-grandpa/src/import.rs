@@ -28,8 +28,8 @@ use sp_blockchain::{well_known_cache_keys, BlockStatus};
 use sp_utils::mpsc::TracingUnboundedSender;
 
 use sp_consensus::{
-	BlockCheckParams, BlockImport, BlockImportParams, BlockOrigin, Error as ConsensusError,
-	ImportResult, JustificationImport, SelectChain,
+	BlockCheckParams, BlockImport, BlockImportParams, BlockOrigin, Error as ConsensusError, ImportResult,
+	JustificationImport, SelectChain,
 };
 use sp_finality_grandpa::{ConsensusLog, ScheduledChange, SetId, GRANDPA_ENGINE_ID};
 use sp_runtime::generic::{BlockId, OpaqueDigestItemId};
@@ -64,9 +64,7 @@ pub struct GrandpaBlockImport<Backend, Block: BlockT, Client, SC> {
 	_phantom: PhantomData<Backend>,
 }
 
-impl<Backend, Block: BlockT, Client, SC: Clone> Clone
-	for GrandpaBlockImport<Backend, Block, Client, SC>
-{
+impl<Backend, Block: BlockT, Client, SC: Clone> Clone for GrandpaBlockImport<Backend, Block, Client, SC> {
 	fn clone(&self) -> Self {
 		GrandpaBlockImport {
 			inner: self.inner.clone(),
@@ -81,8 +79,7 @@ impl<Backend, Block: BlockT, Client, SC: Clone> Clone
 	}
 }
 
-impl<BE, Block: BlockT, Client, SC> JustificationImport<Block>
-	for GrandpaBlockImport<BE, Block, Client, SC>
+impl<BE, Block: BlockT, Client, SC> JustificationImport<Block> for GrandpaBlockImport<BE, Block, Client, SC>
 where
 	NumberFor<Block>: finality_grandpa::BlockNumberOps,
 	DigestFor<Block>: Encode,
@@ -100,15 +97,13 @@ where
 		// imported
 		let authorities = self.authority_set.inner().read();
 		for pending_change in authorities.pending_changes() {
-			if pending_change.delay_kind == DelayKind::Finalized &&
-				pending_change.effective_number() > chain_info.finalized_number &&
-				pending_change.effective_number() <= chain_info.best_number
+			if pending_change.delay_kind == DelayKind::Finalized
+				&& pending_change.effective_number() > chain_info.finalized_number
+				&& pending_change.effective_number() <= chain_info.best_number
 			{
 				let effective_block_hash = if !pending_change.delay.is_zero() {
-					self.select_chain.finality_target(
-						pending_change.canon_hash,
-						Some(pending_change.effective_number()),
-					)
+					self.select_chain
+						.finality_target(pending_change.canon_hash, Some(pending_change.effective_number()))
 				} else {
 					Ok(Some(pending_change.canon_hash))
 				};
@@ -197,9 +192,7 @@ fn find_scheduled_change<B: BlockT>(header: &B::Header) -> Option<ScheduledChang
 	header.digest().convert_first(|l| l.try_to(id).and_then(filter_log))
 }
 
-fn find_forced_change<B: BlockT>(
-	header: &B::Header,
-) -> Option<(NumberFor<B>, ScheduledChange<NumberFor<B>>)> {
+fn find_forced_change<B: BlockT>(header: &B::Header) -> Option<(NumberFor<B>, ScheduledChange<NumberFor<B>>)> {
 	let id = OpaqueDigestItemId::Consensus(&GRANDPA_ENGINE_ID);
 
 	let filter_log = |log: ConsensusLog<NumberFor<B>>| match log {
@@ -227,7 +220,7 @@ where
 	) -> Option<PendingChange<Block::Hash, NumberFor<Block>>> {
 		// check for forced authority set hard forks
 		if let Some(change) = self.authority_set_hard_forks.get(&hash) {
-			return Some(change.clone())
+			return Some(change.clone());
 		}
 
 		// check for forced change.
@@ -238,7 +231,7 @@ where
 				canon_height: *header.number(),
 				canon_hash: hash,
 				delay_kind: DelayKind::Best { median_last_finalized },
-			})
+			});
 		}
 
 		// check normal scheduled change.
@@ -303,7 +296,10 @@ where
 		let parent_hash = *block.header.parent_hash();
 		let is_descendent_of = is_descendent_of(&*self.inner, Some((hash, parent_hash)));
 
-		let mut guard = InnerGuard { guard: Some(self.authority_set.inner().write()), old: None };
+		let mut guard = InnerGuard {
+			guard: Some(self.authority_set.inner().write()),
+			old: None,
+		};
 
 		// whether to pause the old authority set -- happens after import
 		// of a forced change block.
@@ -341,12 +337,15 @@ where
 					// best finalized block.
 					let best_finalized_number = self.inner.info().finalized_number;
 					let canon_number = best_finalized_number.min(median_last_finalized_number);
-					let canon_hash =
-						self.inner.header(BlockId::Number(canon_number))
-							.map_err(|e| ConsensusError::ClientImport(e.to_string()))?
-							.expect("the given block number is less or equal than the current best finalized number; \
-									 current best finalized number must exist in chain; qed.")
-							.hash();
+					let canon_hash = self
+						.inner
+						.header(BlockId::Number(canon_number))
+						.map_err(|e| ConsensusError::ClientImport(e.to_string()))?
+						.expect(
+							"the given block number is less or equal than the current best finalized number; \
+									 current best finalized number must exist in chain; qed.",
+						)
+						.hash();
 
 					NewAuthoritySet {
 						canon_number,
@@ -383,18 +382,18 @@ where
 				AppliedChanges::None => None,
 			};
 
-			crate::aux_schema::update_authority_set::<Block, _, _>(
-				authorities,
-				authorities_change,
-				|insert| {
-					block
-						.auxiliary
-						.extend(insert.iter().map(|(k, v)| (k.to_vec(), Some(v.to_vec()))))
-				},
-			);
+			crate::aux_schema::update_authority_set::<Block, _, _>(authorities, authorities_change, |insert| {
+				block
+					.auxiliary
+					.extend(insert.iter().map(|(k, v)| (k.to_vec(), Some(v.to_vec()))))
+			});
 		}
 
-		Ok(PendingSetChanges { just_in_case, applied_changes, do_pause })
+		Ok(PendingSetChanges {
+			just_in_case,
+			applied_changes,
+			do_pause,
+		})
 	}
 }
 
@@ -404,8 +403,7 @@ where
 	DigestFor<Block>: Encode,
 	BE: Backend<Block>,
 	Client: crate::ClientForGrandpa<Block, BE>,
-	for<'a> &'a Client:
-		BlockImport<Block, Error = ConsensusError, Transaction = TransactionFor<Client, Block>>,
+	for<'a> &'a Client: BlockImport<Block, Error = ConsensusError, Transaction = TransactionFor<Client, Block>>,
 {
 	type Error = ConsensusError;
 	type Transaction = TransactionFor<Client, Block>;
@@ -422,7 +420,7 @@ where
 		// authority changes will error when trying to re-import a change block
 		match self.inner.status(BlockId::Hash(hash)) {
 			Ok(BlockStatus::InChain) => return Ok(ImportResult::AlreadyInChain),
-			Ok(BlockStatus::Unknown) => {},
+			Ok(BlockStatus::Unknown) => {}
 			Err(e) => return Err(ConsensusError::ClientImport(e.to_string())),
 		}
 
@@ -446,8 +444,8 @@ where
 						r,
 					);
 					pending_changes.revert();
-					return Ok(r)
-				},
+					return Ok(r);
+				}
 				Err(e) => {
 					debug!(
 						target: "afg",
@@ -455,8 +453,8 @@ where
 						e,
 					);
 					pending_changes.revert();
-					return Err(ConsensusError::ClientImport(e.to_string()))
-				},
+					return Err(ConsensusError::ClientImport(e.to_string()));
+				}
 			}
 		};
 
@@ -484,32 +482,28 @@ where
 				// they should import the block and discard the justification, and they will
 				// then request a justification from sync if it's necessary (which they should
 				// then be able to successfully validate).
-				let _ =
-					self.send_voter_commands.unbounded_send(VoterCommand::ChangeAuthorities(new));
+				let _ = self
+					.send_voter_commands
+					.unbounded_send(VoterCommand::ChangeAuthorities(new));
 
 				// we must clear all pending justifications requests, presumably they won't be
 				// finalized hence why this forced changes was triggered
 				imported_aux.clear_justification_requests = true;
-			},
+			}
 			AppliedChanges::Standard(false) => {
 				// we can't apply this change yet since there are other dependent changes that we
 				// need to apply first, drop any justification that might have been provided with
 				// the block to make sure we request them from `sync` which will ensure they'll be
 				// applied in-order.
 				justification.take();
-			},
-			_ => {},
+			}
+			_ => {}
 		}
 
 		match justification {
 			Some(justification) => {
-				let import_res = self.import_justification(
-					hash,
-					number,
-					justification,
-					needs_justification,
-					initial_sync,
-				);
+				let import_res =
+					self.import_justification(hash, number, justification, needs_justification, initial_sync);
 
 				import_res.unwrap_or_else(|err| {
 					if needs_justification || enacts_consensus_change {
@@ -519,7 +513,7 @@ where
 						imported_aux.needs_justification = true;
 					}
 				});
-			},
+			}
 			None => {
 				if needs_justification {
 					debug!(
@@ -536,7 +530,7 @@ where
 				if enacts_consensus_change {
 					self.consensus_changes.lock().note_change((number, hash));
 				}
-			},
+			}
 		}
 
 		Ok(ImportResult::Imported(imported_aux))
@@ -559,8 +553,9 @@ impl<Backend, Block: BlockT, Client, SC> GrandpaBlockImport<Backend, Block, Clie
 	) -> GrandpaBlockImport<Backend, Block, Client, SC> {
 		// check for and apply any forced authority set hard fork that applies
 		// to the *current* authority set.
-		if let Some((_, change)) =
-			authority_set_hard_forks.iter().find(|(set_id, _)| *set_id == authority_set.set_id())
+		if let Some((_, change)) = authority_set_hard_forks
+			.iter()
+			.find(|(set_id, _)| *set_id == authority_set.set_id())
 		{
 			let mut authority_set = authority_set.inner().write();
 			authority_set.current_authorities = change.next_authorities.clone();
@@ -580,10 +575,10 @@ impl<Backend, Block: BlockT, Client, SC> GrandpaBlockImport<Backend, Block, Clie
 		{
 			let mut authority_set = authority_set.inner().write();
 
-			authority_set.pending_standard_changes =
-				authority_set.pending_standard_changes.clone().map(&mut |hash, _, original| {
-					authority_set_hard_forks.get(&hash).cloned().unwrap_or(original)
-				});
+			authority_set.pending_standard_changes = authority_set
+				.pending_standard_changes
+				.clone()
+				.map(&mut |hash, _, original| authority_set_hard_forks.get(&hash).cloned().unwrap_or(original));
 		}
 
 		GrandpaBlockImport {
@@ -653,7 +648,7 @@ where
 
 				// send the command to the voter
 				let _ = self.send_voter_commands.unbounded_send(command);
-			},
+			}
 			Err(CommandOrError::Error(e)) => {
 				return Err(match e {
 					Error::Grandpa(error) => ConsensusError::ClientImport(error.to_string()),
@@ -664,13 +659,13 @@ where
 					Error::Signing(error) => ConsensusError::ClientImport(error),
 					Error::Timer(error) => ConsensusError::ClientImport(error.to_string()),
 				})
-			},
+			}
 			Ok(_) => {
 				assert!(
 					!enacts_change,
 					"returns Ok when no authority set change should be enacted; qed;"
 				);
-			},
+			}
 		}
 
 		Ok(())

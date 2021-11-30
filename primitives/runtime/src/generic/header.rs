@@ -58,19 +58,16 @@ where
 	Hash::Output: parity_util_mem::MallocSizeOf,
 {
 	fn size_of(&self, ops: &mut parity_util_mem::MallocSizeOfOps) -> usize {
-		self.parent_hash.size_of(ops) +
-			self.number.size_of(ops) +
-			self.state_root.size_of(ops) +
-			self.extrinsics_root.size_of(ops) +
-			self.digest.size_of(ops)
+		self.parent_hash.size_of(ops)
+			+ self.number.size_of(ops)
+			+ self.state_root.size_of(ops)
+			+ self.extrinsics_root.size_of(ops)
+			+ self.digest.size_of(ops)
 	}
 }
 
 #[cfg(feature = "std")]
-pub fn serialize_number<S, T: Copy + Into<U256> + TryFrom<U256>>(
-	val: &T,
-	s: S,
-) -> Result<S::Ok, S::Error>
+pub fn serialize_number<S, T: Copy + Into<U256> + TryFrom<U256>>(val: &T, s: S) -> Result<S::Ok, S::Error>
 where
 	S: serde::Serializer,
 {
@@ -112,7 +109,9 @@ where
 {
 	fn encode_to<T: Output>(&self, dest: &mut T) {
 		dest.push(&self.parent_hash);
-		dest.push(&<<<Number as HasCompact>::Type as EncodeAsRef<_>>::RefType>::from(&self.number));
+		dest.push(&<<<Number as HasCompact>::Type as EncodeAsRef<_>>::RefType>::from(
+			&self.number,
+		));
 		dest.push(&self.state_root);
 		dest.push(&self.extrinsics_root);
 		dest.push(&self.digest);
@@ -203,23 +202,22 @@ where
 		parent_hash: Self::Hash,
 		digest: Digest<Self::Hash>,
 	) -> Self {
-		Header { number, extrinsics_root, state_root, parent_hash, digest }
+		Header {
+			number,
+			extrinsics_root,
+			state_root,
+			parent_hash,
+			digest,
+		}
 	}
 }
 
 impl<Number, Hash> Header<Number, Hash>
 where
-	Number: Member
-		+ sp_std::hash::Hash
-		+ Copy
-		+ MaybeDisplay
-		+ AtLeast32BitUnsigned
-		+ Codec
-		+ Into<U256>
-		+ TryFrom<U256>,
+	Number:
+		Member + sp_std::hash::Hash + Copy + MaybeDisplay + AtLeast32BitUnsigned + Codec + Into<U256> + TryFrom<U256>,
 	Hash: HashT,
-	Hash::Output:
-		Default + sp_std::hash::Hash + Copy + Member + MaybeDisplay + SimpleBitOps + Codec,
+	Hash::Output: Default + sp_std::hash::Hash + Copy + Member + MaybeDisplay + SimpleBitOps + Codec,
 {
 	/// Convenience helper for computing the hash of the header without having
 	/// to import the trait.
@@ -246,7 +244,10 @@ mod tests {
 		assert_eq!(serialize(0), "\"0x0\"".to_owned());
 		assert_eq!(serialize(1), "\"0x1\"".to_owned());
 		assert_eq!(serialize(u64::max_value() as u128), "\"0xffffffffffffffff\"".to_owned());
-		assert_eq!(serialize(u64::max_value() as u128 + 1), "\"0x10000000000000000\"".to_owned());
+		assert_eq!(
+			serialize(u64::max_value() as u128 + 1),
+			"\"0x10000000000000000\"".to_owned()
+		);
 	}
 
 	#[test]

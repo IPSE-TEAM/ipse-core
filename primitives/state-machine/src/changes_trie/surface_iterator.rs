@@ -79,14 +79,9 @@ impl<'a, Number: BlockNumber> Iterator for SurfaceIterator<'a, Number> {
 			} else if next > self.current_begin {
 				self.current = Some(next);
 			} else {
-				let max_digest_interval = lower_bound_max_digest(
-					self.config.clone(),
-					self.max.clone(),
-					self.begin.clone(),
-					next,
-				);
-				let (current, current_begin, digest_step, digest_level) = match max_digest_interval
-				{
+				let max_digest_interval =
+					lower_bound_max_digest(self.config.clone(), self.max.clone(), self.begin.clone(), next);
+				let (current, current_begin, digest_step, digest_level) = match max_digest_interval {
 					Err(err) => return Some(Err(err)),
 					Ok(range) => range,
 				};
@@ -111,11 +106,9 @@ fn lower_bound_max_digest<'a, Number: BlockNumber>(
 	end: Number,
 ) -> Result<(Number, Number, u32, Option<u32>), String> {
 	if end > max || begin > end {
-		return Err(format!("invalid changes range: {}..{}/{}", begin, end, max))
+		return Err(format!("invalid changes range: {}..{}/{}", begin, end, max));
 	}
-	if begin <= config.zero ||
-		config.end.as_ref().map(|config_end| end > *config_end).unwrap_or(false)
-	{
+	if begin <= config.zero || config.end.as_ref().map(|config_end| end > *config_end).unwrap_or(false) {
 		return Err(format!(
 			"changes trie range is not covered by configuration: {}..{}/{}..{}",
 			begin,
@@ -125,7 +118,7 @@ fn lower_bound_max_digest<'a, Number: BlockNumber>(
 				Some(config_end) => format!("{}", config_end),
 				None => "None".into(),
 			}
-		))
+		));
 	}
 
 	let mut digest_level = 0u32;
@@ -145,35 +138,32 @@ fn lower_bound_max_digest<'a, Number: BlockNumber>(
 					digest_interval
 				}
 			};
-			let new_digest_begin = config.zero.clone() +
-				((current.clone() - One::one() - config.zero.clone()) /
-					new_digest_interval.into()) *
-					new_digest_interval.into();
+			let new_digest_begin = config.zero.clone()
+				+ ((current.clone() - One::one() - config.zero.clone()) / new_digest_interval.into())
+					* new_digest_interval.into();
 			let new_digest_end = new_digest_begin.clone() + new_digest_interval.into();
 			let new_current = new_digest_begin.clone() + new_digest_interval.into();
 
 			// check if we met skewed digest
 			if let Some(skewed_digest_end) = config.end.as_ref() {
 				if new_digest_end > *skewed_digest_end {
-					let skewed_digest_start = config.config.prev_max_level_digest_block(
-						config.zero.clone(),
-						skewed_digest_end.clone(),
-					);
+					let skewed_digest_start = config
+						.config
+						.prev_max_level_digest_block(config.zero.clone(), skewed_digest_end.clone());
 					if let Some(skewed_digest_start) = skewed_digest_start {
-						let skewed_digest_range = (skewed_digest_end.clone() -
-							skewed_digest_start.clone())
-						.try_into()
-						.ok()
-						.expect(
-							"skewed digest range is always <= max level digest range;\
+						let skewed_digest_range = (skewed_digest_end.clone() - skewed_digest_start.clone())
+							.try_into()
+							.ok()
+							.expect(
+								"skewed digest range is always <= max level digest range;\
 								max level digest range always fits u32; qed",
-						);
+							);
 						return Ok((
 							skewed_digest_end.clone(),
 							skewed_digest_start,
 							skewed_digest_range,
 							None,
-						))
+						));
 					}
 				}
 			}
@@ -183,7 +173,7 @@ fn lower_bound_max_digest<'a, Number: BlockNumber>(
 				if begin < new_digest_begin {
 					current_begin = new_digest_begin;
 				}
-				break
+				break;
 			}
 
 			// we can (and will) use this digest
@@ -195,7 +185,7 @@ fn lower_bound_max_digest<'a, Number: BlockNumber>(
 
 			// if current digest covers the whole range => no need to use next level digest
 			if current_begin <= begin && new_digest_end >= end {
-				break
+				break;
 			}
 		}
 	}
@@ -208,35 +198,40 @@ mod tests {
 	use super::*;
 	use crate::changes_trie::Configuration;
 
-	fn configuration_range<'a>(
-		config: &'a Configuration,
-		zero: u64,
-	) -> ConfigurationRange<'a, u64> {
-		ConfigurationRange { config, zero, end: None }
+	fn configuration_range<'a>(config: &'a Configuration, zero: u64) -> ConfigurationRange<'a, u64> {
+		ConfigurationRange {
+			config,
+			zero,
+			end: None,
+		}
 	}
 
 	#[test]
 	fn lower_bound_max_digest_works() {
-		let config = Configuration { digest_interval: 4, digest_levels: 2 };
+		let config = Configuration {
+			digest_interval: 4,
+			digest_levels: 2,
+		};
 
 		// when config activates at 0
 		assert_eq!(
-			lower_bound_max_digest(configuration_range(&config, 0u64), 100_000u64, 20u64, 180u64)
-				.unwrap(),
+			lower_bound_max_digest(configuration_range(&config, 0u64), 100_000u64, 20u64, 180u64).unwrap(),
 			(192, 176, 16, Some(2)),
 		);
 
 		// when config activates at 30
 		assert_eq!(
-			lower_bound_max_digest(configuration_range(&config, 30u64), 100_000u64, 50u64, 210u64)
-				.unwrap(),
+			lower_bound_max_digest(configuration_range(&config, 30u64), 100_000u64, 50u64, 210u64).unwrap(),
 			(222, 206, 16, Some(2)),
 		);
 	}
 
 	#[test]
 	fn surface_iterator_works() {
-		let config = Configuration { digest_interval: 4, digest_levels: 2 };
+		let config = Configuration {
+			digest_interval: 4,
+			digest_levels: 2,
+		};
 
 		// when config activates at 0
 		assert_eq!(
@@ -301,13 +296,18 @@ mod tests {
 
 	#[test]
 	fn surface_iterator_works_with_skewed_digest() {
-		let config = Configuration { digest_interval: 4, digest_levels: 2 };
+		let config = Configuration {
+			digest_interval: 4,
+			digest_levels: 2,
+		};
 		let mut config_range = configuration_range(&config, 0u64);
 
 		// when config activates at 0 AND ends at 170
 		config_range.end = Some(170);
 		assert_eq!(
-			surface_iterator(config_range, 100_000u64, 40u64, 170u64).unwrap().collect::<Vec<_>>(),
+			surface_iterator(config_range, 100_000u64, 40u64, 170u64)
+				.unwrap()
+				.collect::<Vec<_>>(),
 			vec![
 				Ok((170, None)),
 				Ok((160, Some(2))),

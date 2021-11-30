@@ -83,9 +83,8 @@ pub use sp_arithmetic::biguint;
 pub use sp_arithmetic::helpers_128bit;
 /// Re-export top-level arithmetic stuff.
 pub use sp_arithmetic::{
-	traits::SaturatedConversion, FixedI128, FixedI64, FixedPointNumber, FixedPointOperand,
-	FixedU128, InnerOf, PerThing, PerU16, Perbill, Percent, Permill, Perquintill, Rational128,
-	UpperOf,
+	traits::SaturatedConversion, FixedI128, FixedI64, FixedPointNumber, FixedPointOperand, FixedU128, InnerOf,
+	PerThing, PerU16, Perbill, Percent, Permill, Perquintill, Rational128, UpperOf,
 };
 
 pub use random_number_generator::RandomNumberGenerator;
@@ -132,10 +131,7 @@ pub trait BuildStorage {
 #[cfg(feature = "std")]
 pub trait BuildModuleGenesisStorage<T, I>: Sized {
 	/// Create the module genesis storage into the given `storage` and `child_storage`.
-	fn build_module_genesis_storage(
-		&self,
-		storage: &mut sp_core::storage::Storage,
-	) -> Result<(), String>;
+	fn build_module_genesis_storage(&self, storage: &mut sp_core::storage::Storage) -> Result<(), String>;
 }
 
 #[cfg(feature = "std")]
@@ -145,9 +141,10 @@ impl BuildStorage for sp_core::storage::Storage {
 		for (k, other_map) in self.children_default.iter() {
 			let k = k.clone();
 			if let Some(map) = storage.children_default.get_mut(&k) {
-				map.data.extend(other_map.data.iter().map(|(k, v)| (k.clone(), v.clone())));
+				map.data
+					.extend(other_map.data.iter().map(|(k, v)| (k.clone(), v.clone())));
 				if !map.child_info.try_update(&other_map.child_info) {
-					return Err("Incompatible child info update".to_string())
+					return Err("Incompatible child info update".to_string());
 				}
 			} else {
 				storage.children_default.insert(k, other_map.clone());
@@ -349,19 +346,15 @@ impl Verify for MultiSignature {
 	type Signer = MultiSigner;
 	fn verify<L: Lazy<[u8]>>(&self, mut msg: L, signer: &AccountId32) -> bool {
 		match (self, signer) {
-			(MultiSignature::Ed25519(ref sig), who) =>
-				sig.verify(msg, &ed25519::Public::from_slice(who.as_ref())),
-			(MultiSignature::Sr25519(ref sig), who) =>
-				sig.verify(msg, &sr25519::Public::from_slice(who.as_ref())),
+			(MultiSignature::Ed25519(ref sig), who) => sig.verify(msg, &ed25519::Public::from_slice(who.as_ref())),
+			(MultiSignature::Sr25519(ref sig), who) => sig.verify(msg, &sr25519::Public::from_slice(who.as_ref())),
 			(MultiSignature::Ecdsa(ref sig), who) => {
 				let m = sp_io::hashing::blake2_256(msg.get());
 				match sp_io::crypto::secp256k1_ecdsa_recover_compressed(sig.as_ref(), &m) {
-					Ok(pubkey) =>
-						&sp_io::hashing::blake2_256(pubkey.as_ref()) ==
-							<dyn AsRef<[u8; 32]>>::as_ref(who),
+					Ok(pubkey) => &sp_io::hashing::blake2_256(pubkey.as_ref()) == <dyn AsRef<[u8; 32]>>::as_ref(who),
 					_ => false,
 				}
-			},
+			}
 		}
 	}
 }
@@ -377,8 +370,8 @@ impl Verify for AnySignature {
 		let msg = msg.get();
 		sr25519::Signature::try_from(self.0.as_fixed_bytes().as_ref())
 			.map(|s| s.verify(msg, signer))
-			.unwrap_or(false) ||
-			ed25519::Signature::try_from(self.0.as_fixed_bytes().as_ref())
+			.unwrap_or(false)
+			|| ed25519::Signature::try_from(self.0.as_fixed_bytes().as_ref())
 				.map(|s| s.verify(msg, &ed25519::Public::from_slice(signer.as_ref())))
 				.unwrap_or(false)
 	}
@@ -450,8 +443,15 @@ impl DispatchError {
 	/// Return the same error but without the attached message.
 	pub fn stripped(self) -> Self {
 		match self {
-			DispatchError::Module { index, error, message: Some(_) } =>
-				DispatchError::Module { index, error, message: None },
+			DispatchError::Module {
+				index,
+				error,
+				message: Some(_),
+			} => DispatchError::Module {
+				index,
+				error,
+				message: None,
+			},
 			m => m,
 		}
 	}
@@ -463,7 +463,10 @@ where
 	E: Into<DispatchError>,
 {
 	fn from(error: E) -> Self {
-		Self { post_info: Default::default(), error: error.into() }
+		Self {
+			post_info: Default::default(),
+			error: error.into(),
+		}
 	}
 }
 
@@ -518,7 +521,7 @@ impl traits::Printable for DispatchError {
 				if let Some(msg) = message {
 					msg.print();
 				}
-			},
+			}
 		}
 	}
 }
@@ -563,8 +566,7 @@ pub type DispatchOutcome = Result<(), DispatchError>;
 /// - The sender doesn't have enough funds to pay the transaction inclusion fee. Including such a
 ///   transaction in the block doesn't make sense.
 /// - The extrinsic supplied a bad signature. This transaction won't become valid ever.
-pub type ApplyExtrinsicResult =
-	Result<DispatchOutcome, transaction_validity::TransactionValidityError>;
+pub type ApplyExtrinsicResult = Result<DispatchOutcome, transaction_validity::TransactionValidityError>;
 
 /// Same as `ApplyExtrinsicResult` but augmented with `PostDispatchInfo` on success.
 pub type ApplyExtrinsicResultWithInfo<T> =
@@ -592,7 +594,13 @@ pub fn verify_encoded_lazy<V: Verify, T: codec::Encode>(
 		}
 	}
 
-	sig.verify(LazyEncode { inner: || item.encode(), encoded: None }, signer)
+	sig.verify(
+		LazyEncode {
+			inner: || item.encode(),
+			encoded: None,
+		},
+		signer,
+	)
 }
 
 /// Helper macro for `impl_outer_config`
@@ -784,8 +792,7 @@ impl<'a> ::serde::Deserialize<'a> for OpaqueExtrinsic {
 		D: ::serde::Deserializer<'a>,
 	{
 		let r = ::sp_core::bytes::deserialize(de)?;
-		Decode::decode(&mut &r[..])
-			.map_err(|e| ::serde::de::Error::custom(format!("Decode error: {}", e)))
+		Decode::decode(&mut &r[..]).map_err(|e| ::serde::de::Error::custom(format!("Decode error: {}", e)))
 	}
 }
 
@@ -865,11 +872,22 @@ mod tests {
 
 	#[test]
 	fn dispatch_error_encoding() {
-		let error = DispatchError::Module { index: 1, error: 2, message: Some("error message") };
+		let error = DispatchError::Module {
+			index: 1,
+			error: 2,
+			message: Some("error message"),
+		};
 		let encoded = error.encode();
 		let decoded = DispatchError::decode(&mut &encoded[..]).unwrap();
 		assert_eq!(encoded, vec![3, 1, 2]);
-		assert_eq!(decoded, DispatchError::Module { index: 1, error: 2, message: None },);
+		assert_eq!(
+			decoded,
+			DispatchError::Module {
+				index: 1,
+				error: 2,
+				message: None
+			},
+		);
 	}
 
 	#[test]

@@ -98,10 +98,7 @@ pub trait Database<H: Clone>: Send + Sync {
 
 	/// Commit the `transaction` to the database atomically. Any further calls to `get` or `lookup`
 	/// will reflect the new state.
-	fn commit_ref<'a>(
-		&self,
-		transaction: &mut dyn Iterator<Item = ChangeRef<'a, H>>,
-	) -> error::Result<()> {
+	fn commit_ref<'a>(&self, transaction: &mut dyn Iterator<Item = ChangeRef<'a, H>>) -> error::Result<()> {
 		let mut tx = Transaction::new();
 		for change in transaction {
 			match change {
@@ -199,11 +196,7 @@ pub fn with_get<R, H: Clone>(
 /// is currently stored.
 ///
 /// This may be faster than `lookup` since it doesn't allocate.
-pub fn with_lookup<R, H: Clone>(
-	db: &dyn Database<H>,
-	hash: &H,
-	mut f: impl FnMut(&[u8]) -> R,
-) -> Option<R> {
+pub fn with_lookup<R, H: Clone>(db: &dyn Database<H>, hash: &H, mut f: impl FnMut(&[u8]) -> R) -> Option<R> {
 	let mut result: Option<R> = None;
 	let mut adapter = |k: &_| {
 		result = Some(f(k));

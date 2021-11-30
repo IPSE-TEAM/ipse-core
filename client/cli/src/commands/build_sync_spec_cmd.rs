@@ -78,12 +78,7 @@ impl BuildSyncSpecCmd {
 		if self.sync_first {
 			network_status_sinks
 				.status_stream(std::time::Duration::from_secs(1))
-				.filter(|status| {
-					ready(
-						status.sync_state == sc_network::SyncState::Idle &&
-							status.num_sync_peers > 0,
-					)
-				})
+				.filter(|status| ready(status.sync_state == sc_network::SyncState::Idle && status.num_sync_peers > 0))
 				.into_future()
 				.map(drop)
 				.await;

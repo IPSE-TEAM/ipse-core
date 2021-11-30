@@ -21,8 +21,7 @@ pub use prometheus::{
 		AtomicF64 as F64, AtomicI64 as I64, AtomicU64 as U64, GenericCounter as Counter,
 		GenericCounterVec as CounterVec, GenericGauge as Gauge, GenericGaugeVec as GaugeVec,
 	},
-	exponential_buckets, Error as PrometheusError, Histogram, HistogramOpts, HistogramVec, Opts,
-	Registry,
+	exponential_buckets, Error as PrometheusError, Histogram, HistogramOpts, HistogramVec, Opts, Registry,
 };
 use prometheus::{core::Collector, Encoder, TextEncoder};
 use std::net::SocketAddr;
@@ -38,10 +37,7 @@ pub use known_os::init_prometheus;
 #[cfg(target_os = "unknown")]
 pub use unknown_os::init_prometheus;
 
-pub fn register<T: Clone + Collector + 'static>(
-	metric: T,
-	registry: &Registry,
-) -> Result<T, PrometheusError> {
+pub fn register<T: Clone + Collector + 'static>(metric: T, registry: &Registry) -> Result<T, PrometheusError> {
 	registry.register(Box::new(metric.clone()))?;
 	Ok(metric)
 }
@@ -90,10 +86,7 @@ mod known_os {
 		}
 	}
 
-	async fn request_metrics(
-		req: Request<Body>,
-		registry: Registry,
-	) -> Result<Response<Body>, Error> {
+	async fn request_metrics(req: Request<Body>, registry: Registry) -> Result<Response<Body>, Error> {
 		if req.uri().path() == "/metrics" {
 			let metric_families = registry.gather();
 			let mut buffer = vec![];
@@ -128,10 +121,7 @@ mod known_os {
 
 	/// Initializes the metrics context, and starts an HTTP server
 	/// to serve metrics.
-	pub async fn init_prometheus(
-		prometheus_addr: SocketAddr,
-		registry: Registry,
-	) -> Result<(), Error> {
+	pub async fn init_prometheus(prometheus_addr: SocketAddr, registry: Registry) -> Result<(), Error> {
 		use networking::Incoming;
 		let listener = async_std::net::TcpListener::bind(&prometheus_addr)
 			.await

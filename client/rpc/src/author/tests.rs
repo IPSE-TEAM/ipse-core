@@ -41,8 +41,12 @@ use substrate_test_runtime_client::{
 };
 
 fn uxt(sender: AccountKeyring, nonce: u64) -> Extrinsic {
-	let tx =
-		Transfer { amount: Default::default(), nonce, from: sender.into(), to: Default::default() };
+	let tx = Transfer {
+		amount: Default::default(),
+		nonce,
+		from: sender.into(),
+		to: Default::default(),
+	};
 	tx.into_signed_tx()
 }
 
@@ -137,7 +141,9 @@ fn should_watch_extrinsic() {
 		};
 		tx.into_signed_tx()
 	};
-	AuthorApi::submit_extrinsic(&p, replacement.encode().into()).wait().unwrap();
+	AuthorApi::submit_extrinsic(&p, replacement.encode().into())
+		.wait()
+		.unwrap();
 	let (res, data) = executor::block_on(data.into_future().compat()).unwrap();
 
 	let expected = Some(format!(
@@ -230,8 +236,10 @@ fn should_insert_key() {
 
 	let public_keys = setup.keystore.read().keys(ED25519).unwrap();
 
-	assert!(public_keys
-		.contains(&CryptoTypePublicPair(ed25519::CRYPTO_ID, key_pair.public().to_raw_vec())));
+	assert!(public_keys.contains(&CryptoTypePublicPair(
+		ed25519::CRYPTO_ID,
+		key_pair.public().to_raw_vec()
+	)));
 }
 
 #[test]
@@ -241,16 +249,19 @@ fn should_rotate_keys() {
 
 	let new_public_keys = p.rotate_keys().expect("Rotates the keys");
 
-	let session_keys =
-		SessionKeys::decode(&mut &new_public_keys[..]).expect("SessionKeys decode successfully");
+	let session_keys = SessionKeys::decode(&mut &new_public_keys[..]).expect("SessionKeys decode successfully");
 
 	let ed25519_public_keys = setup.keystore.read().keys(ED25519).unwrap();
 	let sr25519_public_keys = setup.keystore.read().keys(SR25519).unwrap();
 
-	assert!(ed25519_public_keys
-		.contains(&CryptoTypePublicPair(ed25519::CRYPTO_ID, session_keys.ed25519.to_raw_vec())));
-	assert!(sr25519_public_keys
-		.contains(&CryptoTypePublicPair(sr25519::CRYPTO_ID, session_keys.sr25519.to_raw_vec())));
+	assert!(ed25519_public_keys.contains(&CryptoTypePublicPair(
+		ed25519::CRYPTO_ID,
+		session_keys.ed25519.to_raw_vec()
+	)));
+	assert!(sr25519_public_keys.contains(&CryptoTypePublicPair(
+		sr25519::CRYPTO_ID,
+		session_keys.sr25519.to_raw_vec()
+	)));
 }
 
 #[test]
@@ -258,8 +269,7 @@ fn test_has_session_keys() {
 	let setup = TestSetup::default();
 	let p = setup.author();
 
-	let non_existent_public_keys =
-		TestSetup::default().author().rotate_keys().expect("Rotates the keys");
+	let non_existent_public_keys = TestSetup::default().author().rotate_keys().expect("Rotates the keys");
 
 	let public_keys = p.rotate_keys().expect("Rotates the keys");
 	let test_vectors = vec![

@@ -35,7 +35,12 @@ struct Status {
 
 impl Default for Status {
 	fn default() -> Status {
-		Status { peer_id: PeerId::random(), peers: 0, is_syncing: false, is_dev: false }
+		Status {
+			peer_id: PeerId::random(),
+			peers: 0,
+			is_syncing: false,
+			is_dev: false,
+		}
 	}
 }
 
@@ -52,17 +57,16 @@ fn api<T: Into<Option<Status>>>(sync: T) -> System<Block> {
 						is_syncing: status.is_syncing,
 						should_have_peers,
 					});
-				},
+				}
 				Request::LocalPeerId(sender) => {
-					let _ =
-						sender.send("QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".to_string());
-				},
+					let _ = sender.send("QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".to_string());
+				}
 				Request::LocalListenAddresses(sender) => {
 					let _ = sender.send(vec![
 						"/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".to_string(),
 						"/ip4/127.0.0.1/tcp/30334/ws/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".to_string(),
 					]);
-				},
+				}
 				Request::Peers(sender) => {
 					let mut peers = vec![];
 					for _peer in 0..status.peers {
@@ -74,7 +78,7 @@ fn api<T: Into<Option<Status>>>(sync: T) -> System<Block> {
 						});
 					}
 					let _ = sender.send(peers);
-				},
+				}
 				Request::NetworkState(sender) => {
 					let _ = sender.send(
 						serde_json::to_value(&sc_network::network_state::NetworkState {
@@ -87,24 +91,22 @@ fn api<T: Into<Option<Status>>>(sync: T) -> System<Block> {
 						})
 						.unwrap(),
 					);
-				},
+				}
 				Request::NetworkAddReservedPeer(peer, sender) => {
 					let _ = match sc_network::config::parse_str_addr(&peer) {
 						Ok(_) => sender.send(Ok(())),
-						Err(s) =>
-							sender.send(Err(error::Error::MalformattedPeerArg(s.to_string()))),
+						Err(s) => sender.send(Err(error::Error::MalformattedPeerArg(s.to_string()))),
 					};
-				},
+				}
 				Request::NetworkRemoveReservedPeer(peer, sender) => {
 					let _ = match peer.parse::<PeerId>() {
 						Ok(_) => sender.send(Ok(())),
-						Err(s) =>
-							sender.send(Err(error::Error::MalformattedPeerArg(s.to_string()))),
+						Err(s) => sender.send(Err(error::Error::MalformattedPeerArg(s.to_string()))),
 					};
-				},
+				}
 				Request::NodeRoles(sender) => {
 					let _ = sender.send(vec![NodeRole::Authority]);
-				},
+				}
 			};
 
 			future::ready(())
@@ -157,31 +159,62 @@ fn system_type_works() {
 fn system_health() {
 	assert_matches!(
 		wait_receiver(api(None).system_health()),
-		Health { peers: 0, is_syncing: false, should_have_peers: true }
+		Health {
+			peers: 0,
+			is_syncing: false,
+			should_have_peers: true
+		}
 	);
 
 	assert_matches!(
 		wait_receiver(
-			api(Status { peer_id: PeerId::random(), peers: 5, is_syncing: true, is_dev: true })
-				.system_health()
+			api(Status {
+				peer_id: PeerId::random(),
+				peers: 5,
+				is_syncing: true,
+				is_dev: true
+			})
+			.system_health()
 		),
-		Health { peers: 5, is_syncing: true, should_have_peers: false }
+		Health {
+			peers: 5,
+			is_syncing: true,
+			should_have_peers: false
+		}
 	);
 
 	assert_eq!(
 		wait_receiver(
-			api(Status { peer_id: PeerId::random(), peers: 5, is_syncing: false, is_dev: false })
-				.system_health()
+			api(Status {
+				peer_id: PeerId::random(),
+				peers: 5,
+				is_syncing: false,
+				is_dev: false
+			})
+			.system_health()
 		),
-		Health { peers: 5, is_syncing: false, should_have_peers: true }
+		Health {
+			peers: 5,
+			is_syncing: false,
+			should_have_peers: true
+		}
 	);
 
 	assert_eq!(
 		wait_receiver(
-			api(Status { peer_id: PeerId::random(), peers: 0, is_syncing: false, is_dev: true })
-				.system_health()
+			api(Status {
+				peer_id: PeerId::random(),
+				peers: 0,
+				is_syncing: false,
+				is_dev: true
+			})
+			.system_health()
 		),
-		Health { peers: 0, is_syncing: false, should_have_peers: false }
+		Health {
+			peers: 0,
+			is_syncing: false,
+			should_have_peers: false
+		}
 	);
 }
 
@@ -198,10 +231,8 @@ fn system_local_listen_addresses_works() {
 	assert_eq!(
 		wait_receiver(api(None).system_local_listen_addresses()),
 		vec![
-			"/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV"
-				.to_string(),
-			"/ip4/127.0.0.1/tcp/30334/ws/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV"
-				.to_string(),
+			"/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".to_string(),
+			"/ip4/127.0.0.1/tcp/30334/ws/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV".to_string(),
 		]
 	);
 }
@@ -211,8 +242,13 @@ fn system_peers() {
 	let mut runtime = tokio::runtime::current_thread::Runtime::new().unwrap();
 
 	let peer_id = PeerId::random();
-	let req = api(Status { peer_id: peer_id.clone(), peers: 1, is_syncing: false, is_dev: true })
-		.system_peers();
+	let req = api(Status {
+		peer_id: peer_id.clone(),
+		peers: 1,
+		is_syncing: false,
+		is_dev: true,
+	})
+	.system_peers();
 	let res = runtime.block_on(req).unwrap();
 
 	assert_eq!(
@@ -252,8 +288,7 @@ fn system_node_roles() {
 
 #[test]
 fn system_network_add_reserved() {
-	let good_peer_id =
-		"/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV";
+	let good_peer_id = "/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV";
 	let bad_peer_id = "/ip4/198.51.100.19/tcp/30333";
 	let mut runtime = tokio::runtime::current_thread::Runtime::new().unwrap();
 
@@ -266,8 +301,7 @@ fn system_network_add_reserved() {
 #[test]
 fn system_network_remove_reserved() {
 	let good_peer_id = "QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV";
-	let bad_peer_id =
-		"/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV";
+	let bad_peer_id = "/ip4/198.51.100.19/tcp/30333/p2p/QmSk5HQbn6LhUwDiNMseVUjuRYhEtYj4aUZ6WfWoGURpdV";
 	let mut runtime = tokio::runtime::current_thread::Runtime::new().unwrap();
 
 	let good_fut = api(None).system_remove_reserved_peer(good_peer_id.into());

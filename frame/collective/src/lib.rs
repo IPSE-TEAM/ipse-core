@@ -50,10 +50,7 @@ use sp_std::{prelude::*, result};
 use frame_support::{
 	codec::{Decode, Encode},
 	debug, decl_error, decl_event, decl_module, decl_storage,
-	dispatch::{
-		DispatchError, DispatchResult, DispatchResultWithPostInfo, Dispatchable, Parameter,
-		PostDispatchInfo,
-	},
+	dispatch::{DispatchError, DispatchResult, DispatchResultWithPostInfo, Dispatchable, Parameter, PostDispatchInfo},
 	ensure,
 	traits::{ChangeMembers, EnsureOrigin, Get, InitializeMembers},
 	weights::{DispatchClass, GetDispatchInfo, Weight},
@@ -82,12 +79,7 @@ pub trait DefaultVote {
 	/// - Raw number of yes votes.
 	/// - Raw number of no votes.
 	/// - Total number of member count.
-	fn default_vote(
-		prime_vote: Option<bool>,
-		yes_votes: MemberCount,
-		no_votes: MemberCount,
-		len: MemberCount,
-	) -> bool;
+	fn default_vote(prime_vote: Option<bool>, yes_votes: MemberCount, no_votes: MemberCount, len: MemberCount) -> bool;
 }
 
 /// Set the prime member's vote as the default vote.
@@ -712,8 +704,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 	) -> Result<(<T as Trait<I>>::Proposal, usize), DispatchError> {
 		let key = ProposalOf::<T, I>::hashed_key_for(hash);
 		// read the length of the proposal storage entry directly
-		let proposal_len =
-			storage::read(&key, &mut [0; 0], 0).ok_or(Error::<T, I>::ProposalMissing)?;
+		let proposal_len = storage::read(&key, &mut [0; 0], 0).ok_or(Error::<T, I>::ProposalMissing)?;
 		ensure!(proposal_len <= length_bound, Error::<T, I>::WrongProposalLength);
 		let proposal = ProposalOf::<T, I>::get(hash).ok_or(Error::<T, I>::ProposalMissing)?;
 		let proposal_weight = proposal.get_dispatch_info().weight;
@@ -794,11 +785,7 @@ impl<T: Trait<I>, I: Instance> ChangeMembers<T::AccountId> for Module<T, I> {
 	///   - 1 storage write (codec `O(N)`) for storing the new members
 	///   - 1 storage write (codec `O(1)`) for deleting the old prime
 	/// # </weight>
-	fn change_members_sorted(
-		_incoming: &[T::AccountId],
-		outgoing: &[T::AccountId],
-		new: &[T::AccountId],
-	) {
+	fn change_members_sorted(_incoming: &[T::AccountId], outgoing: &[T::AccountId], new: &[T::AccountId]) {
 		if new.len() > T::MaxMembers::get() as usize {
 			debug::error!(
 				"New members count exceeds maximum amount of members expected. (expected: {}, actual: {})",
@@ -859,14 +846,9 @@ where
 	}
 }
 
-pub struct EnsureMember<AccountId, I = DefaultInstance>(
-	sp_std::marker::PhantomData<(AccountId, I)>,
-);
-impl<
-		O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>,
-		AccountId: Default,
-		I,
-	> EnsureOrigin<O> for EnsureMember<AccountId, I>
+pub struct EnsureMember<AccountId, I = DefaultInstance>(sp_std::marker::PhantomData<(AccountId, I)>);
+impl<O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>, AccountId: Default, I> EnsureOrigin<O>
+	for EnsureMember<AccountId, I>
 {
 	type Success = AccountId;
 	fn try_origin(o: O) -> Result<Self::Success, O> {
@@ -882,15 +864,9 @@ impl<
 	}
 }
 
-pub struct EnsureMembers<N: U32, AccountId, I = DefaultInstance>(
-	sp_std::marker::PhantomData<(N, AccountId, I)>,
-);
-impl<
-		O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>,
-		N: U32,
-		AccountId,
-		I,
-	> EnsureOrigin<O> for EnsureMembers<N, AccountId, I>
+pub struct EnsureMembers<N: U32, AccountId, I = DefaultInstance>(sp_std::marker::PhantomData<(N, AccountId, I)>);
+impl<O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>, N: U32, AccountId, I> EnsureOrigin<O>
+	for EnsureMembers<N, AccountId, I>
 {
 	type Success = (MemberCount, MemberCount);
 	fn try_origin(o: O) -> Result<Self::Success, O> {
@@ -909,13 +885,8 @@ impl<
 pub struct EnsureProportionMoreThan<N: U32, D: U32, AccountId, I = DefaultInstance>(
 	sp_std::marker::PhantomData<(N, D, AccountId, I)>,
 );
-impl<
-		O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>,
-		N: U32,
-		D: U32,
-		AccountId,
-		I,
-	> EnsureOrigin<O> for EnsureProportionMoreThan<N, D, AccountId, I>
+impl<O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>, N: U32, D: U32, AccountId, I>
+	EnsureOrigin<O> for EnsureProportionMoreThan<N, D, AccountId, I>
 {
 	type Success = ();
 	fn try_origin(o: O) -> Result<Self::Success, O> {
@@ -934,13 +905,8 @@ impl<
 pub struct EnsureProportionAtLeast<N: U32, D: U32, AccountId, I = DefaultInstance>(
 	sp_std::marker::PhantomData<(N, D, AccountId, I)>,
 );
-impl<
-		O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>,
-		N: U32,
-		D: U32,
-		AccountId,
-		I,
-	> EnsureOrigin<O> for EnsureProportionAtLeast<N, D, AccountId, I>
+impl<O: Into<Result<RawOrigin<AccountId, I>, O>> + From<RawOrigin<AccountId, I>>, N: U32, D: U32, AccountId, I>
+	EnsureOrigin<O> for EnsureProportionAtLeast<N, D, AccountId, I>
 {
 	type Success = ();
 	fn try_origin(o: O) -> Result<Self::Success, O> {
@@ -1102,13 +1068,7 @@ mod tests {
 
 			System::set_block_number(3);
 			assert_noop!(
-				Collective::close(
-					Origin::signed(4),
-					hash.clone(),
-					0,
-					proposal_weight,
-					proposal_len
-				),
+				Collective::close(Origin::signed(4), hash.clone(), 0, proposal_weight, proposal_len),
 				Error::<Test, Instance1>::TooEarly
 			);
 
@@ -1121,8 +1081,11 @@ mod tests {
 				proposal_len
 			));
 
-			let record =
-				|event| EventRecord { phase: Phase::Initialization, event, topics: vec![] };
+			let record = |event| EventRecord {
+				phase: Phase::Initialization,
+				event,
+				topics: vec![],
+			};
 			assert_eq!(
 				System::events(),
 				vec![
@@ -1144,8 +1107,7 @@ mod tests {
 	#[test]
 	fn proposal_weight_limit_works_on_approve() {
 		new_test_ext().execute_with(|| {
-			let proposal =
-				Call::Collective(crate::Call::set_members(vec![1, 2, 3], None, MaxMembers::get()));
+			let proposal = Call::Collective(crate::Call::set_members(vec![1, 2, 3], None, MaxMembers::get()));
 			let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 			let proposal_weight = proposal.get_dispatch_info().weight;
 			let hash = BlakeTwo256::hash_of(&proposal);
@@ -1160,13 +1122,7 @@ mod tests {
 			// With 1's prime vote, this should pass
 			System::set_block_number(4);
 			assert_noop!(
-				Collective::close(
-					Origin::signed(4),
-					hash.clone(),
-					0,
-					proposal_weight - 100,
-					proposal_len
-				),
+				Collective::close(Origin::signed(4), hash.clone(), 0, proposal_weight - 100, proposal_len),
 				Error::<Test, Instance1>::WrongProposalWeight
 			);
 			assert_ok!(Collective::close(
@@ -1182,8 +1138,7 @@ mod tests {
 	#[test]
 	fn proposal_weight_limit_ignored_on_disapprove() {
 		new_test_ext().execute_with(|| {
-			let proposal =
-				Call::Collective(crate::Call::set_members(vec![1, 2, 3], None, MaxMembers::get()));
+			let proposal = Call::Collective(crate::Call::set_members(vec![1, 2, 3], None, MaxMembers::get()));
 			let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 			let proposal_weight = proposal.get_dispatch_info().weight;
 			let hash = BlakeTwo256::hash_of(&proposal);
@@ -1237,8 +1192,11 @@ mod tests {
 				proposal_len
 			));
 
-			let record =
-				|event| EventRecord { phase: Phase::Initialization, event, topics: vec![] };
+			let record = |event| EventRecord {
+				phase: Phase::Initialization,
+				event,
+				topics: vec![],
+			};
 			assert_eq!(
 				System::events(),
 				vec![
@@ -1288,8 +1246,11 @@ mod tests {
 				proposal_len
 			));
 
-			let record =
-				|event| EventRecord { phase: Phase::Initialization, event, topics: vec![] };
+			let record = |event| EventRecord {
+				phase: Phase::Initialization,
+				event,
+				topics: vec![],
+			};
 			assert_eq!(
 				System::events(),
 				vec![
@@ -1344,8 +1305,11 @@ mod tests {
 				proposal_len
 			));
 
-			let record =
-				|event| EventRecord { phase: Phase::Initialization, event, topics: vec![] };
+			let record = |event| EventRecord {
+				phase: Phase::Initialization,
+				event,
+				topics: vec![],
+			};
 			assert_eq!(
 				System::events(),
 				vec![
@@ -1391,12 +1355,24 @@ mod tests {
 			assert_ok!(Collective::vote(Origin::signed(2), hash.clone(), 0, true));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 0, threshold: 3, ayes: vec![1, 2], nays: vec![], end })
+				Some(Votes {
+					index: 0,
+					threshold: 3,
+					ayes: vec![1, 2],
+					nays: vec![],
+					end
+				})
 			);
 			Collective::change_members_sorted(&[4], &[1], &[2, 3, 4]);
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 0, threshold: 3, ayes: vec![2], nays: vec![], end })
+				Some(Votes {
+					index: 0,
+					threshold: 3,
+					ayes: vec![2],
+					nays: vec![],
+					end
+				})
 			);
 
 			let proposal = make_proposal(69);
@@ -1411,12 +1387,24 @@ mod tests {
 			assert_ok!(Collective::vote(Origin::signed(3), hash.clone(), 1, false));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 1, threshold: 2, ayes: vec![2], nays: vec![3], end })
+				Some(Votes {
+					index: 1,
+					threshold: 2,
+					ayes: vec![2],
+					nays: vec![3],
+					end
+				})
 			);
 			Collective::change_members_sorted(&[], &[3], &[2, 4]);
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 1, threshold: 2, ayes: vec![2], nays: vec![], end })
+				Some(Votes {
+					index: 1,
+					threshold: 2,
+					ayes: vec![2],
+					nays: vec![],
+					end
+				})
 			);
 		});
 	}
@@ -1437,7 +1425,13 @@ mod tests {
 			assert_ok!(Collective::vote(Origin::signed(2), hash.clone(), 0, true));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 0, threshold: 3, ayes: vec![1, 2], nays: vec![], end })
+				Some(Votes {
+					index: 0,
+					threshold: 3,
+					ayes: vec![1, 2],
+					nays: vec![],
+					end
+				})
 			);
 			assert_ok!(Collective::set_members(
 				Origin::root(),
@@ -1447,7 +1441,13 @@ mod tests {
 			));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 0, threshold: 3, ayes: vec![2], nays: vec![], end })
+				Some(Votes {
+					index: 0,
+					threshold: 3,
+					ayes: vec![2],
+					nays: vec![],
+					end
+				})
 			);
 
 			let proposal = make_proposal(69);
@@ -1462,7 +1462,13 @@ mod tests {
 			assert_ok!(Collective::vote(Origin::signed(3), hash.clone(), 1, false));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 1, threshold: 2, ayes: vec![2], nays: vec![3], end })
+				Some(Votes {
+					index: 1,
+					threshold: 2,
+					ayes: vec![2],
+					nays: vec![3],
+					end
+				})
 			);
 			assert_ok!(Collective::set_members(
 				Origin::root(),
@@ -1472,7 +1478,13 @@ mod tests {
 			));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 1, threshold: 2, ayes: vec![2], nays: vec![], end })
+				Some(Votes {
+					index: 1,
+					threshold: 2,
+					ayes: vec![2],
+					nays: vec![],
+					end
+				})
 			);
 		});
 	}
@@ -1494,7 +1506,13 @@ mod tests {
 			assert_eq!(Collective::proposal_of(&hash), Some(proposal));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 0, threshold: 3, ayes: vec![1], nays: vec![], end })
+				Some(Votes {
+					index: 0,
+					threshold: 3,
+					ayes: vec![1],
+					nays: vec![],
+					end
+				})
 			);
 
 			assert_eq!(
@@ -1504,8 +1522,7 @@ mod tests {
 					event: Event::collective_Instance1(RawEvent::Proposed(
 						1,
 						0,
-						hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"]
-							.into(),
+						hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 						3,
 					)),
 					topics: vec![],
@@ -1539,8 +1556,7 @@ mod tests {
 	#[test]
 	fn correct_validate_and_get_proposal() {
 		new_test_ext().execute_with(|| {
-			let proposal =
-				Call::Collective(crate::Call::set_members(vec![1, 2, 3], None, MaxMembers::get()));
+			let proposal = Call::Collective(crate::Call::set_members(vec![1, 2, 3], None, MaxMembers::get()));
 			let length = proposal.encode().len() as u32;
 			assert_ok!(Collective::propose(
 				Origin::signed(1),
@@ -1552,11 +1568,7 @@ mod tests {
 			let hash = BlakeTwo256::hash_of(&proposal);
 			let weight = proposal.get_dispatch_info().weight;
 			assert_noop!(
-				Collective::validate_and_get_proposal(
-					&BlakeTwo256::hash_of(&vec![3; 4]),
-					length,
-					weight
-				),
+				Collective::validate_and_get_proposal(&BlakeTwo256::hash_of(&vec![3; 4]), length, weight),
 				Error::<Test, Instance1>::ProposalMissing
 			);
 			assert_noop!(
@@ -1581,12 +1593,7 @@ mod tests {
 			let proposal = make_proposal(42);
 			let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 			assert_noop!(
-				Collective::propose(
-					Origin::signed(42),
-					3,
-					Box::new(proposal.clone()),
-					proposal_len
-				),
+				Collective::propose(Origin::signed(42), 3, Box::new(proposal.clone()), proposal_len),
 				Error::<Test, Instance1>::NotMember
 			);
 		});
@@ -1646,7 +1653,13 @@ mod tests {
 			));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 0, threshold: 2, ayes: vec![1], nays: vec![], end })
+				Some(Votes {
+					index: 0,
+					threshold: 2,
+					ayes: vec![1],
+					nays: vec![],
+					end
+				})
 			);
 			assert_noop!(
 				Collective::vote(Origin::signed(1), hash.clone(), 0, true),
@@ -1655,7 +1668,13 @@ mod tests {
 			assert_ok!(Collective::vote(Origin::signed(1), hash.clone(), 0, false));
 			assert_eq!(
 				Collective::voting(&hash),
-				Some(Votes { index: 0, threshold: 2, ayes: vec![], nays: vec![1], end })
+				Some(Votes {
+					index: 0,
+					threshold: 2,
+					ayes: vec![],
+					nays: vec![1],
+					end
+				})
 			);
 			assert_noop!(
 				Collective::vote(Origin::signed(1), hash.clone(), 0, false),
@@ -1670,10 +1689,7 @@ mod tests {
 						event: Event::collective_Instance1(RawEvent::Proposed(
 							1,
 							0,
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							2,
 						)),
 						topics: vec![],
@@ -1682,10 +1698,7 @@ mod tests {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Voted(
 							1,
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							false,
 							0,
 							1,
@@ -1759,10 +1772,7 @@ mod tests {
 						event: Event::collective_Instance1(RawEvent::Proposed(
 							1,
 							0,
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							3,
 						)),
 						topics: vec![],
@@ -1771,10 +1781,7 @@ mod tests {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Voted(
 							2,
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							false,
 							1,
 							1,
@@ -1784,10 +1791,7 @@ mod tests {
 					EventRecord {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Closed(
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							1,
 							1,
 						)),
@@ -1796,10 +1800,7 @@ mod tests {
 					EventRecord {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Disapproved(
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 						)),
 						topics: vec![],
 					}
@@ -1838,10 +1839,7 @@ mod tests {
 						event: Event::collective_Instance1(RawEvent::Proposed(
 							1,
 							0,
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							2,
 						)),
 						topics: vec![],
@@ -1850,10 +1848,7 @@ mod tests {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Voted(
 							2,
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							true,
 							2,
 							0,
@@ -1863,10 +1858,7 @@ mod tests {
 					EventRecord {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Closed(
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							2,
 							0,
 						)),
@@ -1875,20 +1867,14 @@ mod tests {
 					EventRecord {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Approved(
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 						)),
 						topics: vec![],
 					},
 					EventRecord {
 						phase: Phase::Initialization,
 						event: Event::collective_Instance1(RawEvent::Executed(
-							hex![
-								"68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"
-							]
-							.into(),
+							hex!["68eea8f20b542ec656c6ac2d10435ae3bd1729efc34d1354ab85af840aad2d35"].into(),
 							Err(DispatchError::BadOrigin),
 						)),
 						topics: vec![],
@@ -1948,8 +1934,11 @@ mod tests {
 			assert_ok!(Collective::vote(Origin::signed(2), hash.clone(), 0, true));
 			// But Root can disapprove and remove it anyway
 			assert_ok!(Collective::disapprove_proposal(Origin::root(), hash.clone()));
-			let record =
-				|event| EventRecord { phase: Phase::Initialization, event, topics: vec![] };
+			let record = |event| EventRecord {
+				phase: Phase::Initialization,
+				event,
+				topics: vec![],
+			};
 			assert_eq!(
 				System::events(),
 				vec![

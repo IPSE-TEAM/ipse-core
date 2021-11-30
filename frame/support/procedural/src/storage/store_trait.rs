@@ -22,13 +22,14 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 pub fn decl_and_impl(def: &DeclStorageDefExt) -> TokenStream {
-	let decl_store_items = def.storage_lines.iter().map(|sline| &sline.name).fold(
-		TokenStream::new(),
-		|mut items, name| {
-			items.extend(quote!(type #name;));
-			items
-		},
-	);
+	let decl_store_items =
+		def.storage_lines
+			.iter()
+			.map(|sline| &sline.name)
+			.fold(TokenStream::new(), |mut items, name| {
+				items.extend(quote!(type #name;));
+				items
+			});
 
 	let impl_store_items = def.storage_lines.iter().fold(TokenStream::new(), |mut items, line| {
 		let name = &line.name;

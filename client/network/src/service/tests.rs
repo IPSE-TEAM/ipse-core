@@ -24,19 +24,15 @@ use sp_runtime::traits::{Block as BlockT, Header as _};
 use std::{sync::Arc, time::Duration};
 use substrate_test_runtime_client::{TestClientBuilder, TestClientBuilderExt as _};
 
-type TestNetworkService = NetworkService<
-	substrate_test_runtime_client::runtime::Block,
-	substrate_test_runtime_client::runtime::Hash,
->;
+type TestNetworkService =
+	NetworkService<substrate_test_runtime_client::runtime::Block, substrate_test_runtime_client::runtime::Hash>;
 
 /// Builds a full node to be used for testing. Returns the node service and its associated events
 /// stream.
 ///
 /// > **Note**: We return the events stream in order to not possibly lose events between the
 /// >			construction of the service and the moment the events stream is grabbed.
-fn build_test_full_node(
-	config: config::NetworkConfiguration,
-) -> (Arc<TestNetworkService>, impl Stream<Item = Event>) {
+fn build_test_full_node(config: config::NetworkConfiguration) -> (Arc<TestNetworkService>, impl Stream<Item = Event>) {
 	let client = Arc::new(TestClientBuilder::with_default_backend().build_with_longest_chain().0);
 
 	#[derive(Clone)]
@@ -59,15 +55,9 @@ fn build_test_full_node(
 				.digest()
 				.log(|l| {
 					l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"aura"))
-						.or_else(|| {
-							l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(
-								b"babe",
-							))
-						})
+						.or_else(|| l.try_as_raw(sp_runtime::generic::OpaqueDigestItemId::Consensus(b"babe")))
 				})
-				.map(|blob| {
-					vec![(sp_blockchain::well_known_cache_keys::AUTHORITIES, blob.to_vec())]
-				});
+				.map(|blob| vec![(sp_blockchain::well_known_cache_keys::AUTHORITIES, blob.to_vec())]);
 
 			let mut import = sp_consensus::BlockImportParams::new(origin, header);
 			import.body = body;
@@ -98,9 +88,7 @@ fn build_test_full_node(
 		transaction_pool: Arc::new(crate::config::EmptyTransactionPool),
 		protocol_id: config::ProtocolId::from("/test-protocol-name"),
 		import_queue,
-		block_announce_validator: Box::new(
-			sp_consensus::block_validation::DefaultBlockAnnounceValidator,
-		),
+		block_announce_validator: Box::new(sp_consensus::block_validation::DefaultBlockAnnounceValidator),
 		metrics_registry: None,
 	})
 	.unwrap();
@@ -179,24 +167,16 @@ fn notifications_state_consistent() {
 			iterations += 1;
 			if iterations >= 1_000 {
 				assert!(something_happened);
-				break
+				break;
 			}
 
 			// Start by sending a notification from node1 to node2 and vice-versa. Part of the
 			// test consists in ensuring that notifications get ignored if the stream isn't open.
 			if rand::random::<u8>() % 5 >= 3 {
-				node1.write_notification(
-					node2.local_peer_id().clone(),
-					ENGINE_ID,
-					b"hello world".to_vec(),
-				);
+				node1.write_notification(node2.local_peer_id().clone(), ENGINE_ID, b"hello world".to_vec());
 			}
 			if rand::random::<u8>() % 5 >= 3 {
-				node2.write_notification(
-					node1.local_peer_id().clone(),
-					ENGINE_ID,
-					b"hello world".to_vec(),
-				);
+				node2.write_notification(node1.local_peer_id().clone(), ENGINE_ID, b"hello world".to_vec());
 			}
 
 			// Also randomly disconnect the two nodes from time to time.
@@ -215,80 +195,58 @@ fn notifications_state_consistent() {
 				// forever while nothing at all happens on the network.
 				let continue_test = futures_timer::Delay::new(Duration::from_millis(20));
 				match future::select(future::select(next1, next2), continue_test).await {
-					future::Either::Left((future::Either::Left((Some(ev), _)), _)) =>
-						future::Either::Left(ev),
-					future::Either::Left((future::Either::Right((Some(ev), _)), _)) =>
-						future::Either::Right(ev),
+					future::Either::Left((future::Either::Left((Some(ev), _)), _)) => future::Either::Left(ev),
+					future::Either::Left((future::Either::Right((Some(ev), _)), _)) => future::Either::Right(ev),
 					future::Either::Right(_) => continue,
 					_ => break,
 				}
 			};
 
 			match next_event {
-				future::Either::Left(Event::NotificationStreamOpened {
-					remote, engine_id, ..
-				}) => {
+				future::Either::Left(Event::NotificationStreamOpened { remote, engine_id, .. }) => {
 					something_happened = true;
 					assert!(!node1_to_node2_open);
 					node1_to_node2_open = true;
 					assert_eq!(remote, *node2.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				},
-				future::Either::Right(Event::NotificationStreamOpened {
-					remote,
-					engine_id,
-					..
-				}) => {
+				}
+				future::Either::Right(Event::NotificationStreamOpened { remote, engine_id, .. }) => {
 					something_happened = true;
 					assert!(!node2_to_node1_open);
 					node2_to_node1_open = true;
 					assert_eq!(remote, *node1.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				},
-				future::Either::Left(Event::NotificationStreamClosed {
-					remote, engine_id, ..
-				}) => {
+				}
+				future::Either::Left(Event::NotificationStreamClosed { remote, engine_id, .. }) => {
 					assert!(node1_to_node2_open);
 					node1_to_node2_open = false;
 					assert_eq!(remote, *node2.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				},
-				future::Either::Right(Event::NotificationStreamClosed {
-					remote,
-					engine_id,
-					..
-				}) => {
+				}
+				future::Either::Right(Event::NotificationStreamClosed { remote, engine_id, .. }) => {
 					assert!(node2_to_node1_open);
 					node2_to_node1_open = false;
 					assert_eq!(remote, *node1.local_peer_id());
 					assert_eq!(engine_id, ENGINE_ID);
-				},
+				}
 				future::Either::Left(Event::NotificationsReceived { remote, .. }) => {
 					assert!(node1_to_node2_open);
 					assert_eq!(remote, *node2.local_peer_id());
 					if rand::random::<u8>() % 5 >= 4 {
-						node1.write_notification(
-							node2.local_peer_id().clone(),
-							ENGINE_ID,
-							b"hello world".to_vec(),
-						);
+						node1.write_notification(node2.local_peer_id().clone(), ENGINE_ID, b"hello world".to_vec());
 					}
-				},
+				}
 				future::Either::Right(Event::NotificationsReceived { remote, .. }) => {
 					assert!(node2_to_node1_open);
 					assert_eq!(remote, *node1.local_peer_id());
 					if rand::random::<u8>() % 5 >= 4 {
-						node2.write_notification(
-							node1.local_peer_id().clone(),
-							ENGINE_ID,
-							b"hello world".to_vec(),
-						);
+						node2.write_notification(node1.local_peer_id().clone(), ENGINE_ID, b"hello world".to_vec());
 					}
-				},
+				}
 
 				// Add new events here.
-				future::Either::Left(Event::Dht(_)) => {},
-				future::Either::Right(Event::Dht(_)) => {},
+				future::Either::Left(Event::Dht(_)) => {}
+				future::Either::Right(Event::Dht(_)) => {}
 			};
 		}
 	});
@@ -378,13 +336,14 @@ fn notifications_back_pressure() {
 		while received_notifications < TOTAL_NOTIFS {
 			match events_stream2.next().await.unwrap() {
 				Event::NotificationStreamClosed { .. } => panic!(),
-				Event::NotificationsReceived { messages, .. } =>
+				Event::NotificationsReceived { messages, .. } => {
 					for message in messages {
 						assert_eq!(message.0, ENGINE_ID);
 						assert_eq!(message.1, format!("hello #{}", received_notifications));
 						received_notifications += 1;
-					},
-				_ => {},
+					}
+				}
+				_ => {}
 			};
 
 			if rand::random::<u8>() < 2 {
@@ -398,7 +357,7 @@ fn notifications_back_pressure() {
 		loop {
 			match events_stream1.next().await.unwrap() {
 				Event::NotificationStreamOpened { .. } => break,
-				_ => {},
+				_ => {}
 			};
 		}
 

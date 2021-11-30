@@ -18,9 +18,7 @@
 
 //! Middleware for RPC requests.
 
-use jsonrpc_core::{
-	FutureOutput, FutureResponse, Metadata, Middleware as RequestMiddleware, Request, Response,
-};
+use jsonrpc_core::{FutureOutput, FutureResponse, Metadata, Middleware as RequestMiddleware, Request, Response};
 use prometheus_endpoint::{register, CounterVec, Opts, PrometheusError, Registry, U64};
 
 use futures::{future::Either, Future};
@@ -62,7 +60,10 @@ impl RpcMiddleware {
 	/// Create an instance of middleware with provided metrics
 	/// transport_label is used as a label for Prometheus collector
 	pub fn new(metrics: Option<RpcMetrics>, transport_label: &str) -> Self {
-		RpcMiddleware { metrics, transport_label: String::from(transport_label) }
+		RpcMiddleware {
+			metrics,
+			transport_label: String::from(transport_label),
+		}
 	}
 }
 
@@ -76,7 +77,10 @@ impl<M: Metadata> RequestMiddleware<M> for RpcMiddleware {
 		X: Future<Item = Option<Response>, Error = ()> + Send + 'static,
 	{
 		if let Some(ref metrics) = self.metrics {
-			metrics.rpc_calls.with_label_values(&[self.transport_label.as_str()]).inc();
+			metrics
+				.rpc_calls
+				.with_label_values(&[self.transport_label.as_str()])
+				.inc();
 		}
 
 		Either::B(next(request, meta))

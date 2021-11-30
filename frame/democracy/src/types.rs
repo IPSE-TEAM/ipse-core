@@ -19,9 +19,7 @@
 
 use crate::{AccountVote, Conviction, Vote, VoteThreshold};
 use codec::{Decode, Encode};
-use sp_runtime::traits::{
-	Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Saturating, Zero,
-};
+use sp_runtime::traits::{Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, Saturating, Zero};
 use sp_runtime::RuntimeDebug;
 
 /// Info regarding an ongoing referendum.
@@ -67,21 +65,15 @@ impl<Balance: Saturating> Saturating for Delegations<Balance> {
 	}
 
 	fn saturating_pow(self, exp: usize) -> Self {
-		Self { votes: self.votes.saturating_pow(exp), capital: self.capital.saturating_pow(exp) }
+		Self {
+			votes: self.votes.saturating_pow(exp),
+			capital: self.capital.saturating_pow(exp),
+		}
 	}
 }
 
-impl<
-		Balance: From<u8>
-			+ Zero
-			+ Copy
-			+ CheckedAdd
-			+ CheckedSub
-			+ CheckedMul
-			+ CheckedDiv
-			+ Bounded
-			+ Saturating,
-	> Tally<Balance>
+impl<Balance: From<u8> + Zero + Copy + CheckedAdd + CheckedSub + CheckedMul + CheckedDiv + Bounded + Saturating>
+	Tally<Balance>
 {
 	/// Create a new tally.
 	pub fn new(vote: Vote, balance: Balance) -> Self {
@@ -103,14 +95,14 @@ impl<
 					true => self.ayes = self.ayes.checked_add(&votes)?,
 					false => self.nays = self.nays.checked_add(&votes)?,
 				}
-			},
+			}
 			AccountVote::Split { aye, nay } => {
 				let aye = Conviction::None.votes(aye);
 				let nay = Conviction::None.votes(nay);
 				self.turnout = self.turnout.checked_add(&aye.capital)?.checked_add(&nay.capital)?;
 				self.ayes = self.ayes.checked_add(&aye.votes)?;
 				self.nays = self.nays.checked_add(&nay.votes)?;
-			},
+			}
 		}
 		Some(())
 	}
@@ -125,14 +117,14 @@ impl<
 					true => self.ayes = self.ayes.checked_sub(&votes)?,
 					false => self.nays = self.nays.checked_sub(&votes)?,
 				}
-			},
+			}
 			AccountVote::Split { aye, nay } => {
 				let aye = Conviction::None.votes(aye);
 				let nay = Conviction::None.votes(nay);
 				self.turnout = self.turnout.checked_sub(&aye.capital)?.checked_sub(&nay.capital)?;
 				self.ayes = self.ayes.checked_sub(&aye.votes)?;
 				self.nays = self.nays.checked_sub(&nay.votes)?;
-			},
+			}
 		}
 		Some(())
 	}
@@ -184,13 +176,14 @@ pub enum ReferendumInfo<BlockNumber, Hash, Balance> {
 
 impl<BlockNumber, Hash, Balance: Default> ReferendumInfo<BlockNumber, Hash, Balance> {
 	/// Create a new instance.
-	pub fn new(
-		end: BlockNumber,
-		proposal_hash: Hash,
-		threshold: VoteThreshold,
-		delay: BlockNumber,
-	) -> Self {
-		let s = ReferendumStatus { end, proposal_hash, threshold, delay, tally: Tally::default() };
+	pub fn new(end: BlockNumber, proposal_hash: Hash, threshold: VoteThreshold, delay: BlockNumber) -> Self {
+		let s = ReferendumStatus {
+			end,
+			proposal_hash,
+			threshold,
+			delay,
+			tally: Tally::default(),
+		};
 		ReferendumInfo::Ongoing(s)
 	}
 }

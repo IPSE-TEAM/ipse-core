@@ -85,12 +85,12 @@ async fn batch_revalidate<Api: ChainApi>(
 			Ok(Err(TransactionValidityError::Invalid(err))) => {
 				log::debug!(target: "txpool", "[{:?}]: Revalidation: invalid {:?}", ext_hash, err);
 				invalid_hashes.push(ext_hash);
-			},
+			}
 			Ok(Err(TransactionValidityError::Unknown(err))) => {
 				// skipping unknown, they might be pushed by valid or invalid transaction
 				// when latter resubmitted.
 				log::trace!(target: "txpool", "[{:?}]: Unknown during revalidation: {:?}", ext_hash, err);
-			},
+			}
 			Ok(Ok(validity)) => {
 				revalidated.insert(
 					ext_hash.clone(),
@@ -103,7 +103,7 @@ async fn batch_revalidate<Api: ChainApi>(
 						validity,
 					),
 				);
-			},
+			}
 			Err(validation_err) => {
 				log::debug!(
 					target: "txpool",
@@ -112,7 +112,7 @@ async fn batch_revalidate<Api: ChainApi>(
 					validation_err
 				);
 				invalid_hashes.push(ext_hash);
-			},
+			}
 		}
 	}
 
@@ -135,8 +135,7 @@ impl<Api: ChainApi> RevalidationWorker<Api> {
 
 	fn prepare_batch(&mut self) -> Vec<ExtrinsicHash<Api>> {
 		let mut queued_exts = Vec::new();
-		let mut left =
-			std::cmp::max(MIN_BACKGROUND_REVALIDATION_BATCH_SIZE, self.members.len() / 4);
+		let mut left = std::cmp::max(MIN_BACKGROUND_REVALIDATION_BATCH_SIZE, self.members.len() / 4);
 
 		// Take maximum of count transaction by order
 		// which they got into the pool
@@ -189,7 +188,7 @@ impl<Api: ChainApi> RevalidationWorker<Api> {
 					ext_hash,
 				);
 
-				continue
+				continue;
 			}
 
 			self.block_ordered
@@ -292,7 +291,11 @@ where
 {
 	/// New revalidation queue without background worker.
 	pub fn new(api: Arc<Api>, pool: Arc<Pool<Api>>) -> Self {
-		Self { api, pool, background: None }
+		Self {
+			api,
+			pool,
+			background: None,
+		}
 	}
 
 	pub fn new_with_interval<R: intervalier::IntoStream>(
@@ -308,21 +311,18 @@ where
 
 		let worker = RevalidationWorker::new(api.clone(), pool.clone());
 
-		let queue = Self { api, pool, background: Some(to_worker) };
+		let queue = Self {
+			api,
+			pool,
+			background: Some(to_worker),
+		};
 
 		(queue, worker.run(from_queue, interval).boxed())
 	}
 
 	/// New revalidation queue with background worker.
-	pub fn new_background(
-		api: Arc<Api>,
-		pool: Arc<Pool<Api>>,
-	) -> (Self, Pin<Box<dyn Future<Output = ()> + Send>>) {
-		Self::new_with_interval(
-			api,
-			pool,
-			intervalier::Interval::new(BACKGROUND_REVALIDATION_INTERVAL),
-		)
+	pub fn new_background(api: Arc<Api>, pool: Arc<Pool<Api>>) -> (Self, Pin<Box<dyn Future<Output = ()> + Send>>) {
+		Self::new_with_interval(api, pool, intervalier::Interval::new(BACKGROUND_REVALIDATION_INTERVAL))
 	}
 
 	/// New revalidation queue with background worker and test signal.
@@ -330,9 +330,12 @@ where
 	pub fn new_test(
 		api: Arc<Api>,
 		pool: Arc<Pool<Api>>,
-	) -> (Self, Pin<Box<dyn Future<Output = ()> + Send>>, intervalier::BackSignalControl) {
-		let (interval, notifier) =
-			intervalier::BackSignalInterval::new(BACKGROUND_REVALIDATION_INTERVAL);
+	) -> (
+		Self,
+		Pin<Box<dyn Future<Output = ()> + Send>>,
+		intervalier::BackSignalControl,
+	) {
+		let (interval, notifier) = intervalier::BackSignalInterval::new(BACKGROUND_REVALIDATION_INTERVAL);
 		let (queue, background) = Self::new_with_interval(api, pool, interval);
 
 		(queue, background, notifier)
@@ -343,11 +346,7 @@ where
 	/// If queue configured with background worker, this will return immediately.
 	/// If queue configured without background worker, this will resolve after
 	/// revalidation is actually done.
-	pub async fn revalidate_later(
-		&self,
-		at: NumberFor<Api>,
-		transactions: Vec<ExtrinsicHash<Api>>,
-	) {
+	pub async fn revalidate_later(&self, at: NumberFor<Api>, transactions: Vec<ExtrinsicHash<Api>>) {
 		if transactions.len() > 0 {
 			log::debug!(
 				target: "txpool", "Sent {} transactions to revalidation queue",
@@ -389,12 +388,8 @@ mod tests {
 		let queue = Arc::new(RevalidationQueue::new(api.clone(), pool.clone()));
 
 		let uxt = uxt(Alice, 0);
-		let uxt_hash = block_on(pool.submit_one(
-			&BlockId::number(0),
-			TransactionSource::External,
-			uxt.clone(),
-		))
-		.expect("Should be valid");
+		let uxt_hash = block_on(pool.submit_one(&BlockId::number(0), TransactionSource::External, uxt.clone()))
+			.expect("Should be valid");
 
 		block_on(queue.revalidate_later(0, vec![uxt_hash]));
 

@@ -297,8 +297,7 @@ pub use sp_runtime_interface_proc_macro::runtime_interface;
 #[doc(hidden)]
 #[cfg(feature = "std")]
 pub use sp_externalities::{
-	set_and_run_with_externalities, with_externalities, ExtensionStore, Externalities,
-	ExternalitiesExt,
+	set_and_run_with_externalities, with_externalities, ExtensionStore, Externalities, ExternalitiesExt,
 };
 
 #[doc(hidden)]

@@ -21,9 +21,7 @@
 //! to the Maximin problem.
 
 use crate::balancing;
-use crate::{
-	setup_inputs, CandidatePtr, ElectionResult, ExtendedBalance, IdentifierT, VoteWeight, Voter,
-};
+use crate::{setup_inputs, CandidatePtr, ElectionResult, ExtendedBalance, IdentifierT, VoteWeight, Voter};
 use sp_arithmetic::{
 	helpers_128bit::multiply_by_rational,
 	traits::{Bounded, Zero},
@@ -92,9 +90,14 @@ where
 	// sort winners based on desirability.
 	winners.sort_by_key(|c_ptr| c_ptr.borrow().round);
 
-	let mut assignments =
-		voters.into_iter().filter_map(|v| v.into_assignment()).collect::<Vec<_>>();
-	let _ = assignments.iter_mut().map(|a| a.try_normalize()).collect::<Result<(), _>>()?;
+	let mut assignments = voters
+		.into_iter()
+		.filter_map(|v| v.into_assignment())
+		.collect::<Vec<_>>();
+	let _ = assignments
+		.iter_mut()
+		.map(|a| a.try_normalize())
+		.collect::<Result<(), _>>()?;
 	let winners = winners
 		.into_iter()
 		.map(|w_ptr| (w_ptr.borrow().who.clone(), w_ptr.borrow().backed_stake))
@@ -141,12 +144,8 @@ pub fn seq_phragmen_core<AccountId: IdentifierT>(
 			for edge in &voter.edges {
 				let mut candidate = edge.candidate.borrow_mut();
 				if !candidate.elected && !candidate.approval_stake.is_zero() {
-					let temp_n = multiply_by_rational(
-						voter.load.n(),
-						voter.budget,
-						candidate.approval_stake,
-					)
-					.unwrap_or(Bounded::max_value());
+					let temp_n = multiply_by_rational(voter.load.n(), voter.budget, candidate.approval_stake)
+						.unwrap_or(Bounded::max_value());
 					let temp_d = voter.load.d();
 					let temp = Rational128::from(temp_n, temp_d);
 					candidate.score = candidate.score.lazy_saturating_add(temp);
@@ -155,8 +154,10 @@ pub fn seq_phragmen_core<AccountId: IdentifierT>(
 		}
 
 		// loop 3: find the best
-		if let Some(winner_ptr) =
-			candidates.iter().filter(|c| !c.borrow().elected).min_by_key(|c| c.borrow().score)
+		if let Some(winner_ptr) = candidates
+			.iter()
+			.filter(|c| !c.borrow().elected)
+			.min_by_key(|c| c.borrow().score)
 		{
 			let mut winner = winner_ptr.borrow_mut();
 			// loop 3: update voter and edge load
@@ -171,7 +172,7 @@ pub fn seq_phragmen_core<AccountId: IdentifierT>(
 				}
 			}
 		} else {
-			break
+			break;
 		}
 	}
 

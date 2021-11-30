@@ -18,8 +18,8 @@
 use proc_macro2::{Span, TokenStream};
 
 use syn::{
-	parse_quote, spanned::Spanned, token::And, Error, FnArg, GenericArgument, Ident, ImplItem,
-	ItemImpl, Pat, Path, PathArguments, Result, ReturnType, Signature, Type, TypePath,
+	parse_quote, spanned::Spanned, token::And, Error, FnArg, GenericArgument, Ident, ImplItem, ItemImpl, Pat, Path,
+	PathArguments, Result, ReturnType, Signature, Type, TypePath,
 };
 
 use quote::quote;
@@ -47,11 +47,11 @@ pub fn generate_hidden_includes(unique_id: &'static str) -> TokenStream {
 						pub extern crate #client_name as sp_api;
 					}
 				)
-			},
+			}
 			Err(e) => {
 				let err = Error::new(Span::call_site(), &e).to_compile_error();
 				quote!( #err )
-			},
+			}
 		}
 	}
 	.into()
@@ -104,7 +104,9 @@ pub fn fold_fn_decl_for_client_side(input: &mut Signature, block_id: &TokenStrea
 	replace_wild_card_parameter_names(input);
 
 	// Add `&self, at:& BlockId` as parameters to each function at the beginning.
-	input.inputs.insert(0, parse_quote!( __runtime_api_at_param__: &#block_id ));
+	input
+		.inputs
+		.insert(0, parse_quote!( __runtime_api_at_param__: &#block_id ));
 	input.inputs.insert(0, parse_quote!(&self));
 
 	// Wrap the output in a `Result`
@@ -118,12 +120,11 @@ pub fn fold_fn_decl_for_client_side(input: &mut Signature, block_id: &TokenStrea
 pub fn generate_unique_pattern(pat: Pat, counter: &mut u32) -> Pat {
 	match pat {
 		Pat::Wild(_) => {
-			let generated_name =
-				Ident::new(&format!("__runtime_api_generated_name_{}__", counter), pat.span());
+			let generated_name = Ident::new(&format!("__runtime_api_generated_name_{}__", counter), pat.span());
 			*counter += 1;
 
 			parse_quote!( #generated_name )
-		},
+		}
 		_ => pat,
 	}
 }
@@ -151,16 +152,17 @@ pub fn extract_parameter_names_types_and_borrows(
 					t => (t.clone(), None),
 				};
 
-				let name =
-					generate_unique_pattern((*arg.pat).clone(), &mut generated_pattern_counter);
+				let name = generate_unique_pattern((*arg.pat).clone(), &mut generated_pattern_counter);
 				result.push((name, ty, borrow));
-			},
-			FnArg::Receiver(_) if matches!(allow_self, AllowSelfRefInParameters::No) =>
-				return Err(Error::new(input.span(), "`self` parameter not supported!")),
-			FnArg::Receiver(recv) =>
+			}
+			FnArg::Receiver(_) if matches!(allow_self, AllowSelfRefInParameters::No) => {
+				return Err(Error::new(input.span(), "`self` parameter not supported!"))
+			}
+			FnArg::Receiver(recv) => {
 				if recv.mutability.is_some() || recv.reference.is_none() {
-					return Err(Error::new(recv.span(), "Only `&self` is supported!"))
-				},
+					return Err(Error::new(recv.span(), "Only `&self` is supported!"));
+				}
+			}
 		}
 	}
 
@@ -169,7 +171,10 @@ pub fn extract_parameter_names_types_and_borrows(
 
 /// Generates the name for the native call generator function.
 pub fn generate_native_call_generator_fn_name(fn_name: &Ident) -> Ident {
-	Ident::new(&format!("{}_native_call_generator", fn_name.to_string()), Span::call_site())
+	Ident::new(
+		&format!("{}_native_call_generator", fn_name.to_string()),
+		Span::call_site(),
+	)
 }
 
 /// Generates the name for the call api at function.
@@ -219,8 +224,10 @@ pub fn extract_all_signature_types(items: &[ImplItem]) -> Vec<Type> {
 /// It is expected that the block type is the first type in the generic arguments.
 pub fn extract_block_type_from_trait_path(trait_: &Path) -> Result<&TypePath> {
 	let span = trait_.span();
-	let generics =
-		trait_.segments.last().ok_or_else(|| Error::new(span, "Empty path not supported"))?;
+	let generics = trait_
+		.segments
+		.last()
+		.ok_or_else(|| Error::new(span, "Empty path not supported"))?;
 
 	match &generics.arguments {
 		PathArguments::AngleBracketed(ref args) => args
@@ -234,9 +241,10 @@ pub fn extract_block_type_from_trait_path(trait_: &Path) -> Result<&TypePath> {
 		PathArguments::None => {
 			let span = trait_.segments.last().as_ref().unwrap().span();
 			Err(Error::new(span, "Missing `Block` generic parameter."))
-		},
-		PathArguments::Parenthesized(_) =>
-			Err(Error::new(generics.arguments.span(), "Unexpected parentheses in path!")),
+		}
+		PathArguments::Parenthesized(_) => {
+			Err(Error::new(generics.arguments.span(), "Unexpected parentheses in path!"))
+		}
 	}
 }
 
@@ -249,10 +257,7 @@ pub enum RequireQualifiedTraitPath {
 }
 
 /// Extract the trait that is implemented by the given `ItemImpl`.
-pub fn extract_impl_trait<'a>(
-	impl_: &'a ItemImpl,
-	require: RequireQualifiedTraitPath,
-) -> Result<&'a Path> {
+pub fn extract_impl_trait<'a>(impl_: &'a ItemImpl, require: RequireQualifiedTraitPath) -> Result<&'a Path> {
 	impl_
 		.trait_
 		.as_ref()

@@ -35,18 +35,20 @@ impl sp_runtime::traits::Dispatchable for CallWithDispatchInfo {
 #[macro_export]
 macro_rules! decl_tests {
 	($test:ty, $ext_builder:ty, $existential_deposit:expr) => {
-
 		use crate::*;
-		use sp_runtime::{FixedPointNumber, traits::{SignedExtension, BadOrigin}};
 		use frame_support::{
-			assert_noop, assert_ok, assert_err,
+			assert_err, assert_noop, assert_ok,
 			traits::{
-				LockableCurrency, LockIdentifier, WithdrawReason, WithdrawReasons,
-				Currency, ReservableCurrency, ExistenceRequirement::AllowDeath, StoredMap
-			}
+				Currency, ExistenceRequirement::AllowDeath, LockIdentifier, LockableCurrency, ReservableCurrency,
+				StoredMap, WithdrawReason, WithdrawReasons,
+			},
 		};
-		use pallet_transaction_payment::{ChargeTransactionPayment, Multiplier};
 		use frame_system::RawOrigin;
+		use pallet_transaction_payment::{ChargeTransactionPayment, Multiplier};
+		use sp_runtime::{
+			traits::{BadOrigin, SignedExtension},
+			FixedPointNumber,
+		};
 
 		const ID_1: LockIdentifier = *b"1       ";
 		const ID_2: LockIdentifier = *b"2       ";
@@ -58,11 +60,17 @@ macro_rules! decl_tests {
 
 		/// create a transaction info struct from weight. Handy to avoid building the whole struct.
 		pub fn info_from_weight(w: Weight) -> DispatchInfo {
-			DispatchInfo { weight: w, ..Default::default() }
+			DispatchInfo {
+				weight: w,
+				..Default::default()
+			}
 		}
 
 		fn events() -> Vec<Event> {
-			let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+			let evt = System::events()
+				.into_iter()
+				.map(|evt| evt.event)
+				.collect::<Vec<_>>();
 
 			System::reset_events();
 
@@ -70,93 +78,131 @@ macro_rules! decl_tests {
 		}
 
 		fn last_event() -> Event {
-			system::Module::<Test>::events().pop().expect("Event expected").event
+			system::Module::<Test>::events()
+				.pop()
+				.expect("Event expected")
+				.event
 		}
 
 		#[test]
 		fn basic_locking_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				assert_eq!(Balances::free_balance(1), 10);
-				Balances::set_lock(ID_1, &1, 9, WithdrawReasons::all());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 5, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					assert_eq!(Balances::free_balance(1), 10);
+					Balances::set_lock(ID_1, &1, 9, WithdrawReasons::all());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 5, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+				});
 		}
 
 		#[test]
 		fn account_should_be_reaped() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				assert_eq!(Balances::free_balance(1), 10);
-				assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 10, AllowDeath));
-				assert!(!<<Test as Trait>::AccountStore as StoredMap<u64, AccountData<u64>>>::is_explicit(&1));
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					assert_eq!(Balances::free_balance(1), 10);
+					assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 10, AllowDeath));
+					assert!(!<<Test as Trait>::AccountStore as StoredMap<
+						u64,
+						AccountData<u64>,
+					>>::is_explicit(&1));
+				});
 		}
 
 		#[test]
 		fn partial_locking_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
-				assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
+					assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
+				});
 		}
 
 		#[test]
 		fn lock_removal_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, u64::max_value(), WithdrawReasons::all());
-				Balances::remove_lock(ID_1, &1);
-				assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, u64::max_value(), WithdrawReasons::all());
+					Balances::remove_lock(ID_1, &1);
+					assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
+				});
 		}
 
 		#[test]
 		fn lock_replacement_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, u64::max_value(), WithdrawReasons::all());
-				Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
-				assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, u64::max_value(), WithdrawReasons::all());
+					Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
+					assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
+				});
 		}
 
 		#[test]
 		fn double_locking_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
-				Balances::set_lock(ID_2, &1, 5, WithdrawReasons::all());
-				assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
+					Balances::set_lock(ID_2, &1, 5, WithdrawReasons::all());
+					assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
+				});
 		}
 
 		#[test]
 		fn combination_locking_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, u64::max_value(), WithdrawReasons::none());
-				Balances::set_lock(ID_2, &1, 0, WithdrawReasons::all());
-				assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, u64::max_value(), WithdrawReasons::none());
+					Balances::set_lock(ID_2, &1, 0, WithdrawReasons::all());
+					assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
+				});
 		}
 
 		#[test]
 		fn lock_value_extension_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-				Balances::extend_lock(ID_1, &1, 2, WithdrawReasons::all());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-				Balances::extend_lock(ID_1, &1, 8, WithdrawReasons::all());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 3, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, 5, WithdrawReasons::all());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+					Balances::extend_lock(ID_1, &1, 2, WithdrawReasons::all());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+					Balances::extend_lock(ID_1, &1, 8, WithdrawReasons::all());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 3, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+				});
 		}
 
 		#[test]
@@ -176,82 +222,102 @@ macro_rules! decl_tests {
 						<Balances as ReservableCurrency<_>>::reserve(&1, 1),
 						Error::<$test, _>::LiquidityRestrictions,
 					);
-					assert!(<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
-						ChargeTransactionPayment::from(1),
-						&1,
-						CALL,
-						&info_from_weight(1),
-						1,
-					).is_err());
-					assert!(<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
-						ChargeTransactionPayment::from(0),
-						&1,
-						CALL,
-						&info_from_weight(1),
-						1,
-					).is_ok());
+					assert!(
+						<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
+							ChargeTransactionPayment::from(1),
+							&1,
+							CALL,
+							&info_from_weight(1),
+							1,
+						)
+						.is_err()
+					);
+					assert!(
+						<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
+							ChargeTransactionPayment::from(0),
+							&1,
+							CALL,
+							&info_from_weight(1),
+							1,
+						)
+						.is_ok()
+					);
 
 					Balances::set_lock(ID_1, &1, 10, WithdrawReason::TransactionPayment.into());
 					assert_ok!(<Balances as Currency<_>>::transfer(&1, &2, 1, AllowDeath));
 					assert_ok!(<Balances as ReservableCurrency<_>>::reserve(&1, 1));
-					assert!(<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
-						ChargeTransactionPayment::from(1),
-						&1,
-						CALL,
-						&info_from_weight(1),
-						1,
-					).is_err());
-					assert!(<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
-						ChargeTransactionPayment::from(0),
-						&1,
-						CALL,
-						&info_from_weight(1),
-						1,
-					).is_err());
+					assert!(
+						<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
+							ChargeTransactionPayment::from(1),
+							&1,
+							CALL,
+							&info_from_weight(1),
+							1,
+						)
+						.is_err()
+					);
+					assert!(
+						<ChargeTransactionPayment<$test> as SignedExtension>::pre_dispatch(
+							ChargeTransactionPayment::from(0),
+							&1,
+							CALL,
+							&info_from_weight(1),
+							1,
+						)
+						.is_err()
+					);
 				});
 		}
 
 		#[test]
 		fn lock_block_number_extension_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, 10, WithdrawReasons::all());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-				Balances::extend_lock(ID_1, &1, 10, WithdrawReasons::all());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-				System::set_block_number(2);
-				Balances::extend_lock(ID_1, &1, 10, WithdrawReasons::all());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 3, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, 10, WithdrawReasons::all());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+					Balances::extend_lock(ID_1, &1, 10, WithdrawReasons::all());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+					System::set_block_number(2);
+					Balances::extend_lock(ID_1, &1, 10, WithdrawReasons::all());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 3, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+				});
 		}
 
 		#[test]
 		fn lock_reasons_extension_should_work() {
-			<$ext_builder>::default().existential_deposit(1).monied(true).build().execute_with(|| {
-				Balances::set_lock(ID_1, &1, 10, WithdrawReason::Transfer.into());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-				Balances::extend_lock(ID_1, &1, 10, WithdrawReasons::none());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-				Balances::extend_lock(ID_1, &1, 10, WithdrawReason::Reserve.into());
-				assert_noop!(
-					<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
-					Error::<$test, _>::LiquidityRestrictions
-				);
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.monied(true)
+				.build()
+				.execute_with(|| {
+					Balances::set_lock(ID_1, &1, 10, WithdrawReason::Transfer.into());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+					Balances::extend_lock(ID_1, &1, 10, WithdrawReasons::none());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+					Balances::extend_lock(ID_1, &1, 10, WithdrawReason::Reserve.into());
+					assert_noop!(
+						<Balances as Currency<_>>::transfer(&1, &2, 6, AllowDeath),
+						Error::<$test, _>::LiquidityRestrictions
+					);
+				});
 		}
 
 		#[test]
@@ -297,9 +363,9 @@ macro_rules! decl_tests {
 					assert_eq!(Balances::is_dead_account(&5), false);
 
 					assert!(Balances::slash(&2, 256 * 19 + 2).1.is_zero()); // account 2 gets slashed
-					// "reserve" account reduced to 255 (below ED) so account deleted
+																// "reserve" account reduced to 255 (below ED) so account deleted
 					assert_eq!(Balances::total_balance(&2), 0);
-					assert_eq!(System::account_nonce(&2), 0);    // nonce zero
+					assert_eq!(System::account_nonce(&2), 0); // nonce zero
 					assert_eq!(Balances::is_dead_account(&2), true);
 
 					// account 4 tries to take index 1 again for account 6.
@@ -329,7 +395,7 @@ macro_rules! decl_tests {
 					System::inc_account_nonce(&2);
 					assert_eq!(System::account_nonce(&2), 1);
 					assert_eq!(Balances::total_balance(&2), 2000);
-					 // index 1 (account 2) becomes zombie
+					// index 1 (account 2) becomes zombie
 					assert_ok!(Balances::transfer(Some(2).into(), 5, 1901));
 					assert_eq!(Balances::total_balance(&2), 0);
 					assert_eq!(Balances::total_balance(&5), 1901);
@@ -364,10 +430,7 @@ macro_rules! decl_tests {
 		fn force_transfer_works() {
 			<$ext_builder>::default().build().execute_with(|| {
 				let _ = Balances::deposit_creating(&1, 111);
-				assert_noop!(
-					Balances::force_transfer(Some(2).into(), 1, 2, 69),
-					BadOrigin,
-				);
+				assert_noop!(Balances::force_transfer(Some(2).into(), 1, 2, 69), BadOrigin,);
 				assert_ok!(Balances::force_transfer(RawOrigin::Root.into(), 1, 2, 69));
 				assert_eq!(Balances::total_balance(&1), 42);
 				assert_eq!(Balances::total_balance(&2), 69);
@@ -519,7 +582,10 @@ macro_rules! decl_tests {
 			<$ext_builder>::default().build().execute_with(|| {
 				let _ = Balances::deposit_creating(&1, 111);
 				assert_ok!(Balances::reserve(&1, 111));
-				assert_noop!(Balances::repatriate_reserved(&1, &2, 42, Status::Free), Error::<$test, _>::DeadAccount);
+				assert_noop!(
+					Balances::repatriate_reserved(&1, &2, 42, Status::Free),
+					Error::<$test, _>::DeadAccount
+				);
 			});
 		}
 
@@ -555,52 +621,61 @@ macro_rules! decl_tests {
 
 		#[test]
 		fn account_create_on_free_too_low_with_other() {
-			<$ext_builder>::default().existential_deposit(100).build().execute_with(|| {
-				let _ = Balances::deposit_creating(&1, 100);
-				assert_eq!(<TotalIssuance<$test>>::get(), 100);
+			<$ext_builder>::default()
+				.existential_deposit(100)
+				.build()
+				.execute_with(|| {
+					let _ = Balances::deposit_creating(&1, 100);
+					assert_eq!(<TotalIssuance<$test>>::get(), 100);
 
-				// No-op.
-				let _ = Balances::deposit_creating(&2, 50);
-				assert_eq!(Balances::free_balance(2), 0);
-				assert_eq!(<TotalIssuance<$test>>::get(), 100);
-			})
+					// No-op.
+					let _ = Balances::deposit_creating(&2, 50);
+					assert_eq!(Balances::free_balance(2), 0);
+					assert_eq!(<TotalIssuance<$test>>::get(), 100);
+				})
 		}
 
 		#[test]
 		fn account_create_on_free_too_low() {
-			<$ext_builder>::default().existential_deposit(100).build().execute_with(|| {
-				// No-op.
-				let _ = Balances::deposit_creating(&2, 50);
-				assert_eq!(Balances::free_balance(2), 0);
-				assert_eq!(<TotalIssuance<$test>>::get(), 0);
-			})
+			<$ext_builder>::default()
+				.existential_deposit(100)
+				.build()
+				.execute_with(|| {
+					// No-op.
+					let _ = Balances::deposit_creating(&2, 50);
+					assert_eq!(Balances::free_balance(2), 0);
+					assert_eq!(<TotalIssuance<$test>>::get(), 0);
+				})
 		}
 
 		#[test]
 		fn account_removal_on_free_too_low() {
-			<$ext_builder>::default().existential_deposit(100).build().execute_with(|| {
-				assert_eq!(<TotalIssuance<$test>>::get(), 0);
+			<$ext_builder>::default()
+				.existential_deposit(100)
+				.build()
+				.execute_with(|| {
+					assert_eq!(<TotalIssuance<$test>>::get(), 0);
 
-				// Setup two accounts with free balance above the existential threshold.
-				let _ = Balances::deposit_creating(&1, 110);
-				let _ = Balances::deposit_creating(&2, 110);
+					// Setup two accounts with free balance above the existential threshold.
+					let _ = Balances::deposit_creating(&1, 110);
+					let _ = Balances::deposit_creating(&2, 110);
 
-				assert_eq!(Balances::free_balance(1), 110);
-				assert_eq!(Balances::free_balance(2), 110);
-				assert_eq!(<TotalIssuance<$test>>::get(), 220);
+					assert_eq!(Balances::free_balance(1), 110);
+					assert_eq!(Balances::free_balance(2), 110);
+					assert_eq!(<TotalIssuance<$test>>::get(), 220);
 
-				// Transfer funds from account 1 of such amount that after this transfer
-				// the balance of account 1 will be below the existential threshold.
-				// This should lead to the removal of all balance of this account.
-				assert_ok!(Balances::transfer(Some(1).into(), 2, 20));
+					// Transfer funds from account 1 of such amount that after this transfer
+					// the balance of account 1 will be below the existential threshold.
+					// This should lead to the removal of all balance of this account.
+					assert_ok!(Balances::transfer(Some(1).into(), 2, 20));
 
-				// Verify free balance removal of account 1.
-				assert_eq!(Balances::free_balance(1), 0);
-				assert_eq!(Balances::free_balance(2), 130);
+					// Verify free balance removal of account 1.
+					assert_eq!(Balances::free_balance(1), 0);
+					assert_eq!(Balances::free_balance(2), 130);
 
-				// Verify that TotalIssuance tracks balance removal when free balance is too low.
-				assert_eq!(<TotalIssuance<$test>>::get(), 130);
-			});
+					// Verify that TotalIssuance tracks balance removal when free balance is too low.
+					assert_eq!(<TotalIssuance<$test>>::get(), 130);
+				});
 		}
 
 		#[test]
@@ -616,26 +691,33 @@ macro_rules! decl_tests {
 
 		#[test]
 		fn transfer_keep_alive_works() {
-			<$ext_builder>::default().existential_deposit(1).build().execute_with(|| {
-				let _ = Balances::deposit_creating(&1, 100);
-				assert_noop!(
-					Balances::transfer_keep_alive(Some(1).into(), 2, 100),
-					Error::<$test, _>::KeepAlive
-				);
-				assert_eq!(Balances::is_dead_account(&1), false);
-				assert_eq!(Balances::total_balance(&1), 100);
-				assert_eq!(Balances::total_balance(&2), 0);
-			});
+			<$ext_builder>::default()
+				.existential_deposit(1)
+				.build()
+				.execute_with(|| {
+					let _ = Balances::deposit_creating(&1, 100);
+					assert_noop!(
+						Balances::transfer_keep_alive(Some(1).into(), 2, 100),
+						Error::<$test, _>::KeepAlive
+					);
+					assert_eq!(Balances::is_dead_account(&1), false);
+					assert_eq!(Balances::total_balance(&1), 100);
+					assert_eq!(Balances::total_balance(&2), 0);
+				});
 		}
 
 		#[test]
 		#[should_panic = "the balance of any account should always be more than existential deposit."]
 		fn cannot_set_genesis_value_below_ed() {
 			($existential_deposit).with(|v| *v.borrow_mut() = 11);
-			let mut t = frame_system::GenesisConfig::default().build_storage::<$test>().unwrap();
+			let mut t = frame_system::GenesisConfig::default()
+				.build_storage::<$test>()
+				.unwrap();
 			let _ = GenesisConfig::<$test> {
 				balances: vec![(1, 10)],
-			}.assimilate_storage(&mut t).unwrap();
+			}
+			.assimilate_storage(&mut t)
+			.unwrap();
 		}
 
 		#[test]
@@ -693,36 +775,25 @@ macro_rules! decl_tests {
 
 		#[test]
 		fn emit_events_with_reserve_and_unreserve() {
-			<$ext_builder>::default()
-				.build()
-				.execute_with(|| {
-					let _ = Balances::deposit_creating(&1, 100);
+			<$ext_builder>::default().build().execute_with(|| {
+				let _ = Balances::deposit_creating(&1, 100);
 
-					System::set_block_number(2);
-					let _ = Balances::reserve(&1, 10);
+				System::set_block_number(2);
+				let _ = Balances::reserve(&1, 10);
 
-					assert_eq!(
-						last_event(),
-						Event::balances(RawEvent::Reserved(1, 10)),
-					);
+				assert_eq!(last_event(), Event::balances(RawEvent::Reserved(1, 10)),);
 
-					System::set_block_number(3);
-					let _ = Balances::unreserve(&1, 5);
+				System::set_block_number(3);
+				let _ = Balances::unreserve(&1, 5);
 
-					assert_eq!(
-						last_event(),
-						Event::balances(RawEvent::Unreserved(1, 5)),
-					);
+				assert_eq!(last_event(), Event::balances(RawEvent::Unreserved(1, 5)),);
 
-					System::set_block_number(4);
-					let _ = Balances::unreserve(&1, 6);
+				System::set_block_number(4);
+				let _ = Balances::unreserve(&1, 6);
 
-					// should only unreserve 5
-					assert_eq!(
-						last_event(),
-						Event::balances(RawEvent::Unreserved(1, 5)),
-					);
-				});
+				// should only unreserve 5
+				assert_eq!(last_event(), Event::balances(RawEvent::Unreserved(1, 5)),);
+			});
 		}
 
 		#[test]
@@ -778,13 +849,8 @@ macro_rules! decl_tests {
 
 					assert_ok!(System::suicide(Origin::signed(1)));
 
-					assert_eq!(
-						events(),
-						[
-							Event::system(system::RawEvent::KilledAccount(1))
-						]
-					);
+					assert_eq!(events(), [Event::system(system::RawEvent::KilledAccount(1))]);
 				});
 		}
-	}
+	};
 }

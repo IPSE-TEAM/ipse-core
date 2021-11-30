@@ -89,14 +89,14 @@ impl core::fmt::Debug for WasmValue {
 				} else {
 					f.write_fmt(format_args!("{:?}", i))
 				}
-			},
+			}
 			WasmValue::Encoded(ref v) => {
 				f.write_str("Scale(")?;
 				for byte in v {
 					f.write_fmt(format_args!("{:02x}", byte))?;
 				}
 				f.write_str(")")
-			},
+			}
 		}
 	}
 }
@@ -305,7 +305,8 @@ impl WasmValuesSet {
 
 impl tracing_core::field::Visit for WasmValuesSet {
 	fn record_debug(&mut self, field: &tracing_core::field::Field, value: &dyn Debug) {
-		self.0.push((field.name().into(), Some(WasmValue::from(format_args!("{:?}", value)))))
+		self.0
+			.push((field.name().into(), Some(WasmValue::from(format_args!("{:?}", value)))))
 	}
 	fn record_i64(&mut self, field: &tracing_core::field::Field, value: i64) {
 		self.0.push((field.name().into(), Some(WasmValue::from(value))))
@@ -477,10 +478,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::SPAN,
 	);
 
@@ -491,10 +489,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::SPAN,
 	);
 	static SPAN_INFO_METADATA: tracing_core::Metadata<'static> = tracing::Metadata::new(
@@ -504,10 +499,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::SPAN,
 	);
 
@@ -518,10 +510,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::SPAN,
 	);
 
@@ -532,10 +521,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::SPAN,
 	);
 
@@ -546,10 +532,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::EVENT,
 	);
 
@@ -560,10 +543,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::EVENT,
 	);
 
@@ -574,10 +554,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::EVENT,
 	);
 
@@ -588,10 +565,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::EVENT,
 	);
 
@@ -602,10 +576,7 @@ mod std_features {
 		None,
 		None,
 		None,
-		tracing_core::field::FieldSet::new(
-			GENERIC_FIELDS,
-			tracing_core::identify_callsite!(&CALLSITE),
-		),
+		tracing_core::field::FieldSet::new(GENERIC_FIELDS, tracing_core::identify_callsite!(&CALLSITE)),
 		tracing_core::metadata::Kind::EVENT,
 	);
 

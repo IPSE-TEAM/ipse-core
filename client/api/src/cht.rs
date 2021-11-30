@@ -32,8 +32,8 @@ use sp_trie;
 use sp_core::{convert_hash, H256};
 use sp_runtime::traits::{AtLeast32Bit, Header as HeaderT, One, Zero};
 use sp_state_machine::{
-	prove_read_on_trie_backend, read_proof_check, read_proof_check_on_proving_backend,
-	Backend as StateBackend, InMemoryBackend, MemoryDB, StorageProof, TrieBackend,
+	prove_read_on_trie_backend, read_proof_check, read_proof_check_on_proving_backend, Backend as StateBackend,
+	InMemoryBackend, MemoryDB, StorageProof, TrieBackend,
 };
 
 use sp_blockchain::{Error as ClientError, Result as ClientResult};
@@ -56,11 +56,11 @@ where
 	let block_cht_num = block_to_cht_number(cht_size.clone(), block_num.clone())?;
 	let two = N::one() + N::one();
 	if block_cht_num < two {
-		return None
+		return None;
 	}
 	let cht_start = start_number(cht_size, block_cht_num.clone());
 	if cht_start != block_num {
-		return None
+		return None;
 	}
 
 	Some(block_cht_num - two)
@@ -74,7 +74,7 @@ where
 	let max_cht_number = block_to_cht_number(cht_size, max_canonical_block)?;
 	let two = N::one() + N::one();
 	if max_cht_number < two {
-		return None
+		return None;
 	}
 	Some(max_cht_number - two)
 }
@@ -94,7 +94,10 @@ where
 	I: IntoIterator<Item = ClientResult<Option<Header::Hash>>>,
 {
 	use sp_trie::TrieConfiguration;
-	Ok(sp_trie::trie_types::Layout::<Hasher>::trie_root(build_pairs::<Header, I>(
+	Ok(sp_trie::trie_types::Layout::<Hasher>::trie_root(build_pairs::<
+		Header,
+		I,
+	>(
 		cht_size, cht_num, hashes,
 	)?))
 }
@@ -118,13 +121,11 @@ where
 		.map(|(k, v)| (k, Some(v)))
 		.collect::<Vec<_>>();
 	let mut storage = InMemoryBackend::<Hasher>::default().update(vec![(None, transaction)]);
-	let trie_storage =
-		storage.as_trie_backend().expect("InMemoryState::as_trie_backend always returns Some; qed");
-	prove_read_on_trie_backend(
-		trie_storage,
-		blocks.into_iter().map(|number| encode_cht_key(number)),
-	)
-	.map_err(ClientError::Execution)
+	let trie_storage = storage
+		.as_trie_backend()
+		.expect("InMemoryState::as_trie_backend always returns Some; qed");
+	prove_read_on_trie_backend(trie_storage, blocks.into_iter().map(|number| encode_cht_key(number)))
+		.map_err(ClientError::Execution)
 }
 
 /// Check CHT-based header proof.
@@ -144,13 +145,9 @@ where
 		local_number,
 		remote_hash,
 		move |local_root, local_cht_key| {
-			read_proof_check::<Hasher, _>(
-				local_root,
-				remote_proof,
-				::std::iter::once(local_cht_key),
-			)
-			.map(|mut map| map.remove(local_cht_key).expect("checked proof of local_cht_key; qed"))
-			.map_err(|e| ClientError::from(e))
+			read_proof_check::<Hasher, _>(local_root, remote_proof, ::std::iter::once(local_cht_key))
+				.map(|mut map| map.remove(local_cht_key).expect("checked proof of local_cht_key; qed"))
+				.map_err(|e| ClientError::from(e))
 		},
 	)
 }
@@ -167,15 +164,9 @@ where
 	Hasher: hash_db::Hasher,
 	Hasher::Out: Ord + codec::Codec,
 {
-	do_check_proof::<Header, Hasher, _>(
-		local_root,
-		local_number,
-		remote_hash,
-		|_, local_cht_key| {
-			read_proof_check_on_proving_backend::<Hasher>(proving_backend, local_cht_key)
-				.map_err(|e| ClientError::from(e))
-		},
-	)
+	do_check_proof::<Header, Hasher, _>(local_root, local_number, remote_hash, |_, local_cht_key| {
+		read_proof_check_on_proving_backend::<Hasher>(proving_backend, local_cht_key).map_err(|e| ClientError::from(e))
+	})
 }
 
 /// Check CHT-based header proof using passed checker function.
@@ -195,8 +186,7 @@ where
 	let local_cht_key = encode_cht_key(local_number);
 	let local_cht_value = checker(root, &local_cht_key)?;
 	let local_cht_value = local_cht_value.ok_or_else(|| ClientError::InvalidCHTProof)?;
-	let local_hash =
-		decode_cht_value(&local_cht_value).ok_or_else(|| ClientError::InvalidCHTProof)?;
+	let local_hash = decode_cht_value(&local_cht_value).ok_or_else(|| ClientError::InvalidCHTProof)?;
 	match &local_hash[..] == remote_hash.as_ref() {
 		true => Ok(()),
 		false => Err(ClientError::InvalidCHTProof.into()),
@@ -220,12 +210,9 @@ where
 	for block in blocks {
 		let new_cht_num = match block_to_cht_number(cht_size, block) {
 			Some(new_cht_num) => new_cht_num,
-			None =>
-				return Err(ClientError::Backend(format!(
-					"Cannot compute CHT root for the block #{}",
-					block
-				))
-				.into()),
+			None => {
+				return Err(ClientError::Backend(format!("Cannot compute CHT root for the block #{}", block)).into())
+			}
 		};
 
 		let advance_to_next_cht = current_cht_num.is_some() && current_cht_num != Some(new_cht_num);
@@ -239,8 +226,7 @@ where
 				"for_each_cht_group only supports ordered iterators"
 			);
 
-			functor_param =
-				functor(functor_param, current_cht_num, std::mem::take(&mut current_cht_blocks))?;
+			functor_param = functor(functor_param, current_cht_num, std::mem::take(&mut current_cht_blocks))?;
 		}
 
 		current_cht_blocks.push(block);
@@ -268,12 +254,11 @@ where
 	let mut pairs = Vec::new();
 	let mut hash_index = Header::Number::zero();
 	for hash in hashes.into_iter() {
-		let hash =
-			hash?.ok_or_else(|| ClientError::from(ClientError::MissingHashRequiredForCHT))?;
+		let hash = hash?.ok_or_else(|| ClientError::from(ClientError::MissingHashRequiredForCHT))?;
 		pairs.push((encode_cht_key(start_num + hash_index).to_vec(), encode_cht_value(hash)));
 		hash_index += Header::Number::one();
 		if hash_index == cht_size {
-			break
+			break;
 		}
 	}
 
@@ -394,10 +379,7 @@ mod tests {
 			::std::iter::repeat_with(|| Ok(Some(H256::from_low_u64_be(1))))
 				.take(SIZE as usize / 2)
 				.chain(::std::iter::once(Ok(None)))
-				.chain(
-					::std::iter::repeat_with(|| Ok(Some(H256::from_low_u64_be(2))))
-						.take(SIZE as usize / 2 - 1)
-				)
+				.chain(::std::iter::repeat_with(|| Ok(Some(H256::from_low_u64_be(2)))).take(SIZE as usize / 2 - 1))
 		)
 		.is_err());
 	}
@@ -439,12 +421,7 @@ mod tests {
 	#[should_panic]
 	fn for_each_cht_group_panics() {
 		let cht_size = SIZE as u64;
-		let _ = for_each_cht_group::<Header, _, _, _>(
-			cht_size,
-			vec![cht_size * 5, cht_size * 2],
-			|_, _, _| Ok(()),
-			(),
-		);
+		let _ = for_each_cht_group::<Header, _, _, _>(cht_size, vec![cht_size * 5, cht_size * 2], |_, _, _| Ok(()), ());
 	}
 
 	#[test]
@@ -462,10 +439,7 @@ mod tests {
 			],
 			|_, cht_num, blocks| {
 				match cht_num {
-					2 => assert_eq!(
-						blocks,
-						vec![cht_size * 2 + 1, cht_size * 2 + 2, cht_size * 2 + 5]
-					),
+					2 => assert_eq!(blocks, vec![cht_size * 2 + 1, cht_size * 2 + 2, cht_size * 2 + 5]),
 					4 => assert_eq!(blocks, vec![cht_size * 4 + 1, cht_size * 4 + 7]),
 					6 => assert_eq!(blocks, vec![cht_size * 6 + 1]),
 					_ => unreachable!(),

@@ -49,7 +49,7 @@ fn sync_peers_works() {
 		net.poll(cx);
 		for peer in 0..3 {
 			if net.peer(peer).num_peers() != 2 {
-				return Poll::Pending
+				return Poll::Pending;
 			}
 		}
 		Poll::Ready(())
@@ -75,12 +75,12 @@ fn sync_cycle_from_offline_to_syncing_to_offline() {
 		for peer in 0..3 {
 			// Online
 			if net.peer(peer).is_offline() {
-				return Poll::Pending
+				return Poll::Pending;
 			}
 			if peer < 2 {
 				// Major syncing.
 				if net.peer(peer).blocks_count() < 100 && !net.peer(peer).is_major_syncing() {
-					return Poll::Pending
+					return Poll::Pending;
 				}
 			}
 		}
@@ -92,7 +92,7 @@ fn sync_cycle_from_offline_to_syncing_to_offline() {
 		net.poll(cx);
 		for peer in 0..3 {
 			if net.peer(peer).is_major_syncing() {
-				return Poll::Pending
+				return Poll::Pending;
 			}
 		}
 		Poll::Ready(())
@@ -252,9 +252,18 @@ fn sync_justifications() {
 	assert_eq!(net.peer(1).client().justification(&BlockId::Number(10)).unwrap(), None);
 
 	// we finalize block #10, #15 and #20 for peer 0 with a justification
-	net.peer(0).client().finalize_block(BlockId::Number(10), Some(Vec::new()), true).unwrap();
-	net.peer(0).client().finalize_block(BlockId::Number(15), Some(Vec::new()), true).unwrap();
-	net.peer(0).client().finalize_block(BlockId::Number(20), Some(Vec::new()), true).unwrap();
+	net.peer(0)
+		.client()
+		.finalize_block(BlockId::Number(10), Some(Vec::new()), true)
+		.unwrap();
+	net.peer(0)
+		.client()
+		.finalize_block(BlockId::Number(15), Some(Vec::new()), true)
+		.unwrap();
+	net.peer(0)
+		.client()
+		.finalize_block(BlockId::Number(20), Some(Vec::new()), true)
+		.unwrap();
 
 	let h1 = net.peer(1).client().header(&BlockId::Number(10)).unwrap().unwrap();
 	let h2 = net.peer(1).client().header(&BlockId::Number(15)).unwrap().unwrap();
@@ -269,15 +278,11 @@ fn sync_justifications() {
 		net.poll(cx);
 
 		for height in (10..21).step_by(5) {
-			if net.peer(0).client().justification(&BlockId::Number(height)).unwrap() !=
-				Some(Vec::new())
-			{
-				return Poll::Pending
+			if net.peer(0).client().justification(&BlockId::Number(height)).unwrap() != Some(Vec::new()) {
+				return Poll::Pending;
 			}
-			if net.peer(1).client().justification(&BlockId::Number(height)).unwrap() !=
-				Some(Vec::new())
-			{
-				return Poll::Pending
+			if net.peer(1).client().justification(&BlockId::Number(height)).unwrap() != Some(Vec::new()) {
+				return Poll::Pending;
 			}
 		}
 
@@ -299,7 +304,10 @@ fn sync_justifications_across_forks() {
 	// for both and finalize the small fork instead.
 	net.block_until_sync();
 
-	net.peer(0).client().finalize_block(BlockId::Hash(f1_best), Some(Vec::new()), true).unwrap();
+	net.peer(0)
+		.client()
+		.finalize_block(BlockId::Hash(f1_best), Some(Vec::new()), true)
+		.unwrap();
 
 	net.peer(1).request_justification(&f1_best, 10);
 	net.peer(1).request_justification(&f2_best, 11);
@@ -307,8 +315,8 @@ fn sync_justifications_across_forks() {
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
 		net.poll(cx);
 
-		if net.peer(0).client().justification(&BlockId::Number(10)).unwrap() == Some(Vec::new()) &&
-			net.peer(1).client().justification(&BlockId::Number(10)).unwrap() == Some(Vec::new())
+		if net.peer(0).client().justification(&BlockId::Number(10)).unwrap() == Some(Vec::new())
+			&& net.peer(1).client().justification(&BlockId::Number(10)).unwrap() == Some(Vec::new())
 		{
 			Poll::Ready(())
 		} else {
@@ -363,7 +371,8 @@ fn own_blocks_are_announced() {
 	sp_tracing::try_init_simple();
 	let mut net = TestNet::new(3);
 	net.block_until_sync(); // connect'em
-	net.peer(0).generate_blocks(1, BlockOrigin::Own, |builder| builder.build().unwrap().block);
+	net.peer(0)
+		.generate_blocks(1, BlockOrigin::Own, |builder| builder.build().unwrap().block);
 
 	net.block_until_sync();
 
@@ -420,8 +429,18 @@ fn can_sync_small_non_best_forks() {
 	net.peer(1).push_blocks(10, false);
 	assert_eq!(net.peer(1).client().info().best_number, 40);
 
-	assert!(net.peer(0).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
-	assert!(net.peer(1).client().header(&BlockId::Hash(small_hash)).unwrap().is_none());
+	assert!(net
+		.peer(0)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_some());
+	assert!(net
+		.peer(1)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_none());
 
 	// poll until the two nodes connect, otherwise announcing the block will not work
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
@@ -437,8 +456,18 @@ fn can_sync_small_non_best_forks() {
 
 	assert_eq!(net.peer(0).client().info().best_number, 40);
 
-	assert!(net.peer(0).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
-	assert!(!net.peer(1).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
+	assert!(net
+		.peer(0)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_some());
+	assert!(!net
+		.peer(1)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_some());
 
 	net.peer(0).announce_block(small_hash, Vec::new());
 
@@ -447,9 +476,20 @@ fn can_sync_small_non_best_forks() {
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
 		net.poll(cx);
 
-		assert!(net.peer(0).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
-		if net.peer(1).client().header(&BlockId::Hash(small_hash)).unwrap().is_none() {
-			return Poll::Pending
+		assert!(net
+			.peer(0)
+			.client()
+			.header(&BlockId::Hash(small_hash))
+			.unwrap()
+			.is_some());
+		if net
+			.peer(1)
+			.client()
+			.header(&BlockId::Hash(small_hash))
+			.unwrap()
+			.is_none()
+		{
+			return Poll::Pending;
 		}
 		Poll::Ready(())
 	}));
@@ -459,8 +499,14 @@ fn can_sync_small_non_best_forks() {
 	net.peer(0).announce_block(another_fork, Vec::new());
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
 		net.poll(cx);
-		if net.peer(1).client().header(&BlockId::Hash(another_fork)).unwrap().is_none() {
-			return Poll::Pending
+		if net
+			.peer(1)
+			.client()
+			.header(&BlockId::Hash(another_fork))
+			.unwrap()
+			.is_none()
+		{
+			return Poll::Pending;
 		}
 		Poll::Ready(())
 	}));
@@ -550,8 +596,18 @@ fn can_sync_explicit_forks() {
 	net.peer(1).push_blocks(10, false);
 	assert_eq!(net.peer(1).client().info().best_number, 40);
 
-	assert!(net.peer(0).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
-	assert!(net.peer(1).client().header(&BlockId::Hash(small_hash)).unwrap().is_none());
+	assert!(net
+		.peer(0)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_some());
+	assert!(net
+		.peer(1)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_none());
 
 	// poll until the two nodes connect, otherwise announcing the block will not work
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
@@ -567,20 +623,42 @@ fn can_sync_explicit_forks() {
 
 	assert_eq!(net.peer(0).client().info().best_number, 40);
 
-	assert!(net.peer(0).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
-	assert!(!net.peer(1).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
+	assert!(net
+		.peer(0)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_some());
+	assert!(!net
+		.peer(1)
+		.client()
+		.header(&BlockId::Hash(small_hash))
+		.unwrap()
+		.is_some());
 
 	// request explicit sync
 	let first_peer_id = net.peer(0).id();
-	net.peer(1).set_sync_fork_request(vec![first_peer_id], small_hash, small_number);
+	net.peer(1)
+		.set_sync_fork_request(vec![first_peer_id], small_hash, small_number);
 
 	// peer 1 downloads the block.
 	block_on(futures::future::poll_fn::<(), _>(|cx| {
 		net.poll(cx);
 
-		assert!(net.peer(0).client().header(&BlockId::Hash(small_hash)).unwrap().is_some());
-		if net.peer(1).client().header(&BlockId::Hash(small_hash)).unwrap().is_none() {
-			return Poll::Pending
+		assert!(net
+			.peer(0)
+			.client()
+			.header(&BlockId::Hash(small_hash))
+			.unwrap()
+			.is_some());
+		if net
+			.peer(1)
+			.client()
+			.header(&BlockId::Hash(small_hash))
+			.unwrap()
+			.is_none()
+		{
+			return Poll::Pending;
 		}
 		Poll::Ready(())
 	}));
@@ -591,7 +669,10 @@ fn syncs_header_only_forks() {
 	sp_tracing::try_init_simple();
 	let mut net = TestNet::new(0);
 	net.add_full_peer_with_config(Default::default());
-	net.add_full_peer_with_config(FullPeerConfig { keep_blocks: Some(3), ..Default::default() });
+	net.add_full_peer_with_config(FullPeerConfig {
+		keep_blocks: Some(3),
+		..Default::default()
+	});
 	net.peer(0).push_blocks(2, false);
 	net.peer(1).push_blocks(2, false);
 
@@ -707,24 +788,31 @@ fn can_sync_to_peers_with_wrong_common_block() {
 	}));
 
 	// both peers re-org to the same fork without notifying each other
-	net.peer(0).client().finalize_block(BlockId::Hash(fork_hash), Some(Vec::new()), true).unwrap();
-	net.peer(1).client().finalize_block(BlockId::Hash(fork_hash), Some(Vec::new()), true).unwrap();
+	net.peer(0)
+		.client()
+		.finalize_block(BlockId::Hash(fork_hash), Some(Vec::new()), true)
+		.unwrap();
+	net.peer(1)
+		.client()
+		.finalize_block(BlockId::Hash(fork_hash), Some(Vec::new()), true)
+		.unwrap();
 	let final_hash = net.peer(0).push_blocks(1, false);
 
 	net.block_until_sync();
 
-	assert!(net.peer(1).client().header(&BlockId::Hash(final_hash)).unwrap().is_some());
+	assert!(net
+		.peer(1)
+		.client()
+		.header(&BlockId::Hash(final_hash))
+		.unwrap()
+		.is_some());
 }
 
 /// Returns `is_new_best = true` for each validated announcement.
 struct NewBestBlockAnnounceValidator;
 
 impl BlockAnnounceValidator<Block> for NewBestBlockAnnounceValidator {
-	fn validate(
-		&mut self,
-		_: &Header,
-		_: &[u8],
-	) -> Result<Validation, Box<dyn std::error::Error + Send>> {
+	fn validate(&mut self, _: &Header, _: &[u8]) -> Result<Validation, Box<dyn std::error::Error + Send>> {
 		Ok(Validation::Success { is_new_best: true })
 	}
 }

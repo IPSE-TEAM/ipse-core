@@ -109,10 +109,7 @@ where
 	}
 }
 
-pub(crate) fn load_decode<B: AuxStore, T: Decode>(
-	backend: &B,
-	key: &[u8],
-) -> ClientResult<Option<T>> {
+pub(crate) fn load_decode<B: AuxStore, T: Decode>(backend: &B, key: &[u8]) -> ClientResult<Option<T>> {
 	match backend.get_aux(key)? {
 		None => Ok(None),
 		Some(t) => T::decode(&mut &t[..])
@@ -138,26 +135,22 @@ where
 {
 	CURRENT_VERSION.using_encoded(|s| backend.insert_aux(&[(VERSION_KEY, s)], &[]))?;
 
-	if let Some(old_set) =
-		load_decode::<_, V0AuthoritySet<Block::Hash, NumberFor<Block>>>(backend, AUTHORITY_SET_KEY)?
+	if let Some(old_set) = load_decode::<_, V0AuthoritySet<Block::Hash, NumberFor<Block>>>(backend, AUTHORITY_SET_KEY)?
 	{
 		let new_set: AuthoritySet<Block::Hash, NumberFor<Block>> = old_set.into();
 		backend.insert_aux(&[(AUTHORITY_SET_KEY, new_set.encode().as_slice())], &[])?;
 
-		let (last_round_number, last_round_state) = match load_decode::<
-			_,
-			V0VoterSetState<Block::Hash, NumberFor<Block>>,
-		>(backend, SET_STATE_KEY)?
-		{
-			Some((number, state)) => (number, state),
-			None => (0, genesis_round()),
-		};
+		let (last_round_number, last_round_state) =
+			match load_decode::<_, V0VoterSetState<Block::Hash, NumberFor<Block>>>(backend, SET_STATE_KEY)? {
+				Some((number, state)) => (number, state),
+				None => (0, genesis_round()),
+			};
 
 		let set_id = new_set.set_id;
 
-		let base = last_round_state.prevote_ghost.expect(
-			"state is for completed round; completed rounds must have a prevote ghost; qed.",
-		);
+		let base = last_round_state
+			.prevote_ghost
+			.expect("state is for completed round; completed rounds must have a prevote ghost; qed.");
 
 		let mut current_rounds = CurrentRounds::new();
 		current_rounds.insert(last_round_number + 1, HasVoted::No);
@@ -178,7 +171,7 @@ where
 
 		backend.insert_aux(&[(SET_STATE_KEY, set_state.encode().as_slice())], &[])?;
 
-		return Ok(Some((new_set, set_state)))
+		return Ok(Some((new_set, set_state)));
 	}
 
 	Ok(None)
@@ -194,33 +187,36 @@ where
 {
 	CURRENT_VERSION.using_encoded(|s| backend.insert_aux(&[(VERSION_KEY, s)], &[]))?;
 
-	if let Some(set) =
-		load_decode::<_, AuthoritySet<Block::Hash, NumberFor<Block>>>(backend, AUTHORITY_SET_KEY)?
-	{
+	if let Some(set) = load_decode::<_, AuthoritySet<Block::Hash, NumberFor<Block>>>(backend, AUTHORITY_SET_KEY)? {
 		let set_id = set.set_id;
 
 		let completed_rounds = |number, state, base| {
 			CompletedRounds::new(
-				CompletedRound { number, state, votes: Vec::new(), base },
+				CompletedRound {
+					number,
+					state,
+					votes: Vec::new(),
+					base,
+				},
 				set_id,
 				&set,
 			)
 		};
 
-		let set_state = match load_decode::<_, V1VoterSetState<Block::Hash, NumberFor<Block>>>(
-			backend,
-			SET_STATE_KEY,
-		)? {
+		let set_state = match load_decode::<_, V1VoterSetState<Block::Hash, NumberFor<Block>>>(backend, SET_STATE_KEY)?
+		{
 			Some(V1VoterSetState::Paused(last_round_number, set_state)) => {
-				let base = set_state.prevote_ghost
+				let base = set_state
+					.prevote_ghost
 					.expect("state is for completed round; completed rounds must have a prevote ghost; qed.");
 
 				VoterSetState::Paused {
 					completed_rounds: completed_rounds(last_round_number, set_state, base),
 				}
-			},
+			}
 			Some(V1VoterSetState::Live(last_round_number, set_state)) => {
-				let base = set_state.prevote_ghost
+				let base = set_state
+					.prevote_ghost
 					.expect("state is for completed round; completed rounds must have a prevote ghost; qed.");
 
 				let mut current_rounds = CurrentRounds::new();
@@ -230,19 +226,20 @@ where
 					completed_rounds: completed_rounds(last_round_number, set_state, base),
 					current_rounds,
 				}
-			},
+			}
 			None => {
 				let set_state = genesis_round();
-				let base = set_state.prevote_ghost
+				let base = set_state
+					.prevote_ghost
 					.expect("state is for completed round; completed rounds must have a prevote ghost; qed.");
 
 				VoterSetState::live(set_id, &set, base)
-			},
+			}
 		};
 
 		backend.insert_aux(&[(SET_STATE_KEY, set_state.encode().as_slice())], &[])?;
 
-		return Ok(Some((set, set_state)))
+		return Ok(Some((set, set_state)));
 	}
 
 	Ok(None)
@@ -267,53 +264,52 @@ where
 
 	match version {
 		None => {
-			if let Some((new_set, set_state)) =
-				migrate_from_version0::<Block, _, _>(backend, &make_genesis_round)?
-			{
+			if let Some((new_set, set_state)) = migrate_from_version0::<Block, _, _>(backend, &make_genesis_round)? {
 				return Ok(PersistentData {
 					authority_set: new_set.into(),
 					consensus_changes: Arc::new(consensus_changes.into()),
 					set_state: set_state.into(),
-				})
+				});
 			}
-		},
+		}
 		Some(1) => {
-			if let Some((new_set, set_state)) =
-				migrate_from_version1::<Block, _, _>(backend, &make_genesis_round)?
-			{
+			if let Some((new_set, set_state)) = migrate_from_version1::<Block, _, _>(backend, &make_genesis_round)? {
 				return Ok(PersistentData {
 					authority_set: new_set.into(),
 					consensus_changes: Arc::new(consensus_changes.into()),
 					set_state: set_state.into(),
-				})
+				});
 			}
-		},
+		}
 		Some(2) => {
-			if let Some(set) = load_decode::<_, AuthoritySet<Block::Hash, NumberFor<Block>>>(
-				backend,
-				AUTHORITY_SET_KEY,
-			)? {
-				let set_state =
-					match load_decode::<_, VoterSetState<Block>>(backend, SET_STATE_KEY)? {
-						Some(state) => state,
-						None => {
-							let state = make_genesis_round();
-							let base = state.prevote_ghost
+			if let Some(set) =
+				load_decode::<_, AuthoritySet<Block::Hash, NumberFor<Block>>>(backend, AUTHORITY_SET_KEY)?
+			{
+				let set_state = match load_decode::<_, VoterSetState<Block>>(backend, SET_STATE_KEY)? {
+					Some(state) => state,
+					None => {
+						let state = make_genesis_round();
+						let base = state
+							.prevote_ghost
 							.expect("state is for completed round; completed rounds must have a prevote ghost; qed.");
 
-							VoterSetState::live(set.set_id, &set, base)
-						},
-					};
+						VoterSetState::live(set.set_id, &set, base)
+					}
+				};
 
 				return Ok(PersistentData {
 					authority_set: set.into(),
 					consensus_changes: Arc::new(consensus_changes.into()),
 					set_state: set_state.into(),
-				})
+				});
 			}
-		},
-		Some(other) =>
-			return Err(ClientError::Backend(format!("Unsupported GRANDPA DB version: {:?}", other))),
+		}
+		Some(other) => {
+			return Err(ClientError::Backend(format!(
+				"Unsupported GRANDPA DB version: {:?}",
+				other
+			)))
+		}
 	}
 
 	// genesis.
@@ -365,11 +361,7 @@ where
 		// we also overwrite the "last completed round" entry with a blank slate
 		// because from the perspective of the finality gadget, the chain has
 		// reset.
-		let set_state = VoterSetState::<Block>::live(
-			new_set.set_id,
-			&set,
-			(new_set.canon_hash, new_set.canon_number),
-		);
+		let set_state = VoterSetState::<Block>::live(new_set.set_id, &set, (new_set.canon_hash, new_set.canon_number));
 		let encoded = set_state.encode();
 
 		write_aux(&[(AUTHORITY_SET_KEY, &encoded_set[..]), (SET_STATE_KEY, &encoded[..])])
@@ -409,9 +401,7 @@ where
 }
 
 #[cfg(test)]
-pub(crate) fn load_authorities<B: AuxStore, H: Decode, N: Decode>(
-	backend: &B,
-) -> Option<AuthoritySet<H, N>> {
+pub(crate) fn load_authorities<B: AuxStore, H: Decode, N: Decode>(backend: &B) -> Option<AuthoritySet<H, N>> {
 	load_decode::<_, AuthoritySet<H, N>>(backend, AUTHORITY_SET_KEY).expect("backend error")
 }
 
@@ -469,14 +459,17 @@ mod test {
 
 		assert_eq!(load_decode::<_, u32>(&client, VERSION_KEY).unwrap(), Some(2),);
 
-		let PersistentData { authority_set, set_state, .. } =
-			load_persistent::<substrate_test_runtime_client::runtime::Block, _, _>(
-				&client,
-				H256::random(),
-				0,
-				|| unreachable!(),
-			)
-			.unwrap();
+		let PersistentData {
+			authority_set,
+			set_state,
+			..
+		} = load_persistent::<substrate_test_runtime_client::runtime::Block, _, _>(
+			&client,
+			H256::random(),
+			0,
+			|| unreachable!(),
+		)
+		.unwrap();
 
 		assert_eq!(
 			*authority_set.inner().read(),
@@ -519,13 +512,8 @@ mod test {
 		};
 
 		{
-			let authority_set = AuthoritySet::<H256, u64>::new(
-				authorities.clone(),
-				set_id,
-				ForkTree::new(),
-				Vec::new(),
-			)
-			.unwrap();
+			let authority_set =
+				AuthoritySet::<H256, u64>::new(authorities.clone(), set_id, ForkTree::new(), Vec::new()).unwrap();
 
 			let voter_set_state = V1VoterSetState::Live(round_number, round_state.clone());
 
@@ -554,14 +542,17 @@ mod test {
 
 		assert_eq!(load_decode::<_, u32>(&client, VERSION_KEY).unwrap(), Some(2),);
 
-		let PersistentData { authority_set, set_state, .. } =
-			load_persistent::<substrate_test_runtime_client::runtime::Block, _, _>(
-				&client,
-				H256::random(),
-				0,
-				|| unreachable!(),
-			)
-			.unwrap();
+		let PersistentData {
+			authority_set,
+			set_state,
+			..
+		} = load_persistent::<substrate_test_runtime_client::runtime::Block, _, _>(
+			&client,
+			H256::random(),
+			0,
+			|| unreachable!(),
+		)
+		.unwrap();
 
 		assert_eq!(
 			*authority_set.inner().read(),
@@ -609,10 +600,7 @@ mod test {
 		round_number.using_encoded(|n| key.extend(n));
 
 		assert_eq!(
-			load_decode::<_, CompletedRound::<substrate_test_runtime_client::runtime::Block>>(
-				&client, &key
-			)
-			.unwrap(),
+			load_decode::<_, CompletedRound::<substrate_test_runtime_client::runtime::Block>>(&client, &key).unwrap(),
 			Some(completed_round),
 		);
 	}

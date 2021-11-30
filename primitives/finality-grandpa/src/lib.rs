@@ -213,16 +213,8 @@ pub enum Equivocation<H, N> {
 	Precommit(grandpa::Equivocation<AuthorityId, grandpa::Precommit<H, N>, AuthoritySignature>),
 }
 
-impl<H, N> From<grandpa::Equivocation<AuthorityId, grandpa::Prevote<H, N>, AuthoritySignature>>
-	for Equivocation<H, N>
-{
-	fn from(
-		equivocation: grandpa::Equivocation<
-			AuthorityId,
-			grandpa::Prevote<H, N>,
-			AuthoritySignature,
-		>,
-	) -> Self {
+impl<H, N> From<grandpa::Equivocation<AuthorityId, grandpa::Prevote<H, N>, AuthoritySignature>> for Equivocation<H, N> {
+	fn from(equivocation: grandpa::Equivocation<AuthorityId, grandpa::Prevote<H, N>, AuthoritySignature>) -> Self {
 		Equivocation::Prevote(equivocation)
 	}
 }
@@ -230,13 +222,7 @@ impl<H, N> From<grandpa::Equivocation<AuthorityId, grandpa::Prevote<H, N>, Autho
 impl<H, N> From<grandpa::Equivocation<AuthorityId, grandpa::Precommit<H, N>, AuthoritySignature>>
 	for Equivocation<H, N>
 {
-	fn from(
-		equivocation: grandpa::Equivocation<
-			AuthorityId,
-			grandpa::Precommit<H, N>,
-			AuthoritySignature,
-		>,
-	) -> Self {
+	fn from(equivocation: grandpa::Equivocation<AuthorityId, grandpa::Precommit<H, N>, AuthoritySignature>) -> Self {
 		Equivocation::Precommit(equivocation)
 	}
 }
@@ -263,10 +249,10 @@ where
 	macro_rules! check {
 		( $equivocation:expr, $message:expr ) => {
 			// if both votes have the same target the equivocation is invalid.
-			if $equivocation.first.0.target_hash == $equivocation.second.0.target_hash &&
-				$equivocation.first.0.target_number == $equivocation.second.0.target_number
+			if $equivocation.first.0.target_hash == $equivocation.second.0.target_hash
+				&& $equivocation.first.0.target_number == $equivocation.second.0.target_number
 				{
-				return false
+				return false;
 				}
 
 			// check signatures on both votes are valid
@@ -286,17 +272,17 @@ where
 				report.set_id,
 				);
 
-			return valid_first && valid_second
+			return valid_first && valid_second;
 		};
 	}
 
 	match report.equivocation {
 		Equivocation::Prevote(equivocation) => {
 			check!(equivocation, grandpa::Message::Prevote);
-		},
+		}
 		Equivocation::Precommit(equivocation) => {
 			check!(equivocation, grandpa::Message::Precommit);
-		},
+		}
 	}
 }
 
@@ -310,12 +296,7 @@ pub fn localized_payload<E: Encode>(round: RoundNumber, set_id: SetId, message: 
 /// Encode round message localized to a given round and set id using the given
 /// buffer. The given buffer will be cleared and the resulting encoded payload
 /// will always be written to the start of the buffer.
-pub fn localized_payload_with_buffer<E: Encode>(
-	round: RoundNumber,
-	set_id: SetId,
-	message: &E,
-	buf: &mut Vec<u8>,
-) {
+pub fn localized_payload_with_buffer<E: Encode>(round: RoundNumber, set_id: SetId, message: &E, buf: &mut Vec<u8>) {
 	buf.clear();
 	(message, round, set_id).encode_to(buf)
 }
@@ -391,7 +372,11 @@ where
 		.try_into()
 		.ok()?;
 
-	Some(grandpa::SignedMessage { message, signature, id: public })
+	Some(grandpa::SignedMessage {
+		message,
+		signature,
+		id: public,
+	})
 }
 
 /// WASM function call to check for pending changes.
@@ -442,7 +427,7 @@ impl<'a> Decode for VersionedAuthorityList<'a> {
 	fn decode<I: Input>(value: &mut I) -> Result<Self, codec::Error> {
 		let (version, authorities): (u8, AuthorityList) = Decode::decode(value)?;
 		if version != AUTHORITIES_VERSION {
-			return Err("unknown Grandpa authorities version".into())
+			return Err("unknown Grandpa authorities version".into());
 		}
 		Ok(authorities.into())
 	}

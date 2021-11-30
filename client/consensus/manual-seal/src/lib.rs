@@ -26,8 +26,7 @@ use sc_transaction_pool::txpool;
 use sp_blockchain::HeaderBackend;
 use sp_consensus::{
 	import_queue::{BasicQueue, BoxBlockImport, CacheKeyId, Verifier},
-	BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy, Proposer,
-	SelectChain,
+	BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy, Proposer, SelectChain,
 };
 use sp_inherents::InherentDataProviders;
 use sp_runtime::{traits::Block as BlockT, Justification};
@@ -84,8 +83,7 @@ where
 }
 
 /// Params required to start the instant sealing authorship task.
-pub struct ManualSealParams<B: BlockT, BI, E, C: ProvideRuntimeApi<B>, A: txpool::ChainApi, SC, CS>
-{
+pub struct ManualSealParams<B: BlockT, BI, E, C: ProvideRuntimeApi<B>, A: txpool::ChainApi, SC, CS> {
 	/// Block import instance for well. importing blocks.
 	pub block_import: BI,
 
@@ -106,8 +104,7 @@ pub struct ManualSealParams<B: BlockT, BI, E, C: ProvideRuntimeApi<B>, A: txpool
 	pub select_chain: SC,
 
 	/// Digest provider for inclusion in blocks.
-	pub consensus_data_provider:
-		Option<Box<dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>>,
+	pub consensus_data_provider: Option<Box<dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>>,
 
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,
@@ -131,8 +128,7 @@ pub struct InstantSealParams<B: BlockT, BI, E, C: ProvideRuntimeApi<B>, A: txpoo
 	pub select_chain: SC,
 
 	/// Digest provider for inclusion in blocks.
-	pub consensus_data_provider:
-		Option<Box<dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>>,
+	pub consensus_data_provider: Option<Box<dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>>,
 
 	/// Provider for inherents to include in blocks.
 	pub inherent_data_providers: InherentDataProviders,
@@ -154,10 +150,7 @@ pub async fn run_manual_seal<B, BI, CB, E, C, A, SC, CS>(
 ) where
 	A: txpool::ChainApi<Block = B> + 'static,
 	B: BlockT + 'static,
-	BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>>
-		+ Send
-		+ Sync
-		+ 'static,
+	BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync + 'static,
 	C: HeaderBackend<B> + Finalizer<B, CB> + ProvideRuntimeApi<B> + 'static,
 	CB: ClientBackend<B> + 'static,
 	E: Environment<B> + 'static,
@@ -168,7 +161,12 @@ pub async fn run_manual_seal<B, BI, CB, E, C, A, SC, CS>(
 {
 	while let Some(command) = commands_stream.next().await {
 		match command {
-			EngineCommand::SealNewBlock { create_empty, finalize, parent_hash, sender } => {
+			EngineCommand::SealNewBlock {
+				create_empty,
+				finalize,
+				parent_hash,
+				sender,
+			} => {
 				seal_block(SealBlockParams {
 					sender,
 					parent_hash,
@@ -183,8 +181,12 @@ pub async fn run_manual_seal<B, BI, CB, E, C, A, SC, CS>(
 					client: client.clone(),
 				})
 				.await;
-			},
-			EngineCommand::FinalizeBlock { hash, sender, justification } =>
+			}
+			EngineCommand::FinalizeBlock {
+				hash,
+				sender,
+				justification,
+			} => {
 				finalize_block(FinalizeBlockParams {
 					hash,
 					sender,
@@ -192,7 +194,8 @@ pub async fn run_manual_seal<B, BI, CB, E, C, A, SC, CS>(
 					finalizer: client.clone(),
 					_phantom: PhantomData,
 				})
-				.await,
+				.await
+			}
 		}
 	}
 }
@@ -214,10 +217,7 @@ pub async fn run_instant_seal<B, BI, CB, E, C, A, SC>(
 ) where
 	A: txpool::ChainApi<Block = B> + 'static,
 	B: BlockT + 'static,
-	BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>>
-		+ Send
-		+ Sync
-		+ 'static,
+	BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync + 'static,
 	C: HeaderBackend<B> + Finalizer<B, CB> + ProvideRuntimeApi<B> + 'static,
 	CB: ClientBackend<B> + 'static,
 	E: Environment<B> + 'static,
@@ -227,8 +227,10 @@ pub async fn run_instant_seal<B, BI, CB, E, C, A, SC>(
 {
 	// instant-seal creates blocks as soon as transactions are imported
 	// into the transaction pool.
-	let commands_stream =
-		pool.validated_pool().import_notification_stream().map(|_| EngineCommand::SealNewBlock {
+	let commands_stream = pool
+		.validated_pool()
+		.import_notification_stream()
+		.map(|_| EngineCommand::SealNewBlock {
 			create_empty: false,
 			finalize: false,
 			parent_hash: None,
@@ -288,18 +290,17 @@ mod tests {
 		// pool.
 		let (sender, receiver) = futures::channel::oneshot::channel();
 		let mut sender = Arc::new(Some(sender));
-		let commands_stream =
-			pool.pool().validated_pool().import_notification_stream().map(move |_| {
-				// we're only going to submit one tx so this fn will only be called once.
-				let mut_sender = Arc::get_mut(&mut sender).unwrap();
-				let sender = std::mem::take(mut_sender);
-				EngineCommand::SealNewBlock {
-					create_empty: false,
-					finalize: true,
-					parent_hash: None,
-					sender,
-				}
-			});
+		let commands_stream = pool.pool().validated_pool().import_notification_stream().map(move |_| {
+			// we're only going to submit one tx so this fn will only be called once.
+			let mut_sender = Arc::get_mut(&mut sender).unwrap();
+			let sender = std::mem::take(mut_sender);
+			EngineCommand::SealNewBlock {
+				create_empty: false,
+				finalize: true,
+				parent_hash: None,
+				sender,
+			}
+		});
 		let future = run_manual_seal(ManualSealParams {
 			block_import: client.clone(),
 			env,
@@ -484,9 +485,15 @@ mod tests {
 		);
 		let block = client.block(&BlockId::Number(1)).unwrap().unwrap().block;
 		pool_api.add_block(block, true);
-		assert!(pool.submit_one(&BlockId::Number(1), SOURCE, uxt(Alice, 1)).await.is_ok());
+		assert!(pool
+			.submit_one(&BlockId::Number(1), SOURCE, uxt(Alice, 1))
+			.await
+			.is_ok());
 
-		let header = client.header(&BlockId::Number(1)).expect("db error").expect("imported above");
+		let header = client
+			.header(&BlockId::Number(1))
+			.expect("db error")
+			.expect("imported above");
 		pool.maintain(sp_transaction_pool::ChainEvent::NewBestBlock {
 			hash: header.hash(),
 			tree_route: None,
@@ -508,7 +515,10 @@ mod tests {
 		pool_api.add_block(block, true);
 		pool_api.increment_nonce(Alice.into());
 
-		assert!(pool.submit_one(&BlockId::Number(1), SOURCE, uxt(Alice, 2)).await.is_ok());
+		assert!(pool
+			.submit_one(&BlockId::Number(1), SOURCE, uxt(Alice, 2))
+			.await
+			.is_ok());
 		let (tx2, rx2) = futures::channel::oneshot::channel();
 		assert!(sink
 			.send(EngineCommand::SealNewBlock {

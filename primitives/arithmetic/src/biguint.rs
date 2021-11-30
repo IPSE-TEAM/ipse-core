@@ -86,7 +86,9 @@ impl BigUint {
 	///
 	/// The behavior of the type is undefined with zero limbs.
 	pub fn with_capacity(size: usize) -> Self {
-		Self { digits: vec![0; size.max(1)] }
+		Self {
+			digits: vec![0; size.max(1)],
+		}
 	}
 
 	/// Raw constructor from custom limbs. If `limbs` is empty, `Zero::zero()` implementation is
@@ -154,7 +156,7 @@ impl BigUint {
 		// has the ability to cause this. There is nothing to do if the number already has 1
 		// limb only. call it a day and return.
 		if self.len().is_zero() {
-			return
+			return;
 		}
 		let index = self.digits.iter().position(|&elem| elem != 0).unwrap_or(self.len() - 1);
 
@@ -168,7 +170,7 @@ impl BigUint {
 	pub fn lpad(&mut self, size: usize) {
 		let n = self.len();
 		if n >= size {
-			return
+			return;
 		}
 		let pad = size - n;
 		let mut new_digits = (0..pad).map(|_| 0).collect::<Vec<Single>>();
@@ -264,15 +266,13 @@ impl BigUint {
 			if self.get(j) == 0 {
 				// Note: `with_capacity` allocates with 0. Explicitly set j + m to zero if
 				// otherwise.
-				continue
+				continue;
 			}
 
 			let mut k = 0;
 			for i in 0..m {
 				// PROOF: (B−1) × (B−1) + (B−1) + (B−1) = B^2 −1 < B^2. addition is safe.
-				let t = mul_single(self.get(j), other.get(i)) +
-					Double::from(w.get(i + j)) +
-					Double::from(k);
+				let t = mul_single(self.get(j), other.get(i)) + Double::from(w.get(i + j)) + Double::from(k);
 				w.set(i + j, (t % B) as Single);
 				// PROOF: (B^2 - 1) / B < B. conversion is safe.
 				k = (t / B) as Single;
@@ -316,7 +316,7 @@ impl BigUint {
 	/// Taken from "The Art of Computer Programming" by D.E. Knuth, vol 2, chapter 4.
 	pub fn div(self, other: &Self, rem: bool) -> Option<(Self, Self)> {
 		if other.len() <= 1 || other.msb() == 0 || self.msb() == 0 || self.len() <= other.len() {
-			return None
+			return None;
 		}
 		let n = other.len();
 		let m = self.len() - n;
@@ -343,8 +343,7 @@ impl BigUint {
 			let (qhat, rhat) = {
 				// PROOF: this always fits into `Double`. In the context of Single = u8, and
 				// Double = u16, think of 255 * 256 + 255 which is just u16::max_value().
-				let dividend =
-					Double::from(self_norm.get(j + n)) * B + Double::from(self_norm.get(j + n - 1));
+				let dividend = Double::from(self_norm.get(j + n)) * B + Double::from(self_norm.get(j + n - 1));
 				let divisor = other_norm.get(n - 1);
 				div_single(dividend, divisor)
 			};
@@ -376,7 +375,7 @@ impl BigUint {
 			test();
 			while (*rhat.borrow() as Double) < B {
 				if !test() {
-					break
+					break;
 				}
 			}
 
@@ -384,7 +383,9 @@ impl BigUint {
 			// we don't need rhat anymore. just let it go out of scope when it does.
 
 			// step D4
-			let lhs = Self { digits: (j..=j + n).rev().map(|d| self_norm.get(d)).collect() };
+			let lhs = Self {
+				digits: (j..=j + n).rev().map(|d| self_norm.get(d)).collect(),
+			};
 			let rhs = other_norm.clone().mul(&Self::from(qhat));
 
 			let maybe_sub = lhs.sub(&rhs);
@@ -394,7 +395,7 @@ impl BigUint {
 				Err(t) => {
 					negative = true;
 					t
-				},
+				}
 			};
 			(j..=j + n).for_each(|d| {
 				self_norm.set(d, sub.get(d - j));
@@ -408,7 +409,9 @@ impl BigUint {
 			// step D6: add back if negative happened.
 			if negative {
 				q.set(j, q.get(j) - 1);
-				let u = Self { digits: (j..=j + n).rev().map(|d| self_norm.get(d)).collect() };
+				let u = Self {
+					digits: (j..=j + n).rev().map(|d| self_norm.get(d)).collect(),
+				};
 				let r = other_norm.clone().add(&u);
 				(j..=j + n).rev().for_each(|d| {
 					self_norm.set(d, r.get(d - j));
@@ -480,7 +483,7 @@ impl Ord for BigUint {
 					Ordering::Equal => lhs.cmp(rhs),
 					_ => len_cmp,
 				}
-			},
+			}
 		}
 	}
 }
@@ -514,7 +517,9 @@ impl ops::Mul for BigUint {
 
 impl Zero for BigUint {
 	fn zero() -> Self {
-		Self { digits: vec![Zero::zero()] }
+		Self {
+			digits: vec![Zero::zero()],
+		}
 	}
 
 	fn is_zero(&self) -> bool {
@@ -524,7 +529,9 @@ impl Zero for BigUint {
 
 impl One for BigUint {
 	fn one() -> Self {
-		Self { digits: vec![Single::one()] }
+		Self {
+			digits: vec![Single::one()],
+		}
 	}
 }
 
@@ -632,9 +639,20 @@ pub mod tests {
 
 	#[test]
 	fn equality_works() {
-		assert_eq!(BigUint { digits: vec![1, 2, 3] } == BigUint { digits: vec![1, 2, 3] }, true,);
-		assert_eq!(BigUint { digits: vec![3, 2, 3] } == BigUint { digits: vec![1, 2, 3] }, false,);
-		assert_eq!(BigUint { digits: vec![0, 1, 2, 3] } == BigUint { digits: vec![1, 2, 3] }, true,);
+		assert_eq!(
+			BigUint { digits: vec![1, 2, 3] } == BigUint { digits: vec![1, 2, 3] },
+			true,
+		);
+		assert_eq!(
+			BigUint { digits: vec![3, 2, 3] } == BigUint { digits: vec![1, 2, 3] },
+			false,
+		);
+		assert_eq!(
+			BigUint {
+				digits: vec![0, 1, 2, 3]
+			} == BigUint { digits: vec![1, 2, 3] },
+			true,
+		);
 	}
 
 	#[test]
@@ -646,13 +664,29 @@ pub mod tests {
 		assert!(BigUint { digits: vec![] } < BigUint { digits: vec![1] });
 
 		assert!(BigUint { digits: vec![1, 2, 3] } == BigUint { digits: vec![1, 2, 3] });
-		assert!(BigUint { digits: vec![0, 1, 2, 3] } == BigUint { digits: vec![1, 2, 3] });
+		assert!(
+			BigUint {
+				digits: vec![0, 1, 2, 3]
+			} == BigUint { digits: vec![1, 2, 3] }
+		);
 
 		assert!(BigUint { digits: vec![1, 2, 4] } > BigUint { digits: vec![1, 2, 3] });
-		assert!(BigUint { digits: vec![0, 1, 2, 4] } > BigUint { digits: vec![1, 2, 3] });
-		assert!(BigUint { digits: vec![1, 2, 1, 0] } > BigUint { digits: vec![1, 2, 3] });
+		assert!(
+			BigUint {
+				digits: vec![0, 1, 2, 4]
+			} > BigUint { digits: vec![1, 2, 3] }
+		);
+		assert!(
+			BigUint {
+				digits: vec![1, 2, 1, 0]
+			} > BigUint { digits: vec![1, 2, 3] }
+		);
 
-		assert!(BigUint { digits: vec![0, 1, 2, 1] } < BigUint { digits: vec![1, 2, 3] });
+		assert!(
+			BigUint {
+				digits: vec![0, 1, 2, 1]
+			} < BigUint { digits: vec![1, 2, 3] }
+		);
 	}
 
 	#[test]
@@ -660,7 +694,10 @@ pub mod tests {
 		use sp_std::convert::TryFrom;
 		assert_eq!(u64::try_from(with_limbs(1)).unwrap(), 1);
 		assert_eq!(u64::try_from(with_limbs(2)).unwrap(), u32::max_value() as u64 + 2);
-		assert_eq!(u64::try_from(with_limbs(3)).unwrap_err(), "cannot fit a number into u64",);
+		assert_eq!(
+			u64::try_from(with_limbs(3)).unwrap_err(),
+			"cannot fit a number into u64",
+		);
 		assert_eq!(
 			u128::try_from(with_limbs(3)).unwrap(),
 			u32::max_value() as u128 + u64::max_value() as u128 + 3
@@ -690,7 +727,9 @@ pub mod tests {
 			BigUint::from(0 as Single)
 		);
 		assert_eq!(
-			BigUint::from(10 as Single).sub(&BigUint::from(13 as Single)).unwrap_err(),
+			BigUint::from(10 as Single)
+				.sub(&BigUint::from(13 as Single))
+				.unwrap_err(),
 			BigUint::from((B - 3) as Single),
 		);
 	}
@@ -714,7 +753,9 @@ pub mod tests {
 		let b = BigUint { digits: vec![1, 2] };
 		let c = BigUint { digits: vec![1, 1, 2] };
 		let d = BigUint { digits: vec![0, 2] };
-		let e = BigUint { digits: vec![0, 1, 1, 2] };
+		let e = BigUint {
+			digits: vec![0, 1, 1, 2],
+		};
 
 		assert!(a.clone().div(&b, true).is_none());
 		assert!(c.clone().div(&a, true).is_none());

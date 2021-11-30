@@ -182,9 +182,7 @@ impl<Transaction, H: Hasher, N: BlockNumber> StorageTransactionCache<Transaction
 	}
 }
 
-impl<Transaction, H: Hasher, N: BlockNumber> Default
-	for StorageTransactionCache<Transaction, H, N>
-{
+impl<Transaction, H: Hasher, N: BlockNumber> Default for StorageTransactionCache<Transaction, H, N> {
 	fn default() -> Self {
 		Self {
 			transaction: None,
@@ -199,9 +197,7 @@ impl<Transaction, H: Hasher, N: BlockNumber> Default
 	}
 }
 
-impl<Transaction: Default, H: Hasher, N: BlockNumber> Default
-	for StorageChanges<Transaction, H, N>
-{
+impl<Transaction: Default, H: Hasher, N: BlockNumber> Default for StorageChanges<Transaction, H, N> {
 	fn default() -> Self {
 		Self {
 			main_storage_changes: Default::default(),
@@ -247,11 +243,7 @@ impl OverlayedChanges {
 	///
 	/// Can be rolled back or committed when called inside a transaction.
 	#[must_use = "A change was registered, so this value MUST be modified."]
-	pub fn value_mut_or_insert_with(
-		&mut self,
-		key: &[u8],
-		init: impl Fn() -> StorageValue,
-	) -> &mut StorageValue {
+	pub fn value_mut_or_insert_with(&mut self, key: &[u8], init: impl Fn() -> StorageValue) -> &mut StorageValue {
 		let value = self.top.modify(key.to_vec(), init, self.extrinsic_index());
 
 		// if the value was deleted initialise it back with an empty vec
@@ -283,12 +275,7 @@ impl OverlayedChanges {
 	/// `None` can be used to delete a value specified by the given key.
 	///
 	/// Can be rolled back or committed when called inside a transaction.
-	pub(crate) fn set_child_storage(
-		&mut self,
-		child_info: &ChildInfo,
-		key: StorageKey,
-		val: Option<StorageValue>,
-	) {
+	pub(crate) fn set_child_storage(&mut self, child_info: &ChildInfo, key: StorageKey, val: Option<StorageValue>) {
 		let extrinsic_index = self.extrinsic_index();
 		let size_write = val.as_ref().map(|x| x.len() as u64).unwrap_or(0);
 		self.stats.tally_write_overlay(size_write);
@@ -323,7 +310,8 @@ impl OverlayedChanges {
 	///
 	/// Can be rolled back or committed when called inside a transaction.
 	pub(crate) fn clear_prefix(&mut self, prefix: &[u8]) {
-		self.top.clear_where(|key, _| key.starts_with(prefix), self.extrinsic_index());
+		self.top
+			.clear_where(|key, _| key.starts_with(prefix), self.extrinsic_index());
 	}
 
 	/// Removes all key-value pairs which keys share the given prefix.
@@ -449,9 +437,7 @@ impl OverlayedChanges {
 	}
 
 	/// Get an iterator over all child changes as seen by the current transaction.
-	pub fn children(
-		&self,
-	) -> impl Iterator<Item = (impl Iterator<Item = (&StorageKey, &OverlayedValue)>, &ChildInfo)> {
+	pub fn children(&self) -> impl Iterator<Item = (impl Iterator<Item = (&StorageKey, &OverlayedValue)>, &ChildInfo)> {
 		self.children.iter().map(|(_, v)| (v.0.changes(), &v.1))
 	}
 
@@ -522,9 +508,7 @@ impl OverlayedChanges {
 
 		Ok(StorageChanges {
 			main_storage_changes: main_storage_changes.collect(),
-			child_storage_changes: child_storage_changes
-				.map(|(sk, it)| (sk, it.0.collect()))
-				.collect(),
+			child_storage_changes: child_storage_changes.map(|(sk, it)| (sk, it.0.collect())).collect(),
 			#[cfg(feature = "std")]
 			offchain_storage_changes: Default::default(),
 			transaction,
@@ -539,7 +523,8 @@ impl OverlayedChanges {
 	/// Inserts storage entry responsible for current extrinsic index.
 	#[cfg(test)]
 	pub(crate) fn set_extrinsic_index(&mut self, extrinsic_index: u32) {
-		self.top.set(EXTRINSIC_INDEX.to_vec(), Some(extrinsic_index.encode()), None);
+		self.top
+			.set(EXTRINSIC_INDEX.to_vec(), Some(extrinsic_index.encode()), None);
 	}
 
 	/// Returns current extrinsic index to use in changes trie construction.
@@ -572,9 +557,9 @@ impl OverlayedChanges {
 		H::Out: Ord + Encode,
 	{
 		let delta = self.changes().map(|(k, v)| (&k[..], v.value().map(|v| &v[..])));
-		let child_delta = self.children().map(|(changes, info)| {
-			(info, changes.map(|(k, v)| (&k[..], v.value().map(|v| &v[..]))))
-		});
+		let child_delta = self
+			.children()
+			.map(|(changes, info)| (info, changes.map(|(k, v)| (&k[..], v.value().map(|v| &v[..])))));
 
 		let (root, transaction) = backend.full_storage_root(delta, child_delta);
 
@@ -603,14 +588,7 @@ impl OverlayedChanges {
 	where
 		H::Out: Ord + Encode + 'static,
 	{
-		build_changes_trie::<_, H, N>(
-			backend,
-			changes_trie_state,
-			self,
-			parent_hash,
-			panic_on_storage_error,
-		)
-		.map(|r| {
+		build_changes_trie::<_, H, N>(backend, changes_trie_state, self, parent_hash, panic_on_storage_error).map(|r| {
 			let root = r.as_ref().map(|r| r.1).clone();
 			cache.changes_trie_transaction = Some(r.map(|(db, _, cache)| (db, cache)));
 			cache.changes_trie_transaction_storage_root = Some(root);
@@ -626,12 +604,10 @@ impl OverlayedChanges {
 
 	/// Returns the next (in lexicographic order) child storage key in the overlayed alongside its
 	/// value.  If no value is next then `None` is returned.
-	pub fn next_child_storage_key_change(
-		&self,
-		storage_key: &[u8],
-		key: &[u8],
-	) -> Option<(&[u8], &OverlayedValue)> {
-		self.children.get(storage_key).and_then(|(overlay, _)| overlay.next_change(key))
+	pub fn next_child_storage_key_change(&self, storage_key: &[u8], key: &[u8]) -> Option<(&[u8], &OverlayedValue)> {
+		self.children
+			.get(storage_key)
+			.and_then(|(overlay, _)| overlay.next_change(key))
 	}
 }
 
@@ -696,16 +672,12 @@ impl<'a> OverlayedExtensions<'a> {
 	}
 
 	/// Register extension `extension` with the given `type_id`.
-	pub fn register(
-		&mut self,
-		type_id: TypeId,
-		extension: Box<dyn Extension>,
-	) -> Result<(), sp_externalities::Error> {
+	pub fn register(&mut self, type_id: TypeId, extension: Box<dyn Extension>) -> Result<(), sp_externalities::Error> {
 		match self.extensions.entry(type_id) {
 			MapEntry::Vacant(vacant) => {
 				vacant.insert(OverlayedExtension::Owned(extension));
 				Ok(())
-			},
+			}
 			MapEntry::Occupied(_) => Err(sp_externalities::Error::ExtensionAlreadyRegistered),
 		}
 	}
@@ -729,7 +701,12 @@ mod tests {
 
 	fn assert_extrinsics(overlay: &OverlayedChangeSet, key: impl AsRef<[u8]>, expected: Vec<u32>) {
 		assert_eq!(
-			overlay.get(key.as_ref()).unwrap().extrinsics().into_iter().collect::<Vec<_>>(),
+			overlay
+				.get(key.as_ref())
+				.unwrap()
+				.extrinsics()
+				.into_iter()
+				.collect::<Vec<_>>(),
 			expected
 		)
 	}
@@ -801,8 +778,7 @@ mod tests {
 			crate::changes_trie::disabled_state::<_, u64>(),
 			None,
 		);
-		const ROOT: [u8; 32] =
-			hex!("39245109cef3758c2eed2ccba8d9b370a917850af3824bc8348d505df2c298fa");
+		const ROOT: [u8; 32] = hex!("39245109cef3758c2eed2ccba8d9b370a917850af3824bc8348d505df2c298fa");
 
 		assert_eq!(&ext.storage_root()[..], &ROOT);
 	}

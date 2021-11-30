@@ -34,8 +34,8 @@ use libp2p::{
 		ConnectedPoint, Multiaddr, PeerId,
 	},
 	swarm::{
-		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler,
-		OneShotHandler, OneShotHandlerConfig, PollParameters, SubstreamProtocol,
+		NegotiatedSubstream, NetworkBehaviour, NetworkBehaviourAction, NotifyHandler, OneShotHandler,
+		OneShotHandlerConfig, PollParameters, SubstreamProtocol,
 	},
 };
 use prost::Message;
@@ -145,10 +145,7 @@ where
 	///
 	/// If the proof provider is `None`, then the behaviour will not support the finality proof
 	/// requests protocol.
-	pub fn new(
-		cfg: Config,
-		finality_proof_provider: Option<Arc<dyn FinalityProofProvider<B>>>,
-	) -> Self {
+	pub fn new(cfg: Config, finality_proof_provider: Option<Arc<dyn FinalityProofProvider<B>>>) -> Self {
 		FinalityProofRequests {
 			config: cfg,
 			finality_proof_provider,
@@ -162,13 +159,15 @@ where
 	/// If the response doesn't arrive in time, or if the remote answers improperly, the target
 	/// will be disconnected.
 	pub fn send_request(&mut self, target: &PeerId, block_hash: B::Hash, request: Vec<u8>) {
-		let protobuf_rq =
-			schema::v1::finality::FinalityProofRequest { block_hash: block_hash.encode(), request };
+		let protobuf_rq = schema::v1::finality::FinalityProofRequest {
+			block_hash: block_hash.encode(),
+			request,
+		};
 
 		let mut buf = Vec::with_capacity(protobuf_rq.encoded_len());
 		if let Err(err) = protobuf_rq.encode(&mut buf) {
 			log::warn!("failed to encode finality proof request {:?}: {:?}", protobuf_rq, err);
-			return
+			return;
 		}
 
 		log::trace!("enqueueing finality proof request to {:?}: {:?}", target, protobuf_rq);
@@ -196,10 +195,12 @@ where
 
 		// Note that an empty Vec is sent if no proof is available.
 		let finality_proof = if let Some(provider) = &self.finality_proof_provider {
-			provider.prove_finality(block_hash, &request.request)?.unwrap_or_default()
+			provider
+				.prove_finality(block_hash, &request.request)?
+				.unwrap_or_default()
 		} else {
 			log::error!("Answering a finality proof request while finality provider is empty");
-			return Err(From::from("Empty finality proof provider".to_string()))
+			return Err(From::from("Empty finality proof provider".to_string()));
 		};
 
 		Ok(schema::v1::finality::FinalityProofResponse { proof: finality_proof })
@@ -210,8 +211,7 @@ impl<B> NetworkBehaviour for FinalityProofRequests<B>
 where
 	B: Block,
 {
-	type ProtocolsHandler =
-		OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
+	type ProtocolsHandler = OneShotHandler<InboundProtocol<B>, OutboundProtocol<B>, NodeEvent<B, NegotiatedSubstream>>;
 	type OutEvent = Event<B>;
 
 	fn new_handler(&mut self) -> Self::ProtocolsHandler {
@@ -237,37 +237,33 @@ where
 
 	fn inject_disconnected(&mut self, _peer: &PeerId) {}
 
-	fn inject_event(
-		&mut self,
-		peer: PeerId,
-		connection: ConnectionId,
-		event: NodeEvent<B, NegotiatedSubstream>,
-	) {
+	fn inject_event(&mut self, peer: PeerId, connection: ConnectionId, event: NodeEvent<B, NegotiatedSubstream>) {
 		match event {
-			NodeEvent::Request(request, mut stream) => {
-				match self.on_finality_request(&peer, &request) {
-					Ok(res) => {
-						log::trace!("enqueueing finality response for peer {}", peer);
-						let mut data = Vec::with_capacity(res.encoded_len());
-						if let Err(e) = res.encode(&mut data) {
-							log::debug!("error encoding finality response for peer {}: {}", peer, e)
-						} else {
-							let future = async move {
-								if let Err(e) = write_one(&mut stream, data).await {
-									log::debug!("error writing finality response: {}", e)
-								}
-							};
-							self.outgoing.push(future.boxed())
-						}
-					},
-					Err(e) =>
-						log::debug!("error handling finality request from peer {}: {}", peer, e),
+			NodeEvent::Request(request, mut stream) => match self.on_finality_request(&peer, &request) {
+				Ok(res) => {
+					log::trace!("enqueueing finality response for peer {}", peer);
+					let mut data = Vec::with_capacity(res.encoded_len());
+					if let Err(e) = res.encode(&mut data) {
+						log::debug!("error encoding finality response for peer {}: {}", peer, e)
+					} else {
+						let future = async move {
+							if let Err(e) = write_one(&mut stream, data).await {
+								log::debug!("error writing finality response: {}", e)
+							}
+						};
+						self.outgoing.push(future.boxed())
+					}
 				}
+				Err(e) => log::debug!("error handling finality request from peer {}: {}", peer, e),
 			},
 			NodeEvent::Response(response, block_hash) => {
-				let ev = Event::Response { peer, block_hash, proof: response.proof };
+				let ev = Event::Response {
+					peer,
+					block_hash,
+					proof: response.proof,
+				};
 				self.pending_events.push_back(NetworkBehaviourAction::GenerateEvent(ev));
-			},
+			}
 		}
 	}
 
@@ -277,7 +273,7 @@ where
 		_: &mut impl PollParameters,
 	) -> Poll<NetworkBehaviourAction<OutboundProtocol<B>, Event<B>>> {
 		if let Some(ev) = self.pending_events.pop_front() {
-			return Poll::Ready(ev)
+			return Poll::Ready(ev);
 		}
 
 		while let Poll::Ready(Some(_)) = self.outgoing.poll_next_unpin(cx) {}

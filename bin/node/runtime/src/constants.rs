@@ -72,3 +72,8 @@ pub mod time {
 	pub const DAYS: BlockNumber = HOURS * 24;
 	pub const MONTHS: BlockNumber = DAYS * 30;
 }
+
+pub mod capacity {
+	pub const Gib: u64 = 1024 * 1024 * 1024;
+	pub const Tib: u64 = 1024 * 1024 * 1024 * 1024;
+}

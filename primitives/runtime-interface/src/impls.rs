@@ -196,7 +196,7 @@ impl<T: 'static + Decode> FromFFIValue for Vec<T> {
 		let len = len as usize;
 
 		if len == 0 {
-			return Vec::new()
+			return Vec::new();
 		}
 
 		let data = unsafe { Vec::from_raw_parts(ptr as *mut u8, len, len) };
@@ -231,8 +231,7 @@ impl<T: 'static + Decode> FromFFIValue for [T] {
 		if TypeId::of::<T>() == TypeId::of::<u8>() {
 			Ok(unsafe { mem::transmute(vec) })
 		} else {
-			Ok(Vec::<T>::decode(&mut &vec[..])
-				.expect("Wasm to host values are encoded correctly; qed"))
+			Ok(Vec::<T>::decode(&mut &vec[..]).expect("Wasm to host values are encoded correctly; qed"))
 		}
 	}
 }
@@ -509,8 +508,7 @@ macro_rules! for_u128_i128 {
 			type SelfInstance = $type;
 
 			fn from_ffi_value(context: &mut dyn FunctionContext, arg: u32) -> Result<$type> {
-				let data =
-					context.read_memory(Pointer::new(arg), mem::size_of::<$type>() as u32)?;
+				let data = context.read_memory(Pointer::new(arg), mem::size_of::<$type>() as u32)?;
 				let mut res = [0u8; mem::size_of::<$type>()];
 				res.copy_from_slice(&data);
 				Ok(<$type>::from_le_bytes(res))

@@ -17,12 +17,11 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 pub use self::collec::UpgradeCollec;
 pub use self::legacy::{
-	RegisteredProtocol, RegisteredProtocolEvent, RegisteredProtocolName,
-	RegisteredProtocolSubstream,
+	RegisteredProtocol, RegisteredProtocolEvent, RegisteredProtocolName, RegisteredProtocolSubstream,
 };
 pub use self::notifications::{
-	NotificationsHandshakeError, NotificationsIn, NotificationsInSubstream, NotificationsOut,
-	NotificationsOutError, NotificationsOutSubstream,
+	NotificationsHandshakeError, NotificationsIn, NotificationsInSubstream, NotificationsOut, NotificationsOutError,
+	NotificationsOutSubstream,
 };
 
 mod collec;

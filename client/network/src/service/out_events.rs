@@ -51,8 +51,16 @@ use std::{
 pub fn channel(name: &'static str) -> (Sender, Receiver) {
 	let (tx, rx) = mpsc::unbounded();
 	let metrics = Arc::new(Mutex::new(None));
-	let tx = Sender { inner: tx, name, metrics: metrics.clone() };
-	let rx = Receiver { inner: rx, name, metrics };
+	let tx = Sender {
+		inner: tx,
+		name,
+		metrics: metrics.clone(),
+	};
+	let rx = Receiver {
+		inner: rx,
+		name,
+		metrics,
+	};
 	(tx, rx)
 }
 
@@ -103,9 +111,7 @@ impl Stream for Receiver {
 			match metrics.as_ref().map(|m| m.as_ref()) {
 				Some(Some(metrics)) => metrics.event_out(&ev, self.name),
 				Some(None) => (), // no registry
-				None => log::warn!(
-					"Inconsistency in out_events: event happened before sender associated"
-				),
+				None => log::warn!("Inconsistency in out_events: event happened before sender associated"),
 			}
 			Poll::Ready(Some(ev))
 		} else {
@@ -140,10 +146,16 @@ pub struct OutChannels {
 impl OutChannels {
 	/// Creates a new empty collection of senders.
 	pub fn new(registry: Option<&Registry>) -> Result<Self, PrometheusError> {
-		let metrics =
-			if let Some(registry) = registry { Some(Metrics::register(registry)?) } else { None };
+		let metrics = if let Some(registry) = registry {
+			Some(Metrics::register(registry)?)
+		} else {
+			None
+		};
 
-		Ok(OutChannels { event_streams: Vec::new(), metrics: Arc::new(metrics) })
+		Ok(OutChannels {
+			event_streams: Vec::new(),
+			metrics: Arc::new(metrics),
+		})
 	}
 
 	/// Adds a new [`Sender`] to the collection.
@@ -162,7 +174,8 @@ impl OutChannels {
 
 	/// Sends an event.
 	pub fn send(&mut self, event: Event) {
-		self.event_streams.retain(|sender| sender.inner.unbounded_send(event.clone()).is_ok());
+		self.event_streams
+			.retain(|sender| sender.inner.unbounded_send(event.clone()).is_ok());
 
 		if let Some(metrics) = &*self.metrics {
 			for ev in &self.event_streams {
@@ -174,7 +187,9 @@ impl OutChannels {
 
 impl fmt::Debug for OutChannels {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.debug_struct("OutChannels").field("num_channels", &self.event_streams.len()).finish()
+		f.debug_struct("OutChannels")
+			.field("num_channels", &self.event_streams.len())
+			.finish()
 	}
 }
 
@@ -188,29 +203,38 @@ struct Metrics {
 impl Metrics {
 	fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
-			events_total: register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_out_events_events_total",
-					"Number of broadcast network events that have been sent or received across all \
-					 channels"
-				),
-				&["event_name", "action", "name"]
-			)?, registry)?,
-			notifications_sizes: register(CounterVec::new(
-				Opts::new(
-					"sub_libp2p_out_events_notifications_sizes",
-					"Size of notification events that have been sent or received across all \
-					 channels"
-				),
-				&["protocol", "action", "name"]
-			)?, registry)?,
-			num_channels: register(GaugeVec::new(
-				Opts::new(
-					"sub_libp2p_out_events_num_channels",
-					"Number of internal active channels that broadcast network events",
-				),
-				&["name"]
-			)?, registry)?,
+			events_total: register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_out_events_events_total",
+						"Number of broadcast network events that have been sent or received across all \
+					 channels",
+					),
+					&["event_name", "action", "name"],
+				)?,
+				registry,
+			)?,
+			notifications_sizes: register(
+				CounterVec::new(
+					Opts::new(
+						"sub_libp2p_out_events_notifications_sizes",
+						"Size of notification events that have been sent or received across all \
+					 channels",
+					),
+					&["protocol", "action", "name"],
+				)?,
+				registry,
+			)?,
+			num_channels: register(
+				GaugeVec::new(
+					Opts::new(
+						"sub_libp2p_out_events_num_channels",
+						"Number of internal active channels that broadcast network events",
+					),
+					&["name"],
+				)?,
+				registry,
+			)?,
 		})
 	}
 
@@ -218,28 +242,27 @@ impl Metrics {
 		match event {
 			Event::Dht(_) => {
 				self.events_total.with_label_values(&["dht", "sent", name]).inc_by(num);
-			},
+			}
 			Event::NotificationStreamOpened { engine_id, .. } => {
 				self.events_total
 					.with_label_values(&[&format!("notif-open-{:?}", engine_id), "sent", name])
 					.inc_by(num);
-			},
+			}
 			Event::NotificationStreamClosed { engine_id, .. } => {
 				self.events_total
 					.with_label_values(&[&format!("notif-closed-{:?}", engine_id), "sent", name])
 					.inc_by(num);
-			},
-			Event::NotificationsReceived { messages, .. } =>
+			}
+			Event::NotificationsReceived { messages, .. } => {
 				for (engine_id, message) in messages {
 					self.events_total
 						.with_label_values(&[&format!("notif-{:?}", engine_id), "sent", name])
 						.inc_by(num);
 					self.notifications_sizes
 						.with_label_values(&[&maybe_utf8_bytes_to_string(engine_id), "sent", name])
-						.inc_by(num.saturating_mul(
-							u64::try_from(message.len()).unwrap_or(u64::max_value()),
-						));
-				},
+						.inc_by(num.saturating_mul(u64::try_from(message.len()).unwrap_or(u64::max_value())));
+				}
+			}
 		}
 	}
 
@@ -247,34 +270,27 @@ impl Metrics {
 		match event {
 			Event::Dht(_) => {
 				self.events_total.with_label_values(&["dht", "received", name]).inc();
-			},
+			}
 			Event::NotificationStreamOpened { engine_id, .. } => {
 				self.events_total
 					.with_label_values(&[&format!("notif-open-{:?}", engine_id), "received", name])
 					.inc();
-			},
+			}
 			Event::NotificationStreamClosed { engine_id, .. } => {
 				self.events_total
-					.with_label_values(&[
-						&format!("notif-closed-{:?}", engine_id),
-						"received",
-						name,
-					])
+					.with_label_values(&[&format!("notif-closed-{:?}", engine_id), "received", name])
 					.inc();
-			},
-			Event::NotificationsReceived { messages, .. } =>
+			}
+			Event::NotificationsReceived { messages, .. } => {
 				for (engine_id, message) in messages {
 					self.events_total
 						.with_label_values(&[&format!("notif-{:?}", engine_id), "received", name])
 						.inc();
 					self.notifications_sizes
-						.with_label_values(&[
-							&maybe_utf8_bytes_to_string(engine_id),
-							"received",
-							name,
-						])
+						.with_label_values(&[&maybe_utf8_bytes_to_string(engine_id), "received", name])
 						.inc_by(u64::try_from(message.len()).unwrap_or(u64::max_value()));
-				},
+				}
+			}
 		}
 	}
 }

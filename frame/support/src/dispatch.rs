@@ -26,20 +26,19 @@ pub use crate::sp_std::{
 };
 pub use crate::traits::{CallMetadata, GetCallMetadata, GetCallName, UnfilteredDispatchable};
 pub use crate::weights::{
-	ClassifyDispatch, DispatchInfo, GetDispatchInfo, PaysFee, PostDispatchInfo,
-	TransactionPriority, WeighData, Weight, WithPostDispatchInfo,
+	ClassifyDispatch, DispatchInfo, GetDispatchInfo, PaysFee, PostDispatchInfo, TransactionPriority, WeighData, Weight,
+	WithPostDispatchInfo,
 };
 pub use frame_metadata::{
-	DecodeDifferent, DecodeDifferentArray, DefaultByte, DefaultByteGetter, ErrorMetadata,
-	FunctionArgumentMetadata, FunctionMetadata, ModuleConstantMetadata, ModuleErrorMetadata,
+	DecodeDifferent, DecodeDifferentArray, DefaultByte, DefaultByteGetter, ErrorMetadata, FunctionArgumentMetadata,
+	FunctionMetadata, ModuleConstantMetadata, ModuleErrorMetadata,
 };
 pub use sp_runtime::{traits::Dispatchable, DispatchError};
 
 /// The return typ of a `Dispatchable` in frame. When returned explicitly from
 /// a dispatchable function it allows overriding the default `PostDispatchInfo`
 /// returned from a dispatch.
-pub type DispatchResultWithPostInfo =
-	sp_runtime::DispatchResultWithInfo<crate::weights::PostDispatchInfo>;
+pub type DispatchResultWithPostInfo = sp_runtime::DispatchResultWithInfo<crate::weights::PostDispatchInfo>;
 
 /// Unaugmented version of `DispatchResultWithPostInfo` that can be returned from
 /// dispatchable functions and is automatically converted to the augmented type. Should be
@@ -48,8 +47,7 @@ pub type DispatchResultWithPostInfo =
 pub type DispatchResult = Result<(), sp_runtime::DispatchError>;
 
 /// The error type contained in a `DispatchResultWithPostInfo`.
-pub type DispatchErrorWithPostInfo =
-	sp_runtime::DispatchErrorWithPostInfo<crate::weights::PostDispatchInfo>;
+pub type DispatchErrorWithPostInfo = sp_runtime::DispatchErrorWithPostInfo<crate::weights::PostDispatchInfo>;
 
 /// Serializable version of pallet dispatchable.
 pub trait Callable<T> {
@@ -2364,8 +2362,7 @@ macro_rules! __check_reserved_fn_name {
 mod tests {
 	use super::*;
 	use crate::traits::{
-		CallMetadata, GetCallMetadata, GetCallName, IntegrityTest, OnFinalize, OnInitialize,
-		OnRuntimeUpgrade,
+		CallMetadata, GetCallMetadata, GetCallName, IntegrityTest, OnFinalize, OnInitialize, OnRuntimeUpgrade,
 	};
 	use crate::weights::{DispatchClass, DispatchInfo, Pays};
 
@@ -2584,12 +2581,20 @@ mod tests {
 		// operational.
 		assert_eq!(
 			Call::<TraitImpl>::operational().get_dispatch_info(),
-			DispatchInfo { weight: 5, class: DispatchClass::Operational, pays_fee: Pays::Yes },
+			DispatchInfo {
+				weight: 5,
+				class: DispatchClass::Operational,
+				pays_fee: Pays::Yes
+			},
 		);
 		// custom basic
 		assert_eq!(
 			Call::<TraitImpl>::aux_3().get_dispatch_info(),
-			DispatchInfo { weight: 3, class: DispatchClass::Normal, pays_fee: Pays::Yes },
+			DispatchInfo {
+				weight: 3,
+				class: DispatchClass::Normal,
+				pays_fee: Pays::Yes
+			},
 		);
 	}
 
@@ -2603,7 +2608,10 @@ mod tests {
 	fn call_metadata() {
 		let call = OuterCall::Test(Call::<TraitImpl>::aux_3());
 		let metadata = call.get_call_metadata();
-		let expected = CallMetadata { function_name: "aux_3".into(), pallet_name: "Test".into() };
+		let expected = CallMetadata {
+			function_name: "aux_3".into(),
+			pallet_name: "Test".into(),
+		};
 		assert_eq!(metadata, expected);
 	}
 

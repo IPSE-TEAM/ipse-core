@@ -23,12 +23,12 @@ use std::{
 
 /// Wraps around a `Future`. Report the polling duration to the `Histogram` and when the polling
 /// starts to the `Counter`.
-pub fn with_poll_durations<T>(
-	poll_duration: Histogram,
-	poll_start: Counter<U64>,
-	inner: T,
-) -> PrometheusFuture<T> {
-	PrometheusFuture { inner, poll_duration, poll_start }
+pub fn with_poll_durations<T>(poll_duration: Histogram, poll_start: Counter<U64>, inner: T) -> PrometheusFuture<T> {
+	PrometheusFuture {
+		inner,
+		poll_duration,
+		poll_start,
+	}
 }
 
 /// Wraps around `Future` and adds diagnostics to it.

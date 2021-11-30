@@ -104,7 +104,10 @@ impl<T: Trait> Module<T> {
 
 	fn initialize_authorities(authorities: &[T::AuthorityId]) {
 		if !authorities.is_empty() {
-			assert!(<Authorities<T>>::get().is_empty(), "Authorities are already initialized!");
+			assert!(
+				<Authorities<T>>::get().is_empty(),
+				"Authorities are already initialized!"
+			);
 			<Authorities<T>>::put(authorities);
 		}
 	}
@@ -158,7 +161,7 @@ impl<T: Trait> FindAuthor<u32> for Module<T> {
 			if id == AURA_ENGINE_ID {
 				if let Ok(slot_num) = u64::decode(&mut data) {
 					let author_index = slot_num % Self::authorities().len() as u64;
-					return Some(author_index as u32)
+					return Some(author_index as u32);
 				}
 			}
 		}
@@ -172,9 +175,7 @@ impl<T: Trait> FindAuthor<u32> for Module<T> {
 #[doc(hidden)]
 pub struct FindAccountFromAuthorIndex<T, Inner>(sp_std::marker::PhantomData<(T, Inner)>);
 
-impl<T: Trait, Inner: FindAuthor<u32>> FindAuthor<T::AuthorityId>
-	for FindAccountFromAuthorIndex<T, Inner>
-{
+impl<T: Trait, Inner: FindAuthor<u32>> FindAuthor<T::AuthorityId> for FindAccountFromAuthorIndex<T, Inner> {
 	fn find_author<'a, I>(digests: I) -> Option<T::AuthorityId>
 	where
 		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,
@@ -208,7 +209,7 @@ impl<T: Trait> Module<T> {
 		<Self as Store>::LastTimestamp::put(now);
 
 		if last.is_zero() {
-			return
+			return;
 		}
 
 		assert!(!slot_duration.is_zero(), "Aura slot duration cannot be zero.");
@@ -251,8 +252,7 @@ impl<T: Trait> ProvideInherent for Module<T> {
 		if timestamp_based_slot == seal_slot {
 			Ok(())
 		} else {
-			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal")
-				.into())
+			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal").into())
 		}
 	}
 }

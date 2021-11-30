@@ -43,7 +43,11 @@ pub struct FullChain<Block: BlockT, Client> {
 impl<Block: BlockT, Client> FullChain<Block, Client> {
 	/// Create new Chain API RPC handler.
 	pub fn new(client: Arc<Client>, subscriptions: SubscriptionManager) -> Self {
-		Self { client, subscriptions, _phantom: PhantomData }
+		Self {
+			client,
+			subscriptions,
+			_phantom: PhantomData,
+		}
 	}
 }
 
@@ -62,13 +66,17 @@ where
 
 	fn header(&self, hash: Option<Block::Hash>) -> FutureResult<Option<Block::Header>> {
 		Box::new(result(
-			self.client.header(BlockId::Hash(self.unwrap_or_best(hash))).map_err(client_err),
+			self.client
+				.header(BlockId::Hash(self.unwrap_or_best(hash)))
+				.map_err(client_err),
 		))
 	}
 
 	fn block(&self, hash: Option<Block::Hash>) -> FutureResult<Option<SignedBlock<Block>>> {
 		Box::new(result(
-			self.client.block(&BlockId::Hash(self.unwrap_or_best(hash))).map_err(client_err),
+			self.client
+				.block(&BlockId::Hash(self.unwrap_or_best(hash)))
+				.map_err(client_err),
 		))
 	}
 }

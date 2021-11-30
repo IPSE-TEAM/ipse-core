@@ -36,8 +36,7 @@ use sp_std::prelude::*;
 use codec::{self as codec, Decode, Encode};
 pub use fg_primitives::{AuthorityId, AuthorityList, AuthorityWeight, VersionedAuthorityList};
 use fg_primitives::{
-	ConsensusLog, EquivocationProof, ScheduledChange, SetId, GRANDPA_AUTHORITIES_KEY,
-	GRANDPA_ENGINE_ID,
+	ConsensusLog, EquivocationProof, ScheduledChange, SetId, GRANDPA_AUTHORITIES_KEY, GRANDPA_ENGINE_ID,
 };
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
@@ -64,8 +63,7 @@ mod mock;
 mod tests;
 
 pub use equivocation::{
-	EquivocationHandler, GrandpaEquivocationOffence, GrandpaOffence, GrandpaTimeSlot,
-	HandleEquivocation,
+	EquivocationHandler, GrandpaEquivocationOffence, GrandpaOffence, GrandpaTimeSlot, HandleEquivocation,
 };
 
 pub trait Trait: frame_system::Trait {
@@ -389,7 +387,10 @@ impl<T: Trait> Module<T> {
 	pub fn schedule_pause(in_blocks: T::BlockNumber) -> DispatchResult {
 		if let StoredState::Live = <State<T>>::get() {
 			let scheduled_at = <frame_system::Module<T>>::block_number();
-			<State<T>>::put(StoredState::PendingPause { delay: in_blocks, scheduled_at });
+			<State<T>>::put(StoredState::PendingPause {
+				delay: in_blocks,
+				scheduled_at,
+			});
 
 			Ok(())
 		} else {
@@ -401,7 +402,10 @@ impl<T: Trait> Module<T> {
 	pub fn schedule_resume(in_blocks: T::BlockNumber) -> DispatchResult {
 		if let StoredState::Paused = <State<T>>::get() {
 			let scheduled_at = <frame_system::Module<T>>::block_number();
-			<State<T>>::put(StoredState::PendingResume { delay: in_blocks, scheduled_at });
+			<State<T>>::put(StoredState::PendingResume {
+				delay: in_blocks,
+				scheduled_at,
+			});
 
 			Ok(())
 		} else {
@@ -464,7 +468,10 @@ impl<T: Trait> Module<T> {
 	// config builder or through `on_genesis_session`.
 	fn initialize(authorities: &AuthorityList) {
 		if !authorities.is_empty() {
-			assert!(Self::grandpa_authorities().is_empty(), "Authorities are already initialized!");
+			assert!(
+				Self::grandpa_authorities().is_empty(),
+				"Authorities are already initialized!"
+			);
 			Self::set_grandpa_authorities(authorities);
 		}
 
@@ -498,7 +505,7 @@ impl<T: Trait> Module<T> {
 		// validate equivocation proof (check votes are different and
 		// signatures are valid).
 		if !sp_finality_grandpa::check_equivocation_proof(equivocation_proof) {
-			return Err(Error::<T>::InvalidEquivocationProof.into())
+			return Err(Error::<T>::InvalidEquivocationProof.into());
 		}
 
 		// fetch the current and previous sets last session index. on the
@@ -509,7 +516,7 @@ impl<T: Trait> Module<T> {
 			let session_index = if let Some(session_id) = Self::session_for_set(set_id - 1) {
 				session_id
 			} else {
-				return Err(Error::<T>::InvalidEquivocationProof.into())
+				return Err(Error::<T>::InvalidEquivocationProof.into());
 			};
 
 			Some(session_index)
@@ -518,17 +525,17 @@ impl<T: Trait> Module<T> {
 		let set_id_session_index = if let Some(session_id) = Self::session_for_set(set_id) {
 			session_id
 		} else {
-			return Err(Error::<T>::InvalidEquivocationProof.into())
+			return Err(Error::<T>::InvalidEquivocationProof.into());
 		};
 
 		// check that the session id for the membership proof is within the
 		// bounds of the set id reported in the equivocation.
-		if session_index > set_id_session_index ||
-			previous_set_id_session_index
+		if session_index > set_id_session_index
+			|| previous_set_id_session_index
 				.map(|previous_index| session_index <= previous_index)
 				.unwrap_or(false)
 		{
-			return Err(Error::<T>::InvalidEquivocationProof.into())
+			return Err(Error::<T>::InvalidEquivocationProof.into());
 		}
 
 		// report to the offences module rewarding the sender.
@@ -556,11 +563,7 @@ impl<T: Trait> Module<T> {
 		equivocation_proof: EquivocationProof<T::Hash, T::BlockNumber>,
 		key_owner_proof: T::KeyOwnerProof,
 	) -> Option<()> {
-		T::HandleEquivocation::submit_unsigned_equivocation_report(
-			equivocation_proof,
-			key_owner_proof,
-		)
-		.ok()
+		T::HandleEquivocation::submit_unsigned_equivocation_report(equivocation_proof, key_owner_proof).ok()
 	}
 }
 

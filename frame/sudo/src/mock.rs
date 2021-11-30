@@ -20,9 +20,7 @@
 use super::*;
 use crate as sudo;
 use frame_support::traits::Filter;
-use frame_support::{
-	impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types, weights::Weight,
-};
+use frame_support::{impl_outer_dispatch, impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
 use sp_core::H256;
 use sp_io;
 use sp_runtime::{
@@ -172,6 +170,8 @@ pub type LoggerCall = logger::Call<Test>;
 // Build test environment by setting the root `key` for the Genesis.
 pub fn new_test_ext(root_key: u64) -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	GenesisConfig::<Test> { key: root_key }.assimilate_storage(&mut t).unwrap();
+	GenesisConfig::<Test> { key: root_key }
+		.assimilate_storage(&mut t)
+		.unwrap();
 	t.into()
 }

@@ -61,27 +61,22 @@ impl OffchainStorage for InMemOffchainStorage {
 		self.storage.get(&key).cloned()
 	}
 
-	fn compare_and_set(
-		&mut self,
-		prefix: &[u8],
-		key: &[u8],
-		old_value: Option<&[u8]>,
-		new_value: &[u8],
-	) -> bool {
+	fn compare_and_set(&mut self, prefix: &[u8], key: &[u8], old_value: Option<&[u8]>, new_value: &[u8]) -> bool {
 		let key = prefix.iter().chain(key).cloned().collect();
 
 		match self.storage.entry(key) {
-			Entry::Vacant(entry) =>
+			Entry::Vacant(entry) => {
 				if old_value.is_none() {
 					entry.insert(new_value.to_vec());
 					true
 				} else {
 					false
-				},
+				}
+			}
 			Entry::Occupied(ref mut entry) if Some(entry.get().as_slice()) == old_value => {
 				entry.insert(new_value.to_vec());
 				true
-			},
+			}
 			_ => false,
 		}
 	}
@@ -145,8 +140,7 @@ impl OffchainOverlayedChanges {
 	/// Remove a key and its associated value from the offchain database.
 	pub fn remove(&mut self, prefix: &[u8], key: &[u8]) {
 		if let Self::Enabled(ref mut storage) = self {
-			let _ =
-				storage.insert((prefix.to_vec(), key.to_vec()), OffchainOverlayedChange::Remove);
+			let _ = storage.insert((prefix.to_vec(), key.to_vec()), OffchainOverlayedChange::Remove);
 		}
 	}
 
@@ -193,7 +187,9 @@ impl<'i> OffchainOverlayedChangesIter<'i> {
 	/// Create a new iterator based on a refernce to the parent container.
 	pub fn new(container: &'i OffchainOverlayedChanges) -> Self {
 		match container {
-			OffchainOverlayedChanges::Enabled(inner) => Self { inner: Some(inner.iter()) },
+			OffchainOverlayedChanges::Enabled(inner) => Self {
+				inner: Some(inner.iter()),
+			},
 			OffchainOverlayedChanges::Disabled => Self { inner: None },
 		}
 	}
@@ -219,7 +215,9 @@ impl OffchainOverlayedChangesIntoIter {
 	/// Create a new iterator by consuming the collection.
 	pub fn new(container: OffchainOverlayedChanges) -> Self {
 		match container {
-			OffchainOverlayedChanges::Enabled(inner) => Self { inner: Some(inner.into_iter()) },
+			OffchainOverlayedChanges::Enabled(inner) => Self {
+				inner: Some(inner.into_iter()),
+			},
 			OffchainOverlayedChanges::Disabled => Self { inner: None },
 		}
 	}
@@ -246,7 +244,9 @@ impl<'d> OffchainOverlayedChangesDrain<'d> {
 	/// for the lifetime of the created drain iterator.
 	pub fn new(container: &'d mut OffchainOverlayedChanges) -> Self {
 		match container {
-			OffchainOverlayedChanges::Enabled(ref mut inner) => Self { inner: Some(inner.drain()) },
+			OffchainOverlayedChanges::Enabled(ref mut inner) => Self {
+				inner: Some(inner.drain()),
+			},
 			OffchainOverlayedChanges::Disabled => Self { inner: None },
 		}
 	}

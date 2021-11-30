@@ -43,7 +43,12 @@ impl<T> StorageIterator<T> {
 		prefix.extend_from_slice(&Twox128::hash(item));
 		prefix.extend_from_slice(suffix);
 		let previous_key = prefix.clone();
-		Self { prefix, previous_key, drain: false, _phantom: Default::default() }
+		Self {
+			prefix,
+			previous_key,
+			drain: false,
+			_phantom: Default::default(),
+		}
 	}
 
 	/// Mutate this iterator into a draining iterator; items iterated are removed from storage.
@@ -58,8 +63,7 @@ impl<T: Decode + Sized> Iterator for StorageIterator<T> {
 
 	fn next(&mut self) -> Option<(Vec<u8>, T)> {
 		loop {
-			let maybe_next = sp_io::storage::next_key(&self.previous_key)
-				.filter(|n| n.starts_with(&self.prefix));
+			let maybe_next = sp_io::storage::next_key(&self.previous_key).filter(|n| n.starts_with(&self.prefix));
 			break match maybe_next {
 				Some(next) => {
 					self.previous_key = next.clone();
@@ -70,12 +74,12 @@ impl<T: Decode + Sized> Iterator for StorageIterator<T> {
 								frame_support::storage::unhashed::kill(&next);
 							}
 							Some((self.previous_key[self.prefix.len()..].to_vec(), value))
-						},
+						}
 						None => continue,
 					}
-				},
+				}
 				None => None,
-			}
+			};
 		}
 	}
 }
@@ -101,7 +105,12 @@ impl<K, T, H: ReversibleStorageHasher> StorageKeyIterator<K, T, H> {
 		prefix.extend_from_slice(&Twox128::hash(item));
 		prefix.extend_from_slice(suffix);
 		let previous_key = prefix.clone();
-		Self { prefix, previous_key, drain: false, _phantom: Default::default() }
+		Self {
+			prefix,
+			previous_key,
+			drain: false,
+			_phantom: Default::default(),
+		}
 	}
 
 	/// Mutate this iterator into a draining iterator; items iterated are removed from storage.
@@ -111,15 +120,12 @@ impl<K, T, H: ReversibleStorageHasher> StorageKeyIterator<K, T, H> {
 	}
 }
 
-impl<K: Decode + Sized, T: Decode + Sized, H: ReversibleStorageHasher> Iterator
-	for StorageKeyIterator<K, T, H>
-{
+impl<K: Decode + Sized, T: Decode + Sized, H: ReversibleStorageHasher> Iterator for StorageKeyIterator<K, T, H> {
 	type Item = (K, T);
 
 	fn next(&mut self) -> Option<(K, T)> {
 		loop {
-			let maybe_next = sp_io::storage::next_key(&self.previous_key)
-				.filter(|n| n.starts_with(&self.prefix));
+			let maybe_next = sp_io::storage::next_key(&self.previous_key).filter(|n| n.starts_with(&self.prefix));
 			break match maybe_next {
 				Some(next) => {
 					self.previous_key = next.clone();
@@ -133,15 +139,15 @@ impl<K: Decode + Sized, T: Decode + Sized, H: ReversibleStorageHasher> Iterator
 										frame_support::storage::unhashed::kill(&next);
 									}
 									Some((key, value))
-								},
+								}
 								None => continue,
 							}
-						},
+						}
 						Err(_) => continue,
 					}
-				},
+				}
 				None => None,
-			}
+			};
 		}
 	}
 }

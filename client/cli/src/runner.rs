@@ -123,8 +123,9 @@ impl<C: SubstrateCli> Runner<C> {
 
 		let task_executor = move |fut, task_type| match task_type {
 			TaskType::Async => runtime_handle.spawn(fut).map(drop),
-			TaskType::Blocking =>
-				runtime_handle.spawn_blocking(move || futures::executor::block_on(fut)).map(drop),
+			TaskType::Blocking => runtime_handle
+				.spawn_blocking(move || futures::executor::block_on(fut))
+				.map(drop),
 		};
 
 		Ok(Runner {
@@ -151,7 +152,12 @@ impl<C: SubstrateCli> Runner<C> {
 	fn print_node_infos(&self) {
 		info!("{}", C::impl_name());
 		info!("✌️  version {}", C::impl_version());
-		info!("❤️  by {}, {}-{}", C::author(), C::copyright_start_year(), Local::today().year(),);
+		info!(
+			"❤️  by {}, {}-{}",
+			C::author(),
+			C::copyright_start_year(),
+			Local::today().year(),
+		);
 		info!("📋 Chain specification: {}", self.config.chain_spec.name());
 		info!("🏷 Node name: {}", self.config.network.node_name);
 		info!("👤 Role: {}", self.config.display_role());
@@ -163,7 +169,10 @@ impl<C: SubstrateCli> Runner<C> {
 				.path()
 				.map_or_else(|| "<unknown>".to_owned(), |p| p.display().to_string())
 		);
-		info!("⛓  Native runtime: {}", C::native_runtime_version(&self.config.chain_spec));
+		info!(
+			"⛓  Native runtime: {}",
+			C::native_runtime_version(&self.config.chain_spec)
+		);
 	}
 
 	/// A helper function that runs a node with tokio and stops if the process receives the signal
@@ -186,10 +195,7 @@ impl<C: SubstrateCli> Runner<C> {
 
 	/// A helper function that runs a future with tokio and stops if the process receives
 	/// the signal SIGTERM or SIGINT
-	pub fn async_run<FUT>(
-		self,
-		runner: impl FnOnce(Configuration) -> Result<(FUT, TaskManager)>,
-	) -> Result<()>
+	pub fn async_run<FUT>(self, runner: impl FnOnce(Configuration) -> Result<(FUT, TaskManager)>) -> Result<()>
 	where
 		FUT: Future<Output = Result<()>>,
 	{

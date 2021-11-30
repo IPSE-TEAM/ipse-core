@@ -19,8 +19,7 @@
 //! stage.
 
 use crate::traits::{
-	self, DispatchInfoOf, Dispatchable, MaybeDisplay, Member, PostDispatchInfoOf, SignedExtension,
-	ValidateUnsigned,
+	self, DispatchInfoOf, Dispatchable, MaybeDisplay, Member, PostDispatchInfoOf, SignedExtension, ValidateUnsigned,
 };
 use crate::transaction_validity::{TransactionSource, TransactionValidity};
 

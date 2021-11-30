@@ -31,13 +31,10 @@ use sp_core::{
 };
 use sp_runtime::traits::{Block as BlockT, HashFor};
 use sp_runtime::Storage;
-use sp_state_machine::{
-	backend::Backend as StateBackend, ChildStorageCollection, DBValue, StorageCollection,
-};
+use sp_state_machine::{backend::Backend as StateBackend, ChildStorageCollection, DBValue, StorageCollection};
 use sp_trie::{prefixed_key, MemoryDB};
 
-type DbState<B> =
-	sp_state_machine::TrieBackend<Arc<dyn sp_state_machine::Storage<HashFor<B>>>, HashFor<B>>;
+type DbState<B> = sp_state_machine::TrieBackend<Arc<dyn sp_state_machine::Storage<HashFor<B>>>, HashFor<B>>;
 
 type State<B> = CachingState<DbState<B>, B>;
 
@@ -49,7 +46,9 @@ struct StorageDb<Block: BlockT> {
 impl<Block: BlockT> sp_state_machine::Storage<HashFor<Block>> for StorageDb<Block> {
 	fn get(&self, key: &Block::Hash, prefix: Prefix) -> Result<Option<DBValue>, String> {
 		let key = prefixed_key::<HashFor<Block>>(key, prefix);
-		self.db.get(0, &key).map_err(|e| format!("Database backend error: {:?}", e))
+		self.db
+			.get(0, &key)
+			.map_err(|e| format!("Database backend error: {:?}", e))
 	}
 }
 
@@ -135,11 +134,10 @@ impl<B: BlockT> BenchmarkingState<B> {
 				child_content.data.iter().map(|(k, v)| (k.as_ref(), Some(v.as_ref()))),
 			)
 		});
-		let (root, transaction): (B::Hash, _) =
-			state.state.borrow_mut().as_mut().unwrap().full_storage_root(
-				genesis.top.iter().map(|(k, v)| (k.as_ref(), Some(v.as_ref()))),
-				child_delta,
-			);
+		let (root, transaction): (B::Hash, _) = state.state.borrow_mut().as_mut().unwrap().full_storage_root(
+			genesis.top.iter().map(|(k, v)| (k.as_ref(), Some(v.as_ref()))),
+			child_delta,
+		);
 		state.genesis = transaction.clone().drain();
 		state.genesis_root = root.clone();
 		state.commit(root, transaction, Vec::new(), Vec::new())?;
@@ -154,7 +152,10 @@ impl<B: BlockT> BenchmarkingState<B> {
 			None => Arc::new(::kvdb_memorydb::create(1)),
 		};
 		self.db.set(Some(db.clone()));
-		let storage_db = Arc::new(StorageDb::<B> { db, _block: Default::default() });
+		let storage_db = Arc::new(StorageDb::<B> {
+			db,
+			_block: Default::default(),
+		});
 		*self.state.borrow_mut() = Some(State::new(
 			DbState::<B>::new(storage_db, self.root.get()),
 			self.shared_cache.clone(),
@@ -191,19 +192,24 @@ impl<B: BlockT> BenchmarkingState<B> {
 		let mut main_key_tracker = self.main_key_tracker.borrow_mut();
 
 		let key_tracker = if let Some(childtrie) = childtrie {
-			child_key_tracker.entry(childtrie.to_vec()).or_insert_with(|| HashMap::new())
+			child_key_tracker
+				.entry(childtrie.to_vec())
+				.or_insert_with(|| HashMap::new())
 		} else {
 			&mut main_key_tracker
 		};
 
 		let read = match key_tracker.get(key) {
 			None => {
-				let has_been_read = KeyTracker { has_been_read: true, has_been_written: false };
+				let has_been_read = KeyTracker {
+					has_been_read: true,
+					has_been_written: false,
+				};
 				key_tracker.insert(key.to_vec(), has_been_read);
 				read_write_tracker.add_read();
 				true
-			},
-			Some(tracker) =>
+			}
+			Some(tracker) => {
 				if !tracker.has_been_read {
 					let has_been_read = KeyTracker {
 						has_been_read: true,
@@ -215,7 +221,8 @@ impl<B: BlockT> BenchmarkingState<B> {
 				} else {
 					read_write_tracker.add_repeat_read();
 					false
-				},
+				}
+			}
 		};
 
 		if read {
@@ -237,21 +244,26 @@ impl<B: BlockT> BenchmarkingState<B> {
 		let mut main_key_tracker = self.main_key_tracker.borrow_mut();
 
 		let key_tracker = if let Some(childtrie) = childtrie {
-			child_key_tracker.entry(childtrie.to_vec()).or_insert_with(|| HashMap::new())
+			child_key_tracker
+				.entry(childtrie.to_vec())
+				.or_insert_with(|| HashMap::new())
 		} else {
 			&mut main_key_tracker
 		};
 
 		// If we have written to the key, we also consider that we have read from it.
-		let has_been_written = KeyTracker { has_been_read: true, has_been_written: true };
+		let has_been_written = KeyTracker {
+			has_been_read: true,
+			has_been_written: true,
+		};
 
 		let write = match key_tracker.get(key) {
 			None => {
 				key_tracker.insert(key.to_vec(), has_been_written);
 				read_write_tracker.add_write();
 				true
-			},
-			Some(tracker) =>
+			}
+			Some(tracker) => {
 				if !tracker.has_been_written {
 					key_tracker.insert(key.to_vec(), has_been_written);
 					read_write_tracker.add_write();
@@ -259,7 +271,8 @@ impl<B: BlockT> BenchmarkingState<B> {
 				} else {
 					read_write_tracker.add_repeat_write();
 					false
-				},
+				}
+			}
 		};
 
 		if write {
@@ -294,13 +307,13 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 		self.state.borrow().as_ref().ok_or_else(state_err)?.storage_hash(key)
 	}
 
-	fn child_storage(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<Vec<u8>>, Self::Error> {
+	fn child_storage(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
 		self.add_read_key(Some(child_info.storage_key()), key);
-		self.state.borrow().as_ref().ok_or_else(state_err)?.child_storage(child_info, key)
+		self.state
+			.borrow()
+			.as_ref()
+			.ok_or_else(state_err)?
+			.child_storage(child_info, key)
 	}
 
 	fn exists_storage(&self, key: &[u8]) -> Result<bool, Self::Error> {
@@ -308,27 +321,31 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 		self.state.borrow().as_ref().ok_or_else(state_err)?.exists_storage(key)
 	}
 
-	fn exists_child_storage(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<bool, Self::Error> {
+	fn exists_child_storage(&self, child_info: &ChildInfo, key: &[u8]) -> Result<bool, Self::Error> {
 		self.add_read_key(Some(child_info.storage_key()), key);
-		self.state.borrow().as_ref().ok_or_else(state_err)?.exists_child_storage(child_info, key)
+		self.state
+			.borrow()
+			.as_ref()
+			.ok_or_else(state_err)?
+			.exists_child_storage(child_info, key)
 	}
 
 	fn next_storage_key(&self, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
 		self.add_read_key(None, key);
-		self.state.borrow().as_ref().ok_or_else(state_err)?.next_storage_key(key)
+		self.state
+			.borrow()
+			.as_ref()
+			.ok_or_else(state_err)?
+			.next_storage_key(key)
 	}
 
-	fn next_child_storage_key(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<Vec<u8>>, Self::Error> {
+	fn next_child_storage_key(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<Vec<u8>>, Self::Error> {
 		self.add_read_key(Some(child_info.storage_key()), key);
-		self.state.borrow().as_ref().ok_or_else(state_err)?.next_child_storage_key(child_info, key)
+		self.state
+			.borrow()
+			.as_ref()
+			.ok_or_else(state_err)?
+			.next_child_storage_key(child_info, key)
 	}
 
 	fn for_keys_with_prefix<F: FnMut(&[u8])>(&self, prefix: &[u8], f: F) {
@@ -349,12 +366,7 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 		}
 	}
 
-	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(
-		&self,
-		child_info: &ChildInfo,
-		prefix: &[u8],
-		f: F,
-	) {
+	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(&self, child_info: &ChildInfo, prefix: &[u8], f: F) {
 		if let Some(ref state) = *self.state.borrow() {
 			state.for_child_keys_with_prefix(child_info, prefix, f)
 		}
@@ -367,7 +379,10 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 	where
 		B::Hash: Ord,
 	{
-		self.state.borrow().as_ref().map_or(Default::default(), |s| s.storage_root(delta))
+		self.state
+			.borrow()
+			.as_ref()
+			.map_or(Default::default(), |s| s.storage_root(delta))
 	}
 
 	fn child_storage_root<'a>(
@@ -389,7 +404,10 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 	}
 
 	fn keys(&self, prefix: &[u8]) -> Vec<Vec<u8>> {
-		self.state.borrow().as_ref().map_or(Default::default(), |s| s.keys(prefix))
+		self.state
+			.borrow()
+			.as_ref()
+			.map_or(Default::default(), |s| s.keys(prefix))
 	}
 
 	fn child_keys(&self, child_info: &ChildInfo, prefix: &[u8]) -> Vec<Vec<u8>> {
@@ -399,9 +417,7 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 			.map_or(Default::default(), |s| s.child_keys(child_info, prefix))
 	}
 
-	fn as_trie_backend(
-		&mut self,
-	) -> Option<&sp_state_machine::TrieBackend<Self::TrieBackendStorage, HashFor<B>>> {
+	fn as_trie_backend(&mut self) -> Option<&sp_state_machine::TrieBackend<Self::TrieBackendStorage, HashFor<B>>> {
 		None
 	}
 
@@ -427,7 +443,8 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 			let mut record = self.record.take();
 			record.extend(keys);
 			self.record.set(record);
-			db.write(db_transaction).map_err(|_| String::from("Error committing transaction"))?;
+			db.write(db_transaction)
+				.map_err(|_| String::from("Error committing transaction"))?;
 			self.root.set(storage_root);
 			self.db.set(Some(db));
 
@@ -435,13 +452,15 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 			main_storage_changes.iter().for_each(|(key, _)| {
 				self.add_write_key(None, key);
 			});
-			child_storage_changes.iter().for_each(|(child_storage_key, storage_changes)| {
-				storage_changes.iter().for_each(|(key, _)| {
-					self.add_write_key(Some(child_storage_key), key);
-				})
-			});
+			child_storage_changes
+				.iter()
+				.for_each(|(child_storage_key, storage_changes)| {
+					storage_changes.iter().for_each(|(key, _)| {
+						self.add_write_key(Some(child_storage_key), key);
+					})
+				});
 		} else {
-			return Err("Trying to commit to a closed db".into())
+			return Err("Trying to commit to a closed db".into());
 		}
 		self.reopen()
 	}
@@ -457,7 +476,8 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 					None => db_transaction.delete(0, &key),
 				}
 			}
-			db.write(db_transaction).map_err(|_| String::from("Error committing transaction"))?;
+			db.write(db_transaction)
+				.map_err(|_| String::from("Error committing transaction"))?;
 			self.db.set(Some(db));
 		}
 
@@ -487,7 +507,10 @@ impl<B: BlockT> StateBackend<HashFor<B>> for BenchmarkingState<B> {
 	}
 
 	fn register_overlay_stats(&mut self, stats: &sp_state_machine::StateMachineStats) {
-		self.state.borrow_mut().as_mut().map(|s| s.register_overlay_stats(stats));
+		self.state
+			.borrow_mut()
+			.as_mut()
+			.map(|s| s.register_overlay_stats(stats));
 	}
 
 	fn usage_info(&self) -> sp_state_machine::UsageInfo {
@@ -511,8 +534,7 @@ mod test {
 
 	#[test]
 	fn read_to_main_and_child_tries() {
-		let bench_state =
-			BenchmarkingState::<crate::tests::Block>::new(Default::default(), None).unwrap();
+		let bench_state = BenchmarkingState::<crate::tests::Block>::new(Default::default(), None).unwrap();
 
 		for _ in 0..2 {
 			let child1 = sp_core::storage::ChildInfo::new_default(b"child1");

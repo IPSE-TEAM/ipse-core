@@ -53,7 +53,10 @@ impl<T> StatusSinks<T> {
 		let (entries_tx, entries_rx) = tracing_unbounded("status-sinks-entries");
 
 		StatusSinks {
-			inner: Mutex::new(Inner { entries: stream::FuturesUnordered::new(), entries_rx }),
+			inner: Mutex::new(Inner {
+				entries: stream::FuturesUnordered::new(),
+				entries_rx,
+			}),
 			entries_tx,
 		}
 	}
@@ -143,7 +146,7 @@ impl<'a, T> Drop for ReadySinkEvent<'a, T> {
 	fn drop(&mut self) {
 		if let Some(sender) = self.sender.take() {
 			if sender.is_closed() {
-				return
+				return;
 			}
 
 			let _ = self.sinks.entries_tx.unbounded_send(YieldAfter {
@@ -169,7 +172,7 @@ impl<T> futures::Future for YieldAfter<T> {
 					.take()
 					.expect("sender is always Some unless the future is finished; qed");
 				Poll::Ready((sender, this.interval))
-			},
+			}
 		}
 	}
 }

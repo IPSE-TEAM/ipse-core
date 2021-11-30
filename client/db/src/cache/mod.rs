@@ -124,10 +124,7 @@ impl<Block: BlockT> DbCache<Block> {
 	}
 
 	/// Begin cache transaction.
-	pub fn transaction<'a>(
-		&'a mut self,
-		tx: &'a mut Transaction<DbHash>,
-	) -> DbCacheTransaction<'a, Block> {
+	pub fn transaction<'a>(&'a mut self, tx: &'a mut Transaction<DbHash>) -> DbCacheTransaction<'a, Block> {
 		DbCacheTransaction {
 			cache: self,
 			tx,
@@ -196,13 +193,18 @@ fn get_cache_helper<'a, Block: BlockT>(
 				self::list_storage::DbStorage::new(
 					name.to_vec(),
 					db.clone(),
-					self::list_storage::DbColumns { meta: COLUMN_META, key_lookup, header, cache },
+					self::list_storage::DbColumns {
+						meta: COLUMN_META,
+						key_lookup,
+						header,
+						cache,
+					},
 				),
 				cache_pruning_strategy(name),
 				best_finalized_block.clone(),
 			)?;
 			Ok(entry.insert(cache))
-		},
+		}
 	}
 }
 
@@ -216,7 +218,10 @@ pub struct DbCacheTransactionOps<Block: BlockT> {
 impl<Block: BlockT> DbCacheTransactionOps<Block> {
 	/// Empty transaction ops.
 	pub fn empty() -> DbCacheTransactionOps<Block> {
-		DbCacheTransactionOps { cache_at_ops: HashMap::new(), best_finalized_block: None }
+		DbCacheTransactionOps {
+			cache_at_ops: HashMap::new(),
+			best_finalized_block: None,
+		}
 	}
 }
 
@@ -255,9 +260,7 @@ impl<'a, Block: BlockT> DbCacheTransaction<'a, Block> {
 			.cloned()
 			.collect::<Vec<_>>();
 
-		let mut insert_op = |name: CacheKeyId,
-		                     value: Option<Vec<u8>>|
-		 -> Result<(), sp_blockchain::Error> {
+		let mut insert_op = |name: CacheKeyId, value: Option<Vec<u8>>| -> Result<(), sp_blockchain::Error> {
 			let cache = self.cache.get_cache(name)?;
 			let cache_ops = self.cache_at_ops.entry(name).or_default();
 			cache.on_block_insert(
@@ -272,7 +275,9 @@ impl<'a, Block: BlockT> DbCacheTransaction<'a, Block> {
 			Ok(())
 		};
 
-		data_at.into_iter().try_for_each(|(name, data)| insert_op(name, Some(data)))?;
+		data_at
+			.into_iter()
+			.try_for_each(|(name, data)| insert_op(name, Some(data)))?;
 		missed_caches.into_iter().try_for_each(|name| insert_op(name, None))?;
 
 		match entry_type {
@@ -348,7 +353,11 @@ impl<Block: BlockT> BlockchainCache<Block> for DbCacheSync<Block> {
 		key: &CacheKeyId,
 		at: &BlockId<Block>,
 	) -> ClientResult<
-		Option<((NumberFor<Block>, Block::Hash), Option<(NumberFor<Block>, Block::Hash)>, Vec<u8>)>,
+		Option<(
+			(NumberFor<Block>, Block::Hash),
+			Option<(NumberFor<Block>, Block::Hash)>,
+			Vec<u8>,
+		)>,
 	> {
 		let mut cache = self.0.write();
 		let header_metadata_cache = cache.header_metadata_cache.clone();
@@ -367,7 +376,7 @@ impl<Block: BlockT> BlockchainCache<Block> for DbCacheSync<Block> {
 						BlockId::Hash(hash.clone()),
 					)?;
 					ComplexBlockId::new(hash, *header.number())
-				},
+				}
 			},
 			BlockId::Number(number) => {
 				let hash = utils::require_header::<Block>(
@@ -378,7 +387,7 @@ impl<Block: BlockT> BlockchainCache<Block> for DbCacheSync<Block> {
 				)?
 				.hash();
 				ComplexBlockId::new(hash, number)
-			},
+			}
 		};
 
 		cache.value_at_block(&at).map(|block_and_value| {

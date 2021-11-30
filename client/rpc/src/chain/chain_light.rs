@@ -52,7 +52,12 @@ impl<Block: BlockT, Client, F: Fetcher<Block>> LightChain<Block, Client, F> {
 		remote_blockchain: Arc<dyn RemoteBlockchain<Block>>,
 		fetcher: Arc<F>,
 	) -> Self {
-		Self { client, subscriptions, remote_blockchain, fetcher }
+		Self {
+			client,
+			subscriptions,
+			remote_blockchain,
+			fetcher,
+		}
 	}
 }
 
@@ -74,14 +79,14 @@ where
 		let hash = self.unwrap_or_best(hash);
 
 		let fetcher = self.fetcher.clone();
-		let maybe_header = sc_client_api::light::future_header(
-			&*self.remote_blockchain,
-			&*fetcher,
-			BlockId::Hash(hash),
-		);
+		let maybe_header =
+			sc_client_api::light::future_header(&*self.remote_blockchain, &*fetcher, BlockId::Hash(hash));
 
 		Box::new(
-			maybe_header.then(move |result| ready(result.map_err(client_err))).boxed().compat(),
+			maybe_header
+				.then(move |result| ready(result.map_err(client_err)))
+				.boxed()
+				.compat(),
 		)
 	}
 
@@ -97,7 +102,10 @@ where
 					.boxed()
 					.compat()
 					.map(move |body| {
-						Some(SignedBlock { block: Block::new(header, body), justification: None })
+						Some(SignedBlock {
+							block: Block::new(header, body),
+							justification: None,
+						})
 					})
 					.map_err(client_err),
 			),

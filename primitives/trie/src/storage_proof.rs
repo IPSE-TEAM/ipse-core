@@ -86,7 +86,9 @@ pub struct StorageProofNodeIterator {
 
 impl StorageProofNodeIterator {
 	fn new(proof: StorageProof) -> Self {
-		StorageProofNodeIterator { inner: proof.trie_nodes.into_iter() }
+		StorageProofNodeIterator {
+			inner: proof.trie_nodes.into_iter(),
+		}
 	}
 }
 

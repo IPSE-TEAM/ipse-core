@@ -25,9 +25,7 @@ mod inner {
 	pub type TracingUnboundedReceiver<T> = UnboundedReceiver<T>;
 
 	/// Alias `mpsc::unbounded`
-	pub fn tracing_unbounded<T>(
-		_key: &'static str,
-	) -> (TracingUnboundedSender<T>, TracingUnboundedReceiver<T>) {
+	pub fn tracing_unbounded<T>(_key: &'static str) -> (TracingUnboundedSender<T>, TracingUnboundedReceiver<T>) {
 		mpsc::unbounded()
 	}
 }
@@ -36,9 +34,7 @@ mod inner {
 mod inner {
 	//tracing implementation
 	use crate::metrics::UNBOUNDED_CHANNELS_COUNTER;
-	use futures::channel::mpsc::{
-		self, SendError, TryRecvError, TrySendError, UnboundedReceiver, UnboundedSender,
-	};
+	use futures::channel::mpsc::{self, SendError, TryRecvError, TrySendError, UnboundedReceiver, UnboundedSender};
 	use futures::{
 		sink::Sink,
 		stream::{FusedStream, Stream},
@@ -65,9 +61,7 @@ mod inner {
 
 	/// Wrapper around `mpsc::unbounded` that tracks the in- and outflow via
 	/// `UNBOUNDED_CHANNELS_COUNTER`
-	pub fn tracing_unbounded<T>(
-		key: &'static str,
-	) -> (TracingUnboundedSender<T>, TracingUnboundedReceiver<T>) {
+	pub fn tracing_unbounded<T>(key: &'static str) -> (TracingUnboundedSender<T>, TracingUnboundedReceiver<T>) {
 		let (s, r) = mpsc::unbounded();
 		(TracingUnboundedSender(key.clone(), s), TracingUnboundedReceiver(key, r))
 	}
@@ -118,7 +112,7 @@ mod inner {
 			let mut count = 0;
 			loop {
 				if self.1.is_terminated() {
-					break
+					break;
 				}
 
 				match self.try_next() {
@@ -128,7 +122,9 @@ mod inner {
 			}
 			// and discount the messages
 			if count > 0 {
-				UNBOUNDED_CHANNELS_COUNTER.with_label_values(&[self.0, &"dropped"]).inc_by(count);
+				UNBOUNDED_CHANNELS_COUNTER
+					.with_label_values(&[self.0, &"dropped"])
+					.inc_by(count);
 			}
 		}
 
@@ -144,7 +140,9 @@ mod inner {
 		pub fn try_next(&mut self) -> Result<Option<T>, TryRecvError> {
 			self.1.try_next().map(|s| {
 				if s.is_some() {
-					UNBOUNDED_CHANNELS_COUNTER.with_label_values(&[self.0, &"received"]).inc();
+					UNBOUNDED_CHANNELS_COUNTER
+						.with_label_values(&[self.0, &"received"])
+						.inc();
 				}
 				s
 			})
@@ -170,7 +168,7 @@ mod inner {
 						UNBOUNDED_CHANNELS_COUNTER.with_label_values(&[s.0, "received"]).inc();
 					}
 					Poll::Ready(msg)
-				},
+				}
 				Poll::Pending => Poll::Pending,
 			}
 		}
@@ -197,10 +195,7 @@ mod inner {
 			Poll::Ready(Ok(()))
 		}
 
-		fn poll_close(
-			mut self: Pin<&mut Self>,
-			_: &mut Context<'_>,
-		) -> Poll<Result<(), Self::Error>> {
+		fn poll_close(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
 			self.disconnect();
 			Poll::Ready(Ok(()))
 		}

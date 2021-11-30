@@ -54,7 +54,10 @@ impl FromStr for GenericNumber {
 
 	fn from_str(block_number: &str) -> Result<Self, Self::Err> {
 		if let Some(pos) = block_number.chars().position(|d| !d.is_digit(10)) {
-			Err(format!("Expected block number, found illegal digit at position: {}", pos,))
+			Err(format!(
+				"Expected block number, found illegal digit at position: {}",
+				pos,
+			))
 		} else {
 			Ok(Self(block_number.to_owned()))
 		}
@@ -109,8 +112,7 @@ impl BlockNumberOrHash {
 	{
 		if self.0.starts_with("0x") {
 			Ok(BlockId::Hash(
-				FromStr::from_str(&self.0[2..])
-					.map_err(|e| format!("Failed to parse block hash: {:?}", e))?,
+				FromStr::from_str(&self.0[2..]).map_err(|e| format!("Failed to parse block hash: {:?}", e))?,
 			))
 		} else {
 			GenericNumber(self.0.clone()).parse().map(BlockId::Number)

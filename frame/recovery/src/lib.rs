@@ -176,8 +176,7 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 /// Configuration trait.
 pub trait Trait: frame_system::Trait {
@@ -185,9 +184,7 @@ pub trait Trait: frame_system::Trait {
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
 	/// The overarching call type.
-	type Call: Parameter
-		+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
-		+ GetDispatchInfo;
+	type Call: Parameter + Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo> + GetDispatchInfo;
 
 	/// The currency mechanism.
 	type Currency: ReservableCurrency<Self::AccountId>;

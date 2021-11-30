@@ -168,16 +168,17 @@ pub trait Benchmarking {
 		match whitelist.iter_mut().find(|x| x.key == add.key) {
 			// If we already have this key in the whitelist, update to be the most constrained
 			// value.
-			Some(item) =>
+			Some(item) => {
 				*item = TrackedStorageKey {
 					key: add.key,
 					has_been_read: item.has_been_read || add.has_been_read,
 					has_been_written: item.has_been_written || add.has_been_written,
-				},
+				}
+			}
 			// If the key does not exist, add it.
 			None => {
 				whitelist.push(add);
-			},
+			}
 		}
 		self.set_whitelist(whitelist);
 	}
@@ -237,11 +238,7 @@ pub trait BenchmarkingSetup<T, I = ()> {
 }
 
 /// Grab an account, seeded by a name and index.
-pub fn account<AccountId: Decode + Default>(
-	name: &'static str,
-	index: u32,
-	seed: u32,
-) -> AccountId {
+pub fn account<AccountId: Decode + Default>(name: &'static str, index: u32, seed: u32) -> AccountId {
 	let entropy = (name, index, seed).using_encoded(blake2_256);
 	AccountId::decode(&mut &entropy[..]).unwrap_or_default()
 }
@@ -254,8 +251,6 @@ pub fn whitelisted_caller<AccountId: Decode + Default>() -> AccountId {
 #[macro_export]
 macro_rules! whitelist_account {
 	($acc:ident) => {
-		frame_benchmarking::benchmarking::add_to_whitelist(
-			frame_system::Account::<T>::hashed_key_for(&$acc).into(),
-			);
+		frame_benchmarking::benchmarking::add_to_whitelist(frame_system::Account::<T>::hashed_key_for(&$acc).into());
 	};
 }

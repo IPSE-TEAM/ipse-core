@@ -63,7 +63,10 @@ pub enum Error {
 		native,
 		on_chain
 	)]
-	IncompatibleAuthoringRuntime { native: RuntimeVersion, on_chain: RuntimeVersion },
+	IncompatibleAuthoringRuntime {
+		native: RuntimeVersion,
+		on_chain: RuntimeVersion,
+	},
 	/// Authoring interface does not match the runtime.
 	#[display(fmt = "Authoring for current runtime is not supported since it has no version.")]
 	RuntimeVersionMissing,

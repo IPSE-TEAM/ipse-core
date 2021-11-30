@@ -35,18 +35,16 @@ use sp_runtime::traits::{
 };
 pub use sp_state_machine::StorageProof;
 use sp_state_machine::{
-	key_changes_proof_check_with_db, read_child_proof_check, read_proof_check,
-	ChangesTrieAnchorBlockId, ChangesTrieConfigurationRange, ChangesTrieRootsStorage,
-	InMemoryChangesTrieStorage, TrieBackend,
+	key_changes_proof_check_with_db, read_child_proof_check, read_proof_check, ChangesTrieAnchorBlockId,
+	ChangesTrieConfigurationRange, ChangesTrieRootsStorage, InMemoryChangesTrieStorage, TrieBackend,
 };
 
 use crate::{blockchain::Blockchain, call_executor::check_execution_proof};
 pub use sc_client_api::{
 	cht,
 	light::{
-		ChangesProof, FetchChecker, Fetcher, RemoteBodyRequest, RemoteCallRequest,
-		RemoteChangesRequest, RemoteHeaderRequest, RemoteReadChildRequest, RemoteReadRequest,
-		Storage as BlockchainStorage,
+		ChangesProof, FetchChecker, Fetcher, RemoteBodyRequest, RemoteCallRequest, RemoteChangesRequest,
+		RemoteHeaderRequest, RemoteReadChildRequest, RemoteReadRequest, Storage as BlockchainStorage,
 	},
 };
 
@@ -60,12 +58,13 @@ pub struct LightDataChecker<E, H, B: BlockT, S: BlockchainStorage<B>> {
 
 impl<E, H, B: BlockT, S: BlockchainStorage<B>> LightDataChecker<E, H, B, S> {
 	/// Create new light data checker.
-	pub fn new(
-		blockchain: Arc<Blockchain<S>>,
-		executor: E,
-		spawn_handle: Box<dyn SpawnNamed>,
-	) -> Self {
-		Self { blockchain, executor, spawn_handle, _hasher: PhantomData }
+	pub fn new(blockchain: Arc<Blockchain<S>>, executor: E, spawn_handle: Box<dyn SpawnNamed>) -> Self {
+		Self {
+			blockchain,
+			executor,
+			spawn_handle,
+			_hasher: PhantomData,
+		}
 	}
 
 	/// Check remote changes query proof assuming that CHT-s are of given size.
@@ -81,17 +80,12 @@ impl<E, H, B: BlockT, S: BlockchainStorage<B>> LightDataChecker<E, H, B, S> {
 	{
 		// since we need roots of all changes tries for the range begin..max
 		// => remote node can't use max block greater that one that we have passed
-		if remote_proof.max_block > request.max_block.0 ||
-			remote_proof.max_block < request.last_block.0
-		{
+		if remote_proof.max_block > request.max_block.0 || remote_proof.max_block < request.last_block.0 {
 			return Err(ClientError::ChangesTrieAccessFailed(format!(
 				"Invalid max_block used by the remote node: {}. Local: {}..{}..{}",
-				remote_proof.max_block,
-				request.first_block.0,
-				request.last_block.0,
-				request.max_block.0,
+				remote_proof.max_block, request.first_block.0, request.last_block.0, request.max_block.0,
 			))
-			.into())
+			.into());
 		}
 
 		// check if remote node has responded with extra changes trie roots proofs
@@ -100,9 +94,7 @@ impl<E, H, B: BlockT, S: BlockchainStorage<B>> LightDataChecker<E, H, B, S> {
 			.roots
 			.keys()
 			.next()
-			.map(|first_root| {
-				*first_root < request.first_block.0 || *first_root >= request.tries_roots.0
-			})
+			.map(|first_root| *first_root < request.first_block.0 || *first_root >= request.tries_roots.0)
 			.unwrap_or(false);
 		let is_extra_last_root = remote_proof
 			.roots
@@ -115,7 +107,8 @@ impl<E, H, B: BlockT, S: BlockchainStorage<B>> LightDataChecker<E, H, B, S> {
 				"Extra changes tries roots proofs provided by the remote node: [{:?}..{:?}]. Expected in range: [{}; {})",
 				remote_proof.roots.keys().next(), remote_proof.roots.keys().next_back(),
 				request.first_block.0, request.tries_roots.0,
-			)).into());
+			))
+			.into());
 		}
 
 		// if request has been composed when some required headers were already pruned
@@ -205,7 +198,7 @@ impl<E, H, B: BlockT, S: BlockchainStorage<B>> LightDataChecker<E, H, B, S> {
 					let mut cht_root = H::Out::default();
 					cht_root.as_mut().copy_from_slice(local_cht_root.as_ref());
 					if !storage.contains(&cht_root, EMPTY_PREFIX) {
-						return Err(ClientError::InvalidCHTProof.into())
+						return Err(ClientError::InvalidCHTProof.into());
 					}
 
 					// check proof for single changes trie root
@@ -243,16 +236,10 @@ where
 		remote_header: Option<Block::Header>,
 		remote_proof: StorageProof,
 	) -> ClientResult<Block::Header> {
-		let remote_header =
-			remote_header.ok_or_else(|| ClientError::from(ClientError::InvalidCHTProof))?;
+		let remote_header = remote_header.ok_or_else(|| ClientError::from(ClientError::InvalidCHTProof))?;
 		let remote_header_hash = remote_header.hash();
-		cht::check_proof::<Block::Header, H>(
-			request.cht_root,
-			request.block,
-			remote_header_hash,
-			remote_proof,
-		)
-		.map(|_| remote_header)
+		cht::check_proof::<Block::Header, H>(request.cht_root, request.block, remote_header_hash, remote_proof)
+			.map(|_| remote_header)
 	}
 
 	fn check_read_proof(
@@ -291,12 +278,7 @@ where
 		request: &RemoteCallRequest<Block::Header>,
 		remote_proof: StorageProof,
 	) -> ClientResult<Vec<u8>> {
-		check_execution_proof::<_, _, H>(
-			&self.executor,
-			self.spawn_handle.clone(),
-			request,
-			remote_proof,
-		)
+		check_execution_proof::<_, _, H>(&self.executor, self.spawn_handle.clone(), request, remote_proof)
 	}
 
 	fn check_changes_proof(
@@ -313,8 +295,7 @@ where
 		body: Vec<Block::Extrinsic>,
 	) -> ClientResult<Vec<Block::Extrinsic>> {
 		// TODO: #2621
-		let extrinsics_root =
-			HashFor::<Block>::ordered_trie_root(body.iter().map(Encode::encode).collect());
+		let extrinsics_root = HashFor::<Block>::ordered_trie_root(body.iter().map(Encode::encode).collect());
 		if *request.header.extrinsics_root() == extrinsics_root {
 			Ok(body)
 		} else {
@@ -337,15 +318,7 @@ struct RootsStorage<'a, Number: AtLeast32Bit, Hash: 'a> {
 impl<'a, H, Number, Hash> ChangesTrieRootsStorage<H, Number> for RootsStorage<'a, Number, Hash>
 where
 	H: Hasher,
-	Number: std::fmt::Display
-		+ std::hash::Hash
-		+ Clone
-		+ AtLeast32Bit
-		+ Encode
-		+ Decode
-		+ Send
-		+ Sync
-		+ 'static,
+	Number: std::fmt::Display + std::hash::Hash + Clone + AtLeast32Bit + Encode + Decode + Send + Sync + 'static,
 	Hash: 'a + Send + Sync + Clone + AsRef<[u8]>,
 {
 	fn build_anchor(
@@ -364,8 +337,7 @@ where
 		let root = if block < self.roots.0 {
 			self.prev_roots.get(&Number::unique_saturated_from(block)).cloned()
 		} else {
-			let index: Option<usize> =
-				block.checked_sub(&self.roots.0).and_then(|index| index.checked_into());
+			let index: Option<usize> = block.checked_sub(&self.roots.0).and_then(|index| index.checked_into());
 			match index {
 				Some(index) => self.roots.1.get(index as usize).cloned(),
 				None => None,

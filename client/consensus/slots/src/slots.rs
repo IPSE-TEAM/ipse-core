@@ -34,7 +34,10 @@ pub fn duration_now() -> Duration {
 	use std::time::SystemTime;
 	let now = SystemTime::now();
 	now.duration_since(SystemTime::UNIX_EPOCH).unwrap_or_else(|e| {
-		panic!("Current time {:?} is before unix epoch. Something is wrong: {:?}", now, e,)
+		panic!(
+			"Current time {:?} is before unix epoch. Something is wrong: {:?}",
+			now, e,
+		)
 	})
 }
 
@@ -53,9 +56,13 @@ impl SignedDuration {
 
 	/// Get the slot for now.  Panics if `slot_duration` is 0.
 	pub fn slot_now(&self, slot_duration: u64) -> u64 {
-		(if self.is_positive { duration_now() + self.offset } else { duration_now() - self.offset }
-			.as_millis() as u64) /
-			slot_duration
+		(if self.is_positive {
+			duration_now() + self.offset
+		} else {
+			duration_now() - self.offset
+		}
+		.as_millis() as u64)
+			/ slot_duration
 	}
 }
 
@@ -92,11 +99,7 @@ pub(crate) struct Slots<SC> {
 
 impl<SC> Slots<SC> {
 	/// Create a new `Slots` stream.
-	pub fn new(
-		slot_duration: u64,
-		inherent_data_providers: InherentDataProviders,
-		timestamp_extractor: SC,
-	) -> Self {
+	pub fn new(slot_duration: u64, inherent_data_providers: InherentDataProviders, timestamp_extractor: SC) -> Self {
 		Slots {
 			last_slot: 0,
 			slot_duration,
@@ -118,14 +121,14 @@ impl<SC: SlotCompatible> Stream for Slots<SC> {
 					// schedule wait.
 					let wait_dur = time_until_next(duration_now(), slot_duration);
 					Some(Delay::new(wait_dur))
-				},
+				}
 				Some(d) => Some(d),
 			};
 
 			if let Some(ref mut inner_delay) = self.inner_delay {
 				match Future::poll(Pin::new(inner_delay), cx) {
 					Poll::Pending => return Poll::Pending,
-					Poll::Ready(()) => {},
+					Poll::Ready(()) => {}
 				}
 			}
 
@@ -157,7 +160,7 @@ impl<SC: SlotCompatible> Stream for Slots<SC> {
 					timestamp,
 					ends_at,
 					inherent_data,
-				})))
+				})));
 			}
 		}
 	}

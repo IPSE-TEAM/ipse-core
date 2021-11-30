@@ -33,10 +33,7 @@ use std::{
 
 type TestExternalities = sp_state_machine::TestExternalities<sp_runtime::traits::BlakeTwo256, u64>;
 
-fn call_wasm_method_with_result<HF: HostFunctionsT>(
-	binary: &[u8],
-	method: &str,
-) -> Result<TestExternalities, String> {
+fn call_wasm_method_with_result<HF: HostFunctionsT>(binary: &[u8], method: &str) -> Result<TestExternalities, String> {
 	let mut ext = TestExternalities::default();
 	let mut ext_ext = ext.ext();
 	let mut host_functions = HF::host_functions();
@@ -85,10 +82,7 @@ fn test_set_storage() {
 
 #[test]
 fn test_return_value_into_mutable_reference() {
-	call_wasm_method::<HostFunctions>(
-		&wasm_binary_unwrap()[..],
-		"test_return_value_into_mutable_reference",
-	);
+	call_wasm_method::<HostFunctions>(&wasm_binary_unwrap()[..], "test_return_value_into_mutable_reference");
 }
 
 #[test]
@@ -108,8 +102,7 @@ fn test_return_input_public_key() {
 
 #[test]
 fn host_function_not_found() {
-	let err = call_wasm_method_with_result::<()>(&wasm_binary_unwrap()[..], "test_return_data")
-		.unwrap_err();
+	let err = call_wasm_method_with_result::<()>(&wasm_binary_unwrap()[..], "test_return_data").unwrap_err();
 
 	assert!(err.contains("Instantiation: Export "));
 	assert!(err.contains(" not found"));
@@ -142,26 +135,17 @@ fn test_u128_i128_as_parameter_and_return_value() {
 
 #[test]
 fn test_vec_return_value_memory_is_freed() {
-	call_wasm_method::<HostFunctions>(
-		&wasm_binary_unwrap()[..],
-		"test_vec_return_value_memory_is_freed",
-	);
+	call_wasm_method::<HostFunctions>(&wasm_binary_unwrap()[..], "test_vec_return_value_memory_is_freed");
 }
 
 #[test]
 fn test_encoded_return_value_memory_is_freed() {
-	call_wasm_method::<HostFunctions>(
-		&wasm_binary_unwrap()[..],
-		"test_encoded_return_value_memory_is_freed",
-	);
+	call_wasm_method::<HostFunctions>(&wasm_binary_unwrap()[..], "test_encoded_return_value_memory_is_freed");
 }
 
 #[test]
 fn test_array_return_value_memory_is_freed() {
-	call_wasm_method::<HostFunctions>(
-		&wasm_binary_unwrap()[..],
-		"test_array_return_value_memory_is_freed",
-	);
+	call_wasm_method::<HostFunctions>(&wasm_binary_unwrap()[..], "test_array_return_value_memory_is_freed");
 }
 
 #[test]
@@ -171,10 +155,7 @@ fn test_versionining_with_new_host_works() {
 
 	// we call to the old wasm binary with a new host functions
 	// old versions of host functions should be called and test should be ok!
-	call_wasm_method::<HostFunctions>(
-		&wasm_binary_deprecated_unwrap()[..],
-		"test_versionning_works",
-	);
+	call_wasm_method::<HostFunctions>(&wasm_binary_deprecated_unwrap()[..], "test_versionning_works");
 }
 
 #[test]
@@ -210,7 +191,9 @@ fn test_tracing() {
 			let id = SpanId::from_u64((inner.spans.len() + 1) as _);
 			let mut f = FieldConsumer("name", None);
 			span.record(&mut f);
-			inner.spans.insert(f.1.unwrap_or_else(|| span.metadata().name().to_owned()));
+			inner
+				.spans
+				.insert(f.1.unwrap_or_else(|| span.metadata().name().to_owned()));
 			id
 		}
 

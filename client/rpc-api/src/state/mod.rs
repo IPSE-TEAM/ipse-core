@@ -45,16 +45,11 @@ pub trait StateApi<Hash> {
 	/// DEPRECATED: Please use `state_getKeysPaged` with proper paging support.
 	/// Returns the keys with prefix, leave empty to get all the keys.
 	#[rpc(name = "state_getKeys")]
-	fn storage_keys(&self, prefix: StorageKey, hash: Option<Hash>)
-		-> FutureResult<Vec<StorageKey>>;
+	fn storage_keys(&self, prefix: StorageKey, hash: Option<Hash>) -> FutureResult<Vec<StorageKey>>;
 
 	/// Returns the keys with prefix, leave empty to get all the keys
 	#[rpc(name = "state_getPairs")]
-	fn storage_pairs(
-		&self,
-		prefix: StorageKey,
-		hash: Option<Hash>,
-	) -> FutureResult<Vec<(StorageKey, StorageData)>>;
+	fn storage_pairs(&self, prefix: StorageKey, hash: Option<Hash>) -> FutureResult<Vec<(StorageKey, StorageData)>>;
 
 	/// Returns the keys with prefix with pagination support.
 	/// Up to `count` keys will be returned.
@@ -103,19 +98,11 @@ pub trait StateApi<Hash> {
 
 	/// Query storage entries (by key) starting at block hash given as the second parameter.
 	#[rpc(name = "state_queryStorageAt")]
-	fn query_storage_at(
-		&self,
-		keys: Vec<StorageKey>,
-		at: Option<Hash>,
-	) -> FutureResult<Vec<StorageChangeSet<Hash>>>;
+	fn query_storage_at(&self, keys: Vec<StorageKey>, at: Option<Hash>) -> FutureResult<Vec<StorageChangeSet<Hash>>>;
 
 	/// Returns proof of storage entries at a specific block's state.
 	#[rpc(name = "state_getReadProof")]
-	fn read_proof(
-		&self,
-		keys: Vec<StorageKey>,
-		hash: Option<Hash>,
-	) -> FutureResult<ReadProof<Hash>>;
+	fn read_proof(&self, keys: Vec<StorageKey>, hash: Option<Hash>) -> FutureResult<ReadProof<Hash>>;
 
 	/// New runtime version subscription
 	#[pubsub(
@@ -124,11 +111,7 @@ pub trait StateApi<Hash> {
 		name = "state_subscribeRuntimeVersion",
 		alias("chain_subscribeRuntimeVersion")
 	)]
-	fn subscribe_runtime_version(
-		&self,
-		metadata: Self::Metadata,
-		subscriber: Subscriber<RuntimeVersion>,
-	);
+	fn subscribe_runtime_version(&self, metadata: Self::Metadata, subscriber: Subscriber<RuntimeVersion>);
 
 	/// Unsubscribe from runtime version subscription
 	#[pubsub(
@@ -137,11 +120,7 @@ pub trait StateApi<Hash> {
 		name = "state_unsubscribeRuntimeVersion",
 		alias("chain_unsubscribeRuntimeVersion")
 	)]
-	fn unsubscribe_runtime_version(
-		&self,
-		metadata: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool>;
+	fn unsubscribe_runtime_version(&self, metadata: Option<Self::Metadata>, id: SubscriptionId) -> RpcResult<bool>;
 
 	/// New storage subscription
 	#[pubsub(subscription = "state_storage", subscribe, name = "state_subscribeStorage")]
@@ -154,9 +133,5 @@ pub trait StateApi<Hash> {
 
 	/// Unsubscribe from storage subscription
 	#[pubsub(subscription = "state_storage", unsubscribe, name = "state_unsubscribeStorage")]
-	fn unsubscribe_storage(
-		&self,
-		metadata: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool>;
+	fn unsubscribe_storage(&self, metadata: Option<Self::Metadata>, id: SubscriptionId) -> RpcResult<bool>;
 }

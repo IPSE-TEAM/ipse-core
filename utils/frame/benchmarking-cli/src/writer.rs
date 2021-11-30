@@ -62,13 +62,13 @@ pub fn write_trait(
 
 	// Skip writing if there are no batches
 	if batches.is_empty() {
-		return Ok(())
+		return Ok(());
 	}
 
 	for batch in batches {
 		// Skip writing if there are no results
 		if batch.results.is_empty() {
-			continue
+			continue;
 		}
 
 		let pallet_string = String::from_utf8(batch.pallet.clone()).unwrap();
@@ -122,7 +122,7 @@ pub fn write_results(
 		Some(header_file) => {
 			let text = fs::read_to_string(header_file)?;
 			Some(text)
-		},
+		}
 		None => None,
 	};
 
@@ -133,13 +133,17 @@ pub fn write_results(
 
 	// Skip writing if there are no batches
 	if batches.is_empty() {
-		return Ok(())
+		return Ok(());
 	}
 
 	let mut batches_iter = batches.iter().peekable();
 
 	let first_pallet = String::from_utf8(
-		batches_iter.peek().expect("we checked that batches is not empty").pallet.clone(),
+		batches_iter
+			.peek()
+			.expect("we checked that batches is not empty")
+			.pallet
+			.clone(),
 	)
 	.unwrap();
 
@@ -152,7 +156,7 @@ pub fn write_results(
 	while let Some(batch) = batches_iter.next() {
 		// Skip writing if there are no results
 		if batch.results.is_empty() {
-			continue
+			continue;
 		}
 
 		let pallet_string = String::from_utf8(batch.pallet.clone()).unwrap();
@@ -209,8 +213,7 @@ pub fn write_results(
 		}
 
 		// Analysis results
-		let extrinsic_time =
-			Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::ExtrinsicTime).unwrap();
+		let extrinsic_time = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::ExtrinsicTime).unwrap();
 		let reads = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Reads).unwrap();
 		let writes = Analysis::min_squares_iqr(&batch.results, BenchmarkSelector::Writes).unwrap();
 
@@ -220,14 +223,18 @@ pub fn write_results(
 		let mut used_extrinsic_time = Vec::new();
 		let mut used_reads = Vec::new();
 		let mut used_writes = Vec::new();
-		extrinsic_time.slopes.iter().zip(extrinsic_time.names.iter()).for_each(|(slope, name)| {
-			if !slope.is_zero() {
-				if !used_components.contains(&name) {
-					used_components.push(name);
+		extrinsic_time
+			.slopes
+			.iter()
+			.zip(extrinsic_time.names.iter())
+			.for_each(|(slope, name)| {
+				if !slope.is_zero() {
+					if !used_components.contains(&name) {
+						used_components.push(name);
+					}
+					used_extrinsic_time.push((slope, name));
 				}
-				used_extrinsic_time.push((slope, name));
-			}
-		});
+			});
 		reads.slopes.iter().zip(reads.names.iter()).for_each(|(slope, name)| {
 			if !slope.is_zero() {
 				if !used_components.contains(&name) {
@@ -276,17 +283,19 @@ pub fn write_results(
 			indent,
 			underscore(extrinsic_time.base.saturating_mul(1000))
 		)?;
-		used_extrinsic_time.iter().try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
-			write!(
-				file,
-				"{}{}{}.saturating_add(({} as Weight).saturating_mul({} as Weight))\n",
-				indent,
-				indent,
-				indent,
-				underscore(slope.saturating_mul(1000)),
-				name,
-			)
-		})?;
+		used_extrinsic_time
+			.iter()
+			.try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
+				write!(
+					file,
+					"{}{}{}.saturating_add(({} as Weight).saturating_mul({} as Weight))\n",
+					indent,
+					indent,
+					indent,
+					underscore(slope.saturating_mul(1000)),
+					name,
+				)
+			})?;
 
 		if !reads.base.is_zero() {
 			write!(
@@ -295,15 +304,15 @@ pub fn write_results(
 				indent, indent, indent, reads.base,
 			)?;
 		}
-		used_reads.iter().try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
-			write!(
-				file,
-				"{}{}{}.saturating_add(T::DbWeight::get().reads(({} as Weight).saturating_mul({} as Weight)))\n",
-				indent, indent, indent,
-				slope,
-				name,
-			)
-		})?;
+		used_reads
+			.iter()
+			.try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
+				write!(
+					file,
+					"{}{}{}.saturating_add(T::DbWeight::get().reads(({} as Weight).saturating_mul({} as Weight)))\n",
+					indent, indent, indent, slope, name,
+				)
+			})?;
 
 		if !writes.base.is_zero() {
 			write!(
@@ -312,15 +321,15 @@ pub fn write_results(
 				indent, indent, indent, writes.base,
 			)?;
 		}
-		used_writes.iter().try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
-			write!(
-				file,
-				"{}{}{}.saturating_add(T::DbWeight::get().writes(({} as Weight).saturating_mul({} as Weight)))\n",
-				indent, indent, indent,
-				slope,
-				name,
-			)
-		})?;
+		used_writes
+			.iter()
+			.try_for_each(|(slope, name)| -> Result<(), std::io::Error> {
+				write!(
+					file,
+					"{}{}{}.saturating_add(T::DbWeight::get().writes(({} as Weight).saturating_mul({} as Weight)))\n",
+					indent, indent, indent, slope, name,
+				)
+			})?;
 
 		// close function
 		write!(file, "{}}}\n", indent)?;

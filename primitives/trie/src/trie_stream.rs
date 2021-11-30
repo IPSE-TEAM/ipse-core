@@ -58,10 +58,8 @@ fn fuse_nibbles_node<'a>(nibbles: &'a [u8], kind: NodeKind) -> impl Iterator<Ite
 
 	let iter_start = match kind {
 		NodeKind::Leaf => size_and_prefix_iterator(size, trie_constants::LEAF_PREFIX_MASK),
-		NodeKind::BranchNoValue =>
-			size_and_prefix_iterator(size, trie_constants::BRANCH_WITHOUT_MASK),
-		NodeKind::BranchWithValue =>
-			size_and_prefix_iterator(size, trie_constants::BRANCH_WITH_MASK),
+		NodeKind::BranchNoValue => size_and_prefix_iterator(size, trie_constants::BRANCH_WITHOUT_MASK),
+		NodeKind::BranchWithValue => size_and_prefix_iterator(size, trie_constants::BRANCH_WITH_MASK),
 	};
 	iter_start
 		.chain(if nibbles.len() % 2 == 1 { Some(nibbles[0]) } else { None })
@@ -90,7 +88,8 @@ impl trie_root::TrieStream for TrieStream {
 	) {
 		if let Some(partial) = maybe_partial {
 			if maybe_value.is_some() {
-				self.buffer.extend(fuse_nibbles_node(partial, NodeKind::BranchWithValue));
+				self.buffer
+					.extend(fuse_nibbles_node(partial, NodeKind::BranchWithValue));
 			} else {
 				self.buffer.extend(fuse_nibbles_node(partial, NodeKind::BranchNoValue));
 			}
@@ -132,7 +131,11 @@ fn branch_node_buffered<I>(has_value: bool, has_children: I, output: &mut [u8])
 where
 	I: Iterator<Item = bool>,
 {
-	let first = if has_value { BRANCH_NODE_WITH_VALUE } else { BRANCH_NODE_NO_VALUE };
+	let first = if has_value {
+		BRANCH_NODE_WITH_VALUE
+	} else {
+		BRANCH_NODE_NO_VALUE
+	};
 	output[0] = first;
 	Bitmap::encode(has_children, &mut output[1..]);
 }

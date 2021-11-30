@@ -49,8 +49,7 @@ where
 	overlay: OverlayedChanges,
 	offchain_overlay: OffchainOverlayedChanges,
 	offchain_db: TestPersistentOffchainDB,
-	storage_transaction_cache:
-		StorageTransactionCache<<InMemoryBackend<H> as Backend<H>>::Transaction, H, N>,
+	storage_transaction_cache: StorageTransactionCache<<InMemoryBackend<H> as Backend<H>>::Transaction, H, N>,
 	backend: InMemoryBackend<H>,
 	changes_trie_config: Option<ChangesTrieConfiguration>,
 	changes_trie_storage: ChangesTrieInMemoryStorage<H, N>,
@@ -93,8 +92,10 @@ where
 	/// Create a new instance of `TestExternalities` with code and storage.
 	pub fn new_with_code(code: &[u8], mut storage: Storage) -> Self {
 		let mut overlay = OverlayedChanges::default();
-		let changes_trie_config =
-			storage.top.get(CHANGES_TRIE_CONFIG).and_then(|v| Decode::decode(&mut &v[..]).ok());
+		let changes_trie_config = storage
+			.top
+			.get(CHANGES_TRIE_CONFIG)
+			.and_then(|v| Decode::decode(&mut &v[..]).ok());
 		overlay.set_collect_extrinsics(changes_trie_config.is_some());
 
 		assert!(storage.top.keys().all(|key| !is_child_storage_key(key)));
@@ -149,8 +150,11 @@ where
 
 	/// Return a new backend with all pending value.
 	pub fn commit_all(&self) -> InMemoryBackend<H> {
-		let top: Vec<_> =
-			self.overlay.changes().map(|(k, v)| (k.clone(), v.value().cloned())).collect();
+		let top: Vec<_> = self
+			.overlay
+			.changes()
+			.map(|(k, v)| (k.clone(), v.value().cloned()))
+			.collect();
 		let mut transaction = vec![(None, top)];
 
 		for (child_changes, child_info) in self.overlay.children() {
@@ -228,10 +232,7 @@ where
 		self.extensions.register_with_type_id(type_id, extension)
 	}
 
-	fn deregister_extension_by_type_id(
-		&mut self,
-		type_id: TypeId,
-	) -> Result<(), sp_externalities::Error> {
+	fn deregister_extension_by_type_id(&mut self, type_id: TypeId) -> Result<(), sp_externalities::Error> {
 		if self.extensions.deregister(type_id) {
 			Ok(())
 		} else {
@@ -254,8 +255,7 @@ mod tests {
 		ext.set_storage(b"doe".to_vec(), b"reindeer".to_vec());
 		ext.set_storage(b"dog".to_vec(), b"puppy".to_vec());
 		ext.set_storage(b"dogglesworth".to_vec(), b"cat".to_vec());
-		let root =
-			H256::from(hex!("2a340d3dfd52f5992c6b117e9e45f479e6da5afffafeb26ab619cf137a95aeb8"));
+		let root = H256::from(hex!("2a340d3dfd52f5992c6b117e9e45f479e6da5afffafeb26ab619cf137a95aeb8"));
 		assert_eq!(H256::from_slice(ext.storage_root().as_slice()), root);
 	}
 

@@ -65,7 +65,10 @@ macro_rules! groups_impl {
 
 		impl<P: Clone> Clone for $name<P> {
 			fn clone(&self) -> Self {
-				Self { token: self.token.clone(), content: self.content.clone() }
+				Self {
+					token: self.token.clone(),
+					content: self.content.clone(),
+				}
 			}
 		}
 	};
@@ -117,7 +120,10 @@ impl<P: ToTokens, T: ToTokens, V> ToTokens for PunctuatedInner<P, T, V> {
 
 impl<P: Clone, T: Clone, V: Clone> Clone for PunctuatedInner<P, T, V> {
 	fn clone(&self) -> Self {
-		Self { inner: self.inner.clone(), variant: self.variant.clone() }
+		Self {
+			inner: self.inner.clone(),
+			variant: self.variant.clone(),
+		}
 	}
 }
 
@@ -129,7 +135,9 @@ pub struct Meta {
 
 impl Parse for Meta {
 	fn parse(input: ParseStream) -> Result<Self> {
-		Ok(Meta { inner: syn::Meta::parse(input)? })
+		Ok(Meta {
+			inner: syn::Meta::parse(input)?,
+		})
 	}
 }
 
@@ -170,7 +178,7 @@ pub fn extract_type_option(typ: &syn::Type) -> Option<syn::Type> {
 			// Option has only one type argument in angle bracket.
 			if let syn::PathArguments::AngleBracketed(a) = &v.arguments {
 				if let syn::GenericArgument::Type(typ) = a.args.last()? {
-					return Some(typ.clone())
+					return Some(typ.clone());
 				}
 			}
 		}
@@ -190,7 +198,7 @@ impl<'ast> ContainsIdent<'ast> {
 		stream.into_iter().for_each(|tt| match tt {
 			TokenTree::Ident(id) => self.visit_ident(&id),
 			TokenTree::Group(ref group) => self.visit_tokenstream(group.stream()),
-			_ => {},
+			_ => {}
 		})
 	}
 

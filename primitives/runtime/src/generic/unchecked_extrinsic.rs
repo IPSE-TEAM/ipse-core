@@ -19,10 +19,7 @@
 
 use crate::{
 	generic::CheckedExtrinsic,
-	traits::{
-		self, Checkable, Extrinsic, ExtrinsicMetadata, IdentifyAccount, MaybeDisplay, Member,
-		SignedExtension,
-	},
+	traits::{self, Checkable, Extrinsic, ExtrinsicMetadata, IdentifyAccount, MaybeDisplay, Member, SignedExtension},
 	transaction_validity::{InvalidTransaction, TransactionValidityError},
 	OpaqueExtrinsic,
 };
@@ -59,17 +56,21 @@ where
 	}
 }
 
-impl<Address, Call, Signature, Extra: SignedExtension>
-	UncheckedExtrinsic<Address, Call, Signature, Extra>
-{
+impl<Address, Call, Signature, Extra: SignedExtension> UncheckedExtrinsic<Address, Call, Signature, Extra> {
 	/// New instance of a signed extrinsic aka "transaction".
 	pub fn new_signed(function: Call, signed: Address, signature: Signature, extra: Extra) -> Self {
-		UncheckedExtrinsic { signature: Some((signed, signature, extra)), function }
+		UncheckedExtrinsic {
+			signature: Some((signed, signature, extra)),
+			function,
+		}
 	}
 
 	/// New instance of an unsigned extrinsic aka "inherent".
 	pub fn new_unsigned(function: Call) -> Self {
-		UncheckedExtrinsic { signature: None, function }
+		UncheckedExtrinsic {
+			signature: None,
+			function,
+		}
 	}
 }
 
@@ -112,19 +113,24 @@ where
 				let signed = lookup.lookup(signed)?;
 				let raw_payload = SignedPayload::new(self.function, extra)?;
 				if !raw_payload.using_encoded(|payload| signature.verify(payload, &signed)) {
-					return Err(InvalidTransaction::BadProof.into())
+					return Err(InvalidTransaction::BadProof.into());
 				}
 
 				let (function, extra, _) = raw_payload.deconstruct();
-				CheckedExtrinsic { signed: Some((signed, extra)), function }
+				CheckedExtrinsic {
+					signed: Some((signed, extra)),
+					function,
+				}
+			}
+			None => CheckedExtrinsic {
+				signed: None,
+				function: self.function,
 			},
-			None => CheckedExtrinsic { signed: None, function: self.function },
 		})
 	}
 }
 
-impl<Address, Call, Signature, Extra> ExtrinsicMetadata
-	for UncheckedExtrinsic<Address, Call, Signature, Extra>
+impl<Address, Call, Signature, Extra> ExtrinsicMetadata for UncheckedExtrinsic<Address, Call, Signature, Extra>
 where
 	Extra: SignedExtension,
 {
@@ -209,7 +215,7 @@ where
 		let is_signed = version & 0b1000_0000 != 0;
 		let version = version & 0b0111_1111;
 		if version != TRANSACTION_VERSION {
-			return Err("Invalid transaction version".into())
+			return Err("Invalid transaction version".into());
 		}
 
 		Ok(UncheckedExtrinsic {
@@ -233,18 +239,17 @@ where
 				Some(s) => {
 					v.push(TRANSACTION_VERSION | 0b1000_0000);
 					s.encode_to(v);
-				},
+				}
 				None => {
 					v.push(TRANSACTION_VERSION & 0b0111_1111);
-				},
+				}
 			}
 			self.function.encode_to(v);
 		})
 	}
 }
 
-impl<Address, Call, Signature, Extra> EncodeLike
-	for UncheckedExtrinsic<Address, Call, Signature, Extra>
+impl<Address, Call, Signature, Extra> EncodeLike for UncheckedExtrinsic<Address, Call, Signature, Extra>
 where
 	Address: Encode,
 	Signature: Encode,
@@ -266,21 +271,19 @@ impl<Address: Encode, Signature: Encode, Call: Encode, Extra: SignedExtension> s
 }
 
 #[cfg(feature = "std")]
-impl<'a, Address: Decode, Signature: Decode, Call: Decode, Extra: SignedExtension>
-	serde::Deserialize<'a> for UncheckedExtrinsic<Address, Call, Signature, Extra>
+impl<'a, Address: Decode, Signature: Decode, Call: Decode, Extra: SignedExtension> serde::Deserialize<'a>
+	for UncheckedExtrinsic<Address, Call, Signature, Extra>
 {
 	fn deserialize<D>(de: D) -> Result<Self, D::Error>
 	where
 		D: serde::Deserializer<'a>,
 	{
 		let r = sp_core::bytes::deserialize(de)?;
-		Decode::decode(&mut &r[..])
-			.map_err(|e| serde::de::Error::custom(format!("Decode error: {}", e)))
+		Decode::decode(&mut &r[..]).map_err(|e| serde::de::Error::custom(format!("Decode error: {}", e)))
 	}
 }
 
-impl<Address, Call, Signature, Extra> fmt::Debug
-	for UncheckedExtrinsic<Address, Call, Signature, Extra>
+impl<Address, Call, Signature, Extra> fmt::Debug for UncheckedExtrinsic<Address, Call, Signature, Extra>
 where
 	Address: fmt::Debug,
 	Call: fmt::Debug,
@@ -296,8 +299,7 @@ where
 	}
 }
 
-impl<Address, Call, Signature, Extra> From<UncheckedExtrinsic<Address, Call, Signature, Extra>>
-	for OpaqueExtrinsic
+impl<Address, Call, Signature, Extra> From<UncheckedExtrinsic<Address, Call, Signature, Extra>> for OpaqueExtrinsic
 where
 	Address: Encode,
 	Signature: Encode,
@@ -411,7 +413,10 @@ mod tests {
 		assert!(ux.is_signed().unwrap_or(false));
 		assert_eq!(
 			<Ex as Checkable<TestContext>>::check(ux, &Default::default()),
-			Ok(CEx { signed: Some((TEST_ACCOUNT, TestExtra)), function: vec![0u8; 0] }),
+			Ok(CEx {
+				signed: Some((TEST_ACCOUNT, TestExtra)),
+				function: vec![0u8; 0]
+			}),
 		);
 	}
 

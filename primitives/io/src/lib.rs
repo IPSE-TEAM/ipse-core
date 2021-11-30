@@ -49,9 +49,7 @@ use sp_core::{
 use sp_core::{
 	crypto::KeyTypeId,
 	ecdsa, ed25519,
-	offchain::{
-		HttpError, HttpRequestId, HttpRequestStatus, OpaqueNetworkState, StorageKind, Timestamp,
-	},
+	offchain::{HttpError, HttpRequestId, HttpRequestStatus, OpaqueNetworkState, StorageKind, Timestamp},
 	sr25519, LogLevel, OpaquePeerId, H256,
 };
 
@@ -188,7 +186,8 @@ pub trait Storage {
 	///
 	/// Will panic if there is no open transaction.
 	fn rollback_transaction(&mut self) {
-		self.storage_rollback_transaction().expect("No open transaction that can be rolled back.");
+		self.storage_rollback_transaction()
+			.expect("No open transaction that can be rolled back.");
 	}
 
 	/// Commit the last transaction started by `start_transaction`.
@@ -199,7 +198,8 @@ pub trait Storage {
 	///
 	/// Will panic if there is no open transaction.
 	fn commit_transaction(&mut self) {
-		self.storage_commit_transaction().expect("No open transaction that can be committed.");
+		self.storage_commit_transaction()
+			.expect("No open transaction that can be committed.");
 	}
 }
 
@@ -223,13 +223,7 @@ pub trait DefaultChildStorage {
 	/// doesn't exist at all.
 	/// If `value_out` length is smaller than the returned length, only `value_out` length bytes
 	/// are copied into `value_out`.
-	fn read(
-		&self,
-		storage_key: &[u8],
-		key: &[u8],
-		value_out: &mut [u8],
-		value_offset: u32,
-	) -> Option<u32> {
+	fn read(&self, storage_key: &[u8], key: &[u8], value_out: &mut [u8], value_offset: u32) -> Option<u32> {
 		let child_info = ChildInfo::new_default(storage_key);
 		self.child_storage(&child_info, key).map(|value| {
 			let value_offset = value_offset as usize;
@@ -401,7 +395,9 @@ pub trait Crypto {
 	///
 	/// Returns the public key.
 	fn ed25519_generate(&mut self, id: KeyTypeId, seed: Option<Vec<u8>>) -> ed25519::Public {
-		let seed = seed.as_ref().map(|s| std::str::from_utf8(&s).expect("Seed is valid utf8!"));
+		let seed = seed
+			.as_ref()
+			.map(|s| std::str::from_utf8(&s).expect("Seed is valid utf8!"));
 		self.extension::<KeystoreExt>()
 			.expect("No `keystore` associated for the current context!")
 			.write()
@@ -413,12 +409,7 @@ pub trait Crypto {
 	/// key type in the keystore.
 	///
 	/// Returns the signature.
-	fn ed25519_sign(
-		&mut self,
-		id: KeyTypeId,
-		pub_key: &ed25519::Public,
-		msg: &[u8],
-	) -> Option<ed25519::Signature> {
+	fn ed25519_sign(&mut self, id: KeyTypeId, pub_key: &ed25519::Public, msg: &[u8]) -> Option<ed25519::Signature> {
 		self.extension::<KeystoreExt>()
 			.expect("No `keystore` associated for the current context!")
 			.read()
@@ -442,12 +433,7 @@ pub trait Crypto {
 	/// needs to be called.
 	///
 	/// Returns `true` when the verification is either successful or batched.
-	fn ed25519_batch_verify(
-		&mut self,
-		sig: &ed25519::Signature,
-		msg: &[u8],
-		pub_key: &ed25519::Public,
-	) -> bool {
+	fn ed25519_batch_verify(&mut self, sig: &ed25519::Signature, msg: &[u8], pub_key: &ed25519::Public) -> bool {
 		self.extension::<VerificationExt>()
 			.map(|extension| extension.push_ed25519(sig.clone(), pub_key.clone(), msg.to_vec()))
 			.unwrap_or_else(|| ed25519_verify(sig, msg, pub_key))
@@ -469,12 +455,7 @@ pub trait Crypto {
 	/// needs to be called.
 	///
 	/// Returns `true` when the verification is either successful or batched.
-	fn sr25519_batch_verify(
-		&mut self,
-		sig: &sr25519::Signature,
-		msg: &[u8],
-		pub_key: &sr25519::Public,
-	) -> bool {
+	fn sr25519_batch_verify(&mut self, sig: &sr25519::Signature, msg: &[u8], pub_key: &sr25519::Public) -> bool {
 		self.extension::<VerificationExt>()
 			.map(|extension| extension.push_sr25519(sig.clone(), pub_key.clone(), msg.to_vec()))
 			.unwrap_or_else(|| sr25519_verify(sig, msg, pub_key))
@@ -525,7 +506,9 @@ pub trait Crypto {
 	///
 	/// Returns the public key.
 	fn sr25519_generate(&mut self, id: KeyTypeId, seed: Option<Vec<u8>>) -> sr25519::Public {
-		let seed = seed.as_ref().map(|s| std::str::from_utf8(&s).expect("Seed is valid utf8!"));
+		let seed = seed
+			.as_ref()
+			.map(|s| std::str::from_utf8(&s).expect("Seed is valid utf8!"));
 		self.extension::<KeystoreExt>()
 			.expect("No `keystore` associated for the current context!")
 			.write()
@@ -537,12 +520,7 @@ pub trait Crypto {
 	/// key type in the keystore.
 	///
 	/// Returns the signature.
-	fn sr25519_sign(
-		&mut self,
-		id: KeyTypeId,
-		pub_key: &sr25519::Public,
-		msg: &[u8],
-	) -> Option<sr25519::Signature> {
+	fn sr25519_sign(&mut self, id: KeyTypeId, pub_key: &sr25519::Public, msg: &[u8]) -> Option<sr25519::Signature> {
 		self.extension::<KeystoreExt>()
 			.expect("No `keystore` associated for the current context!")
 			.read()
@@ -574,7 +552,9 @@ pub trait Crypto {
 	///
 	/// Returns the public key.
 	fn ecdsa_generate(&mut self, id: KeyTypeId, seed: Option<Vec<u8>>) -> ecdsa::Public {
-		let seed = seed.as_ref().map(|s| std::str::from_utf8(&s).expect("Seed is valid utf8!"));
+		let seed = seed
+			.as_ref()
+			.map(|s| std::str::from_utf8(&s).expect("Seed is valid utf8!"));
 		self.extension::<KeystoreExt>()
 			.expect("No `keystore` associated for the current context!")
 			.write()
@@ -586,12 +566,7 @@ pub trait Crypto {
 	/// key type in the keystore.
 	///
 	/// Returns the signature.
-	fn ecdsa_sign(
-		&mut self,
-		id: KeyTypeId,
-		pub_key: &ecdsa::Public,
-		msg: &[u8],
-	) -> Option<ecdsa::Signature> {
+	fn ecdsa_sign(&mut self, id: KeyTypeId, pub_key: &ecdsa::Public, msg: &[u8]) -> Option<ecdsa::Signature> {
 		self.extension::<KeystoreExt>()
 			.expect("No `keystore` associated for the current context!")
 			.read()
@@ -615,12 +590,7 @@ pub trait Crypto {
 	/// needs to be called.
 	///
 	/// Returns `true` when the verification is either successful or batched.
-	fn ecdsa_batch_verify(
-		&mut self,
-		sig: &ecdsa::Signature,
-		msg: &[u8],
-		pub_key: &ecdsa::Public,
-	) -> bool {
+	fn ecdsa_batch_verify(&mut self, sig: &ecdsa::Signature, msg: &[u8], pub_key: &ecdsa::Public) -> bool {
 		self.extension::<VerificationExt>()
 			.map(|extension| extension.push_ecdsa(sig.clone(), pub_key.clone(), msg.to_vec()))
 			.unwrap_or_else(|| ecdsa_verify(sig, msg, pub_key))
@@ -633,17 +603,12 @@ pub trait Crypto {
 	///
 	/// Returns `Err` if the signature is bad, otherwise the 64-byte pubkey
 	/// (doesn't include the 0x04 prefix).
-	fn secp256k1_ecdsa_recover(
-		sig: &[u8; 65],
-		msg: &[u8; 32],
-	) -> Result<[u8; 64], EcdsaVerifyError> {
-		let rs =
-			secp256k1::Signature::parse_slice(&sig[0..64]).map_err(|_| EcdsaVerifyError::BadRS)?;
-		let v =
-			secp256k1::RecoveryId::parse(if sig[64] > 26 { sig[64] - 27 } else { sig[64] } as u8)
-				.map_err(|_| EcdsaVerifyError::BadV)?;
-		let pubkey = secp256k1::recover(&secp256k1::Message::parse(msg), &rs, &v)
-			.map_err(|_| EcdsaVerifyError::BadSignature)?;
+	fn secp256k1_ecdsa_recover(sig: &[u8; 65], msg: &[u8; 32]) -> Result<[u8; 64], EcdsaVerifyError> {
+		let rs = secp256k1::Signature::parse_slice(&sig[0..64]).map_err(|_| EcdsaVerifyError::BadRS)?;
+		let v = secp256k1::RecoveryId::parse(if sig[64] > 26 { sig[64] - 27 } else { sig[64] } as u8)
+			.map_err(|_| EcdsaVerifyError::BadV)?;
+		let pubkey =
+			secp256k1::recover(&secp256k1::Message::parse(msg), &rs, &v).map_err(|_| EcdsaVerifyError::BadSignature)?;
 		let mut res = [0u8; 64];
 		res.copy_from_slice(&pubkey.serialize()[1..65]);
 		Ok(res)
@@ -655,17 +620,12 @@ pub trait Crypto {
 	/// - `msg` is the blake2-256 hash of the message.
 	///
 	/// Returns `Err` if the signature is bad, otherwise the 33-byte compressed pubkey.
-	fn secp256k1_ecdsa_recover_compressed(
-		sig: &[u8; 65],
-		msg: &[u8; 32],
-	) -> Result<[u8; 33], EcdsaVerifyError> {
-		let rs =
-			secp256k1::Signature::parse_slice(&sig[0..64]).map_err(|_| EcdsaVerifyError::BadRS)?;
-		let v =
-			secp256k1::RecoveryId::parse(if sig[64] > 26 { sig[64] - 27 } else { sig[64] } as u8)
-				.map_err(|_| EcdsaVerifyError::BadV)?;
-		let pubkey = secp256k1::recover(&secp256k1::Message::parse(msg), &rs, &v)
-			.map_err(|_| EcdsaVerifyError::BadSignature)?;
+	fn secp256k1_ecdsa_recover_compressed(sig: &[u8; 65], msg: &[u8; 32]) -> Result<[u8; 33], EcdsaVerifyError> {
+		let rs = secp256k1::Signature::parse_slice(&sig[0..64]).map_err(|_| EcdsaVerifyError::BadRS)?;
+		let v = secp256k1::RecoveryId::parse(if sig[64] > 26 { sig[64] - 27 } else { sig[64] } as u8)
+			.map_err(|_| EcdsaVerifyError::BadV)?;
+		let pubkey =
+			secp256k1::recover(&secp256k1::Message::parse(msg), &rs, &v).map_err(|_| EcdsaVerifyError::BadSignature)?;
 		Ok(pubkey.serialize_compressed())
 	}
 }
@@ -824,15 +784,8 @@ pub trait Offchain {
 		new_value: &[u8],
 	) -> bool {
 		self.extension::<OffchainExt>()
-			.expect(
-				"local_storage_compare_and_set can be called only in the offchain worker context",
-			)
-			.local_storage_compare_and_set(
-				kind,
-				key,
-				old_value.as_ref().map(|v| v.deref()),
-				new_value,
-			)
+			.expect("local_storage_compare_and_set can be called only in the offchain worker context")
+			.local_storage_compare_and_set(kind, key, old_value.as_ref().map(|v| v.deref()), new_value)
 	}
 
 	/// Gets a value from the local storage.
@@ -850,24 +803,14 @@ pub trait Offchain {
 	///
 	/// Meta is a future-reserved field containing additional, parity-scale-codec encoded
 	/// parameters. Returns the id of newly started request.
-	fn http_request_start(
-		&mut self,
-		method: &str,
-		uri: &str,
-		meta: &[u8],
-	) -> Result<HttpRequestId, ()> {
+	fn http_request_start(&mut self, method: &str, uri: &str, meta: &[u8]) -> Result<HttpRequestId, ()> {
 		self.extension::<OffchainExt>()
 			.expect("http_request_start can be called only in the offchain worker context")
 			.http_request_start(method, uri, meta)
 	}
 
 	/// Append header to the request.
-	fn http_request_add_header(
-		&mut self,
-		request_id: HttpRequestId,
-		name: &str,
-		value: &str,
-	) -> Result<(), ()> {
+	fn http_request_add_header(&mut self, request_id: HttpRequestId, name: &str, value: &str) -> Result<(), ()> {
 		self.extension::<OffchainExt>()
 			.expect("http_request_add_header can be called only in the offchain worker context")
 			.http_request_add_header(request_id, name, value)
@@ -897,11 +840,7 @@ pub trait Offchain {
 	/// otherwise unready responses will produce `DeadlineReached` status.
 	///
 	/// Passing `None` as deadline blocks forever.
-	fn http_response_wait(
-		&mut self,
-		ids: &[HttpRequestId],
-		deadline: Option<Timestamp>,
-	) -> Vec<HttpRequestStatus> {
+	fn http_response_wait(&mut self, ids: &[HttpRequestId], deadline: Option<Timestamp>) -> Vec<HttpRequestStatus> {
 		self.extension::<OffchainExt>()
 			.expect("http_response_wait can be called only in the offchain worker context")
 			.http_response_wait(ids, deadline)
@@ -1103,8 +1042,7 @@ mod tracing_setup {
 	/// set the global bridging subscriber once.
 	pub fn init_tracing() {
 		if TRACING_SET.load(Ordering::Relaxed) == false {
-			set_global_default(Dispatch::new(PassingTracingSubsciber {}))
-				.expect("We only ever call this once");
+			set_global_default(Dispatch::new(PassingTracingSubsciber {})).expect("We only ever call this once");
 			TRACING_SET.store(true, Ordering::Relaxed);
 		}
 	}
@@ -1123,13 +1061,7 @@ pub use tracing_setup::init_tracing;
 #[runtime_interface(wasm_only)]
 pub trait Sandbox {
 	/// Instantiate a new sandbox instance with the given `wasm_code`.
-	fn instantiate(
-		&mut self,
-		dispatch_thunk: u32,
-		wasm_code: &[u8],
-		env_def: &[u8],
-		state_ptr: Pointer<u8>,
-	) -> u32 {
+	fn instantiate(&mut self, dispatch_thunk: u32, wasm_code: &[u8], env_def: &[u8], state_ptr: Pointer<u8>) -> u32 {
 		self.sandbox()
 			.instance_new(dispatch_thunk, wasm_code, env_def, state_ptr.into())
 			.expect("Failed to instantiate a new sandbox")
@@ -1165,26 +1097,14 @@ pub trait Sandbox {
 	}
 
 	/// Get the memory starting at `offset` from the instance with `memory_idx` into the buffer.
-	fn memory_get(
-		&mut self,
-		memory_idx: u32,
-		offset: u32,
-		buf_ptr: Pointer<u8>,
-		buf_len: u32,
-	) -> u32 {
+	fn memory_get(&mut self, memory_idx: u32, offset: u32, buf_ptr: Pointer<u8>, buf_len: u32) -> u32 {
 		self.sandbox()
 			.memory_get(memory_idx, offset, buf_ptr, buf_len)
 			.expect("Failed to get memory with sandbox")
 	}
 
 	/// Set the memory in the given `memory_idx` to the given value at `offset`.
-	fn memory_set(
-		&mut self,
-		memory_idx: u32,
-		offset: u32,
-		val_ptr: Pointer<u8>,
-		val_len: u32,
-	) -> u32 {
+	fn memory_set(&mut self, memory_idx: u32, offset: u32, val_ptr: Pointer<u8>, val_len: u32) -> u32 {
 		self.sandbox()
 			.memory_set(memory_idx, offset, val_ptr, val_len)
 			.expect("Failed to set memory with sandbox")
@@ -1192,23 +1112,23 @@ pub trait Sandbox {
 
 	/// Teardown the memory instance with the given `memory_idx`.
 	fn memory_teardown(&mut self, memory_idx: u32) {
-		self.sandbox().memory_teardown(memory_idx).expect("Failed to teardown memory with sandbox")
+		self.sandbox()
+			.memory_teardown(memory_idx)
+			.expect("Failed to teardown memory with sandbox")
 	}
 
 	/// Teardown the sandbox instance with the given `instance_idx`.
 	fn instance_teardown(&mut self, instance_idx: u32) {
-		self.sandbox().instance_teardown(instance_idx).expect("Failed to teardown sandbox instance")
+		self.sandbox()
+			.instance_teardown(instance_idx)
+			.expect("Failed to teardown sandbox instance")
 	}
 
 	/// Get the value from a global with the given `name`. The sandbox is determined by the given
 	/// `instance_idx`.
 	///
 	/// Returns `Some(_)` when the requested global variable could be found.
-	fn get_global_val(
-		&mut self,
-		instance_idx: u32,
-		name: &str,
-	) -> Option<sp_wasm_interface::Value> {
+	fn get_global_val(&mut self, instance_idx: u32, name: &str) -> Option<sp_wasm_interface::Value> {
 		self.sandbox()
 			.get_global_val(instance_idx, name)
 			.expect("Failed to get global from sandbox")

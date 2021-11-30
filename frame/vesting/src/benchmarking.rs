@@ -29,8 +29,7 @@ use crate::Module as Vesting;
 
 const SEED: u32 = 0;
 
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 fn add_locks<T: Trait>(who: &T::AccountId, n: u8) {
 	for id in 0..n {
@@ -49,12 +48,7 @@ fn add_vesting_schedule<T: Trait>(who: &T::AccountId) -> Result<(), &'static str
 	System::<T>::set_block_number(0.into());
 
 	// Add schedule to avoid `NotVesting` error.
-	Vesting::<T>::add_vesting_schedule(
-		&who,
-		locked.into(),
-		per_block.into(),
-		starting_block.into(),
-	)?;
+	Vesting::<T>::add_vesting_schedule(&who, locked.into(), per_block.into(), starting_block.into())?;
 	Ok(())
 }
 

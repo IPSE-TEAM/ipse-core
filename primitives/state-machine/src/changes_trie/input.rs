@@ -191,7 +191,10 @@ mod tests {
 
 	#[test]
 	fn extrinsic_index_serialized_and_deserialized() {
-		let original = ExtrinsicIndex { block: 777u64, key: vec![42] };
+		let original = ExtrinsicIndex {
+			block: 777u64,
+			key: vec![42],
+		};
 		let serialized = original.encode();
 		let deserialized: InputKey<u64> = Decode::decode(&mut &serialized[..]).unwrap();
 		assert_eq!(InputKey::ExtrinsicIndex(original), deserialized);
@@ -199,7 +202,10 @@ mod tests {
 
 	#[test]
 	fn digest_index_serialized_and_deserialized() {
-		let original = DigestIndex { block: 777u64, key: vec![42] };
+		let original = DigestIndex {
+			block: 777u64,
+			key: vec![42],
+		};
 		let serialized = original.encode();
 		let deserialized: InputKey<u64> = Decode::decode(&mut &serialized[..]).unwrap();
 		assert_eq!(InputKey::DigestIndex(original), deserialized);

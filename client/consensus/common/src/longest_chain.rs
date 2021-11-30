@@ -35,7 +35,10 @@ pub struct LongestChain<B, Block> {
 impl<B, Block> Clone for LongestChain<B, Block> {
 	fn clone(&self) -> Self {
 		let backend = self.backend.clone();
-		LongestChain { backend, _phantom: Default::default() }
+		LongestChain {
+			backend,
+			_phantom: Default::default(),
+		}
 	}
 }
 
@@ -46,7 +49,10 @@ where
 {
 	/// Instantiate a new LongestChain for Backend B
 	pub fn new(backend: Arc<B>) -> Self {
-		LongestChain { backend, _phantom: Default::default() }
+		LongestChain {
+			backend,
+			_phantom: Default::default(),
+		}
 	}
 
 	fn best_block_header(&self) -> sp_blockchain::Result<<Block as BlockT>::Header> {
@@ -80,8 +86,7 @@ where
 	}
 
 	fn best_chain(&self) -> Result<<Block as BlockT>::Header, ConsensusError> {
-		LongestChain::best_block_header(&self)
-			.map_err(|e| ConsensusError::ChainLookup(e.to_string()).into())
+		LongestChain::best_block_header(&self).map_err(|e| ConsensusError::ChainLookup(e.to_string()).into())
 	}
 
 	fn finality_target(

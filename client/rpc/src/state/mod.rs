@@ -58,19 +58,10 @@ where
 	Client: Send + Sync + 'static,
 {
 	/// Call runtime method at given block.
-	fn call(
-		&self,
-		block: Option<Block::Hash>,
-		method: String,
-		call_data: Bytes,
-	) -> FutureResult<Bytes>;
+	fn call(&self, block: Option<Block::Hash>, method: String, call_data: Bytes) -> FutureResult<Bytes>;
 
 	/// Returns the keys with prefix, leave empty to get all the keys.
-	fn storage_keys(
-		&self,
-		block: Option<Block::Hash>,
-		prefix: StorageKey,
-	) -> FutureResult<Vec<StorageKey>>;
+	fn storage_keys(&self, block: Option<Block::Hash>, prefix: StorageKey) -> FutureResult<Vec<StorageKey>>;
 
 	/// Returns the keys with prefix along with their values, leave empty to get all the pairs.
 	fn storage_pairs(
@@ -89,28 +80,16 @@ where
 	) -> FutureResult<Vec<StorageKey>>;
 
 	/// Returns a storage entry at a specific block's state.
-	fn storage(
-		&self,
-		block: Option<Block::Hash>,
-		key: StorageKey,
-	) -> FutureResult<Option<StorageData>>;
+	fn storage(&self, block: Option<Block::Hash>, key: StorageKey) -> FutureResult<Option<StorageData>>;
 
 	/// Returns the hash of a storage entry at a block's state.
-	fn storage_hash(
-		&self,
-		block: Option<Block::Hash>,
-		key: StorageKey,
-	) -> FutureResult<Option<Block::Hash>>;
+	fn storage_hash(&self, block: Option<Block::Hash>, key: StorageKey) -> FutureResult<Option<Block::Hash>>;
 
 	/// Returns the size of a storage entry at a block's state.
 	///
 	/// If data is available at `key`, it is returned. Else, the sum of values who's key has `key`
 	/// prefix is returned, i.e. all the storage (double) maps that have this prefix.
-	fn storage_size(
-		&self,
-		block: Option<Block::Hash>,
-		key: StorageKey,
-	) -> FutureResult<Option<u64>>;
+	fn storage_size(&self, block: Option<Block::Hash>, key: StorageKey) -> FutureResult<Option<u64>>;
 
 	/// Returns the runtime metadata as an opaque blob.
 	fn metadata(&self, block: Option<Block::Hash>) -> FutureResult<Bytes>;
@@ -138,25 +117,13 @@ where
 	) -> FutureResult<Vec<StorageChangeSet<Block::Hash>>>;
 
 	/// Returns proof of storage entries at a specific block's state.
-	fn read_proof(
-		&self,
-		block: Option<Block::Hash>,
-		keys: Vec<StorageKey>,
-	) -> FutureResult<ReadProof<Block::Hash>>;
+	fn read_proof(&self, block: Option<Block::Hash>, keys: Vec<StorageKey>) -> FutureResult<ReadProof<Block::Hash>>;
 
 	/// New runtime version subscription
-	fn subscribe_runtime_version(
-		&self,
-		_meta: crate::Metadata,
-		subscriber: Subscriber<RuntimeVersion>,
-	);
+	fn subscribe_runtime_version(&self, _meta: crate::Metadata, subscriber: Subscriber<RuntimeVersion>);
 
 	/// Unsubscribe from runtime version subscription
-	fn unsubscribe_runtime_version(
-		&self,
-		_meta: Option<crate::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool>;
+	fn unsubscribe_runtime_version(&self, _meta: Option<crate::Metadata>, id: SubscriptionId) -> RpcResult<bool>;
 
 	/// New storage subscription
 	fn subscribe_storage(
@@ -167,11 +134,7 @@ where
 	);
 
 	/// Unsubscribe from storage subscription
-	fn unsubscribe_storage(
-		&self,
-		_meta: Option<crate::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool>;
+	fn unsubscribe_storage(&self, _meta: Option<crate::Metadata>, id: SubscriptionId) -> RpcResult<bool>;
 }
 
 /// Create new state API that works on full node.
@@ -195,8 +158,7 @@ where
 		+ 'static,
 	Client::Api: Metadata<Block, Error = sp_blockchain::Error>,
 {
-	let child_backend =
-		Box::new(self::state_full::FullState::new(client.clone(), subscriptions.clone()));
+	let child_backend = Box::new(self::state_full::FullState::new(client.clone(), subscriptions.clone()));
 	let backend = Box::new(self::state_full::FullState::new(client, subscriptions));
 	(State { backend }, ChildState { backend: child_backend })
 }
@@ -254,11 +216,7 @@ where
 		self.backend.call(block, method, data)
 	}
 
-	fn storage_keys(
-		&self,
-		key_prefix: StorageKey,
-		block: Option<Block::Hash>,
-	) -> FutureResult<Vec<StorageKey>> {
+	fn storage_keys(&self, key_prefix: StorageKey, block: Option<Block::Hash>) -> FutureResult<Vec<StorageKey>> {
 		self.backend.storage_keys(block, key_prefix)
 	}
 
@@ -281,32 +239,20 @@ where
 			return Box::new(result(Err(Error::InvalidCount {
 				value: count,
 				max: STORAGE_KEYS_PAGED_MAX_COUNT,
-			})))
+			})));
 		}
 		self.backend.storage_keys_paged(block, prefix, count, start_key)
 	}
 
-	fn storage(
-		&self,
-		key: StorageKey,
-		block: Option<Block::Hash>,
-	) -> FutureResult<Option<StorageData>> {
+	fn storage(&self, key: StorageKey, block: Option<Block::Hash>) -> FutureResult<Option<StorageData>> {
 		self.backend.storage(block, key)
 	}
 
-	fn storage_hash(
-		&self,
-		key: StorageKey,
-		block: Option<Block::Hash>,
-	) -> FutureResult<Option<Block::Hash>> {
+	fn storage_hash(&self, key: StorageKey, block: Option<Block::Hash>) -> FutureResult<Option<Block::Hash>> {
 		self.backend.storage_hash(block, key)
 	}
 
-	fn storage_size(
-		&self,
-		key: StorageKey,
-		block: Option<Block::Hash>,
-	) -> FutureResult<Option<u64>> {
+	fn storage_size(&self, key: StorageKey, block: Option<Block::Hash>) -> FutureResult<Option<u64>> {
 		self.backend.storage_size(block, key)
 	}
 
@@ -331,11 +277,7 @@ where
 		self.backend.query_storage_at(keys, at)
 	}
 
-	fn read_proof(
-		&self,
-		keys: Vec<StorageKey>,
-		block: Option<Block::Hash>,
-	) -> FutureResult<ReadProof<Block::Hash>> {
+	fn read_proof(&self, keys: Vec<StorageKey>, block: Option<Block::Hash>) -> FutureResult<ReadProof<Block::Hash>> {
 		self.backend.read_proof(block, keys)
 	}
 
@@ -348,11 +290,7 @@ where
 		self.backend.subscribe_storage(meta, subscriber, keys);
 	}
 
-	fn unsubscribe_storage(
-		&self,
-		meta: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_storage(&self, meta: Option<Self::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		self.backend.unsubscribe_storage(meta, id)
 	}
 
@@ -360,19 +298,11 @@ where
 		self.backend.runtime_version(at)
 	}
 
-	fn subscribe_runtime_version(
-		&self,
-		meta: Self::Metadata,
-		subscriber: Subscriber<RuntimeVersion>,
-	) {
+	fn subscribe_runtime_version(&self, meta: Self::Metadata, subscriber: Subscriber<RuntimeVersion>) {
 		self.backend.subscribe_runtime_version(meta, subscriber);
 	}
 
-	fn unsubscribe_runtime_version(
-		&self,
-		meta: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_runtime_version(&self, meta: Option<Self::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		self.backend.unsubscribe_runtime_version(meta, id)
 	}
 }
@@ -415,7 +345,10 @@ where
 		storage_key: PrefixedStorageKey,
 		key: StorageKey,
 	) -> FutureResult<Option<u64>> {
-		Box::new(self.storage(block, storage_key, key).map(|x| x.map(|x| x.0.len() as u64)))
+		Box::new(
+			self.storage(block, storage_key, key)
+				.map(|x| x.map(|x| x.0.len() as u64)),
+		)
 	}
 }
 

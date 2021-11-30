@@ -332,20 +332,22 @@ fn get_module_instance(
 			it is now defined at frame_support::traits::Instance. Expect `Instance` found `{}`",
 			instantiable.as_ref().unwrap(),
 		);
-		return Err(syn::Error::new(instantiable.span(), msg))
+		return Err(syn::Error::new(instantiable.span(), msg));
 	}
 
 	match (instance, instantiable, default_instance) {
-		(Some(instance), Some(instantiable), default_instance) =>
-			Ok(Some(super::ModuleInstanceDef {
-				instance_generic: instance,
-				instance_trait: instantiable,
-				instance_default: default_instance,
-			})),
+		(Some(instance), Some(instantiable), default_instance) => Ok(Some(super::ModuleInstanceDef {
+			instance_generic: instance,
+			instance_trait: instantiable,
+			instance_default: default_instance,
+		})),
 		(None, None, None) => Ok(None),
 		(Some(instance), None, _) => Err(syn::Error::new(
 			instance.span(),
-			format!("Expect instantiable trait bound for instance: {}. {}", instance, right_syntax,),
+			format!(
+				"Expect instantiable trait bound for instance: {}. {}",
+				instance, right_syntax,
+			),
 		)),
 		(None, Some(instantiable), _) => Err(syn::Error::new(
 			instantiable.span(),
@@ -369,14 +371,16 @@ pub fn parse(input: syn::parse::ParseStream) -> syn::Result<super::DeclStorageDe
 
 	let def = StorageDefinition::parse(input)?;
 
-	let module_instance =
-		get_module_instance(def.mod_instance, def.mod_instantiable, def.mod_default_instance)?;
+	let module_instance = get_module_instance(def.mod_instance, def.mod_instantiable, def.mod_default_instance)?;
 
 	let mut extra_genesis_config_lines = vec![];
 	let mut extra_genesis_build = None;
 
-	for line in
-		def.extra_genesis.inner.into_iter().flat_map(|o| o.content.content.lines.inner.into_iter())
+	for line in def
+		.extra_genesis
+		.inner
+		.into_iter()
+		.flat_map(|o| o.content.content.lines.inner.into_iter())
 	{
 		match line {
 			AddExtraGenesisLineEnum::AddExtraGenesisLine(def) => {
@@ -386,17 +390,17 @@ pub fn parse(input: syn::parse::ParseStream) -> syn::Result<super::DeclStorageDe
 					typ: def.extra_type,
 					default: def.default_value.inner.map(|o| o.expr),
 				});
-			},
+			}
 			AddExtraGenesisLineEnum::AddExtraGenesisBuild(def) => {
 				if extra_genesis_build.is_some() {
 					return Err(syn::Error::new(
 						def.span(),
 						"Only one build expression allowed for extra genesis",
-					))
+					));
 				}
 
 				extra_genesis_build = Some(def.expr.content);
-			},
+			}
 		}
 	}
 
@@ -419,9 +423,7 @@ pub fn parse(input: syn::parse::ParseStream) -> syn::Result<super::DeclStorageDe
 }
 
 /// Parse the `DeclStorageLine` into `StorageLineDef`.
-fn parse_storage_line_defs(
-	defs: impl Iterator<Item = DeclStorageLine>,
-) -> syn::Result<Vec<super::StorageLineDef>> {
+fn parse_storage_line_defs(defs: impl Iterator<Item = DeclStorageLine>) -> syn::Result<Vec<super::StorageLineDef>> {
 	let mut storage_lines = Vec::<super::StorageLineDef>::new();
 
 	for line in defs {
@@ -437,15 +439,17 @@ fn parse_storage_line_defs(
 					"Invalid storage definition, couldn't find config identifier: storage must \
 					either have a get identifier `get(fn ident)` or a defined config identifier \
 					`config(ident)`",
-				))
+				));
 			}
 		} else {
 			None
 		};
 
 		if let Some(ref config) = config {
-			storage_lines.iter().filter_map(|sl| sl.config.as_ref()).try_for_each(
-				|other_config| {
+			storage_lines
+				.iter()
+				.filter_map(|sl| sl.config.as_ref())
+				.try_for_each(|other_config| {
 					if other_config == config {
 						Err(syn::Error::new(
 							config.span(),
@@ -454,8 +458,7 @@ fn parse_storage_line_defs(
 					} else {
 						Ok(())
 					}
-				},
-			)?;
+				})?;
 		}
 
 		let span = line.storage_type.span();
@@ -472,14 +475,13 @@ fn parse_storage_line_defs(
 				key: map.key,
 				value: map.value,
 			}),
-			DeclStorageType::DoubleMap(map) =>
-				super::StorageLineTypeDef::DoubleMap(Box::new(super::DoubleMapDef {
-					hasher1: map.hasher1.inner.ok_or_else(no_hasher_error)?.into(),
-					hasher2: map.hasher2.inner.ok_or_else(no_hasher_error)?.into(),
-					key1: map.key1,
-					key2: map.key2,
-					value: map.value,
-				})),
+			DeclStorageType::DoubleMap(map) => super::StorageLineTypeDef::DoubleMap(Box::new(super::DoubleMapDef {
+				hasher1: map.hasher1.inner.ok_or_else(no_hasher_error)?.into(),
+				hasher2: map.hasher2.inner.ok_or_else(no_hasher_error)?.into(),
+				key1: map.key1,
+				key2: map.key2,
+				value: map.value,
+			})),
 			DeclStorageType::Simple(expr) => super::StorageLineTypeDef::Simple(expr),
 		};
 

@@ -65,6 +65,9 @@ impl OffchainWorkerParams {
 
 		let indexing_enabled = enabled && self.indexing_enabled;
 
-		Ok(OffchainWorkerConfig { enabled, indexing_enabled })
+		Ok(OffchainWorkerConfig {
+			enabled,
+			indexing_enabled,
+		})
 	}
 }

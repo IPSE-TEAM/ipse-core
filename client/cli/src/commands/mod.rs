@@ -36,10 +36,9 @@ mod vanity;
 mod verify;
 
 pub use self::{
-	build_spec_cmd::BuildSpecCmd, build_sync_spec_cmd::BuildSyncSpecCmd,
-	check_block_cmd::CheckBlockCmd, export_blocks_cmd::ExportBlocksCmd,
-	export_state_cmd::ExportStateCmd, generate::GenerateCmd, generate_node_key::GenerateNodeKeyCmd,
-	import_blocks_cmd::ImportBlocksCmd, insert::InsertCmd, inspect::InspectKeyCmd,
-	inspect_node_key::InspectNodeKeyCmd, key::KeySubcommand, purge_chain_cmd::PurgeChainCmd,
+	build_spec_cmd::BuildSpecCmd, build_sync_spec_cmd::BuildSyncSpecCmd, check_block_cmd::CheckBlockCmd,
+	export_blocks_cmd::ExportBlocksCmd, export_state_cmd::ExportStateCmd, generate::GenerateCmd,
+	generate_node_key::GenerateNodeKeyCmd, import_blocks_cmd::ImportBlocksCmd, insert::InsertCmd,
+	inspect::InspectKeyCmd, inspect_node_key::InspectNodeKeyCmd, key::KeySubcommand, purge_chain_cmd::PurgeChainCmd,
 	revert_cmd::RevertCmd, run_cmd::RunCmd, sign::SignCmd, vanity::VanityCmd, verify::VerifyCmd,
 };

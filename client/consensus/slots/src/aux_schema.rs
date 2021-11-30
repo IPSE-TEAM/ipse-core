@@ -38,9 +38,7 @@ where
 	match backend.get_aux(key)? {
 		None => Ok(None),
 		Some(t) => T::decode(&mut &t[..])
-			.map_err(|e| {
-				ClientError::Backend(format!("Slots DB is corrupted. Decode error: {}", e.what()))
-			})
+			.map_err(|e| ClientError::Backend(format!("Slots DB is corrupted. Decode error: {}", e.what())))
 			.map(Some),
 	}
 }
@@ -62,7 +60,7 @@ where
 {
 	// We don't check equivocations for old headers out of our capacity.
 	if slot_now.saturating_sub(slot) > MAX_SLOT_CAPACITY {
-		return Ok(None)
+		return Ok(None);
 	}
 
 	// Key for this slot.
@@ -70,8 +68,7 @@ where
 	slot.using_encoded(|s| curr_slot_key.extend(s));
 
 	// Get headers of this slot.
-	let mut headers_with_sig =
-		load_decode::<_, Vec<(H, P)>>(backend, &curr_slot_key[..])?.unwrap_or_else(Vec::new);
+	let mut headers_with_sig = load_decode::<_, Vec<(H, P)>>(backend, &curr_slot_key[..])?.unwrap_or_else(Vec::new);
 
 	// Get first slot saved.
 	let slot_header_start = SLOT_HEADER_START.to_vec();
@@ -79,7 +76,7 @@ where
 
 	if slot_now < first_saved_slot {
 		// The code below assumes that slots will be visited sequentially.
-		return Ok(None)
+		return Ok(None);
 	}
 
 	for (prev_header, prev_signer) in headers_with_sig.iter() {
@@ -93,12 +90,12 @@ where
 					offender: signer.clone(),
 					first_header: prev_header.clone(),
 					second_header: header.clone(),
-				}))
+				}));
 			} else {
 				// We don't need to continue in case of duplicated header,
 				// since it's already saved and a possible equivocation
 				// would have been detected before.
-				return Ok(None)
+				return Ok(None);
 			}
 		}
 	}
@@ -179,26 +176,18 @@ mod test {
 		assert!(check_equivocation(&client, 5, 4, &header3, &public,).unwrap().is_none(),);
 
 		// Here we trigger pruning and save header 4.
-		assert!(check_equivocation(
-			&client,
-			PRUNING_BOUND + 2,
-			MAX_SLOT_CAPACITY + 4,
-			&header4,
-			&public,
-		)
-		.unwrap()
-		.is_none(),);
+		assert!(
+			check_equivocation(&client, PRUNING_BOUND + 2, MAX_SLOT_CAPACITY + 4, &header4, &public,)
+				.unwrap()
+				.is_none(),
+		);
 
 		// This fails because header 5 is an equivocation of header 4.
-		assert!(check_equivocation(
-			&client,
-			PRUNING_BOUND + 3,
-			MAX_SLOT_CAPACITY + 4,
-			&header5,
-			&public,
-		)
-		.unwrap()
-		.is_some(),);
+		assert!(
+			check_equivocation(&client, PRUNING_BOUND + 3, MAX_SLOT_CAPACITY + 4, &header5, &public,)
+				.unwrap()
+				.is_some(),
+		);
 
 		// This is ok because we pruned the corresponding header. Shows that we are pruning.
 		assert!(check_equivocation(&client, PRUNING_BOUND + 4, 4, &header6, &public,)

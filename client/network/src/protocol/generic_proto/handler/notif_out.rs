@@ -65,7 +65,9 @@ impl NotifsOutHandlerProto {
 	/// Builds a new [`NotifsOutHandlerProto`]. Will use the given protocol name for the
 	/// notifications substream.
 	pub fn new(protocol_name: impl Into<Cow<'static, str>>) -> Self {
-		NotifsOutHandlerProto { protocol_name: protocol_name.into() }
+		NotifsOutHandlerProto {
+			protocol_name: protocol_name.into(),
+		}
 	}
 }
 
@@ -108,8 +110,7 @@ pub struct NotifsOutHandler {
 	///
 	/// This queue must only ever be modified to insert elements at the back, or remove the first
 	/// element.
-	events_queue:
-		VecDeque<ProtocolsHandlerEvent<NotificationsOut, (), NotifsOutHandlerOut, void::Void>>,
+	events_queue: VecDeque<ProtocolsHandlerEvent<NotificationsOut, (), NotifsOutHandlerOut, void::Void>>,
 }
 
 /// Our relationship with the node we're connected to.
@@ -230,14 +231,17 @@ impl NotifsOutHandler {
 	/// - Returns `Poll::Ready(true)` if the substream is ready to send a notification.
 	/// - Returns `Poll::Ready(false)` if the substream is closed.
 	pub fn poll_ready(&mut self, cx: &mut Context) -> Poll<bool> {
-		if let State::Open { substream, close_waker, .. } = &mut self.state {
+		if let State::Open {
+			substream, close_waker, ..
+		} = &mut self.state
+		{
 			match substream.poll_ready_unpin(cx) {
 				Poll::Ready(Ok(())) => Poll::Ready(true),
 				Poll::Ready(Err(_)) => Poll::Ready(false),
 				Poll::Pending => {
 					*close_waker = Some(cx.waker().clone());
 					Poll::Pending
-				},
+				}
 			}
 		} else {
 			Poll::Ready(false)
@@ -283,24 +287,29 @@ impl ProtocolsHandler for NotifsOutHandler {
 
 	fn inject_fully_negotiated_outbound(
 		&mut self,
-		(handshake_msg, substream): <Self::OutboundProtocol as OutboundUpgrade<
-			NegotiatedSubstream,
-		>>::Output,
+		(handshake_msg, substream): <Self::OutboundProtocol as OutboundUpgrade<NegotiatedSubstream>>::Output,
 		_: (),
 	) {
 		match mem::replace(&mut self.state, State::Poisoned) {
 			State::Opening { initial_message } => {
-				let ev = NotifsOutHandlerOut::Open { handshake: handshake_msg };
+				let ev = NotifsOutHandlerOut::Open {
+					handshake: handshake_msg,
+				};
 				self.events_queue.push_back(ProtocolsHandlerEvent::Custom(ev));
-				self.state = State::Open { substream, initial_message, close_waker: None };
-			},
+				self.state = State::Open {
+					substream,
+					initial_message,
+					close_waker: None,
+				};
+			}
 			// If the handler was disabled while we were negotiating the protocol, immediately
 			// close it.
 			State::DisabledOpening => self.state = State::DisabledOpen(substream),
 
 			// Any other situation should never happen.
-			State::Disabled | State::Refused | State::Open { .. } | State::DisabledOpen(_) =>
-				error!("☎️ State mismatch in notifications handler: substream already open"),
+			State::Disabled | State::Refused | State::Open { .. } | State::DisabledOpen(_) => {
+				error!("☎️ State mismatch in notifications handler: substream already open")
+			}
 			State::Poisoned => error!("☎️ Notifications handler in a poisoned state"),
 		}
 	}
@@ -310,18 +319,13 @@ impl ProtocolsHandler for NotifsOutHandler {
 			NotifsOutHandlerIn::Enable { initial_message } => {
 				match mem::replace(&mut self.state, State::Poisoned) {
 					State::Disabled => {
-						let proto = NotificationsOut::new(
-							self.protocol_name.clone(),
-							initial_message.clone(),
-						);
-						self.events_queue.push_back(
-							ProtocolsHandlerEvent::OutboundSubstreamRequest {
-								protocol: SubstreamProtocol::new(proto, ())
-									.with_timeout(OPEN_TIMEOUT),
-							},
-						);
+						let proto = NotificationsOut::new(self.protocol_name.clone(), initial_message.clone());
+						self.events_queue
+							.push_back(ProtocolsHandlerEvent::OutboundSubstreamRequest {
+								protocol: SubstreamProtocol::new(proto, ()).with_timeout(OPEN_TIMEOUT),
+							});
 						self.state = State::Opening { initial_message };
-					},
+					}
 					State::DisabledOpening => self.state = State::Opening { initial_message },
 					State::DisabledOpen(mut sub) => {
 						// As documented above, in this state we have already called `poll_close`
@@ -335,62 +339,54 @@ impl ProtocolsHandler for NotifsOutHandler {
 							);
 						}
 
-						let proto = NotificationsOut::new(
-							self.protocol_name.clone(),
-							initial_message.clone(),
-						);
-						self.events_queue.push_back(
-							ProtocolsHandlerEvent::OutboundSubstreamRequest {
-								protocol: SubstreamProtocol::new(proto, ())
-									.with_timeout(OPEN_TIMEOUT),
-							},
-						);
+						let proto = NotificationsOut::new(self.protocol_name.clone(), initial_message.clone());
+						self.events_queue
+							.push_back(ProtocolsHandlerEvent::OutboundSubstreamRequest {
+								protocol: SubstreamProtocol::new(proto, ()).with_timeout(OPEN_TIMEOUT),
+							});
 						self.state = State::Opening { initial_message };
-					},
+					}
 					st @ State::Opening { .. } | st @ State::Refused | st @ State::Open { .. } => {
 						debug!(target: "sub-libp2p",
 							"Tried to enable notifications handler that was already enabled");
 						self.state = st;
-					},
+					}
 					State::Poisoned => error!("Notifications handler in a poisoned state"),
 				}
-			},
+			}
 
 			NotifsOutHandlerIn::Disable => match mem::replace(&mut self.state, State::Poisoned) {
-				st @ State::Disabled |
-				st @ State::DisabledOpen(_) |
-				st @ State::DisabledOpening => {
+				st @ State::Disabled | st @ State::DisabledOpen(_) | st @ State::DisabledOpening => {
 					debug!(target: "sub-libp2p",
 							"Tried to disable notifications handler that was already disabled");
 					self.state = st;
-				},
+				}
 				State::Opening { .. } => self.state = State::DisabledOpening,
 				State::Refused => self.state = State::Disabled,
-				State::Open { substream, close_waker, .. } => {
+				State::Open {
+					substream, close_waker, ..
+				} => {
 					if let Some(close_waker) = close_waker {
 						close_waker.wake();
 					}
 					self.state = State::DisabledOpen(substream)
-				},
+				}
 				State::Poisoned => error!("☎️ Notifications handler in a poisoned state"),
 			},
 		}
 	}
 
-	fn inject_dial_upgrade_error(
-		&mut self,
-		_: (),
-		_: ProtocolsHandlerUpgrErr<NotificationsHandshakeError>,
-	) {
+	fn inject_dial_upgrade_error(&mut self, _: (), _: ProtocolsHandlerUpgrErr<NotificationsHandshakeError>) {
 		match mem::replace(&mut self.state, State::Poisoned) {
-			State::Disabled => {},
-			State::DisabledOpen(_) | State::Refused | State::Open { .. } =>
-				error!("☎️ State mismatch in NotificationsOut"),
+			State::Disabled => {}
+			State::DisabledOpen(_) | State::Refused | State::Open { .. } => {
+				error!("☎️ State mismatch in NotificationsOut")
+			}
 			State::Opening { .. } => {
 				self.state = State::Refused;
 				let ev = NotifsOutHandlerOut::Refused;
 				self.events_queue.push_back(ProtocolsHandlerEvent::Custom(ev));
-			},
+			}
 			State::DisabledOpening => self.state = State::Disabled,
 			State::Poisoned => error!("☎️ Notifications handler in a poisoned state"),
 		}
@@ -401,8 +397,9 @@ impl ProtocolsHandler for NotifsOutHandler {
 			// We have a small grace period of `INITIAL_KEEPALIVE_TIME` during which we keep the
 			// connection open no matter what, in order to avoid closing and reopening
 			// connections all the time.
-			State::Disabled | State::DisabledOpen(_) | State::DisabledOpening =>
-				KeepAlive::Until(self.when_connection_open + INITIAL_KEEPALIVE_TIME),
+			State::Disabled | State::DisabledOpen(_) | State::DisabledOpening => {
+				KeepAlive::Until(self.when_connection_open + INITIAL_KEEPALIVE_TIME)
+			}
 			State::Opening { .. } | State::Open { .. } => KeepAlive::Yes,
 			State::Refused | State::Poisoned => KeepAlive::No,
 		}
@@ -411,54 +408,47 @@ impl ProtocolsHandler for NotifsOutHandler {
 	fn poll(
 		&mut self,
 		cx: &mut Context,
-	) -> Poll<
-		ProtocolsHandlerEvent<
-			Self::OutboundProtocol,
-			Self::OutboundOpenInfo,
-			Self::OutEvent,
-			Self::Error,
-		>,
-	> {
+	) -> Poll<ProtocolsHandlerEvent<Self::OutboundProtocol, Self::OutboundOpenInfo, Self::OutEvent, Self::Error>> {
 		// Flush the events queue if necessary.
 		if let Some(event) = self.events_queue.pop_front() {
-			return Poll::Ready(event)
+			return Poll::Ready(event);
 		}
 
 		match &mut self.state {
-			State::Open { substream, initial_message, close_waker } =>
-				match Sink::poll_flush(Pin::new(substream), cx) {
-					Poll::Pending | Poll::Ready(Ok(())) => {},
-					Poll::Ready(Err(_)) => {
-						if let Some(close_waker) = close_waker.take() {
-							close_waker.wake();
-						}
+			State::Open {
+				substream,
+				initial_message,
+				close_waker,
+			} => match Sink::poll_flush(Pin::new(substream), cx) {
+				Poll::Pending | Poll::Ready(Ok(())) => {}
+				Poll::Ready(Err(_)) => {
+					if let Some(close_waker) = close_waker.take() {
+						close_waker.wake();
+					}
 
-						// We try to re-open a substream.
-						let initial_message = mem::replace(initial_message, Vec::new());
-						self.state = State::Opening { initial_message: initial_message.clone() };
-						let proto =
-							NotificationsOut::new(self.protocol_name.clone(), initial_message);
-						self.events_queue.push_back(
-							ProtocolsHandlerEvent::OutboundSubstreamRequest {
-								protocol: SubstreamProtocol::new(proto, ())
-									.with_timeout(OPEN_TIMEOUT),
-							},
-						);
-						return Poll::Ready(ProtocolsHandlerEvent::Custom(
-							NotifsOutHandlerOut::Closed,
-						))
-					},
-				},
-
-			State::DisabledOpen(sub) => match Sink::poll_close(Pin::new(sub), cx) {
-				Poll::Pending => {},
-				Poll::Ready(Ok(())) | Poll::Ready(Err(_)) => {
-					self.state = State::Disabled;
-					return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsOutHandlerOut::Closed))
-				},
+					// We try to re-open a substream.
+					let initial_message = mem::replace(initial_message, Vec::new());
+					self.state = State::Opening {
+						initial_message: initial_message.clone(),
+					};
+					let proto = NotificationsOut::new(self.protocol_name.clone(), initial_message);
+					self.events_queue
+						.push_back(ProtocolsHandlerEvent::OutboundSubstreamRequest {
+							protocol: SubstreamProtocol::new(proto, ()).with_timeout(OPEN_TIMEOUT),
+						});
+					return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsOutHandlerOut::Closed));
+				}
 			},
 
-			_ => {},
+			State::DisabledOpen(sub) => match Sink::poll_close(Pin::new(sub), cx) {
+				Poll::Pending => {}
+				Poll::Ready(Ok(())) | Poll::Ready(Err(_)) => {
+					self.state = State::Disabled;
+					return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsOutHandlerOut::Closed));
+				}
+			},
+
+			_ => {}
 		}
 
 		Poll::Pending
@@ -467,6 +457,8 @@ impl ProtocolsHandler for NotifsOutHandler {
 
 impl fmt::Debug for NotifsOutHandler {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		f.debug_struct("NotifsOutHandler").field("open", &self.is_open()).finish()
+		f.debug_struct("NotifsOutHandler")
+			.field("open", &self.is_open())
+			.finish()
 	}
 }

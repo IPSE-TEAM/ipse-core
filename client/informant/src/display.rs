@@ -92,8 +92,7 @@ impl<B: BlockT> InformantDisplay<B> {
 		let (level, status, target) = match (net_status.sync_state, net_status.best_seen_block) {
 			(SyncState::Idle, _) => ("💤", "Idle".into(), "".into()),
 			(SyncState::Downloading, None) => ("⚙️ ", format!("Preparing{}", speed), "".into()),
-			(SyncState::Downloading, Some(n)) =>
-				("⚙️ ", format!("Syncing{}", speed), format!(", target=#{}", n)),
+			(SyncState::Downloading, Some(n)) => ("⚙️ ", format!("Syncing{}", speed), format!(", target=#{}", n)),
 		};
 
 		if self.format.enable_color {
@@ -134,11 +133,7 @@ impl<B: BlockT> InformantDisplay<B> {
 
 /// Calculates `(best_number - last_number) / (now - last_update)` and returns a `String`
 /// representing the speed of import.
-fn speed<B: BlockT>(
-	best_number: NumberFor<B>,
-	last_number: Option<NumberFor<B>>,
-	last_update: Instant,
-) -> String {
+fn speed<B: BlockT>(best_number: NumberFor<B>, last_number: Option<NumberFor<B>>, last_update: Instant) -> String {
 	// Number of milliseconds elapsed since last time.
 	let elapsed_ms = {
 		let elapsed = last_update.elapsed();
@@ -159,19 +154,19 @@ fn speed<B: BlockT>(
 		let speed = diff
 			.saturating_mul(10_000)
 			.checked_div(u128::from(elapsed_ms))
-			.map_or(0.0, |s| s as f64) /
-			10.0;
+			.map_or(0.0, |s| s as f64)
+			/ 10.0;
 		format!(" {:4.1} bps", speed)
 	} else {
 		// If the number of blocks can't be converted to a regular integer, then we need a more
 		// algebraic approach and we stay within the realm of integers.
 		let one_thousand = NumberFor::<B>::from(1_000);
-		let elapsed = NumberFor::<B>::from(
-			<u32 as TryFrom<_>>::try_from(elapsed_ms).unwrap_or(u32::max_value()),
-		);
+		let elapsed = NumberFor::<B>::from(<u32 as TryFrom<_>>::try_from(elapsed_ms).unwrap_or(u32::max_value()));
 
-		let speed =
-			diff.saturating_mul(one_thousand).checked_div(&elapsed).unwrap_or_else(Zero::zero);
+		let speed = diff
+			.saturating_mul(one_thousand)
+			.checked_div(&elapsed)
+			.unwrap_or_else(Zero::zero);
 		format!(" {} bps", speed)
 	}
 }
@@ -183,17 +178,17 @@ impl fmt::Display for TransferRateFormat {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		// Special case 0.
 		if self.0 == 0 {
-			return write!(f, "0")
+			return write!(f, "0");
 		}
 
 		// Under 0.1 kiB, display plain bytes.
 		if self.0 < 100 {
-			return write!(f, "{} B/s", self.0)
+			return write!(f, "{} B/s", self.0);
 		}
 
 		// Under 1.0 MiB/sec, display the value in kiB/sec.
 		if self.0 < 1024 * 1024 {
-			return write!(f, "{:.1}kiB/s", self.0 as f64 / 1024.0)
+			return write!(f, "{:.1}kiB/s", self.0 as f64 / 1024.0);
 		}
 
 		write!(f, "{:.1}MiB/s", self.0 as f64 / (1024.0 * 1024.0))

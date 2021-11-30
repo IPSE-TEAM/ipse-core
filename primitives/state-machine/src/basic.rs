@@ -22,9 +22,7 @@ use codec::Encode;
 use hash_db::Hasher;
 use log::warn;
 use sp_core::{
-	storage::{
-		well_known_keys::is_child_storage_key, ChildInfo, Storage, StorageChild, TrackedStorageKey,
-	},
+	storage::{well_known_keys::is_child_storage_key, ChildInfo, Storage, StorageChild, TrackedStorageKey},
 	traits::Externalities,
 	Blake2Hasher,
 };
@@ -48,7 +46,10 @@ pub struct BasicExternalities {
 impl BasicExternalities {
 	/// Create a new instance of `BasicExternalities`
 	pub fn new(inner: Storage) -> Self {
-		BasicExternalities { inner, extensions: Default::default() }
+		BasicExternalities {
+			inner,
+			extensions: Default::default(),
+		}
 	}
 
 	/// New basic externalities with empty storage.
@@ -69,10 +70,7 @@ impl BasicExternalities {
 	/// Execute the given closure `f` with the externalities set and initialized with `storage`.
 	///
 	/// Returns the result of the closure and updates `storage` with all changes.
-	pub fn execute_with_storage<R>(
-		storage: &mut sp_core::storage::Storage,
-		f: impl FnOnce() -> R,
-	) -> R {
+	pub fn execute_with_storage<R>(storage: &mut sp_core::storage::Storage, f: impl FnOnce() -> R) -> R {
 		let mut ext = Self {
 			inner: Storage {
 				top: std::mem::take(&mut storage.top),
@@ -108,8 +106,7 @@ impl BasicExternalities {
 
 impl PartialEq for BasicExternalities {
 	fn eq(&self, other: &BasicExternalities) -> bool {
-		self.inner.top.eq(&other.inner.top) &&
-			self.inner.children_default.eq(&other.inner.children_default)
+		self.inner.top.eq(&other.inner.top) && self.inner.children_default.eq(&other.inner.children_default)
 	}
 }
 
@@ -130,7 +127,10 @@ impl Default for BasicExternalities {
 impl From<BTreeMap<StorageKey, StorageValue>> for BasicExternalities {
 	fn from(hashmap: BTreeMap<StorageKey, StorageValue>) -> Self {
 		BasicExternalities {
-			inner: Storage { top: hashmap, children_default: Default::default() },
+			inner: Storage {
+				top: hashmap,
+				children_default: Default::default(),
+			},
 			extensions: Default::default(),
 		}
 	}
@@ -156,7 +156,8 @@ impl Externalities for BasicExternalities {
 	}
 
 	fn child_storage_hash(&self, child_info: &ChildInfo, key: &[u8]) -> Option<Vec<u8>> {
-		self.child_storage(child_info, key).map(|v| Blake2Hasher::hash(&v).encode())
+		self.child_storage(child_info, key)
+			.map(|v| Blake2Hasher::hash(&v).encode())
 	}
 
 	fn next_storage_key(&self, key: &[u8]) -> Option<StorageKey> {
@@ -175,29 +176,28 @@ impl Externalities for BasicExternalities {
 	fn place_storage(&mut self, key: StorageKey, maybe_value: Option<StorageValue>) {
 		if is_child_storage_key(&key) {
 			warn!(target: "trie", "Refuse to set child storage key via main storage");
-			return
+			return;
 		}
 
 		match maybe_value {
 			Some(value) => {
 				self.inner.top.insert(key, value);
-			},
+			}
 			None => {
 				self.inner.top.remove(&key);
-			},
+			}
 		}
 	}
 
-	fn place_child_storage(
-		&mut self,
-		child_info: &ChildInfo,
-		key: StorageKey,
-		value: Option<StorageValue>,
-	) {
-		let child_map =
-			self.inner.children_default.entry(child_info.storage_key().to_vec()).or_insert_with(
-				|| StorageChild { data: Default::default(), child_info: child_info.to_owned() },
-			);
+	fn place_child_storage(&mut self, child_info: &ChildInfo, key: StorageKey, value: Option<StorageValue>) {
+		let child_map = self
+			.inner
+			.children_default
+			.entry(child_info.storage_key().to_vec())
+			.or_insert_with(|| StorageChild {
+				data: Default::default(),
+				child_info: child_info.to_owned(),
+			});
 		if let Some(value) = value {
 			child_map.data.insert(key, value);
 		} else {
@@ -215,7 +215,7 @@ impl Externalities for BasicExternalities {
 				target: "trie",
 				"Refuse to clear prefix that is part of child storage key via main storage"
 			);
-			return
+			return;
 		}
 
 		let to_remove = self
@@ -278,7 +278,9 @@ impl Externalities for BasicExternalities {
 			}
 		}
 
-		Layout::<Blake2Hasher>::trie_root(self.inner.top.clone()).as_ref().into()
+		Layout::<Blake2Hasher>::trie_root(self.inner.top.clone())
+			.as_ref()
+			.into()
 	}
 
 	fn child_storage_root(&mut self, child_info: &ChildInfo) -> Vec<u8> {
@@ -343,10 +345,7 @@ impl sp_externalities::ExtensionStore for BasicExternalities {
 		self.extensions.register_with_type_id(type_id, extension)
 	}
 
-	fn deregister_extension_by_type_id(
-		&mut self,
-		type_id: TypeId,
-	) -> Result<(), sp_externalities::Error> {
+	fn deregister_extension_by_type_id(&mut self, type_id: TypeId) -> Result<(), sp_externalities::Error> {
 		if self.extensions.deregister(type_id) {
 			Ok(())
 		} else {
@@ -369,8 +368,7 @@ mod tests {
 		ext.set_storage(b"doe".to_vec(), b"reindeer".to_vec());
 		ext.set_storage(b"dog".to_vec(), b"puppy".to_vec());
 		ext.set_storage(b"dogglesworth".to_vec(), b"cat".to_vec());
-		const ROOT: [u8; 32] =
-			hex!("39245109cef3758c2eed2ccba8d9b370a917850af3824bc8348d505df2c298fa");
+		const ROOT: [u8; 32] = hex!("39245109cef3758c2eed2ccba8d9b370a917850af3824bc8348d505df2c298fa");
 
 		assert_eq!(&ext.storage_root()[..], &ROOT);
 	}

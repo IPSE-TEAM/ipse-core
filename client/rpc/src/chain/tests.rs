@@ -191,7 +191,10 @@ fn should_notify_about_latest_block() {
 		api.subscribe_all_heads(Default::default(), subscriber);
 
 		// assert id assigned
-		assert!(matches!(executor::block_on(id.compat()), Ok(Ok(SubscriptionId::String(_)))));
+		assert!(matches!(
+			executor::block_on(id.compat()),
+			Ok(Ok(SubscriptionId::String(_)))
+		));
 
 		let block = client.new_block(Default::default()).unwrap().build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
@@ -218,7 +221,10 @@ fn should_notify_about_best_block() {
 		api.subscribe_new_heads(Default::default(), subscriber);
 
 		// assert id assigned
-		assert!(matches!(executor::block_on(id.compat()), Ok(Ok(SubscriptionId::String(_)))));
+		assert!(matches!(
+			executor::block_on(id.compat()),
+			Ok(Ok(SubscriptionId::String(_)))
+		));
 
 		let block = client.new_block(Default::default()).unwrap().build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();
@@ -231,7 +237,10 @@ fn should_notify_about_best_block() {
 	let (notification, next) = executor::block_on(next.into_future().compat()).unwrap();
 	assert!(notification.is_some());
 	// no more notifications on this channel
-	assert_eq!(executor::block_on(Stream01CompatExt::compat(next).into_future()).0, None);
+	assert_eq!(
+		executor::block_on(Stream01CompatExt::compat(next).into_future()).0,
+		None
+	);
 }
 
 #[test]
@@ -245,7 +254,10 @@ fn should_notify_about_finalized_block() {
 		api.subscribe_finalized_heads(Default::default(), subscriber);
 
 		// assert id assigned
-		assert!(matches!(executor::block_on(id.compat()), Ok(Ok(SubscriptionId::String(_)))));
+		assert!(matches!(
+			executor::block_on(id.compat()),
+			Ok(Ok(SubscriptionId::String(_)))
+		));
 
 		let block = client.new_block(Default::default()).unwrap().build().unwrap().block;
 		client.import(BlockOrigin::Own, block).unwrap();

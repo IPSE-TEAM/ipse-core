@@ -57,7 +57,7 @@ pub fn generate_crate_access_2018() -> Result<TokenStream, Error> {
 			Ok(name) => {
 				let name = Ident::new(&name, Span::call_site());
 				Ok(quote!( #name ))
-			},
+			}
 			Err(e) => Err(Error::new(Span::call_site(), &e)),
 		}
 	}
@@ -79,11 +79,11 @@ pub fn generate_hidden_includes(unique_id: &str, def_crate: &str) -> TokenStream
 						pub extern crate #name as hidden_include;
 					}
 				)
-			},
+			}
 			Err(e) => {
 				let err = Error::new(Span::call_site(), &e).to_compile_error();
 				quote!( #err )
-			},
+			}
 		}
 	}
 }

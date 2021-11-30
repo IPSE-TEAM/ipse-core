@@ -72,9 +72,7 @@ mod tests {
 			unhashed::put_raw(&key, &1111u32.encode());
 
 			// translate
-			let translate_fn = |old: Option<u32>| -> Option<(u64, u64)> {
-				old.map(|o| (o.into(), (o * 2).into()))
-			};
+			let translate_fn = |old: Option<u32>| -> Option<(u64, u64)> { old.map(|o| (o.into(), (o * 2).into())) };
 			let _ = Value::translate(translate_fn);
 
 			// new storage should be `(1111, 1111 * 2)`
@@ -97,9 +95,7 @@ mod tests {
 			);
 
 			// do translation.
-			NumberMap::translate(
-				|k: u32, v: u64| if k % 2 == 0 { Some((k as u64) << 32 | v) } else { None },
-			);
+			NumberMap::translate(|k: u32, v: u64| if k % 2 == 0 { Some((k as u64) << 32 | v) } else { None });
 
 			assert_eq!(
 				NumberMap::iter().collect::<Vec<_>>(),

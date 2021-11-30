@@ -28,8 +28,7 @@ use sc_network::{multiaddr, Multiaddr};
 use sc_service::{
 	client::Client,
 	config::{BasePath, DatabaseConfig, KeystoreConfig},
-	ChainSpecExtension, Configuration, Error, GenericChainSpec, Role, RuntimeGenesis, TaskExecutor,
-	TaskManager,
+	ChainSpecExtension, Configuration, Error, GenericChainSpec, Role, RuntimeGenesis, TaskExecutor, TaskManager,
 };
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
@@ -59,9 +58,7 @@ struct TestNet<G, E, F, L, U> {
 	nodes: usize,
 }
 
-pub trait TestNetNode:
-	Clone + Future<Item = (), Error = sc_service::Error> + Send + 'static
-{
+pub trait TestNetNode: Clone + Future<Item = (), Error = sc_service::Error> + Send + 'static {
 	type Block: BlockT;
 	type Backend: Backend<Self::Block>;
 	type Executor: CallExecutor<Self::Block> + Send + Sync;
@@ -70,9 +67,7 @@ pub trait TestNetNode:
 
 	fn client(&self) -> Arc<Client<Self::Backend, Self::Executor, Self::Block, Self::RuntimeApi>>;
 	fn transaction_pool(&self) -> Arc<Self::TransactionPool>;
-	fn network(
-		&self,
-	) -> Arc<sc_network::NetworkService<Self::Block, <Self::Block as BlockT>::Hash>>;
+	fn network(&self) -> Arc<sc_network::NetworkService<Self::Block, <Self::Block as BlockT>::Hash>>;
 }
 
 pub struct TestNetComponents<TBl: BlockT, TBackend, TExec, TRtApi, TExPool> {
@@ -82,22 +77,23 @@ pub struct TestNetComponents<TBl: BlockT, TBackend, TExec, TRtApi, TExPool> {
 	network: Arc<sc_network::NetworkService<TBl, <TBl as BlockT>::Hash>>,
 }
 
-impl<TBl: BlockT, TBackend, TExec, TRtApi, TExPool>
-	TestNetComponents<TBl, TBackend, TExec, TRtApi, TExPool>
-{
+impl<TBl: BlockT, TBackend, TExec, TRtApi, TExPool> TestNetComponents<TBl, TBackend, TExec, TRtApi, TExPool> {
 	pub fn new(
 		task_manager: TaskManager,
 		client: Arc<Client<TBackend, TExec, TBl, TRtApi>>,
 		network: Arc<sc_network::NetworkService<TBl, <TBl as BlockT>::Hash>>,
 		transaction_pool: Arc<TExPool>,
 	) -> Self {
-		Self { client, transaction_pool, network, task_manager: Arc::new(Mutex::new(task_manager)) }
+		Self {
+			client,
+			transaction_pool,
+			network,
+			task_manager: Arc::new(Mutex::new(task_manager)),
+		}
 	}
 }
 
-impl<TBl: BlockT, TBackend, TExec, TRtApi, TExPool> Clone
-	for TestNetComponents<TBl, TBackend, TExec, TRtApi, TExPool>
-{
+impl<TBl: BlockT, TBackend, TExec, TRtApi, TExPool> Clone for TestNetComponents<TBl, TBackend, TExec, TRtApi, TExPool> {
 	fn clone(&self) -> Self {
 		Self {
 			task_manager: self.task_manager.clone(),
@@ -119,8 +115,7 @@ impl<TBl: BlockT, TBackend, TExec, TRtApi, TExPool> Future
 	}
 }
 
-impl<TBl, TBackend, TExec, TRtApi, TExPool> TestNetNode
-	for TestNetComponents<TBl, TBackend, TExec, TRtApi, TExPool>
+impl<TBl, TBackend, TExec, TRtApi, TExPool> TestNetNode for TestNetComponents<TBl, TBackend, TExec, TRtApi, TExPool>
 where
 	TBl: BlockT,
 	TBackend: sc_client_api::Backend<TBl> + Send + Sync + 'static,
@@ -140,9 +135,7 @@ where
 	fn transaction_pool(&self) -> Arc<Self::TransactionPool> {
 		self.transaction_pool.clone()
 	}
-	fn network(
-		&self,
-	) -> Arc<sc_network::NetworkService<Self::Block, <Self::Block as BlockT>::Hash>> {
+	fn network(&self) -> Arc<sc_network::NetworkService<Self::Block, <Self::Block as BlockT>::Hash>> {
 		self.network.clone()
 	}
 }
@@ -168,7 +161,7 @@ where
 					.all(|&(ref id, ref service, _, _)| full_predicate(*id, service));
 
 				if !full_ready {
-					return Ok(())
+					return Ok(());
 				}
 
 				let light_ready = light_nodes
@@ -202,12 +195,8 @@ fn node_config<G: RuntimeGenesis + 'static, E: ChainSpecExtension + Clone + 'sta
 ) -> Configuration {
 	let root = root.path().join(format!("node-{}", index));
 
-	let mut network_config = NetworkConfiguration::new(
-		format!("Node {}", index),
-		"network/test/0.1",
-		Default::default(),
-		None,
-	);
+	let mut network_config =
+		NetworkConfiguration::new(format!("Node {}", index), "network/test/0.1", Default::default(), None);
 
 	network_config.allow_non_globals_in_dht = true;
 
@@ -231,8 +220,14 @@ fn node_config<G: RuntimeGenesis + 'static, E: ChainSpecExtension + Clone + 'sta
 		task_executor,
 		transaction_pool: Default::default(),
 		network: network_config,
-		keystore: KeystoreConfig::Path { path: root.join("key"), password: None },
-		database: DatabaseConfig::RocksDb { path: root.join("db"), cache_size: 128 },
+		keystore: KeystoreConfig::Path {
+			path: root.join("key"),
+			password: None,
+		},
+		database: DatabaseConfig::RocksDb {
+			path: root.join("db"),
+			cache_size: 128,
+		},
 		state_cache_size: 16777216,
 		state_cache_child_ratio: None,
 		pruning: Default::default(),
@@ -314,19 +309,21 @@ where
 			let node_config = node_config(
 				self.nodes,
 				&self.chain_spec,
-				Role::Authority { sentry_nodes: Vec::new() },
+				Role::Authority {
+					sentry_nodes: Vec::new(),
+				},
 				task_executor.clone(),
 				Some(key),
 				self.base_port,
 				&temp,
 			);
 			let addr = node_config.network.listen_addresses.iter().next().unwrap().clone();
-			let (service, user_data) =
-				authority(node_config).expect("Error creating test node service");
+			let (service, user_data) = authority(node_config).expect("Error creating test node service");
 
 			executor.spawn(service.clone().map_err(|_| ()));
-			let addr = addr
-				.with(multiaddr::Protocol::P2p(service.network().local_peer_id().clone().into()));
+			let addr = addr.with(multiaddr::Protocol::P2p(
+				service.network().local_peer_id().clone().into(),
+			));
 			self.authority_nodes.push((self.nodes, service, user_data, addr));
 			self.nodes += 1;
 		}
@@ -345,8 +342,9 @@ where
 			let (service, user_data) = full(node_config).expect("Error creating test node service");
 
 			executor.spawn(service.clone().map_err(|_| ()));
-			let addr = addr
-				.with(multiaddr::Protocol::P2p(service.network().local_peer_id().clone().into()));
+			let addr = addr.with(multiaddr::Protocol::P2p(
+				service.network().local_peer_id().clone().into(),
+			));
 			self.full_nodes.push((self.nodes, service, user_data, addr));
 			self.nodes += 1;
 		}
@@ -365,8 +363,9 @@ where
 			let service = light(node_config).expect("Error creating test node service");
 
 			executor.spawn(service.clone().map_err(|_| ()));
-			let addr = addr
-				.with(multiaddr::Protocol::P2p(service.network().local_peer_id().clone().into()));
+			let addr = addr.with(multiaddr::Protocol::P2p(
+				service.network().local_peer_id().clone().into(),
+			));
 			self.light_nodes.push((self.nodes, service, addr));
 			self.nodes += 1;
 		}
@@ -374,14 +373,14 @@ where
 }
 
 fn tempdir_with_prefix(prefix: &str) -> TempDir {
-	tempfile::Builder::new().prefix(prefix).tempdir().expect("Error creating test dir")
+	tempfile::Builder::new()
+		.prefix(prefix)
+		.tempdir()
+		.expect("Error creating test dir")
 }
 
-pub fn connectivity<G, E, Fb, F, Lb, L>(
-	spec: GenericChainSpec<G, E>,
-	full_builder: Fb,
-	light_builder: Lb,
-) where
+pub fn connectivity<G, E, Fb, F, Lb, L>(spec: GenericChainSpec<G, E>, full_builder: Fb, light_builder: Lb)
+where
 	E: ChainSpecExtension + Clone + 'static + Send,
 	G: RuntimeGenesis + 'static,
 	Fb: Fn(Configuration) -> Result<F, Error>,
@@ -567,11 +566,11 @@ pub fn sync<G, E, Fb, F, Lb, L, B, ExF, U>(
 	let extrinsic = extrinsic_factory(&first_service, first_user_data);
 	let source = sp_transaction_pool::TransactionSource::External;
 
-	futures::executor::block_on(first_service.transaction_pool().submit_one(
-		&best_block,
-		source,
-		extrinsic,
-	))
+	futures::executor::block_on(
+		first_service
+			.transaction_pool()
+			.submit_one(&best_block, source, extrinsic),
+	)
 	.expect("failed to submit extrinsic");
 
 	network.run_until_all_full(
@@ -602,7 +601,9 @@ pub fn consensus<G, E, Fb, F, Lb, L>(
 		spec,
 		(0..NUM_FULL_NODES / 2).map(|_| |cfg| full_builder(cfg).map(|s| (s, ()))),
 		(0..NUM_LIGHT_NODES / 2).map(|_| |cfg| light_builder(cfg)),
-		authorities.into_iter().map(|key| (key, { |cfg| full_builder(cfg).map(|s| (s, ())) })),
+		authorities
+			.into_iter()
+			.map(|key| (key, { |cfg| full_builder(cfg).map(|s| (s, ())) })),
 		30600,
 	);
 
@@ -627,9 +628,7 @@ pub fn consensus<G, E, Fb, F, Lb, L>(
 			.expect("Error adding reserved peer");
 	}
 	network.run_until_all_full(
-		|_index, service| {
-			service.client().info().finalized_number >= (NUM_BLOCKS as u32 / 2).into()
-		},
+		|_index, service| service.client().info().finalized_number >= (NUM_BLOCKS as u32 / 2).into(),
 		|_index, service| service.client().info().best_number >= (NUM_BLOCKS as u32 / 2).into(),
 	);
 

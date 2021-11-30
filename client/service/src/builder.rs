@@ -22,8 +22,8 @@ use crate::{
 	config::{Configuration, KeystoreConfig, PrometheusConfig},
 	error::Error,
 	metrics::MetricsService,
-	start_rpc_servers, MallocSizeOfWasm, NetworkStatusSinks, RpcHandlers, SpawnTaskHandle,
-	TaskManager, TelemetryConnectionSinks, TransactionPoolAdapter, DEFAULT_PROTOCOL_ID,
+	start_rpc_servers, MallocSizeOfWasm, NetworkStatusSinks, RpcHandlers, SpawnTaskHandle, TaskManager,
+	TelemetryConnectionSinks, TransactionPoolAdapter, DEFAULT_PROTOCOL_ID,
 };
 use futures::{channel::oneshot, future::ready, FutureExt, StreamExt};
 use jsonrpc_pubsub::manager::SubscriptionManager;
@@ -32,12 +32,10 @@ use parking_lot::RwLock;
 use prometheus_endpoint::Registry;
 use sc_chain_spec::get_extension;
 use sc_client_api::{
-	backend::StorageProvider, execution_extensions::ExecutionExtensions,
-	proof_provider::ProofProvider, BlockBackend, BlockchainEvents,
+	backend::StorageProvider, execution_extensions::ExecutionExtensions, proof_provider::ProofProvider, BlockBackend,
+	BlockchainEvents,
 };
-use sc_client_api::{
-	light::RemoteBlockchain, BadBlocks, ExecutorProvider, ForkBlocks, UsageProvider,
-};
+use sc_client_api::{light::RemoteBlockchain, BadBlocks, ExecutorProvider, ForkBlocks, UsageProvider};
 use sc_client_db::{Backend, DatabaseSettings};
 use sc_executor::{NativeExecutionDispatch, NativeExecutor, RuntimeInfo};
 use sc_keystore::Store as Keystore;
@@ -70,11 +68,7 @@ pub trait RpcExtensionBuilder {
 
 	/// Returns an instance of the RPC extension for a particular `DenyUnsafe`
 	/// value, e.g. the RPC extension might not expose some unsafe methods.
-	fn build(
-		&self,
-		deny: sc_rpc::DenyUnsafe,
-		subscription_executor: sc_rpc::SubscriptionTaskExecutor,
-	) -> Self::Output;
+	fn build(&self, deny: sc_rpc::DenyUnsafe, subscription_executor: sc_rpc::SubscriptionTaskExecutor) -> Self::Output;
 }
 
 impl<F, R> RpcExtensionBuilder for F
@@ -84,11 +78,7 @@ where
 {
 	type Output = R;
 
-	fn build(
-		&self,
-		deny: sc_rpc::DenyUnsafe,
-		subscription_executor: sc_rpc::SubscriptionTaskExecutor,
-	) -> Self::Output {
+	fn build(&self, deny: sc_rpc::DenyUnsafe, subscription_executor: sc_rpc::SubscriptionTaskExecutor) -> Self::Output {
 		(*self)(deny, subscription_executor)
 	}
 }
@@ -134,12 +124,10 @@ pub type TFullCallExecutor<TBl, TExecDisp> =
 	crate::client::LocalCallExecutor<sc_client_db::Backend<TBl>, NativeExecutor<TExecDisp>>;
 
 /// Light client type.
-pub type TLightClient<TBl, TRtApi, TExecDisp> =
-	TLightClientWithBackend<TBl, TRtApi, TExecDisp, TLightBackend<TBl>>;
+pub type TLightClient<TBl, TRtApi, TExecDisp> = TLightClientWithBackend<TBl, TRtApi, TExecDisp, TLightBackend<TBl>>;
 
 /// Light client backend type.
-pub type TLightBackend<TBl> =
-	sc_light::Backend<sc_client_db::light::LightStorage<TBl>, HashFor<TBl>>;
+pub type TLightBackend<TBl> = sc_light::Backend<sc_client_db::light::LightStorage<TBl>, HashFor<TBl>>;
 
 /// Light call executor type.
 pub type TLightCallExecutor<TBl, TExecDisp> = sc_light::GenesisCallExecutor<
@@ -166,16 +154,12 @@ type TLightParts<TBl, TRtApi, TExecDisp> = (
 );
 
 /// Light client backend type with a specific hash type.
-pub type TLightBackendWithHash<TBl, THash> =
-	sc_light::Backend<sc_client_db::light::LightStorage<TBl>, THash>;
+pub type TLightBackendWithHash<TBl, THash> = sc_light::Backend<sc_client_db::light::LightStorage<TBl>, THash>;
 
 /// Light client type with a specific backend.
 pub type TLightClientWithBackend<TBl, TRtApi, TExecDisp, TBackend> = Client<
 	TBackend,
-	sc_light::GenesisCallExecutor<
-		TBackend,
-		crate::client::LocalCallExecutor<TBackend, NativeExecutor<TExecDisp>>,
-	>,
+	sc_light::GenesisCallExecutor<TBackend, crate::client::LocalCallExecutor<TBackend, NativeExecutor<TExecDisp>>>,
 	TBl,
 	TRtApi,
 >;
@@ -216,11 +200,13 @@ where
 	);
 
 	let chain_spec = &config.chain_spec;
-	let fork_blocks =
-		get_extension::<ForkBlocks<TBl>>(chain_spec.extensions()).cloned().unwrap_or_default();
+	let fork_blocks = get_extension::<ForkBlocks<TBl>>(chain_spec.extensions())
+		.cloned()
+		.unwrap_or_default();
 
-	let bad_blocks =
-		get_extension::<BadBlocks<TBl>>(chain_spec.extensions()).cloned().unwrap_or_default();
+	let bad_blocks = get_extension::<BadBlocks<TBl>>(chain_spec.extensions())
+		.cloned()
+		.unwrap_or_default();
 
 	let (client, backend) = {
 		let db_config = sc_client_db::DatabaseSettings {
@@ -319,12 +305,7 @@ pub fn new_client<E, Block, RA>(
 	config: ClientConfig,
 ) -> Result<
 	(
-		crate::client::Client<
-			Backend<Block>,
-			crate::client::LocalCallExecutor<Backend<Block>, E>,
-			Block,
-			RA,
-		>,
+		crate::client::Client<Backend<Block>, crate::client::LocalCallExecutor<Backend<Block>, E>, Block, RA>,
 		Arc<Backend<Block>>,
 	),
 	sp_blockchain::Error,
@@ -336,12 +317,7 @@ where
 	const CANONICALIZATION_DELAY: u64 = 4096;
 
 	let backend = Arc::new(Backend::new(settings, CANONICALIZATION_DELAY)?);
-	let executor = crate::client::LocalCallExecutor::new(
-		backend.clone(),
-		executor,
-		spawn_handle,
-		config.clone(),
-	);
+	let executor = crate::client::LocalCallExecutor::new(backend.clone(), executor, spawn_handle, config.clone());
 	Ok((
 		crate::client::Client::new(
 			backend.clone(),
@@ -408,7 +384,7 @@ where
 		None => {
 			warn!("Offchain workers disabled, due to lack of offchain storage support in backend.");
 			None
-		},
+		}
 	};
 
 	// Inform the offchain worker about new imported blocks
@@ -455,9 +431,7 @@ where
 		+ sp_api::ApiExt<TBl, StateBackend = TBackend::State>,
 	TBl: BlockT,
 	TBackend: 'static + sc_client_api::backend::Backend<TBl> + Send,
-	TExPool: MaintainedTransactionPool<Block = TBl, Hash = <TBl as BlockT>::Hash>
-		+ MallocSizeOfWasm
-		+ 'static,
+	TExPool: MaintainedTransactionPool<Block = TBl, Hash = <TBl as BlockT>::Hash> + MallocSizeOfWasm + 'static,
 	TRpc: sc_rpc::RpcExtension<sc_rpc::Metadata>,
 {
 	let SpawnTasksParams {
@@ -506,19 +480,18 @@ where
 	);
 
 	// Prometheus metrics.
-	let metrics_service =
-		if let Some(PrometheusConfig { port, registry }) = config.prometheus_config.clone() {
-			// Set static metrics.
-			let metrics = MetricsService::with_prometheus(&registry, &config)?;
-			spawn_handle.spawn(
-				"prometheus-endpoint",
-				prometheus_endpoint::init_prometheus(port, registry).map(drop),
-			);
+	let metrics_service = if let Some(PrometheusConfig { port, registry }) = config.prometheus_config.clone() {
+		// Set static metrics.
+		let metrics = MetricsService::with_prometheus(&registry, &config)?;
+		spawn_handle.spawn(
+			"prometheus-endpoint",
+			prometheus_endpoint::init_prometheus(port, registry).map(drop),
+		);
 
-			metrics
-		} else {
-			MetricsService::new()
-		};
+		metrics
+	} else {
+		MetricsService::new()
+	};
 
 	// Periodically updated metrics and telemetry updates.
 	spawn_handle.spawn(
@@ -527,8 +500,7 @@ where
 	);
 
 	// RPC
-	let gen_handler = |deny_unsafe: sc_rpc::DenyUnsafe,
-	                   rpc_middleware: sc_rpc_server::RpcMiddleware| {
+	let gen_handler = |deny_unsafe: sc_rpc::DenyUnsafe, rpc_middleware: sc_rpc_server::RpcMiddleware| {
 		gen_handler(
 			deny_unsafe,
 			rpc_middleware,
@@ -559,7 +531,7 @@ where
 	let telemetry = config.telemetry_endpoints.clone().and_then(|endpoints| {
 		if endpoints.is_empty() {
 			// we don't want the telemetry to be initialized if telemetry_endpoints == Some([])
-			return None
+			return None;
 		}
 
 		let genesis_hash = match client.block_hash(Zero::zero()) {
@@ -653,7 +625,10 @@ fn build_telemetry<TBl: BlockT>(
 				"network_id" => network_id.clone()
 			);
 
-			telemetry_connection_sinks.0.lock().retain(|sink| sink.unbounded_send(()).is_ok());
+			telemetry_connection_sinks
+				.0
+				.lock()
+				.retain(|sink| sink.unbounded_send(()).is_ok());
 			ready(())
 		}),
 	);
@@ -708,8 +683,7 @@ where
 	let task_executor = sc_rpc::SubscriptionTaskExecutor::new(spawn_handle);
 	let subscriptions = SubscriptionManager::new(Arc::new(task_executor.clone()));
 
-	let (chain, state, child_state) = if let (Some(remote_blockchain), Some(on_demand)) =
-		(remote_blockchain, on_demand)
+	let (chain, state, child_state) = if let (Some(remote_blockchain), Some(on_demand)) = (remote_blockchain, on_demand)
 	{
 		// Light clients
 		let chain = sc_rpc::chain::new_light(
@@ -732,8 +706,7 @@ where
 		(chain, state, child_state)
 	};
 
-	let author =
-		sc_rpc::author::Author::new(client, transaction_pool, subscriptions, keystore, deny_unsafe);
+	let author = sc_rpc::author::Author::new(client, transaction_pool, subscriptions, keystore, deny_unsafe);
 	let system = system::System::new(system_info, system_rpc_tx, deny_unsafe);
 
 	let maybe_offchain_rpc = offchain_storage.map(|storage| {
@@ -832,7 +805,7 @@ where
 					DEFAULT_PROTOCOL_ID
 				);
 				DEFAULT_PROTOCOL_ID
-			},
+			}
 		};
 		sc_network::config::ProtocolId::from(protocol_id_full)
 	};
@@ -906,18 +879,21 @@ where
 	spawn_handle.spawn_blocking("network-worker", async move {
 		if network_start_rx.await.is_err() {
 			debug_assert!(false);
-			log::warn!(
-				"The NetworkStart returned as part of `build_network` has been silently dropped"
-			);
+			log::warn!("The NetworkStart returned as part of `build_network` has been silently dropped");
 			// This `return` might seem unnecessary, but we don't want to make it look like
 			// everything is working as normal even though the user is clearly misusing the API.
-			return
+			return;
 		}
 
 		future.await
 	});
 
-	Ok((network, network_status_sinks, system_rpc_tx, NetworkStarter(network_start_tx)))
+	Ok((
+		network,
+		network_status_sinks,
+		system_rpc_tx,
+		NetworkStarter(network_start_tx),
+	))
 }
 
 /// Object used to start the network.

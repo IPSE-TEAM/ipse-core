@@ -70,8 +70,7 @@ pub struct NotifsInHandler {
 	///
 	/// This queue is only ever modified to insert elements at the back, or remove the first
 	/// element.
-	events_queue:
-		VecDeque<ProtocolsHandlerEvent<DeniedUpgrade, (), NotifsInHandlerOut, void::Void>>,
+	events_queue: VecDeque<ProtocolsHandlerEvent<DeniedUpgrade, (), NotifsInHandlerOut, void::Void>>,
 }
 
 /// Event that can be received by a `NotifsInHandler`.
@@ -111,7 +110,9 @@ pub enum NotifsInHandlerOut {
 impl NotifsInHandlerProto {
 	/// Builds a new `NotifsInHandlerProto`.
 	pub fn new(protocol_name: impl Into<Cow<'static, str>>) -> Self {
-		NotifsInHandlerProto { in_protocol: NotificationsIn::new(protocol_name) }
+		NotifsInHandlerProto {
+			in_protocol: NotificationsIn::new(protocol_name),
+		}
 	}
 }
 
@@ -148,7 +149,7 @@ impl NotifsInHandler {
 		cx: &mut Context,
 	) -> Poll<ProtocolsHandlerEvent<DeniedUpgrade, (), NotifsInHandlerOut, void::Void>> {
 		if let Some(event) = self.events_queue.pop_front() {
-			return Poll::Ready(event)
+			return Poll::Ready(event);
 		}
 
 		match self
@@ -156,12 +157,12 @@ impl NotifsInHandler {
 			.as_mut()
 			.map(|s| NotificationsInSubstream::poll_process(Pin::new(s), cx))
 		{
-			None | Some(Poll::Pending) => {},
+			None | Some(Poll::Pending) => {}
 			Some(Poll::Ready(Ok(v))) => match v {},
 			Some(Poll::Ready(Err(_))) => {
 				self.substream = None;
-				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed))
-			},
+				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed));
+			}
 		}
 
 		Poll::Pending
@@ -188,7 +189,8 @@ impl ProtocolsHandler for NotifsInHandler {
 	) {
 		// If a substream already exists, we drop it and replace it with the new incoming one.
 		if self.substream.is_some() {
-			self.events_queue.push_back(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed));
+			self.events_queue
+				.push_back(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed));
 		}
 
 		// Note that we drop the existing substream, which will send an equivalent to a TCP "RST"
@@ -199,11 +201,10 @@ impl ProtocolsHandler for NotifsInHandler {
 
 		self.events_queue
 			.push_back(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::OpenRequest(msg)));
-		self.pending_accept_refuses =
-			self.pending_accept_refuses.checked_add(1).unwrap_or_else(|| {
-				error!(target: "sub-libp2p", "Overflow in pending_accept_refuses");
-				usize::max_value()
-			});
+		self.pending_accept_refuses = self.pending_accept_refuses.checked_add(1).unwrap_or_else(|| {
+			error!(target: "sub-libp2p", "Overflow in pending_accept_refuses");
+			usize::max_value()
+		});
 	}
 
 	fn inject_fully_negotiated_outbound(
@@ -223,19 +224,19 @@ impl ProtocolsHandler for NotifsInHandler {
 					target: "sub-libp2p",
 					"Inconsistent state: received Accept/Refuse when no pending request exists"
 				);
-				return
-			},
+				return;
+			}
 		};
 
 		// If we send multiple `OpenRequest`s in a row, we will receive back multiple
 		// `Accept`/`Refuse` messages. All of them are obsolete except the last one.
 		if self.pending_accept_refuses != 0 {
-			return
+			return;
 		}
 
 		match (message, self.substream.as_mut()) {
 			(NotifsInHandlerIn::Accept(message), Some(sub)) => sub.send_handshake(message),
-			(NotifsInHandlerIn::Accept(_), None) => {},
+			(NotifsInHandlerIn::Accept(_), None) => {}
 			(NotifsInHandlerIn::Refuse, _) => self.substream = None,
 		}
 	}
@@ -255,21 +256,14 @@ impl ProtocolsHandler for NotifsInHandler {
 	fn poll(
 		&mut self,
 		cx: &mut Context,
-	) -> Poll<
-		ProtocolsHandlerEvent<
-			Self::OutboundProtocol,
-			Self::OutboundOpenInfo,
-			Self::OutEvent,
-			Self::Error,
-		>,
-	> {
+	) -> Poll<ProtocolsHandlerEvent<Self::OutboundProtocol, Self::OutboundOpenInfo, Self::OutEvent, Self::Error>> {
 		// Flush the events queue if necessary.
 		if let Some(event) = self.events_queue.pop_front() {
-			return Poll::Ready(event)
+			return Poll::Ready(event);
 		}
 
 		match self.substream.as_mut().map(|s| Stream::poll_next(Pin::new(s), cx)) {
-			None | Some(Poll::Pending) => {},
+			None | Some(Poll::Pending) => {}
 			Some(Poll::Ready(Some(Ok(msg)))) => {
 				if self.pending_accept_refuses != 0 {
 					warn!(
@@ -277,12 +271,12 @@ impl ProtocolsHandler for NotifsInHandler {
 						"Bad state in inbound-only handler: notif before accepting substream"
 					);
 				}
-				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Notif(msg)))
-			},
+				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Notif(msg)));
+			}
 			Some(Poll::Ready(None)) | Some(Poll::Ready(Some(Err(_)))) => {
 				self.substream = None;
-				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed))
-			},
+				return Poll::Ready(ProtocolsHandlerEvent::Custom(NotifsInHandlerOut::Closed));
+			}
 		}
 
 		Poll::Pending

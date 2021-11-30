@@ -48,7 +48,10 @@ pub struct TransactionRef<Hash, Ex> {
 
 impl<Hash, Ex> Clone for TransactionRef<Hash, Ex> {
 	fn clone(&self) -> Self {
-		TransactionRef { transaction: self.transaction.clone(), insertion_id: self.insertion_id }
+		TransactionRef {
+			transaction: self.transaction.clone(),
+			insertion_id: self.insertion_id,
+		}
 	}
 }
 
@@ -167,10 +170,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex> ReadyTransactions<Hash, Ex> {
 	/// The transaction needs to have all tags satisfied (be ready) by transactions
 	/// that are in this queue.
 	/// Returns transactions that were replaced by the one imported.
-	pub fn import(
-		&mut self,
-		tx: WaitingTransaction<Hash, Ex>,
-	) -> error::Result<Vec<Arc<Transaction<Hash, Ex>>>> {
+	pub fn import(&mut self, tx: WaitingTransaction<Hash, Ex>) -> error::Result<Vec<Arc<Transaction<Hash, Ex>>>> {
 		assert!(
 			tx.is_ready(),
 			"Only ready transactions can be imported. Missing: {:?}",
@@ -211,7 +211,10 @@ impl<Hash: hash::Hash + Member + Serialize, Ex> ReadyTransactions<Hash, Ex> {
 			self.provided_tags.insert(tag.clone(), hash.clone());
 		}
 
-		let transaction = TransactionRef { insertion_id, transaction };
+		let transaction = TransactionRef {
+			insertion_id,
+			transaction,
+		};
 
 		// insert to best if it doesn't require any other transaction to be included before it
 		if goes_to_best {
@@ -219,16 +222,20 @@ impl<Hash: hash::Hash + Member + Serialize, Ex> ReadyTransactions<Hash, Ex> {
 		}
 
 		// insert to Ready
-		ready.insert(hash, ReadyTx { transaction, unlocks, requires_offset });
+		ready.insert(
+			hash,
+			ReadyTx {
+				transaction,
+				unlocks,
+				requires_offset,
+			},
+		);
 
 		Ok(replaced)
 	}
 
 	/// Fold a list of ready transactions to compute a single value.
-	pub fn fold<R, F: FnMut(Option<R>, &ReadyTx<Hash, Ex>) -> Option<R>>(
-		&mut self,
-		f: F,
-	) -> Option<R> {
+	pub fn fold<R, F: FnMut(Option<R>, &ReadyTx<Hash, Ex>) -> Option<R>>(&mut self, f: F) -> Option<R> {
 		self.ready.read().values().fold(None, f)
 	}
 
@@ -325,8 +332,10 @@ impl<Hash: hash::Hash + Member + Serialize, Ex> ReadyTransactions<Hash, Ex> {
 		let mut to_remove = vec![tag];
 
 		while let Some(tag) = to_remove.pop() {
-			let res =
-				self.provided_tags.remove(&tag).and_then(|hash| self.ready.write().remove(&hash));
+			let res = self
+				.provided_tags
+				.remove(&tag)
+				.and_then(|hash| self.ready.write().remove(&hash));
 
 			if let Some(tx) = res {
 				let unlocks = tx.unlocks;
@@ -422,32 +431,38 @@ impl<Hash: hash::Hash + Member + Serialize, Ex> ReadyTransactions<Hash, Ex> {
 
 			// early exit if we are not replacing anything.
 			if replace_hashes.is_empty() {
-				return Ok((vec![], vec![]))
+				return Ok((vec![], vec![]));
 			}
 
 			// now check if collective priority is lower than the replacement transaction.
 			let old_priority = {
 				let ready = self.ready.read();
-				replace_hashes.iter().filter_map(|hash| ready.get(hash)).fold(0u64, |total, tx| {
-					total.saturating_add(tx.transaction.transaction.priority)
-				})
+				replace_hashes
+					.iter()
+					.filter_map(|hash| ready.get(hash))
+					.fold(0u64, |total, tx| {
+						total.saturating_add(tx.transaction.transaction.priority)
+					})
 			};
 
 			// bail - the transaction has too low priority to replace the old ones
 			if old_priority >= tx.priority {
-				return Err(error::Error::TooLowPriority { old: old_priority, new: tx.priority })
+				return Err(error::Error::TooLowPriority {
+					old: old_priority,
+					new: tx.priority,
+				});
 			}
 
 			// construct a list of unlocked transactions
 			let unlocks = {
 				let ready = self.ready.read();
-				replace_hashes.iter().filter_map(|hash| ready.get(hash)).fold(
-					vec![],
-					|mut list, tx| {
+				replace_hashes
+					.iter()
+					.filter_map(|hash| ready.get(hash))
+					.fold(vec![], |mut list, tx| {
 						list.extend(tx.unlocks.iter().cloned());
 						list
-					},
-				)
+					})
 			};
 
 			(replace_hashes.into_iter().cloned().collect::<Vec<_>>(), unlocks)
@@ -486,7 +501,8 @@ impl<Hash: hash::Hash + Member, Ex> BestIterator<Hash, Ex> {
 			self.best.insert(tx_ref);
 		} else {
 			// otherwise we're still awaiting for some deps
-			self.awaiting.insert(tx_ref.transaction.hash.clone(), (satisfied, tx_ref));
+			self.awaiting
+				.insert(tx_ref.transaction.hash.clone(), (satisfied, tx_ref));
 		}
 	}
 }
@@ -524,7 +540,7 @@ impl<Hash: hash::Hash + Member, Ex> Iterator for BestIterator<Hash, Ex> {
 				}
 			}
 
-			return Some(best.transaction)
+			return Some(best.transaction);
 		}
 	}
 }
@@ -704,18 +720,33 @@ mod tests {
 		};
 		// higher priority = better
 		assert!(
-			TransactionRef { transaction: Arc::new(with_priority(3, 3)), insertion_id: 1 } >
-				TransactionRef { transaction: Arc::new(with_priority(2, 3)), insertion_id: 2 }
+			TransactionRef {
+				transaction: Arc::new(with_priority(3, 3)),
+				insertion_id: 1
+			} > TransactionRef {
+				transaction: Arc::new(with_priority(2, 3)),
+				insertion_id: 2
+			}
 		);
 		// lower validity = better
 		assert!(
-			TransactionRef { transaction: Arc::new(with_priority(3, 2)), insertion_id: 1 } >
-				TransactionRef { transaction: Arc::new(with_priority(3, 3)), insertion_id: 2 }
+			TransactionRef {
+				transaction: Arc::new(with_priority(3, 2)),
+				insertion_id: 1
+			} > TransactionRef {
+				transaction: Arc::new(with_priority(3, 3)),
+				insertion_id: 2
+			}
 		);
 		// lower insertion_id = better
 		assert!(
-			TransactionRef { transaction: Arc::new(with_priority(3, 3)), insertion_id: 1 } >
-				TransactionRef { transaction: Arc::new(with_priority(3, 3)), insertion_id: 2 }
+			TransactionRef {
+				transaction: Arc::new(with_priority(3, 3)),
+				insertion_id: 1
+			} > TransactionRef {
+				transaction: Arc::new(with_priority(3, 3)),
+				insertion_id: 2
+			}
 		);
 	}
 }

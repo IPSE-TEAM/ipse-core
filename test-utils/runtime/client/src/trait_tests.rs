@@ -22,9 +22,7 @@
 
 use std::sync::Arc;
 
-use crate::{
-	AccountKeyring, BlockBuilderExt, ClientBlockImportExt, TestClientBuilder, TestClientBuilderExt,
-};
+use crate::{AccountKeyring, BlockBuilderExt, ClientBlockImportExt, TestClientBuilder, TestClientBuilderExt};
 use sc_block_builder::BlockBuilderProvider;
 use sc_client_api::backend;
 use sc_client_api::blockchain::{Backend as BlockChainBackendT, HeaderBackend};
@@ -104,8 +102,9 @@ where
 	assert_eq!(blockchain.leaves().unwrap(), vec![a5.hash()],);
 
 	// A1 -> B2
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap();
 
 	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
 	builder
@@ -142,8 +141,9 @@ where
 	assert_eq!(blockchain.leaves().unwrap(), vec![a5.hash(), b4.hash()],);
 
 	// // B2 -> C3
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -158,8 +158,9 @@ where
 	assert_eq!(blockchain.leaves().unwrap(), vec![a5.hash(), b4.hash(), c3.hash()],);
 
 	// A1 -> D2
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -171,7 +172,10 @@ where
 		.unwrap();
 	let d2 = builder.build().unwrap().block;
 	client.import(BlockOrigin::Own, d2.clone()).unwrap();
-	assert_eq!(blockchain.leaves().unwrap(), vec![a5.hash(), b4.hash(), c3.hash(), d2.hash()],);
+	assert_eq!(
+		blockchain.leaves().unwrap(),
+		vec![a5.hash(), b4.hash(), c3.hash(), d2.hash()],
+	);
 }
 
 /// helper to test the `children` implementation for various backends
@@ -232,8 +236,9 @@ where
 	client.import(BlockOrigin::Own, a5.clone()).unwrap();
 
 	// A1 -> B2
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -265,8 +270,9 @@ where
 	client.import(BlockOrigin::Own, b4).unwrap();
 
 	// // B2 -> C3
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -280,8 +286,9 @@ where
 	client.import(BlockOrigin::Own, c3.clone()).unwrap();
 
 	// A1 -> D2
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -365,8 +372,9 @@ where
 	client.import(BlockOrigin::Own, a5.clone()).unwrap();
 
 	// A1 -> B2
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -398,8 +406,9 @@ where
 	client.import(BlockOrigin::Own, b4).unwrap();
 
 	// // B2 -> C3
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(b2.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -413,8 +422,9 @@ where
 	client.import(BlockOrigin::Own, c3).unwrap();
 
 	// A1 -> D2
-	let mut builder =
-		client.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false).unwrap();
+	let mut builder = client
+		.new_block_at(&BlockId::Hash(a1.hash()), Default::default(), false)
+		.unwrap();
 	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
 	builder
 		.push_transfer(Transfer {
@@ -429,21 +439,39 @@ where
 
 	let genesis_hash = client.chain_info().genesis_hash;
 
-	assert_eq!(blockchain.header(BlockId::Number(0)).unwrap().unwrap().hash(), genesis_hash);
+	assert_eq!(
+		blockchain.header(BlockId::Number(0)).unwrap().unwrap().hash(),
+		genesis_hash
+	);
 	assert_eq!(blockchain.hash(0).unwrap().unwrap(), genesis_hash);
 
-	assert_eq!(blockchain.header(BlockId::Number(1)).unwrap().unwrap().hash(), a1.hash());
+	assert_eq!(
+		blockchain.header(BlockId::Number(1)).unwrap().unwrap().hash(),
+		a1.hash()
+	);
 	assert_eq!(blockchain.hash(1).unwrap().unwrap(), a1.hash());
 
-	assert_eq!(blockchain.header(BlockId::Number(2)).unwrap().unwrap().hash(), a2.hash());
+	assert_eq!(
+		blockchain.header(BlockId::Number(2)).unwrap().unwrap().hash(),
+		a2.hash()
+	);
 	assert_eq!(blockchain.hash(2).unwrap().unwrap(), a2.hash());
 
-	assert_eq!(blockchain.header(BlockId::Number(3)).unwrap().unwrap().hash(), a3.hash());
+	assert_eq!(
+		blockchain.header(BlockId::Number(3)).unwrap().unwrap().hash(),
+		a3.hash()
+	);
 	assert_eq!(blockchain.hash(3).unwrap().unwrap(), a3.hash());
 
-	assert_eq!(blockchain.header(BlockId::Number(4)).unwrap().unwrap().hash(), a4.hash());
+	assert_eq!(
+		blockchain.header(BlockId::Number(4)).unwrap().unwrap().hash(),
+		a4.hash()
+	);
 	assert_eq!(blockchain.hash(4).unwrap().unwrap(), a4.hash());
 
-	assert_eq!(blockchain.header(BlockId::Number(5)).unwrap().unwrap().hash(), a5.hash());
+	assert_eq!(
+		blockchain.header(BlockId::Number(5)).unwrap().unwrap().hash(),
+		a5.hash()
+	);
 	assert_eq!(blockchain.hash(5).unwrap().unwrap(), a5.hash());
 }

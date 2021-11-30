@@ -27,8 +27,8 @@ use serde::Serialize;
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::Member;
 use sp_runtime::transaction_validity::{
-	TransactionLongevity as Longevity, TransactionPriority as Priority,
-	TransactionSource as Source, TransactionTag as Tag,
+	TransactionLongevity as Longevity, TransactionPriority as Priority, TransactionSource as Source,
+	TransactionTag as Tag,
 };
 use sp_transaction_pool::{error, InPoolTransaction, PoolStatus};
 
@@ -247,10 +247,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 	///
 	/// The closure accepts the mutable reference to the pool and original value
 	/// of the `reject_future_transactions` flag.
-	pub(crate) fn with_futures_enabled<T>(
-		&mut self,
-		closure: impl FnOnce(&mut Self, bool) -> T,
-	) -> T {
+	pub(crate) fn with_futures_enabled<T>(&mut self, closure: impl FnOnce(&mut Self, bool) -> T) -> T {
 		let previous = self.reject_future_transactions;
 		self.reject_future_transactions = false;
 		let return_value = closure(self, previous);
@@ -272,7 +269,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 	/// ready to be included in the block.
 	pub fn import(&mut self, tx: Transaction<Hash, Ex>) -> error::Result<Imported<Hash, Ex>> {
 		if self.is_imported(&tx.hash) {
-			return Err(error::Error::AlreadyImported(Box::new(tx.hash)))
+			return Err(error::Error::AlreadyImported(Box::new(tx.hash)));
 		}
 
 		let tx = WaitingTransaction::new(tx, self.ready.provided_tags(), &self.recently_pruned);
@@ -287,12 +284,12 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 		// If all tags are not satisfied import to future.
 		if !tx.is_ready() {
 			if self.reject_future_transactions {
-				return Err(error::Error::RejectedFutureTransaction)
+				return Err(error::Error::RejectedFutureTransaction);
 			}
 
 			let hash = tx.transaction.hash.clone();
 			self.future.import(tx);
-			return Ok(Imported::Future { hash })
+			return Ok(Imported::Future { hash });
 		}
 
 		self.import_to_ready(tx)
@@ -301,10 +298,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 	/// Imports transaction to ready queue.
 	///
 	/// NOTE the transaction has to have all requirements satisfied.
-	fn import_to_ready(
-		&mut self,
-		tx: WaitingTransaction<Hash, Ex>,
-	) -> error::Result<Imported<Hash, Ex>> {
+	fn import_to_ready(&mut self, tx: WaitingTransaction<Hash, Ex>) -> error::Result<Imported<Hash, Ex>> {
 		let hash = tx.transaction.hash.clone();
 		let mut promoted = vec![];
 		let mut failed = vec![];
@@ -333,15 +327,16 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 					// The transactions were removed from the ready pool. We might attempt to
 					// re-import them.
 					removed.append(&mut replaced);
-				},
+				}
 				// transaction failed to be imported.
-				Err(e) =>
+				Err(e) => {
 					if first {
 						debug!(target: "txpool", "[{:?}] Error importing: {:?}", current_hash, e);
-						return Err(e)
+						return Err(e);
 					} else {
 						failed.push(current_hash);
-					},
+					}
+				}
 			}
 			first = false;
 		}
@@ -357,10 +352,15 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 			self.ready.remove_subtree(&promoted);
 
 			debug!(target: "txpool", "[{:?}] Cycle detected, bailing.", hash);
-			return Err(error::Error::CycleDetected)
+			return Err(error::Error::CycleDetected);
 		}
 
-		Ok(Imported::Ready { hash, promoted, failed, removed })
+		Ok(Imported::Ready {
+			hash,
+			promoted,
+			failed,
+			removed,
+		})
 	}
 
 	/// Returns an iterator over ready transactions in the pool.
@@ -395,11 +395,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 	/// them. Technically the worst transaction should be evaluated by computing the entire pending
 	/// set. We use a simplified approach to remove the transaction that occupies the pool for the
 	/// longest time.
-	pub fn enforce_limits(
-		&mut self,
-		ready: &Limit,
-		future: &Limit,
-	) -> Vec<Arc<Transaction<Hash, Ex>>> {
+	pub fn enforce_limits(&mut self, ready: &Limit, future: &Limit) -> Vec<Arc<Transaction<Hash, Ex>>> {
 		let mut removed = vec![];
 
 		while ready.is_exceeded(self.ready.len(), self.ready.bytes()) {
@@ -408,8 +404,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 				let transaction = &current.transaction;
 				match minimal {
 					None => Some(transaction.clone()),
-					Some(ref tx) if tx.insertion_id > transaction.insertion_id =>
-						Some(transaction.clone()),
+					Some(ref tx) if tx.insertion_id > transaction.insertion_id => Some(transaction.clone()),
 					other => other,
 				}
 			});
@@ -417,7 +412,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 			if let Some(minimal) = minimal {
 				removed.append(&mut self.remove_subtree(&[minimal.transaction.hash.clone()]))
 			} else {
-				break
+				break;
 			}
 		}
 
@@ -432,7 +427,7 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 			if let Some(minimal) = minimal {
 				removed.append(&mut self.remove_subtree(&[minimal.transaction.hash.clone()]))
 			} else {
-				break
+				break;
 			}
 		}
 
@@ -489,11 +484,15 @@ impl<Hash: hash::Hash + Member + Serialize, Ex: std::fmt::Debug> BasePool<Hash, 
 				Err(e) => {
 					warn!(target: "txpool", "[{:?}] Failed to promote during pruning: {:?}", hash, e);
 					failed.push(hash)
-				},
+				}
 			}
 		}
 
-		PruneStatus { pruned, failed, promoted }
+		PruneStatus {
+			pruned,
+			failed,
+			promoted,
+		}
 	}
 
 	/// Get pool status.
@@ -796,7 +795,12 @@ mod tests {
 		assert_eq!(it.next(), None);
 		assert_eq!(
 			res,
-			Imported::Ready { hash: 4, promoted: vec![1, 3], failed: vec![2], removed: vec![] }
+			Imported::Ready {
+				hash: 4,
+				promoted: vec![1, 3],
+				failed: vec![2],
+				removed: vec![]
+			}
 		);
 		assert_eq!(pool.future.len(), 0);
 	}
@@ -1075,7 +1079,12 @@ mod tests {
 		assert_eq!(result.failed.len(), 0);
 		assert_eq!(
 			result.promoted[0],
-			Imported::Ready { hash: 5, promoted: vec![], failed: vec![], removed: vec![] }
+			Imported::Ready {
+				hash: 5,
+				promoted: vec![],
+				failed: vec![],
+				removed: vec![]
+			}
 		);
 		assert_eq!(result.promoted.len(), 1);
 		assert_eq!(pool.future.len(), 0);

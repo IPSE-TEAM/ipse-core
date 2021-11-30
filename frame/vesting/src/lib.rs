@@ -49,8 +49,7 @@
 
 use codec::{Decode, Encode};
 use frame_support::traits::{
-	Currency, ExistenceRequirement, Get, LockIdentifier, LockableCurrency, VestingSchedule,
-	WithdrawReason,
+	Currency, ExistenceRequirement, Get, LockIdentifier, LockableCurrency, VestingSchedule, WithdrawReason,
 };
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, weights::Weight};
 use frame_system::{ensure_root, ensure_signed};
@@ -64,10 +63,8 @@ use sp_std::prelude::*;
 mod benchmarking;
 mod default_weights;
 
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type MaxLocksOf<T> =
-	<<T as Trait>::Currency as LockableCurrency<<T as frame_system::Trait>::AccountId>>::MaxLocks;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type MaxLocksOf<T> = <<T as Trait>::Currency as LockableCurrency<<T as frame_system::Trait>::AccountId>>::MaxLocks;
 
 pub trait WeightInfo {
 	fn vest_locked(l: u32) -> Weight;
@@ -108,14 +105,9 @@ pub struct VestingInfo<Balance, BlockNumber> {
 	pub starting_block: BlockNumber,
 }
 
-impl<Balance: AtLeast32BitUnsigned + Copy, BlockNumber: AtLeast32BitUnsigned + Copy>
-	VestingInfo<Balance, BlockNumber>
-{
+impl<Balance: AtLeast32BitUnsigned + Copy, BlockNumber: AtLeast32BitUnsigned + Copy> VestingInfo<Balance, BlockNumber> {
 	/// Amount locked at block `n`.
-	pub fn locked_at<BlockNumberToBalance: Convert<BlockNumber, Balance>>(
-		&self,
-		n: BlockNumber,
-	) -> Balance {
+	pub fn locked_at<BlockNumberToBalance: Convert<BlockNumber, Balance>>(&self, n: BlockNumber) -> Balance {
 		// Number of blocks that count toward vesting
 		// Saturating to 0 when n < starting_block
 		let vested_block_count = n.saturating_sub(self.starting_block);
@@ -380,12 +372,16 @@ where
 		starting_block: T::BlockNumber,
 	) -> DispatchResult {
 		if locked.is_zero() {
-			return Ok(())
+			return Ok(());
 		}
 		if Vesting::<T>::contains_key(who) {
 			Err(Error::<T>::ExistingVestingSchedule)?
 		}
-		let vesting_schedule = VestingInfo { locked, per_block, starting_block };
+		let vesting_schedule = VestingInfo {
+			locked,
+			per_block,
+			starting_block,
+		};
 		Vesting::<T>::insert(who, vesting_schedule);
 		// it can't fail, but even if somehow it did, we don't really care.
 		let _ = Self::update_lock(who.clone());
@@ -404,9 +400,7 @@ where
 mod tests {
 	use super::*;
 
-	use frame_support::{
-		assert_noop, assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight,
-	};
+	use frame_support::{assert_noop, assert_ok, impl_outer_origin, parameter_types, traits::Get, weights::Weight};
 	use frame_system::RawOrigin;
 	use sp_core::H256;
 	use sp_runtime::{
@@ -738,8 +732,11 @@ mod tests {
 			);
 
 			// Fails due to too low transfer amount.
-			let new_vesting_schedule_too_low =
-				VestingInfo { locked: 256 * 1, per_block: 64, starting_block: 10 };
+			let new_vesting_schedule_too_low = VestingInfo {
+				locked: 256 * 1,
+				per_block: 64,
+				starting_block: 10,
+			};
 			assert_noop!(
 				Vesting::vested_transfer(Some(3).into(), 4, new_vesting_schedule_too_low),
 				Error::<Test>::AmountLow,
@@ -827,15 +824,13 @@ mod tests {
 			);
 
 			// Fails due to too low transfer amount.
-			let new_vesting_schedule_too_low =
-				VestingInfo { locked: 256 * 1, per_block: 64, starting_block: 10 };
+			let new_vesting_schedule_too_low = VestingInfo {
+				locked: 256 * 1,
+				per_block: 64,
+				starting_block: 10,
+			};
 			assert_noop!(
-				Vesting::force_vested_transfer(
-					RawOrigin::Root.into(),
-					3,
-					4,
-					new_vesting_schedule_too_low
-				),
+				Vesting::force_vested_transfer(RawOrigin::Root.into(), 3, 4, new_vesting_schedule_too_low),
 				Error::<Test>::AmountLow,
 			);
 

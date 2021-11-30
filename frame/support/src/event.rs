@@ -810,17 +810,14 @@ mod tests {
 
 	#[test]
 	fn test_codec() {
-		let runtime_1_event_module_2 =
-			TestEvent::event_module2(event_module2::Event::<TestRuntime>::TestEvent(3));
+		let runtime_1_event_module_2 = TestEvent::event_module2(event_module2::Event::<TestRuntime>::TestEvent(3));
 		assert_eq!(runtime_1_event_module_2.encode()[0], 2);
 
-		let runtime_2_event_module_2 = TestEventSystemRenamed::event_module2(
-			event_module2::Event::<TestRuntime2>::TestEvent(3),
-		);
+		let runtime_2_event_module_2 =
+			TestEventSystemRenamed::event_module2(event_module2::Event::<TestRuntime2>::TestEvent(3));
 		assert_eq!(runtime_2_event_module_2.encode()[0], 5);
 
-		let runtime_2_event_module_3 =
-			TestEventSystemRenamed::event_module3(event_module3::Event::HiEvent);
+		let runtime_2_event_module_3 = TestEventSystemRenamed::event_module3(event_module3::Event::HiEvent);
 		assert_eq!(runtime_2_event_module_3.encode()[0], 3);
 	}
 }

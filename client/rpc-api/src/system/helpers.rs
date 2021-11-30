@@ -53,7 +53,12 @@ pub struct Health {
 
 impl fmt::Display for Health {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "{} peers ({})", self.peers, if self.is_syncing { "syncing" } else { "idle" })
+		write!(
+			fmt,
+			"{} peers ({})",
+			self.peers,
+			if self.is_syncing { "syncing" } else { "idle" }
+		)
 	}
 }
 

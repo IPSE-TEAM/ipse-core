@@ -35,10 +35,7 @@ type Boxed01Future01 = Box<dyn future01::Future<Item = (), Error = ()> + Send + 
 /// Executor for use in testing
 pub struct TaskExecutor;
 impl future01::Executor<Boxed01Future01> for TaskExecutor {
-	fn execute(
-		&self,
-		future: Boxed01Future01,
-	) -> std::result::Result<(), future01::ExecuteError<Boxed01Future01>> {
+	fn execute(&self, future: Boxed01Future01) -> std::result::Result<(), future01::ExecuteError<Boxed01Future01>> {
 		EXECUTOR.spawn_ok(future.compat().map(drop));
 		Ok(())
 	}

@@ -100,15 +100,15 @@ impl<B: BlockT> ExtraRequests<B> {
 			Ok(true) => {
 				// this is a new root so we add it to the current `pending_requests`
 				self.pending_requests.push_back((request.0, request.1));
-			},
+			}
 			Err(fork_tree::Error::Revert) => {
 				// we have finalized further than the given request, presumably
 				// by some other part of the system (not sync). we can safely
 				// ignore the `Revert` error.
-			},
+			}
 			Err(err) => {
 				debug!(target: "sync", "Failed to insert request {:?} into tree: {:?}", request, err);
-			},
+			}
 			_ => (),
 		}
 	}
@@ -138,7 +138,7 @@ impl<B: BlockT> ExtraRequests<B> {
 				);
 
 				self.importing_requests.insert(request);
-				return Some((who, request.0, request.1, r))
+				return Some((who, request.0, request.1, r));
 			} else {
 				trace!(target: "sync", "Empty {} response from {:?} for {:?}",
 					self.request_type_name,
@@ -146,7 +146,10 @@ impl<B: BlockT> ExtraRequests<B> {
 					request,
 				);
 			}
-			self.failed_requests.entry(request).or_default().push((who, Instant::now()));
+			self.failed_requests
+				.entry(request)
+				.or_default()
+				.push((who, Instant::now()));
 			self.pending_requests.push_front(request);
 		} else {
 			trace!(target: "sync", "No active {} request to {:?}",
@@ -170,24 +173,23 @@ impl<B: BlockT> ExtraRequests<B> {
 		let request = (*best_finalized_hash, best_finalized_number);
 
 		if self.try_finalize_root::<()>(request, Ok(request), false) {
-			return Ok(())
+			return Ok(());
 		}
 
 		if best_finalized_number > self.best_seen_finalized_number {
 			// normally we'll receive finality notifications for every block => finalize would be
 			// enough but if many blocks are finalized at once, some notifications may be omitted
 			// => let's use finalize_with_ancestors here
-			match self.tree.finalize_with_ancestors(
-				best_finalized_hash,
-				best_finalized_number,
-				&is_descendent_of,
-			) {
+			match self
+				.tree
+				.finalize_with_ancestors(best_finalized_hash, best_finalized_number, &is_descendent_of)
+			{
 				Err(fork_tree::Error::Revert) => {
 					// we might have finalized further already in which case we
 					// will get a `Revert` error which we can safely ignore.
-				},
+				}
 				Err(err) => return Err(err),
-				Ok(_) => {},
+				Ok(_) => {}
 			}
 
 			self.best_seen_finalized_number = best_finalized_number;
@@ -212,7 +214,7 @@ impl<B: BlockT> ExtraRequests<B> {
 		reschedule_on_failure: bool,
 	) -> bool {
 		if !self.importing_requests.remove(&request) {
-			return false
+			return false;
 		}
 
 		let (finalized_hash, finalized_number) = match result {
@@ -221,8 +223,8 @@ impl<B: BlockT> ExtraRequests<B> {
 				if reschedule_on_failure {
 					self.pending_requests.push_front(request);
 				}
-				return true
-			},
+				return true;
+			}
 		};
 
 		if self.tree.finalize_root(&finalized_hash).is_none() {
@@ -231,13 +233,14 @@ impl<B: BlockT> ExtraRequests<B> {
 				finalized_number,
 				self.tree.roots().collect::<Vec<_>>()
 			);
-			return true
+			return true;
 		}
 
 		self.failed_requests.clear();
 		self.active_requests.clear();
 		self.pending_requests.clear();
-		self.pending_requests.extend(self.tree.roots().map(|(&h, &n, _)| (h, n)));
+		self.pending_requests
+			.extend(self.tree.roots().map(|(&h, &n, _)| (h, n)));
 		self.best_seen_finalized_number = finalized_number;
 
 		true
@@ -279,7 +282,10 @@ pub(crate) struct Matcher<'a, B: BlockT> {
 
 impl<'a, B: BlockT> Matcher<'a, B> {
 	fn new(extras: &'a mut ExtraRequests<B>) -> Self {
-		Matcher { remaining: extras.pending_requests.len(), extras }
+		Matcher {
+			remaining: extras.pending_requests.len(),
+			extras,
+		}
 	}
 
 	/// Finds a peer to which a pending request can be sent.
@@ -296,12 +302,9 @@ impl<'a, B: BlockT> Matcher<'a, B> {
 	///
 	/// The returned `PeerId` (if any) is guaranteed to come from the given `peers`
 	/// argument.
-	pub(crate) fn next(
-		&mut self,
-		peers: &HashMap<PeerId, PeerSync<B>>,
-	) -> Option<(PeerId, ExtraRequest<B>)> {
+	pub(crate) fn next(&mut self, peers: &HashMap<PeerId, PeerSync<B>>) -> Option<(PeerId, ExtraRequest<B>)> {
 		if self.remaining == 0 {
-			return None
+			return None;
 		}
 
 		// clean up previously failed requests so we can retry again
@@ -310,17 +313,15 @@ impl<'a, B: BlockT> Matcher<'a, B> {
 		}
 
 		while let Some(request) = self.extras.pending_requests.pop_front() {
-			for (peer, sync) in
-				peers.iter().filter(|(_, sync)| sync.state == PeerSyncState::Available)
-			{
+			for (peer, sync) in peers.iter().filter(|(_, sync)| sync.state == PeerSyncState::Available) {
 				// only ask peers that have synced at least up to the block number that we're asking
 				// the extra for
 				if sync.best_number < request.1 {
-					continue
+					continue;
 				}
 				// don't request to any peers that already have pending requests
 				if self.extras.active_requests.contains_key(peer) {
-					continue
+					continue;
 				}
 				// only ask if the same request has not failed for this peer before
 				if self
@@ -330,7 +331,7 @@ impl<'a, B: BlockT> Matcher<'a, B> {
 					.map(|rr| rr.iter().any(|i| &i.0 == peer))
 					.unwrap_or(false)
 				{
-					continue
+					continue;
 				}
 				self.extras.active_requests.insert(peer.clone(), request);
 
@@ -340,14 +341,14 @@ impl<'a, B: BlockT> Matcher<'a, B> {
 					request,
 				);
 
-				return Some((peer.clone(), request))
+				return Some((peer.clone(), request));
 			}
 
 			self.extras.pending_requests.push_back(request);
 			self.remaining -= 1;
 
 			if self.remaining == 0 {
-				break
+				break;
 			}
 		}
 
@@ -370,8 +371,7 @@ mod tests {
 		fn property(mut peers: ArbitraryPeers) {
 			let mut requests = ExtraRequests::<Block>::new("test");
 
-			let num_peers_available =
-				peers.0.values().filter(|s| s.state == PeerSyncState::Available).count();
+			let num_peers_available = peers.0.values().filter(|s| s.state == PeerSyncState::Available).count();
 
 			for i in 0..num_peers_available {
 				requests.schedule((Hash::random(), i as u64), |a, b| Ok(a[0] >= b[0]))
@@ -383,8 +383,7 @@ mod tests {
 			for p in &pending {
 				let (peer, r) = m.next(&peers.0).unwrap();
 				assert_eq!(p, &r);
-				peers.0.get_mut(&peer).unwrap().state =
-					PeerSyncState::DownloadingJustification(r.0);
+				peers.0.get_mut(&peer).unwrap().state = PeerSyncState::DownloadingJustification(r.0);
 			}
 		}
 
@@ -413,8 +412,7 @@ mod tests {
 		fn property(mut peers: ArbitraryPeers) -> bool {
 			let mut requests = ExtraRequests::<Block>::new("test");
 
-			let num_peers_available =
-				peers.0.values().filter(|s| s.state == PeerSyncState::Available).count();
+			let num_peers_available = peers.0.values().filter(|s| s.state == PeerSyncState::Available).count();
 
 			for i in 0..num_peers_available {
 				requests.schedule((Hash::random(), i as u64), |a, b| Ok(a[0] >= b[0]))
@@ -422,15 +420,13 @@ mod tests {
 
 			let mut m = requests.matcher();
 			while let Some((peer, r)) = m.next(&peers.0) {
-				peers.0.get_mut(&peer).unwrap().state =
-					PeerSyncState::DownloadingJustification(r.0);
+				peers.0.get_mut(&peer).unwrap().state = PeerSyncState::DownloadingJustification(r.0);
 			}
 
 			assert!(requests.pending_requests.is_empty());
 
 			let active_peers = requests.active_requests.keys().cloned().collect::<Vec<_>>();
-			let previously_active =
-				requests.active_requests.values().cloned().collect::<HashSet<_>>();
+			let previously_active = requests.active_requests.values().cloned().collect::<HashSet<_>>();
 
 			for peer in &active_peers {
 				requests.peer_disconnected(peer)
@@ -441,8 +437,7 @@ mod tests {
 			previously_active == requests.pending_requests.iter().cloned().collect::<HashSet<_>>()
 		}
 
-		QuickCheck::with_gen(StdThreadGen::new(19))
-			.quickcheck(property as fn(ArbitraryPeers) -> bool)
+		QuickCheck::with_gen(StdThreadGen::new(19)).quickcheck(property as fn(ArbitraryPeers) -> bool)
 	}
 
 	#[test]
@@ -450,8 +445,7 @@ mod tests {
 		fn property(mut peers: ArbitraryPeers) {
 			let mut requests = ExtraRequests::<Block>::new("test");
 
-			let num_peers_available =
-				peers.0.values().filter(|s| s.state == PeerSyncState::Available).count();
+			let num_peers_available = peers.0.values().filter(|s| s.state == PeerSyncState::Available).count();
 
 			for i in 0..num_peers_available {
 				requests.schedule((Hash::random(), i as u64), |a, b| Ok(a[0] >= b[0]))
@@ -459,12 +453,14 @@ mod tests {
 
 			let mut m = requests.matcher();
 			while let Some((peer, r)) = m.next(&peers.0) {
-				peers.0.get_mut(&peer).unwrap().state =
-					PeerSyncState::DownloadingJustification(r.0);
+				peers.0.get_mut(&peer).unwrap().state = PeerSyncState::DownloadingJustification(r.0);
 			}
 
-			let active =
-				requests.active_requests.iter().map(|(p, &r)| (p.clone(), r)).collect::<Vec<_>>();
+			let active = requests
+				.active_requests
+				.iter()
+				.map(|(p, &r)| (p.clone(), r))
+				.collect::<Vec<_>>();
 
 			for (peer, req) in &active {
 				assert!(requests.failed_requests.get(req).is_none());
@@ -515,7 +511,10 @@ mod tests {
 		finality_proofs.try_finalize_root::<()>((hash6, 6), Ok((hash5, 5)), true);
 
 		// ensure that request for #6 is still pending
-		assert_eq!(finality_proofs.pending_requests.iter().collect::<Vec<_>>(), vec![&(hash6, 6)]);
+		assert_eq!(
+			finality_proofs.pending_requests.iter().collect::<Vec<_>>(),
+			vec![&(hash6, 6)]
+		);
 
 		// receive finality proof for #7
 		finality_proofs.importing_requests.insert((hash6, 6));

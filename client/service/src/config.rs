@@ -21,9 +21,7 @@
 use sc_client_api::execution_extensions::ExecutionStrategies;
 pub use sc_client_db::{Database, DatabaseSettingsSrc as DatabaseConfig, PruningMode};
 pub use sc_executor::WasmExecutionMethod;
-pub use sc_network::config::{
-	ExtTransport, MultiaddrWithPeerId, NetworkConfiguration, NodeKeyConfig, Role,
-};
+pub use sc_network::config::{ExtTransport, MultiaddrWithPeerId, NetworkConfiguration, NodeKeyConfig, Role};
 pub use sc_network::Multiaddr;
 
 use prometheus_endpoint::Registry;
@@ -234,7 +232,9 @@ impl BasePath {
 	/// instance is dropped.
 	#[cfg(not(target_os = "unknown"))]
 	pub fn new_temp_dir() -> io::Result<BasePath> {
-		Ok(BasePath::Temporary(tempfile::Builder::new().prefix("substrate").tempdir()?))
+		Ok(BasePath::Temporary(
+			tempfile::Builder::new().prefix("substrate").tempdir()?,
+		))
 	}
 
 	/// Create a `BasePath` instance based on an existing path on disk.

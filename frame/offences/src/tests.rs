@@ -21,8 +21,8 @@
 
 use super::*;
 use crate::mock::{
-	new_test_ext, offence_reports, set_can_report, set_offence_weight, with_on_offence_fractions,
-	Offence, Offences, System, TestEvent, KIND,
+	new_test_ext, offence_reports, set_can_report, set_offence_weight, with_on_offence_fractions, Offence, Offences,
+	System, TestEvent, KIND,
 };
 use frame_support::traits::OnInitialize;
 use frame_system::{EventRecord, Phase};
@@ -35,7 +35,11 @@ fn should_report_an_authority_and_trigger_on_offence() {
 		let time_slot = 42;
 		assert_eq!(offence_reports(KIND, time_slot), vec![]);
 
-		let offence = Offence { validator_set_count: 5, time_slot, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot,
+			offenders: vec![5],
+		};
 
 		// when
 		Offences::report_offence(vec![], offence).unwrap();
@@ -54,7 +58,11 @@ fn should_not_report_the_same_authority_twice_in_the_same_slot() {
 		let time_slot = 42;
 		assert_eq!(offence_reports(KIND, time_slot), vec![]);
 
-		let offence = Offence { validator_set_count: 5, time_slot, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence.clone()).unwrap();
 		with_on_offence_fractions(|f| {
 			assert_eq!(f.clone(), vec![Perbill::from_percent(25)]);
@@ -63,7 +71,10 @@ fn should_not_report_the_same_authority_twice_in_the_same_slot() {
 
 		// when
 		// report for the second time
-		assert_eq!(Offences::report_offence(vec![], offence), Err(OffenceError::DuplicateReport));
+		assert_eq!(
+			Offences::report_offence(vec![], offence),
+			Err(OffenceError::DuplicateReport)
+		);
 
 		// then
 		with_on_offence_fractions(|f| {
@@ -79,7 +90,11 @@ fn should_report_in_different_time_slot() {
 		let time_slot = 42;
 		assert_eq!(offence_reports(KIND, time_slot), vec![]);
 
-		let mut offence = Offence { validator_set_count: 5, time_slot, offenders: vec![5] };
+		let mut offence = Offence {
+			validator_set_count: 5,
+			time_slot,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence.clone()).unwrap();
 		with_on_offence_fractions(|f| {
 			assert_eq!(f.clone(), vec![Perbill::from_percent(25)]);
@@ -105,7 +120,11 @@ fn should_deposit_event() {
 		let time_slot = 42;
 		assert_eq!(offence_reports(KIND, time_slot), vec![]);
 
-		let offence = Offence { validator_set_count: 5, time_slot, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot,
+			offenders: vec![5],
+		};
 
 		// when
 		Offences::report_offence(vec![], offence).unwrap();
@@ -129,7 +148,11 @@ fn doesnt_deposit_event_for_dups() {
 		let time_slot = 42;
 		assert_eq!(offence_reports(KIND, time_slot), vec![]);
 
-		let offence = Offence { validator_set_count: 5, time_slot, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence.clone()).unwrap();
 		with_on_offence_fractions(|f| {
 			assert_eq!(f.clone(), vec![Perbill::from_percent(25)]);
@@ -138,7 +161,10 @@ fn doesnt_deposit_event_for_dups() {
 
 		// when
 		// report for the second time
-		assert_eq!(Offences::report_offence(vec![], offence), Err(OffenceError::DuplicateReport));
+		assert_eq!(
+			Offences::report_offence(vec![], offence),
+			Err(OffenceError::DuplicateReport)
+		);
 
 		// then
 		// there is only one event.
@@ -161,8 +187,11 @@ fn reports_if_an_offence_is_dup() {
 		let time_slot = 42;
 		assert_eq!(offence_reports(KIND, time_slot), vec![]);
 
-		let offence =
-			|time_slot, offenders| TestOffence { validator_set_count: 5, time_slot, offenders };
+		let offence = |time_slot, offenders| TestOffence {
+			validator_set_count: 5,
+			time_slot,
+			offenders,
+		};
 
 		let mut test_offence = offence(time_slot, vec![0]);
 
@@ -219,8 +248,16 @@ fn should_properly_count_offences() {
 		let time_slot = 42;
 		assert_eq!(offence_reports(KIND, time_slot), vec![]);
 
-		let offence1 = Offence { validator_set_count: 5, time_slot, offenders: vec![5] };
-		let offence2 = Offence { validator_set_count: 5, time_slot, offenders: vec![4] };
+		let offence1 = Offence {
+			validator_set_count: 5,
+			time_slot,
+			offenders: vec![5],
+		};
+		let offence2 = Offence {
+			validator_set_count: 5,
+			time_slot,
+			offenders: vec![4],
+		};
 		Offences::report_offence(vec![], offence1).unwrap();
 		with_on_offence_fractions(|f| {
 			assert_eq!(f.clone(), vec![Perbill::from_percent(25)]);
@@ -236,8 +273,14 @@ fn should_properly_count_offences() {
 		assert_eq!(
 			offence_reports(KIND, time_slot),
 			vec![
-				OffenceDetails { offender: 5, reporters: vec![] },
-				OffenceDetails { offender: 4, reporters: vec![] },
+				OffenceDetails {
+					offender: 5,
+					reporters: vec![]
+				},
+				OffenceDetails {
+					offender: 4,
+					reporters: vec![]
+				},
 			]
 		);
 	});
@@ -249,7 +292,11 @@ fn should_queue_and_resubmit_rejected_offence() {
 		set_can_report(false);
 
 		// will get deferred
-		let offence = Offence { validator_set_count: 5, time_slot: 42, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot: 42,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence).unwrap();
 		assert_eq!(Offences::deferred_offences().len(), 1);
 		// event also indicates unapplied.
@@ -266,14 +313,22 @@ fn should_queue_and_resubmit_rejected_offence() {
 		Offences::on_initialize(2);
 
 		// again
-		let offence = Offence { validator_set_count: 5, time_slot: 62, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot: 62,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence).unwrap();
 		assert_eq!(Offences::deferred_offences().len(), 2);
 
 		set_can_report(true);
 
 		// can be submitted
-		let offence = Offence { validator_set_count: 5, time_slot: 72, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot: 72,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence).unwrap();
 		assert_eq!(Offences::deferred_offences().len(), 2);
 
@@ -291,13 +346,25 @@ fn weight_soft_limit_is_used() {
 
 		// Queue 3 offences
 		// #1
-		let offence = Offence { validator_set_count: 5, time_slot: 42, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot: 42,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence).unwrap();
 		// #2
-		let offence = Offence { validator_set_count: 5, time_slot: 62, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot: 62,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence).unwrap();
 		// #3
-		let offence = Offence { validator_set_count: 5, time_slot: 72, offenders: vec![5] };
+		let offence = Offence {
+			validator_set_count: 5,
+			time_slot: 72,
+			offenders: vec![5],
+		};
 		Offences::report_offence(vec![], offence).unwrap();
 		// 3 are queued
 		assert_eq!(Offences::deferred_offences().len(), 3);

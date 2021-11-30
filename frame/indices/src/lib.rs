@@ -37,8 +37,7 @@ mod mock;
 mod tests;
 
 pub type Address<T> = RawAddress<<T as frame_system::Trait>::AccountId, <T as Trait>::AccountIndex>;
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 pub trait WeightInfo {
 	fn claim() -> Weight;
@@ -293,9 +292,7 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Lookup an address to get an Id, if there's one there.
-	pub fn lookup_address(
-		a: address::Address<T::AccountId, T::AccountIndex>,
-	) -> Option<T::AccountId> {
+	pub fn lookup_address(a: address::Address<T::AccountId, T::AccountIndex>) -> Option<T::AccountId> {
 		match a {
 			address::Address::Id(i) => Some(i),
 			address::Address::Index(i) => Self::lookup_index(i),

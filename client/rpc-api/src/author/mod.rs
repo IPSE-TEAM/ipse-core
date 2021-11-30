@@ -67,10 +67,7 @@ pub trait AuthorApi<Hash, BlockHash> {
 
 	/// Remove given extrinsic from the pool and temporarily ban it to prevent reimporting.
 	#[rpc(name = "author_removeExtrinsic")]
-	fn remove_extrinsic(
-		&self,
-		bytes_or_hash: Vec<hash::ExtrinsicOrHash<Hash>>,
-	) -> Result<Vec<Hash>>;
+	fn remove_extrinsic(&self, bytes_or_hash: Vec<hash::ExtrinsicOrHash<Hash>>) -> Result<Vec<Hash>>;
 
 	/// Submit an extrinsic to watch.
 	///
@@ -94,9 +91,5 @@ pub trait AuthorApi<Hash, BlockHash> {
 		unsubscribe,
 		name = "author_unwatchExtrinsic"
 	)]
-	fn unwatch_extrinsic(
-		&self,
-		metadata: Option<Self::Metadata>,
-		id: SubscriptionId,
-	) -> Result<bool>;
+	fn unwatch_extrinsic(&self, metadata: Option<Self::Metadata>, id: SubscriptionId) -> Result<bool>;
 }

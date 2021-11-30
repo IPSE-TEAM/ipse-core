@@ -17,10 +17,7 @@
 
 //! Implementation of the `inspect` subcommand
 
-use crate::{
-	utils, with_crypto_scheme, CryptoSchemeFlag, Error, KeystoreParams, NetworkSchemeFlag,
-	OutputTypeFlag,
-};
+use crate::{utils, with_crypto_scheme, CryptoSchemeFlag, Error, KeystoreParams, NetworkSchemeFlag, OutputTypeFlag};
 use structopt::StructOpt;
 /// The `inspect` command
 #[derive(Debug, StructOpt)]
@@ -83,8 +80,7 @@ mod tests {
 
 	#[test]
 	fn inspect() {
-		let words =
-			"remember fiber forum demise paper uniform squirrel feel access exclude casual effort";
+		let words = "remember fiber forum demise paper uniform squirrel feel access exclude casual effort";
 		let seed = "0xad1fb77243b536b90cfe5f0d351ab1b1ac40e3890b41dc64f766ee56340cfca5";
 
 		let inspect = InspectKeyCmd::from_iter(&["inspect-key", words, "--password", "12345"]);

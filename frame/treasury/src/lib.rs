@@ -163,14 +163,11 @@ mod benchmarking;
 mod default_weights;
 mod tests;
 
-type BalanceOf<T, I> =
-	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
-type PositiveImbalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<
-	<T as frame_system::Trait>::AccountId,
->>::PositiveImbalance;
-type NegativeImbalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<
-	<T as frame_system::Trait>::AccountId,
->>::NegativeImbalance;
+type BalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type PositiveImbalanceOf<T, I> =
+	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::PositiveImbalance;
+type NegativeImbalanceOf<T, I> =
+	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
 pub trait WeightInfo {
 	fn propose_spend() -> Weight;
@@ -289,12 +286,7 @@ pub struct Proposal<AccountId, Balance> {
 /// An open tipping "motion". Retains all details of a tip including information on the finder
 /// and the members who have voted.
 #[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug)]
-pub struct OpenTip<
-	AccountId: Parameter,
-	Balance: Parameter,
-	BlockNumber: Parameter,
-	Hash: Parameter,
-> {
+pub struct OpenTip<AccountId: Parameter, Balance: Parameter, BlockNumber: Parameter, Hash: Parameter> {
 	/// The hash of the reason for the tip. The reason should be a human-readable UTF-8 encoded
 	/// string. A URL would be sensible.
 	reason: Hash,
@@ -1259,11 +1251,11 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 				Some(m) => {
 					member = members_iter.next();
 					if m < a {
-						continue
+						continue;
 					} else {
-						break true
+						break true;
 					}
-				},
+				}
 			}
 		});
 	}
@@ -1272,10 +1264,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 	///
 	/// Up to three balance operations.
 	/// Plus `O(T)` (`T` is Tippers length).
-	fn payout_tip(
-		hash: T::Hash,
-		tip: OpenTip<T::AccountId, BalanceOf<T, I>, T::BlockNumber, T::Hash>,
-	) {
+	fn payout_tip(hash: T::Hash, tip: OpenTip<T::AccountId, BalanceOf<T, I>, T::BlockNumber, T::Hash>) {
 		let mut tips = tip.tips;
 		Self::retain_active_tips(&mut tips);
 		tips.sort_by_key(|i| i.1);
@@ -1391,9 +1380,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 		// proof: budget_remaining is account free balance minus ED;
 		// Thus we can't spend more than account free balance minus ED;
 		// Thus account is kept alive; qed;
-		if let Err(problem) =
-			T::Currency::settle(&account_id, imbalance, WithdrawReason::Transfer.into(), KeepAlive)
-		{
+		if let Err(problem) = T::Currency::settle(&account_id, imbalance, WithdrawReason::Transfer.into(), KeepAlive) {
 			print("Inconsistent state - couldn't settle imbalance for funds spent by treasury");
 			// Nothing else to do here.
 			drop(problem);
@@ -1412,11 +1399,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 			.saturating_sub(T::Currency::minimum_balance())
 	}
 
-	fn create_bounty(
-		proposer: T::AccountId,
-		description: Vec<u8>,
-		value: BalanceOf<T, I>,
-	) -> DispatchResult {
+	fn create_bounty(proposer: T::AccountId, description: Vec<u8>, value: BalanceOf<T, I>) -> DispatchResult {
 		ensure!(
 			description.len() <= T::MaximumReasonLength::get() as usize,
 			Error::<T, I>::ReasonTooBig
@@ -1426,10 +1409,8 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 		let index = Self::bounty_count();
 
 		// reserve deposit for new bounty
-		let bond = T::BountyDepositBase::get() +
-			T::DataDepositPerByte::get() * (description.len() as u32).into();
-		T::Currency::reserve(&proposer, bond)
-			.map_err(|_| Error::<T, I>::InsufficientProposersBalance)?;
+		let bond = T::BountyDepositBase::get() + T::DataDepositPerByte::get() * (description.len() as u32).into();
+		T::Currency::reserve(&proposer, bond).map_err(|_| Error::<T, I>::InsufficientProposersBalance)?;
 
 		BountyCount::<I>::put(index + 1);
 
@@ -1454,12 +1435,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 		/// An open tipping "motion". Retains all details of a tip including information on the
 		/// finder and the members who have voted.
 		#[derive(Clone, Eq, PartialEq, Encode, Decode, RuntimeDebug)]
-		pub struct OldOpenTip<
-			AccountId: Parameter,
-			Balance: Parameter,
-			BlockNumber: Parameter,
-			Hash: Parameter,
-		> {
+		pub struct OldOpenTip<AccountId: Parameter, Balance: Parameter, BlockNumber: Parameter, Hash: Parameter> {
 			/// The hash of the reason for the tip. The reason should be a human-readable UTF-8
 			/// encoded string. A URL would be sensible.
 			reason: Hash,

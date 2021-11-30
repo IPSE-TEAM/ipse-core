@@ -17,8 +17,7 @@
 //! Metering tools for consensus
 
 use prometheus_endpoint::{
-	register, CounterVec, Histogram, HistogramOpts, HistogramVec, Opts, PrometheusError, Registry,
-	U64,
+	register, CounterVec, Histogram, HistogramOpts, HistogramVec, Opts, PrometheusError, Registry, U64,
 };
 
 use sp_runtime::traits::{Block as BlockT, NumberFor};
@@ -76,10 +75,7 @@ impl Metrics {
 		})
 	}
 
-	pub fn report_import<B: BlockT>(
-		&self,
-		result: &Result<BlockImportResult<NumberFor<B>>, BlockImportError>,
-	) {
+	pub fn report_import<B: BlockT>(&self, result: &Result<BlockImportResult<NumberFor<B>>, BlockImportError>) {
 		let label = match result {
 			Ok(_) => "success",
 			Err(BlockImportError::IncompleteHeader(_)) => "incomplete_header",

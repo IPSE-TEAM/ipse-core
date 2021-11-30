@@ -80,7 +80,10 @@ impl<T: Trait> pallet_session::OneSessionHandler<T::AccountId> for Module<T> {
 	{
 		// Remember who the authorities are for the new and next session.
 		if changed {
-			let keys = validators.chain(queued_validators).map(|x| x.1).collect::<BTreeSet<_>>();
+			let keys = validators
+				.chain(queued_validators)
+				.map(|x| x.1)
+				.collect::<BTreeSet<_>>();
 			Keys::put(keys.into_iter().collect::<Vec<_>>());
 		}
 	}
@@ -232,7 +235,9 @@ mod tests {
 		// Build genesis.
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-		GenesisConfig { keys: vec![] }.assimilate_storage::<Test>(&mut t).unwrap();
+		GenesisConfig { keys: vec![] }
+			.assimilate_storage::<Test>(&mut t)
+			.unwrap();
 
 		// Create externalities.
 		let mut externalities = TestExternalities::new(t);
@@ -240,9 +245,7 @@ mod tests {
 		externalities.execute_with(|| {
 			use pallet_session::OneSessionHandler;
 
-			AuthorityDiscovery::on_genesis_session(
-				first_authorities.iter().map(|id| (id, id.clone())),
-			);
+			AuthorityDiscovery::on_genesis_session(first_authorities.iter().map(|id| (id, id.clone())));
 			first_authorities.sort();
 			let mut authorities_returned = AuthorityDiscovery::authorities();
 			authorities_returned.sort();

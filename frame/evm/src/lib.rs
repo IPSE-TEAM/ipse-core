@@ -49,8 +49,7 @@ use sp_runtime::{
 use sp_std::vec::Vec;
 
 /// Type alias for currency balance.
-pub type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+pub type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
 /// Trait that outputs the current transaction gas price.
 pub trait FeeCalculator {
@@ -69,18 +68,12 @@ pub trait EnsureAddressOrigin<OuterOrigin> {
 	type Success;
 
 	/// Perform the origin check.
-	fn ensure_address_origin(
-		address: &H160,
-		origin: OuterOrigin,
-	) -> Result<Self::Success, BadOrigin> {
+	fn ensure_address_origin(address: &H160, origin: OuterOrigin) -> Result<Self::Success, BadOrigin> {
 		Self::try_address_origin(address, origin).map_err(|_| BadOrigin)
 	}
 
 	/// Try with origin.
-	fn try_address_origin(
-		address: &H160,
-		origin: OuterOrigin,
-	) -> Result<Self::Success, OuterOrigin>;
+	fn try_address_origin(address: &H160, origin: OuterOrigin) -> Result<Self::Success, OuterOrigin>;
 }
 
 /// Ensure that the EVM address is the same as the Substrate address. This only works if the account
@@ -141,8 +134,7 @@ where
 
 	fn try_address_origin(address: &H160, origin: OuterOrigin) -> Result<AccountId32, OuterOrigin> {
 		origin.into().and_then(|o| match o {
-			RawOrigin::Signed(who) if AsRef::<[u8; 32]>::as_ref(&who)[0..20] == address[0..20] =>
-				Ok(who),
+			RawOrigin::Signed(who) if AsRef::<[u8; 32]>::as_ref(&who)[0..20] == address[0..20] => Ok(who),
 			r => Err(OuterOrigin::from(r)),
 		})
 	}
@@ -485,7 +477,10 @@ impl<T: Trait> Module<T> {
 	) -> Result<(ExitReason, H160, U256, Vec<Log>), Error<T>> {
 		Self::execute_evm(source, value, gas_limit, gas_price, nonce, apply_state, |executor| {
 			let address = executor.create_address(evm::CreateScheme::Legacy { caller: source });
-			(executor.transact_create(source, value, init, gas_limit as usize), address)
+			(
+				executor.transact_create(source, value, init, gas_limit as usize),
+				address,
+			)
 		})
 	}
 
@@ -507,7 +502,10 @@ impl<T: Trait> Module<T> {
 				code_hash,
 				salt,
 			});
-			(executor.transact_create2(source, value, init, salt, gas_limit as usize), address)
+			(
+				executor.transact_create2(source, value, init, salt, gas_limit as usize),
+				address,
+			)
 		})
 	}
 
@@ -542,25 +540,30 @@ impl<T: Trait> Module<T> {
 	{
 		// Gas price check is skipped when performing a gas estimation.
 		if apply_state {
-			ensure!(gas_price >= T::FeeCalculator::min_gas_price(), Error::<T>::GasPriceTooLow);
+			ensure!(
+				gas_price >= T::FeeCalculator::min_gas_price(),
+				Error::<T>::GasPriceTooLow
+			);
 		}
 
-		let vicinity = Vicinity { gas_price, origin: source };
+		let vicinity = Vicinity {
+			gas_price,
+			origin: source,
+		};
 
 		let mut backend = Backend::<T>::new(&vicinity);
-		let mut executor = StackExecutor::new_with_precompile(
-			&backend,
-			gas_limit as usize,
-			T::config(),
-			T::Precompiles::execute,
-		);
+		let mut executor =
+			StackExecutor::new_with_precompile(&backend, gas_limit as usize, T::config(), T::Precompiles::execute);
 
-		let total_fee =
-			gas_price.checked_mul(U256::from(gas_limit)).ok_or(Error::<T>::FeeOverflow)?;
+		let total_fee = gas_price
+			.checked_mul(U256::from(gas_limit))
+			.ok_or(Error::<T>::FeeOverflow)?;
 		let total_payment = value.checked_add(total_fee).ok_or(Error::<T>::PaymentOverflow)?;
 		let source_account = Self::account_basic(&source);
 		ensure!(source_account.balance >= total_payment, Error::<T>::BalanceLow);
-		executor.withdraw(source, total_fee).map_err(|_| Error::<T>::WithdrawFailed)?;
+		executor
+			.withdraw(source, total_fee)
+			.map_err(|_| Error::<T>::WithdrawFailed)?;
 
 		if let Some(nonce) = nonce {
 			ensure!(source_account.nonce == nonce, Error::<T>::InvalidNonce);
@@ -587,7 +590,11 @@ impl<T: Trait> Module<T> {
 		let logs_result = logs_data
 			.clone()
 			.into_iter()
-			.map(|it| Log { address: it.address, topics: it.topics, data: it.data })
+			.map(|it| Log {
+				address: it.address,
+				topics: it.topics,
+				data: it.data,
+			})
 			.collect();
 		if apply_state {
 			backend.apply(values, logs_data, true);

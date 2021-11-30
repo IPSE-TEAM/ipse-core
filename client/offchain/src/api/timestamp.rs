@@ -28,7 +28,7 @@ pub fn now() -> Timestamp {
 		Err(_) => {
 			// Current time is earlier than UNIX_EPOCH.
 			Timestamp::from_unix_millis(0)
-		},
+		}
 		Ok(d) => {
 			let duration = d.as_millis();
 			// Assuming overflow won't happen for a few hundred years.
@@ -37,7 +37,7 @@ pub fn now() -> Timestamp {
 					.try_into()
 					.expect("epoch milliseconds won't overflow u64 for hundreds of years; qed"),
 			)
-		},
+		}
 	}
 }
 
@@ -51,16 +51,13 @@ pub fn timestamp_from_now(timestamp: Timestamp) -> Duration {
 /// Converts the deadline into a `Future` that resolves when the deadline is reached.
 ///
 /// If `None`, returns a never-ending `Future`.
-pub fn deadline_to_future(
-	deadline: Option<Timestamp>,
-) -> futures::future::MaybeDone<impl futures::Future> {
+pub fn deadline_to_future(deadline: Option<Timestamp>) -> futures::future::MaybeDone<impl futures::Future> {
 	use futures::future::{self, Either};
 
 	future::maybe_done(match deadline.map(timestamp_from_now) {
 		None => Either::Left(future::pending()),
 		// Only apply delay if we need to wait a non-zero duration
-		Some(duration) if duration <= Duration::from_secs(0) =>
-			Either::Right(Either::Left(future::ready(()))),
+		Some(duration) if duration <= Duration::from_secs(0) => Either::Right(Either::Left(future::ready(()))),
 		Some(duration) => Either::Right(Either::Right(futures_timer::Delay::new(duration))),
 	})
 }

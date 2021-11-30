@@ -33,7 +33,7 @@ const MAX_SLASHES: u32 = 1000;
 // read and write operations.
 fn add_slashing_spans<T: Trait>(who: &T::AccountId, spans: u32) {
 	if spans == 0 {
-		return
+		return;
 	}
 
 	// For the first slashing span, we initialize
@@ -60,7 +60,9 @@ pub fn create_validator_with_nominators<T: Trait>(
 	let mut points_individual = Vec::new();
 
 	let (v_stash, v_controller) = create_stash_controller::<T>(0, 100, destination.clone())?;
-	let validator_prefs = ValidatorPrefs { commission: Perbill::from_percent(50) };
+	let validator_prefs = ValidatorPrefs {
+		commission: Perbill::from_percent(50),
+	};
 	Staking::<T>::validate(RawOrigin::Signed(v_controller).into(), validator_prefs)?;
 	let stash_lookup: <T::Lookup as StaticLookup>::Source = T::Lookup::unlookup(v_stash.clone());
 
@@ -716,8 +718,7 @@ mod tests {
 			let v = 10;
 			let n = 100;
 
-			create_validators_with_nominators_for_era::<Test>(v, n, MAX_NOMINATIONS, false, None)
-				.unwrap();
+			create_validators_with_nominators_for_era::<Test>(v, n, MAX_NOMINATIONS, false, None).unwrap();
 
 			let count_validators = Validators::<Test>::iter().count();
 			let count_nominators = Nominators::<Test>::iter().count();
@@ -745,7 +746,11 @@ mod tests {
 			let current_era = CurrentEra::get().unwrap();
 
 			let original_free_balance = Balances::free_balance(&validator_stash);
-			assert_ok!(Staking::payout_stakers(Origin::signed(1337), validator_stash, current_era));
+			assert_ok!(Staking::payout_stakers(
+				Origin::signed(1337),
+				validator_stash,
+				current_era
+			));
 			let new_free_balance = Balances::free_balance(&validator_stash);
 
 			assert!(original_free_balance < new_free_balance);
@@ -795,13 +800,12 @@ mod tests {
 				(frame_benchmarking::BenchmarkParameter::v, v),
 				(frame_benchmarking::BenchmarkParameter::n, n),
 			];
-			let closure_to_benchmark =
-				<SelectedBenchmark as frame_benchmarking::BenchmarkingSetup<Test>>::instance(
-					&selected_benchmark,
-					&c,
-					true,
-				)
-				.unwrap();
+			let closure_to_benchmark = <SelectedBenchmark as frame_benchmarking::BenchmarkingSetup<Test>>::instance(
+				&selected_benchmark,
+				&c,
+				true,
+			)
+			.unwrap();
 
 			assert_ok!(closure_to_benchmark());
 		});

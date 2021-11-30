@@ -72,19 +72,17 @@ impl Precompiles for Tuple {
 }
 
 /// Linear gas cost
-fn ensure_linear_cost(
-	target_gas: Option<usize>,
-	len: usize,
-	base: usize,
-	word: usize,
-) -> Result<usize, ExitError> {
+fn ensure_linear_cost(target_gas: Option<usize>, len: usize, base: usize, word: usize) -> Result<usize, ExitError> {
 	let cost = base
-		.checked_add(word.checked_mul(len.saturating_add(31) / 32).ok_or(ExitError::OutOfGas)?)
+		.checked_add(
+			word.checked_mul(len.saturating_add(31) / 32)
+				.ok_or(ExitError::OutOfGas)?,
+		)
 		.ok_or(ExitError::OutOfGas)?;
 
 	if let Some(target_gas) = target_gas {
 		if cost > target_gas {
-			return Err(ExitError::OutOfGas)
+			return Err(ExitError::OutOfGas);
 		}
 	}
 
@@ -109,10 +107,7 @@ impl Precompile for Identity {
 pub struct ECRecover;
 
 impl Precompile for ECRecover {
-	fn execute(
-		i: &[u8],
-		target_gas: Option<usize>,
-	) -> core::result::Result<(ExitSucceed, Vec<u8>, usize), ExitError> {
+	fn execute(i: &[u8], target_gas: Option<usize>) -> core::result::Result<(ExitSucceed, Vec<u8>, usize), ExitError> {
 		let cost = ensure_linear_cost(target_gas, i.len(), 3000, 0)?;
 
 		let mut input = [0u8; 128];

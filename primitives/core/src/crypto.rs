@@ -49,8 +49,7 @@ use sp_std::vec::Vec;
 pub use zeroize::Zeroize;
 
 /// The root phrase for our publicly known keys.
-pub const DEV_PHRASE: &str =
-	"bottom drive obey lake curtain smoke basket hold race lonely fit walk";
+pub const DEV_PHRASE: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
 
 /// The address of the associated root phrase for our publicly known keys.
 pub const DEV_ADDRESS: &str = "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV";
@@ -187,7 +186,11 @@ impl DeriveJunction {
 impl<T: AsRef<str>> From<T> for DeriveJunction {
 	fn from(j: T) -> DeriveJunction {
 		let j = j.as_ref();
-		let (code, hard) = if j.starts_with('/') { (&j[1..], true) } else { (j, false) };
+		let (code, hard) = if j.starts_with('/') {
+			(&j[1..], true)
+		} else {
+			(j, false)
+		};
 
 		let res = if let Ok(n) = str::parse::<u64>(code) {
 			// number
@@ -243,13 +246,13 @@ pub trait Ss58Codec: Sized + AsMut<[u8]> + AsRef<[u8]> + Default {
 		let d = s.from_base58().map_err(|_| PublicError::BadBase58)?; // failure here would be invalid encoding.
 		if d.len() != len + 3 {
 			// Invalid length.
-			return Err(PublicError::BadLength)
+			return Err(PublicError::BadLength);
 		}
 		let ver = d[0].try_into().map_err(|_: ()| PublicError::UnknownVersion)?;
 
 		if d[len + 1..len + 3] != ss58hash(&d[0..len + 1]).as_bytes()[0..2] {
 			// Invalid checksum.
-			return Err(PublicError::InvalidChecksum)
+			return Err(PublicError::InvalidChecksum);
 		}
 		res.as_mut().copy_from_slice(&d[1..len + 1]);
 		Ok((res, ver))
@@ -528,8 +531,7 @@ impl<T: Sized + AsMut<[u8]> + AsRef<[u8]> + Default + Derive> Ss58Codec for T {
 		let re = Regex::new(r"^(?P<ss58>[\w\d ]+)?(?P<path>(//?[^/]+)*)$")
 			.expect("constructed from known-good static value; qed");
 		let cap = re.captures(s).ok_or(PublicError::InvalidFormat)?;
-		let re_junction =
-			Regex::new(r"/(/?[^/]+)").expect("constructed from known-good static value; qed");
+		let re_junction = Regex::new(r"/(/?[^/]+)").expect("constructed from known-good static value; qed");
 		let s = cap.name("ss58").map(|r| r.as_str()).unwrap_or(DEV_ADDRESS);
 		let addr = if s.starts_with("0x") {
 			let d = hex::decode(&s[2..]).map_err(|_| PublicError::InvalidFormat)?;
@@ -546,7 +548,9 @@ impl<T: Sized + AsMut<[u8]> + AsRef<[u8]> + Default + Derive> Ss58Codec for T {
 		if cap["path"].is_empty() {
 			Ok(addr)
 		} else {
-			let path = re_junction.captures_iter(&cap["path"]).map(|f| DeriveJunction::from(&f[1]));
+			let path = re_junction
+				.captures_iter(&cap["path"])
+				.map(|f| DeriveJunction::from(&f[1]));
 			addr.derive(path).ok_or(PublicError::InvalidPath)
 		}
 	}
@@ -555,15 +559,14 @@ impl<T: Sized + AsMut<[u8]> + AsRef<[u8]> + Default + Derive> Ss58Codec for T {
 		let re = Regex::new(r"^(?P<ss58>[\w\d ]+)?(?P<path>(//?[^/]+)*)$")
 			.expect("constructed from known-good static value; qed");
 		let cap = re.captures(s).ok_or(PublicError::InvalidFormat)?;
-		let re_junction =
-			Regex::new(r"/(/?[^/]+)").expect("constructed from known-good static value; qed");
-		let (addr, v) = Self::from_ss58check_with_version(
-			cap.name("ss58").map(|r| r.as_str()).unwrap_or(DEV_ADDRESS),
-		)?;
+		let re_junction = Regex::new(r"/(/?[^/]+)").expect("constructed from known-good static value; qed");
+		let (addr, v) = Self::from_ss58check_with_version(cap.name("ss58").map(|r| r.as_str()).unwrap_or(DEV_ADDRESS))?;
 		if cap["path"].is_empty() {
 			Ok((addr, v))
 		} else {
-			let path = re_junction.captures_iter(&cap["path"]).map(|f| DeriveJunction::from(&f[1]));
+			let path = re_junction
+				.captures_iter(&cap["path"])
+				.map(|f| DeriveJunction::from(&f[1]));
 			addr.derive(path).ok_or(PublicError::InvalidPath).map(|a| (a, v))
 		}
 	}
@@ -858,10 +861,7 @@ pub trait Pair: CryptoType + Sized + Clone + Send + Sync + 'static {
 
 	/// Returns the KeyPair from the English BIP39 seed `phrase`, or `None` if it's invalid.
 	#[cfg(feature = "std")]
-	fn from_phrase(
-		phrase: &str,
-		password: Option<&str>,
-	) -> Result<(Self, Self::Seed), SecretStringError>;
+	fn from_phrase(phrase: &str, password: Option<&str>) -> Result<(Self, Self::Seed), SecretStringError>;
 
 	/// Derive a child key from a series of given junctions.
 	fn derive<Iter: Iterator<Item = DeriveJunction>>(
@@ -933,9 +933,10 @@ pub trait Pair: CryptoType + Sized + Clone + Send + Sync + 'static {
 			.expect("constructed from known-good static value; qed");
 		let cap = re.captures(s).ok_or(SecretStringError::InvalidFormat)?;
 
-		let re_junction =
-			Regex::new(r"/(/?[^/]+)").expect("constructed from known-good static value; qed");
-		let path = re_junction.captures_iter(&cap["path"]).map(|f| DeriveJunction::from(&f[1]));
+		let re_junction = Regex::new(r"/(/?[^/]+)").expect("constructed from known-good static value; qed");
+		let path = re_junction
+			.captures_iter(&cap["path"])
+			.map(|f| DeriveJunction::from(&f[1]));
 
 		let phrase = cap.name("phrase").map(|r| r.as_str()).unwrap_or(DEV_PHRASE);
 		let password = password_override.or_else(|| cap.name("password").map(|m| m.as_str()));
@@ -956,7 +957,8 @@ pub trait Pair: CryptoType + Sized + Clone + Send + Sync + 'static {
 		} else {
 			Self::from_phrase(phrase, password).map_err(|_| SecretStringError::InvalidPhrase)?
 		};
-		root.derive(path, Some(seed)).map_err(|_| SecretStringError::InvalidPath)
+		root.derive(path, Some(seed))
+			.map_err(|_| SecretStringError::InvalidPath)
 	}
 
 	/// Interprets the string `s` in order to generate a key pair.
@@ -1027,18 +1029,7 @@ pub trait CryptoType {
 /// Values whose first character is `_` are reserved for private use and won't conflict with any
 /// public modules.
 #[derive(
-	Copy,
-	Clone,
-	Default,
-	PartialEq,
-	Eq,
-	PartialOrd,
-	Ord,
-	Hash,
-	Encode,
-	Decode,
-	PassByInner,
-	crate::RuntimeDebug,
+	Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Encode, Decode, PassByInner, crate::RuntimeDebug,
 )]
 pub struct KeyTypeId(pub [u8; 4]);
 
@@ -1059,7 +1050,7 @@ impl<'a> TryFrom<&'a str> for KeyTypeId {
 	fn try_from(x: &'a str) -> Result<Self, ()> {
 		let b = x.as_bytes();
 		if b.len() != 4 {
-			return Err(())
+			return Err(());
 		}
 		let mut res = KeyTypeId::default();
 		res.0.copy_from_slice(&b[0..4]);
@@ -1124,8 +1115,15 @@ mod tests {
 	enum TestPair {
 		Generated,
 		GeneratedWithPhrase,
-		GeneratedFromPhrase { phrase: String, password: Option<String> },
-		Standard { phrase: String, password: Option<String>, path: Vec<DeriveJunction> },
+		GeneratedFromPhrase {
+			phrase: String,
+			password: Option<String>,
+		},
+		Standard {
+			phrase: String,
+			password: Option<String>,
+			path: Vec<DeriveJunction>,
+		},
 		Seed(Vec<u8>),
 	}
 	impl Default for TestPair {
@@ -1203,14 +1201,18 @@ mod tests {
 						password,
 						path: path.into_iter().chain(path_iter).collect(),
 					},
-					TestPair::GeneratedFromPhrase { phrase, password } =>
-						TestPair::Standard { phrase, password, path: path_iter.collect() },
-					x =>
+					TestPair::GeneratedFromPhrase { phrase, password } => TestPair::Standard {
+						phrase,
+						password,
+						path: path_iter.collect(),
+					},
+					x => {
 						if path_iter.count() == 0 {
 							x
 						} else {
-							return Err(())
-						},
+							return Err(());
+						}
+					}
 				},
 				None,
 			))
@@ -1224,11 +1226,7 @@ mod tests {
 		fn verify<M: AsRef<[u8]>>(_: &Self::Signature, _: M, _: &Self::Public) -> bool {
 			true
 		}
-		fn verify_weak<P: AsRef<[u8]>, M: AsRef<[u8]>>(
-			_sig: &[u8],
-			_message: M,
-			_pubkey: P,
-		) -> bool {
+		fn verify_weak<P: AsRef<[u8]>, M: AsRef<[u8]>>(_sig: &[u8], _message: M, _pubkey: P) -> bool {
 			true
 		}
 		fn public(&self) -> Self::Public {
@@ -1350,40 +1348,25 @@ mod tests {
 	fn accountid_32_from_str_works() {
 		use std::str::FromStr;
 		assert!(AccountId32::from_str("5G9VdMwXvzza9pS8qE8ZHJk3CheHW9uucBn9ngW4C1gmmzpv").is_ok());
-		assert!(AccountId32::from_str(
-			"5c55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d"
-		)
-		.is_ok());
-		assert!(AccountId32::from_str(
-			"0x5c55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d"
-		)
-		.is_ok());
+		assert!(AccountId32::from_str("5c55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d").is_ok());
+		assert!(AccountId32::from_str("0x5c55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d").is_ok());
 
 		assert_eq!(
 			AccountId32::from_str("99G9VdMwXvzza9pS8qE8ZHJk3CheHW9uucBn9ngW4C1gmmzpv").unwrap_err(),
 			"invalid ss58 address.",
 		);
 		assert_eq!(
-			AccountId32::from_str(
-				"gc55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d"
-			)
-			.unwrap_err(),
+			AccountId32::from_str("gc55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d").unwrap_err(),
 			"invalid hex address.",
 		);
 		assert_eq!(
-			AccountId32::from_str(
-				"0xgc55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d"
-			)
-			.unwrap_err(),
+			AccountId32::from_str("0xgc55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d").unwrap_err(),
 			"invalid hex address.",
 		);
 
 		// valid hex but invalid length will be treated as ss58.
 		assert_eq!(
-			AccountId32::from_str(
-				"55c55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d"
-			)
-			.unwrap_err(),
+			AccountId32::from_str("55c55177d67b064bb5d189a3e1ddad9bc6646e02e64d6e308f5acbb1533ac430d").unwrap_err(),
 			"invalid ss58 address.",
 		);
 	}

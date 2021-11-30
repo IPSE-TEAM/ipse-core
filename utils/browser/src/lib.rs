@@ -49,12 +49,7 @@ where
 	let name = chain_spec.name().to_string();
 
 	let transport = ExtTransport::new(ffi::websocket_transport());
-	let mut network = NetworkConfiguration::new(
-		format!("{} (Browser)", name),
-		"unknown",
-		Default::default(),
-		None,
-	);
+	let mut network = NetworkConfiguration::new(format!("{} (Browser)", name), "unknown", Default::default(), None);
 	network.boot_nodes = chain_spec.boot_nodes().to_vec();
 	network.transport = TransportConfig::Normal {
 		wasm_external_transport: Some(transport.clone()),

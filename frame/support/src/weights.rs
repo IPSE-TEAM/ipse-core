@@ -342,25 +342,37 @@ pub fn extract_actual_weight(result: &DispatchResultWithPostInfo, info: &Dispatc
 impl From<(Option<Weight>, Pays)> for PostDispatchInfo {
 	fn from(post_weight_info: (Option<Weight>, Pays)) -> Self {
 		let (actual_weight, pays_fee) = post_weight_info;
-		Self { actual_weight, pays_fee }
+		Self {
+			actual_weight,
+			pays_fee,
+		}
 	}
 }
 
 impl From<Pays> for PostDispatchInfo {
 	fn from(pays_fee: Pays) -> Self {
-		Self { actual_weight: None, pays_fee }
+		Self {
+			actual_weight: None,
+			pays_fee,
+		}
 	}
 }
 
 impl From<Option<Weight>> for PostDispatchInfo {
 	fn from(actual_weight: Option<Weight>) -> Self {
-		Self { actual_weight, pays_fee: Default::default() }
+		Self {
+			actual_weight,
+			pays_fee: Default::default(),
+		}
 	}
 }
 
 impl From<()> for PostDispatchInfo {
 	fn from(_: ()) -> Self {
-		Self { actual_weight: None, pays_fee: Default::default() }
+		Self {
+			actual_weight: None,
+			pays_fee: Default::default(),
+		}
 	}
 }
 
@@ -410,7 +422,7 @@ where
 
 impl<T> WeighData<T> for Weight {
 	fn weigh_data(&self, _: T) -> Weight {
-		return *self
+		return *self;
 	}
 }
 
@@ -428,7 +440,7 @@ impl<T> PaysFee<T> for Weight {
 
 impl<T> WeighData<T> for (Weight, DispatchClass, Pays) {
 	fn weigh_data(&self, _: T) -> Weight {
-		return self.0
+		return self.0;
 	}
 }
 
@@ -446,7 +458,7 @@ impl<T> PaysFee<T> for (Weight, DispatchClass, Pays) {
 
 impl<T> WeighData<T> for (Weight, DispatchClass) {
 	fn weigh_data(&self, _: T) -> Weight {
-		return self.0
+		return self.0;
 	}
 }
 
@@ -464,7 +476,7 @@ impl<T> PaysFee<T> for (Weight, DispatchClass) {
 
 impl<T> WeighData<T> for (Weight, Pays) {
 	fn weigh_data(&self, _: T) -> Weight {
-		return self.0
+		return self.0;
 	}
 }
 
@@ -550,8 +562,7 @@ where
 }
 
 /// Implementation for unchecked extrinsic.
-impl<Address, Call, Signature, Extra> GetDispatchInfo
-	for UncheckedExtrinsic<Address, Call, Signature, Extra>
+impl<Address, Call, Signature, Extra> GetDispatchInfo for UncheckedExtrinsic<Address, Call, Signature, Extra>
 where
 	Call: GetDispatchInfo,
 	Extra: SignedExtension,
@@ -576,7 +587,11 @@ where
 impl<Call: Encode, Extra: Encode> GetDispatchInfo for sp_runtime::testing::TestXt<Call, Extra> {
 	fn get_dispatch_info(&self) -> DispatchInfo {
 		// for testing: weight == size.
-		DispatchInfo { weight: self.encode().len() as _, pays_fee: Pays::Yes, ..Default::default() }
+		DispatchInfo {
+			weight: self.encode().len() as _,
+			pays_fee: Pays::Yes,
+			..Default::default()
+		}
 	}
 }
 
@@ -648,24 +663,26 @@ pub trait WeightToFeePolynomial {
 	/// This should not be overriden in most circumstances. Calculation is done in the
 	/// `Balance` type and never overflows. All evaluation is saturating.
 	fn calc(weight: &Weight) -> Self::Balance {
-		Self::polynomial().iter().fold(Self::Balance::saturated_from(0u32), |mut acc, args| {
-			let w = Self::Balance::saturated_from(*weight).saturating_pow(args.degree.into());
+		Self::polynomial()
+			.iter()
+			.fold(Self::Balance::saturated_from(0u32), |mut acc, args| {
+				let w = Self::Balance::saturated_from(*weight).saturating_pow(args.degree.into());
 
-			// The sum could get negative. Therefore we only sum with the accumulator.
-			// The Perbill Mul implementation is non overflowing.
-			let frac = args.coeff_frac * w;
-			let integer = args.coeff_integer.saturating_mul(w);
+				// The sum could get negative. Therefore we only sum with the accumulator.
+				// The Perbill Mul implementation is non overflowing.
+				let frac = args.coeff_frac * w;
+				let integer = args.coeff_integer.saturating_mul(w);
 
-			if args.negative {
-				acc = acc.saturating_sub(frac);
-				acc = acc.saturating_sub(integer);
-			} else {
-				acc = acc.saturating_add(frac);
-				acc = acc.saturating_add(integer);
-			}
+				if args.negative {
+					acc = acc.saturating_sub(frac);
+					acc = acc.saturating_sub(integer);
+				} else {
+					acc = acc.saturating_add(frac);
+					acc = acc.saturating_add(integer);
+				}
 
-			acc
-		})
+				acc
+			})
 	}
 }
 
@@ -775,7 +792,10 @@ mod tests {
 		assert_eq!(info.pays_fee, Pays::No);
 
 		assert_eq!(Call::<TraitImpl>::f11(10, 20).get_dispatch_info().weight, 120);
-		assert_eq!(Call::<TraitImpl>::f11(10, 20).get_dispatch_info().class, DispatchClass::Normal);
+		assert_eq!(
+			Call::<TraitImpl>::f11(10, 20).get_dispatch_info().class,
+			DispatchClass::Normal
+		);
 		assert_eq!(Call::<TraitImpl>::f12(10, 20).get_dispatch_info().weight, 0);
 		assert_eq!(
 			Call::<TraitImpl>::f12(10, 20).get_dispatch_info().class,
@@ -788,15 +808,24 @@ mod tests {
 
 	#[test]
 	fn extract_actual_weight_works() {
-		let pre = DispatchInfo { weight: 1000, ..Default::default() };
+		let pre = DispatchInfo {
+			weight: 1000,
+			..Default::default()
+		};
 		assert_eq!(extract_actual_weight(&Ok(Some(7).into()), &pre), 7);
 		assert_eq!(extract_actual_weight(&Ok(Some(1000).into()), &pre), 1000);
-		assert_eq!(extract_actual_weight(&Err(DispatchError::BadOrigin.with_weight(9)), &pre), 9);
+		assert_eq!(
+			extract_actual_weight(&Err(DispatchError::BadOrigin.with_weight(9)), &pre),
+			9
+		);
 	}
 
 	#[test]
 	fn extract_actual_weight_caps_at_pre_weight() {
-		let pre = DispatchInfo { weight: 1000, ..Default::default() };
+		let pre = DispatchInfo {
+			weight: 1000,
+			..Default::default()
+		};
 		assert_eq!(extract_actual_weight(&Ok(Some(1250).into()), &pre), 1000);
 		assert_eq!(
 			extract_actual_weight(&Err(DispatchError::BadOrigin.with_weight(1300)), &pre),

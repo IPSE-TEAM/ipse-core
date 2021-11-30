@@ -54,27 +54,22 @@ use sp_utils::{
 };
 
 pub use self::builder::{
-	build_network, build_offchain_workers, new_client, new_full_client, new_full_parts,
-	new_light_parts, spawn_tasks, BuildNetworkParams, NetworkStarter, NoopRpcExtensionBuilder,
-	RpcExtensionBuilder, SpawnTasksParams, TFullBackend, TFullCallExecutor, TFullClient,
-	TLightBackend, TLightBackendWithHash, TLightCallExecutor, TLightClient,
+	build_network, build_offchain_workers, new_client, new_full_client, new_full_parts, new_light_parts, spawn_tasks,
+	BuildNetworkParams, NetworkStarter, NoopRpcExtensionBuilder, RpcExtensionBuilder, SpawnTasksParams, TFullBackend,
+	TFullCallExecutor, TFullClient, TLightBackend, TLightBackendWithHash, TLightCallExecutor, TLightClient,
 	TLightClientWithBackend,
 };
 pub use self::error::Error;
-pub use config::{
-	BasePath, Configuration, DatabaseConfig, PruningMode, Role, RpcMethods, TaskExecutor, TaskType,
-};
+pub use config::{BasePath, Configuration, DatabaseConfig, PruningMode, Role, RpcMethods, TaskExecutor, TaskType};
 pub use sc_chain_spec::{
-	ChainSpec, ChainType, Extension as ChainSpecExtension, GenericChainSpec, NoExtension,
-	Properties, RuntimeGenesis,
+	ChainSpec, ChainType, Extension as ChainSpecExtension, GenericChainSpec, NoExtension, Properties, RuntimeGenesis,
 };
 use sc_client_api::BlockchainEvents;
 pub use sc_executor::NativeExecutionDispatch;
 pub use sc_keystore::KeyStorePtr as KeyStore;
 #[doc(hidden)]
 pub use sc_network::config::{
-	BoxFinalityProofRequestBuilder, FinalityProofProvider, OnDemand, TransactionImport,
-	TransactionImportFuture,
+	BoxFinalityProofRequestBuilder, FinalityProofProvider, OnDemand, TransactionImport, TransactionImportFuture,
 };
 pub use sc_rpc::Metadata as RpcMetadata;
 pub use sc_tracing::TracingReceiver;
@@ -100,9 +95,7 @@ impl<T> MallocSizeOfWasm for T {}
 
 /// RPC handlers that can perform RPC queries.
 #[derive(Clone)]
-pub struct RpcHandlers(
-	Arc<jsonrpc_core::MetaIoHandler<sc_rpc::Metadata, sc_rpc_server::RpcMiddleware>>,
-);
+pub struct RpcHandlers(Arc<jsonrpc_core::MetaIoHandler<sc_rpc::Metadata, sc_rpc_server::RpcMiddleware>>);
 
 impl RpcHandlers {
 	/// Starts an RPC query.
@@ -114,11 +107,7 @@ impl RpcHandlers {
 	///
 	/// If the request subscribes you to events, the `Sender` in the `RpcSession` object is used to
 	/// send back spontaneous events.
-	pub fn rpc_query(
-		&self,
-		mem: &RpcSession,
-		request: &str,
-	) -> Pin<Box<dyn Future<Output = Option<String>> + Send>> {
+	pub fn rpc_query(&self, mem: &RpcSession, request: &str) -> Pin<Box<dyn Future<Output = Option<String>> + Send>> {
 		self.0
 			.handle_request(request, mem.metadata.clone())
 			.compat()
@@ -127,9 +116,7 @@ impl RpcHandlers {
 	}
 
 	/// Provides access to the underlying `MetaIoHandler`
-	pub fn io_handler(
-		&self,
-	) -> Arc<jsonrpc_core::MetaIoHandler<sc_rpc::Metadata, sc_rpc_server::RpcMiddleware>> {
+	pub fn io_handler(&self) -> Arc<jsonrpc_core::MetaIoHandler<sc_rpc::Metadata, sc_rpc_server::RpcMiddleware>> {
 		self.0.clone()
 	}
 }
@@ -151,10 +138,7 @@ impl<Block: BlockT> NetworkStatusSinks<Block> {
 	}
 
 	/// Returns a receiver that periodically yields a [`NetworkStatus`].
-	pub fn status_stream(
-		&self,
-		interval: Duration,
-	) -> TracingUnboundedReceiver<NetworkStatus<Block>> {
+	pub fn status_stream(&self, interval: Duration) -> TracingUnboundedReceiver<NetworkStatus<Block>> {
 		let (sink, stream) = tracing_unbounded("mpsc_network_status");
 		self.status.push(interval, sink);
 		stream
@@ -225,9 +209,7 @@ async fn build_network_future<B: BlockT, C: BlockchainEvents<B>, H: sc_network::
 		// ready. This way, we only get the latest finalized block.
 		stream::poll_fn(move |cx| {
 			let mut last = None;
-			while let Poll::Ready(Some(item)) =
-				Pin::new(&mut finality_notification_stream).poll_next(cx)
-			{
+			while let Poll::Ready(Some(item)) = Pin::new(&mut finality_notification_stream).poll_next(cx) {
 				last = Some(item);
 			}
 			if let Some(last) = last {
@@ -392,19 +374,13 @@ mod waiting {
 /// alive.
 #[cfg(not(target_os = "unknown"))]
 fn start_rpc_servers<
-	H: FnMut(
-		sc_rpc::DenyUnsafe,
-		sc_rpc_server::RpcMiddleware,
-	) -> sc_rpc_server::RpcHandler<sc_rpc::Metadata>,
+	H: FnMut(sc_rpc::DenyUnsafe, sc_rpc_server::RpcMiddleware) -> sc_rpc_server::RpcHandler<sc_rpc::Metadata>,
 >(
 	config: &Configuration,
 	mut gen_handler: H,
 	rpc_metrics: Option<&sc_rpc_server::RpcMetrics>,
 ) -> Result<Box<dyn std::any::Any + Send + Sync>, error::Error> {
-	fn maybe_start_server<T, F>(
-		address: Option<SocketAddr>,
-		mut start: F,
-	) -> Result<Option<T>, io::Error>
+	fn maybe_start_server<T, F>(address: Option<SocketAddr>, mut start: F) -> Result<Option<T>, io::Error>
 	where
 		F: FnMut(&SocketAddr) -> Result<T, io::Error>,
 	{
@@ -414,7 +390,7 @@ fn start_rpc_servers<
 					warn!("Unable to bind RPC server to {}. Trying random port.", address);
 					address.set_port(0);
 					start(&address)
-				},
+				}
 				_ => Err(e),
 			})?),
 			None => None,
@@ -469,10 +445,7 @@ fn start_rpc_servers<
 /// alive.
 #[cfg(target_os = "unknown")]
 fn start_rpc_servers<
-	H: FnMut(
-		sc_rpc::DenyUnsafe,
-		sc_rpc_server::RpcMiddleware,
-	) -> sc_rpc_server::RpcHandler<sc_rpc::Metadata>,
+	H: FnMut(sc_rpc::DenyUnsafe, sc_rpc_server::RpcMiddleware) -> sc_rpc_server::RpcHandler<sc_rpc::Metadata>,
 >(
 	_: &Configuration,
 	_: H,
@@ -496,7 +469,9 @@ impl RpcSession {
 	///
 	/// The `RpcSession` must be kept alive in order to receive messages on the sender.
 	pub fn new(sender: futures01::sync::mpsc::Sender<String>) -> RpcSession {
-		RpcSession { metadata: sender.into() }
+		RpcSession {
+			metadata: sender.into(),
+		}
 	}
 }
 
@@ -554,33 +529,30 @@ where
 			Ok(uxt) => uxt,
 			Err(e) => {
 				debug!("Transaction invalid: {:?}", e);
-				return Box::pin(futures::future::ready(TransactionImport::Bad))
-			},
+				return Box::pin(futures::future::ready(TransactionImport::Bad));
+			}
 		};
 
 		let best_block_id = BlockId::hash(self.client.info().best_hash);
 
-		let import_future = self.pool.submit_one(
-			&best_block_id,
-			sp_transaction_pool::TransactionSource::External,
-			uxt,
-		);
+		let import_future = self
+			.pool
+			.submit_one(&best_block_id, sp_transaction_pool::TransactionSource::External, uxt);
 		Box::pin(async move {
 			match import_future.await {
 				Ok(_) => TransactionImport::NewGood,
 				Err(e) => match e.into_pool_error() {
-					Ok(sp_transaction_pool::error::Error::AlreadyImported(_)) =>
-						TransactionImport::KnownGood,
+					Ok(sp_transaction_pool::error::Error::AlreadyImported(_)) => TransactionImport::KnownGood,
 					Ok(e) => {
 						debug!("Error adding transaction to the pool: {:?}", e);
 						TransactionImport::Bad
-					},
+					}
 					Err(e) => {
 						debug!("Error converting pool error: {:?}", e);
 						// it is not bad at least, just some internal node logic error, so peer is
 						// innocent.
 						TransactionImport::KnownGood
-					},
+					}
 				},
 			}
 		})
@@ -593,7 +565,13 @@ where
 	fn transaction(&self, hash: &H) -> Option<B::Extrinsic> {
 		self.pool.ready_transaction(hash).and_then(
 			// Only propagable transactions should be resolved for network service.
-			|tx| if tx.is_propagable() { Some(tx.data().clone()) } else { None },
+			|tx| {
+				if tx.is_propagable() {
+					Some(tx.data().clone())
+				} else {
+					None
+				}
+			},
 		)
 	}
 }
@@ -626,14 +604,8 @@ mod tests {
 			to: Default::default(),
 		}
 		.into_signed_tx();
-		block_on(pool.submit_one(&BlockId::hash(best.hash()), source, transaction.clone()))
-			.unwrap();
-		block_on(pool.submit_one(
-			&BlockId::hash(best.hash()),
-			source,
-			Extrinsic::IncludeData(vec![1]),
-		))
-		.unwrap();
+		block_on(pool.submit_one(&BlockId::hash(best.hash()), source, transaction.clone())).unwrap();
+		block_on(pool.submit_one(&BlockId::hash(best.hash()), source, Extrinsic::IncludeData(vec![1]))).unwrap();
 		assert_eq!(pool.status().ready, 2);
 
 		// when

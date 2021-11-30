@@ -102,11 +102,7 @@ impl<'a> SandboxCapabilities for HostContext<'a> {
 		match result {
 			Ok(ret_vals) => {
 				let ret_val = if ret_vals.len() != 1 {
-					return Err(format!(
-						"Supervisor function returned {} results, expected 1",
-						ret_vals.len()
-					)
-					.into())
+					return Err(format!("Supervisor function returned {} results, expected 1", ret_vals.len()).into());
 				} else {
 					&ret_vals[0]
 				};
@@ -114,33 +110,35 @@ impl<'a> SandboxCapabilities for HostContext<'a> {
 				if let Some(ret_val) = ret_val.i64() {
 					Ok(ret_val)
 				} else {
-					return Err("Supervisor function returned unexpected result!".into())
+					return Err("Supervisor function returned unexpected result!".into());
 				}
-			},
+			}
 			Err(err) => Err(err.to_string().into()),
 		}
 	}
 }
 
 impl<'a> sp_wasm_interface::FunctionContext for HostContext<'a> {
-	fn read_memory_into(
-		&self,
-		address: Pointer<u8>,
-		dest: &mut [u8],
-	) -> sp_wasm_interface::Result<()> {
+	fn read_memory_into(&self, address: Pointer<u8>, dest: &mut [u8]) -> sp_wasm_interface::Result<()> {
 		self.instance.read_memory_into(address, dest).map_err(|e| e.to_string())
 	}
 
 	fn write_memory(&mut self, address: Pointer<u8>, data: &[u8]) -> sp_wasm_interface::Result<()> {
-		self.instance.write_memory_from(address, data).map_err(|e| e.to_string())
+		self.instance
+			.write_memory_from(address, data)
+			.map_err(|e| e.to_string())
 	}
 
 	fn allocate_memory(&mut self, size: WordSize) -> sp_wasm_interface::Result<Pointer<u8>> {
-		self.instance.allocate(&mut *self.allocator.borrow_mut(), size).map_err(|e| e.to_string())
+		self.instance
+			.allocate(&mut *self.allocator.borrow_mut(), size)
+			.map_err(|e| e.to_string())
 	}
 
 	fn deallocate_memory(&mut self, ptr: Pointer<u8>) -> sp_wasm_interface::Result<()> {
-		self.instance.deallocate(&mut *self.allocator.borrow_mut(), ptr).map_err(|e| e.to_string())
+		self.instance
+			.deallocate(&mut *self.allocator.borrow_mut(), ptr)
+			.map_err(|e| e.to_string())
 	}
 
 	fn sandbox(&mut self) -> &mut dyn Sandbox {
@@ -156,12 +154,14 @@ impl<'a> Sandbox for HostContext<'a> {
 		buf_ptr: Pointer<u8>,
 		buf_len: WordSize,
 	) -> sp_wasm_interface::Result<u32> {
-		let sandboxed_memory =
-			self.sandbox_store.borrow().memory(memory_id).map_err(|e| e.to_string())?;
+		let sandboxed_memory = self
+			.sandbox_store
+			.borrow()
+			.memory(memory_id)
+			.map_err(|e| e.to_string())?;
 		sandboxed_memory.with_direct_access(|sandboxed_memory| {
 			let len = buf_len as usize;
-			let src_range = match util::checked_range(offset as usize, len, sandboxed_memory.len())
-			{
+			let src_range = match util::checked_range(offset as usize, len, sandboxed_memory.len()) {
 				Some(range) => range,
 				None => return Ok(sandbox_primitives::ERR_OUT_OF_BOUNDS),
 			};
@@ -171,10 +171,7 @@ impl<'a> Sandbox for HostContext<'a> {
 				None => return Ok(sandbox_primitives::ERR_OUT_OF_BOUNDS),
 			};
 			self.instance
-				.write_memory_from(
-					Pointer::new(dst_range.start as u32),
-					&sandboxed_memory[src_range],
-				)
+				.write_memory_from(Pointer::new(dst_range.start as u32), &sandboxed_memory[src_range])
 				.expect("ranges are checked above; write can't fail; qed");
 			Ok(sandbox_primitives::ERR_OK)
 		})
@@ -187,8 +184,11 @@ impl<'a> Sandbox for HostContext<'a> {
 		val_ptr: Pointer<u8>,
 		val_len: WordSize,
 	) -> sp_wasm_interface::Result<u32> {
-		let sandboxed_memory =
-			self.sandbox_store.borrow().memory(memory_id).map_err(|e| e.to_string())?;
+		let sandboxed_memory = self
+			.sandbox_store
+			.borrow()
+			.memory(memory_id)
+			.map_err(|e| e.to_string())?;
 		sandboxed_memory.with_direct_access_mut(|sandboxed_memory| {
 			let len = val_len as usize;
 			let supervisor_mem_size = self.instance.memory_size() as usize;
@@ -196,27 +196,29 @@ impl<'a> Sandbox for HostContext<'a> {
 				Some(range) => range,
 				None => return Ok(sandbox_primitives::ERR_OUT_OF_BOUNDS),
 			};
-			let dst_range = match util::checked_range(offset as usize, len, sandboxed_memory.len())
-			{
+			let dst_range = match util::checked_range(offset as usize, len, sandboxed_memory.len()) {
 				Some(range) => range,
 				None => return Ok(sandbox_primitives::ERR_OUT_OF_BOUNDS),
 			};
 			self.instance
-				.read_memory_into(
-					Pointer::new(src_range.start as u32),
-					&mut sandboxed_memory[dst_range],
-				)
+				.read_memory_into(Pointer::new(src_range.start as u32), &mut sandboxed_memory[dst_range])
 				.expect("ranges are checked above; read can't fail; qed");
 			Ok(sandbox_primitives::ERR_OK)
 		})
 	}
 
 	fn memory_teardown(&mut self, memory_id: MemoryId) -> sp_wasm_interface::Result<()> {
-		self.sandbox_store.borrow_mut().memory_teardown(memory_id).map_err(|e| e.to_string())
+		self.sandbox_store
+			.borrow_mut()
+			.memory_teardown(memory_id)
+			.map_err(|e| e.to_string())
 	}
 
 	fn memory_new(&mut self, initial: u32, maximum: MemoryId) -> sp_wasm_interface::Result<u32> {
-		self.sandbox_store.borrow_mut().new_memory(initial, maximum).map_err(|e| e.to_string())
+		self.sandbox_store
+			.borrow_mut()
+			.new_memory(initial, maximum)
+			.map_err(|e| e.to_string())
 	}
 
 	fn invoke(
@@ -237,8 +239,11 @@ impl<'a> Sandbox for HostContext<'a> {
 			.map(Into::into)
 			.collect::<Vec<_>>();
 
-		let instance =
-			self.sandbox_store.borrow().instance(instance_id).map_err(|e| e.to_string())?;
+		let instance = self
+			.sandbox_store
+			.borrow()
+			.instance(instance_id)
+			.map_err(|e| e.to_string())?;
 		let result = instance.invoke(export_name, &args, self, state);
 
 		match result {
@@ -253,13 +258,16 @@ impl<'a> Sandbox for HostContext<'a> {
 						.map_err(|_| "can't write return value")?;
 					Ok(sandbox_primitives::ERR_OK)
 				})
-			},
+			}
 			Err(_) => Ok(sandbox_primitives::ERR_EXECUTION),
 		}
 	}
 
 	fn instance_teardown(&mut self, instance_id: u32) -> sp_wasm_interface::Result<()> {
-		self.sandbox_store.borrow_mut().instance_teardown(instance_id).map_err(|e| e.to_string())
+		self.sandbox_store
+			.borrow_mut()
+			.instance_teardown(instance_id)
+			.map_err(|e| e.to_string())
 	}
 
 	fn instance_new(
@@ -287,20 +295,18 @@ impl<'a> Sandbox for HostContext<'a> {
 			SupervisorFuncRef(func_ref)
 		};
 
-		let guest_env =
-			match sandbox::GuestEnvironment::decode(&*self.sandbox_store.borrow(), raw_env_def) {
-				Ok(guest_env) => guest_env,
-				Err(_) => return Ok(sandbox_primitives::ERR_MODULE as u32),
-			};
+		let guest_env = match sandbox::GuestEnvironment::decode(&*self.sandbox_store.borrow(), raw_env_def) {
+			Ok(guest_env) => guest_env,
+			Err(_) => return Ok(sandbox_primitives::ERR_MODULE as u32),
+		};
 
-		let instance_idx_or_err_code =
-			match sandbox::instantiate(self, dispatch_thunk, wasm, guest_env, state)
-				.map(|i| i.register(&mut *self.sandbox_store.borrow_mut()))
-			{
-				Ok(instance_idx) => instance_idx,
-				Err(sandbox::InstantiationError::StartTrapped) => sandbox_primitives::ERR_EXECUTION,
-				Err(_) => sandbox_primitives::ERR_MODULE,
-			};
+		let instance_idx_or_err_code = match sandbox::instantiate(self, dispatch_thunk, wasm, guest_env, state)
+			.map(|i| i.register(&mut *self.sandbox_store.borrow_mut()))
+		{
+			Ok(instance_idx) => instance_idx,
+			Err(sandbox::InstantiationError::StartTrapped) => sandbox_primitives::ERR_EXECUTION,
+			Err(_) => sandbox_primitives::ERR_MODULE,
+		};
 
 		Ok(instance_idx_or_err_code as u32)
 	}

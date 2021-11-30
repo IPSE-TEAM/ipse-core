@@ -127,7 +127,7 @@ impl From<Error> for rpc::Error {
 					message: "Invalid Transaction".into(),
 					data: Some(msg.into()),
 				}
-			},
+			}
 			Error::Pool(PoolError::UnknownTransaction(e)) => rpc::Error {
 				code: rpc::ErrorCode::ServerError(POOL_UNKNOWN_VALIDITY),
 				message: "Unknown Transaction Validity".into(),
@@ -146,7 +146,9 @@ impl From<Error> for rpc::Error {
 			Error::Pool(PoolError::TooLowPriority { old, new }) => rpc::Error {
 				code: rpc::ErrorCode::ServerError(POOL_TOO_LOW_PRIORITY),
 				message: format!("Priority is too low: ({} vs {})", old, new),
-				data: Some("The transaction has too low priority to replace another transaction already in the pool.".into()),
+				data: Some(
+					"The transaction has too low priority to replace another transaction already in the pool.".into(),
+				),
 			},
 			Error::Pool(PoolError::CycleDetected) => rpc::Error {
 				code: rpc::ErrorCode::ServerError(POOL_CYCLE_DETECTED),
@@ -160,10 +162,11 @@ impl From<Error> for rpc::Error {
 			},
 			Error::UnsupportedKeyType => rpc::Error {
 				code: rpc::ErrorCode::ServerError(UNSUPPORTED_KEY_TYPE),
-				message: "Unknown key type crypto" .into(),
+				message: "Unknown key type crypto".into(),
 				data: Some(
 					"The crypto for the given key type is unknown, please add the public key to the \
-					request to insert the key successfully.".into()
+					request to insert the key successfully."
+						.into(),
 				),
 			},
 			Error::UnsafeRpcCalled(e) => e.into(),

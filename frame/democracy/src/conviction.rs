@@ -96,10 +96,7 @@ impl Conviction {
 	}
 
 	/// The votes of a voter of the given `balance` with our conviction.
-	pub fn votes<B: From<u8> + Zero + Copy + CheckedMul + CheckedDiv + Bounded>(
-		self,
-		capital: B,
-	) -> Delegations<B> {
+	pub fn votes<B: From<u8> + Zero + Copy + CheckedMul + CheckedDiv + Bounded>(self, capital: B) -> Delegations<B> {
 		let votes = match self {
 			Conviction::None => capital.checked_div(&10u8.into()).unwrap_or_else(Zero::zero),
 			x => capital.checked_mul(&u8::from(x).into()).unwrap_or_else(B::max_value),

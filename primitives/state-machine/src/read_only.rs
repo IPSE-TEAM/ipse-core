@@ -59,7 +59,10 @@ pub struct ReadOnlyExternalities<'a, H: Hasher, B: 'a + Backend<H>> {
 
 impl<'a, H: Hasher, B: 'a + Backend<H>> From<&'a B> for ReadOnlyExternalities<'a, H, B> {
 	fn from(backend: &'a B) -> Self {
-		ReadOnlyExternalities { backend, _phantom: PhantomData }
+		ReadOnlyExternalities {
+			backend,
+			_phantom: PhantomData,
+		}
 	}
 }
 
@@ -78,7 +81,9 @@ impl<'a, H: Hasher, B: 'a + Backend<H>> Externalities for ReadOnlyExternalities<
 	}
 
 	fn storage(&self, key: &[u8]) -> Option<StorageValue> {
-		self.backend.storage(key).expect("Backed failed for storage in ReadOnlyExternalities")
+		self.backend
+			.storage(key)
+			.expect("Backed failed for storage in ReadOnlyExternalities")
 	}
 
 	fn storage_hash(&self, key: &[u8]) -> Option<Vec<u8>> {
@@ -92,7 +97,8 @@ impl<'a, H: Hasher, B: 'a + Backend<H>> Externalities for ReadOnlyExternalities<
 	}
 
 	fn child_storage_hash(&self, child_info: &ChildInfo, key: &[u8]) -> Option<Vec<u8>> {
-		self.child_storage(child_info, key).map(|v| Blake2Hasher::hash(&v).encode())
+		self.child_storage(child_info, key)
+			.map(|v| Blake2Hasher::hash(&v).encode())
 	}
 
 	fn next_storage_key(&self, key: &[u8]) -> Option<StorageKey> {
@@ -111,12 +117,7 @@ impl<'a, H: Hasher, B: 'a + Backend<H>> Externalities for ReadOnlyExternalities<
 		unimplemented!("place_storage not supported in ReadOnlyExternalities")
 	}
 
-	fn place_child_storage(
-		&mut self,
-		_child_info: &ChildInfo,
-		_key: StorageKey,
-		_value: Option<StorageValue>,
-	) {
+	fn place_child_storage(&mut self, _child_info: &ChildInfo, _key: StorageKey, _value: Option<StorageValue>) {
 		unimplemented!("place_child_storage not supported in ReadOnlyExternalities")
 	}
 
@@ -185,9 +186,7 @@ impl<'a, H: Hasher, B: 'a + Backend<H>> Externalities for ReadOnlyExternalities<
 	}
 }
 
-impl<'a, H: Hasher, B: 'a + Backend<H>> sp_externalities::ExtensionStore
-	for ReadOnlyExternalities<'a, H, B>
-{
+impl<'a, H: Hasher, B: 'a + Backend<H>> sp_externalities::ExtensionStore for ReadOnlyExternalities<'a, H, B> {
 	fn extension_by_type_id(&mut self, _type_id: TypeId) -> Option<&mut dyn Any> {
 		unimplemented!("extension_by_type_id is not supported in ReadOnlyExternalities")
 	}
@@ -200,10 +199,7 @@ impl<'a, H: Hasher, B: 'a + Backend<H>> sp_externalities::ExtensionStore
 		unimplemented!("register_extension_with_type_id is not supported in ReadOnlyExternalities")
 	}
 
-	fn deregister_extension_by_type_id(
-		&mut self,
-		_type_id: TypeId,
-	) -> Result<(), sp_externalities::Error> {
+	fn deregister_extension_by_type_id(&mut self, _type_id: TypeId) -> Result<(), sp_externalities::Error> {
 		unimplemented!("deregister_extension_by_type_id is not supported in ReadOnlyExternalities")
 	}
 }

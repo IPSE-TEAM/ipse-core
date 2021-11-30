@@ -23,9 +23,8 @@ use crate::light_client_handler;
 use futures::{channel::oneshot, prelude::*};
 use parking_lot::Mutex;
 use sc_client_api::{
-	ChangesProof, FetchChecker, Fetcher, RemoteBodyRequest, RemoteCallRequest,
-	RemoteChangesRequest, RemoteHeaderRequest, RemoteReadChildRequest, RemoteReadRequest,
-	StorageProof,
+	ChangesProof, FetchChecker, Fetcher, RemoteBodyRequest, RemoteCallRequest, RemoteChangesRequest,
+	RemoteHeaderRequest, RemoteReadChildRequest, RemoteReadRequest, StorageProof,
 };
 use sp_blockchain::Error as ClientError;
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT, NumberFor};
@@ -119,7 +118,11 @@ where
 		let (requests_send, requests_queue) = tracing_unbounded("mpsc_ondemand");
 		let requests_queue = Mutex::new(Some(requests_queue));
 
-		OnDemand { checker, requests_queue, requests_send }
+		OnDemand {
+			checker,
+			requests_queue,
+			requests_send,
+		}
 	}
 
 	/// Get checker reference.
@@ -134,9 +137,7 @@ where
 	///
 	/// If this function returns `None`, that means that the receiver has already been extracted in
 	/// the past, and therefore that something already handles the requests.
-	pub(crate) fn extract_receiver(
-		&self,
-	) -> Option<TracingUnboundedReceiver<light_client_handler::Request<B>>> {
+	pub(crate) fn extract_receiver(&self) -> Option<TracingUnboundedReceiver<light_client_handler::Request<B>>> {
 		self.requests_queue.lock().take()
 	}
 }
@@ -168,10 +169,7 @@ where
 		RemoteResponse { receiver }
 	}
 
-	fn remote_read_child(
-		&self,
-		request: RemoteReadChildRequest<B::Header>,
-	) -> Self::RemoteReadResult {
+	fn remote_read_child(&self, request: RemoteReadChildRequest<B::Header>) -> Self::RemoteReadResult {
 		let (sender, receiver) = oneshot::channel();
 		let _ = self
 			.requests_send
@@ -187,10 +185,7 @@ where
 		RemoteResponse { receiver }
 	}
 
-	fn remote_changes(
-		&self,
-		request: RemoteChangesRequest<B::Header>,
-	) -> Self::RemoteChangesResult {
+	fn remote_changes(&self, request: RemoteChangesRequest<B::Header>) -> Self::RemoteChangesResult {
 		let (sender, receiver) = oneshot::channel();
 		let _ = self
 			.requests_send

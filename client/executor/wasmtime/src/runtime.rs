@@ -56,8 +56,7 @@ impl WasmModule for WasmtimeRuntime {
 			self.allow_missing_func_imports,
 		)?;
 
-		let instance_wrapper =
-			InstanceWrapper::new(&store, &self.module_wrapper, &imports, self.heap_pages)?;
+		let instance_wrapper = InstanceWrapper::new(&store, &self.module_wrapper, &imports, self.heap_pages)?;
 		let heap_base = instance_wrapper.extract_heap_base()?;
 		let globals_snapshot = GlobalsSnapshot::take(&instance_wrapper)?;
 
@@ -94,9 +93,9 @@ impl WasmInstance for WasmtimeInstance {
 		let entrypoint = self.instance_wrapper.resolve_entrypoint(method)?;
 		let allocator = FreeingBumpHeapAllocator::new(self.heap_base);
 
-		self.module_wrapper.data_segments_snapshot().apply(|offset, contents| {
-			self.instance_wrapper.write_memory_from(Pointer::new(offset), contents)
-		})?;
+		self.module_wrapper
+			.data_segments_snapshot()
+			.apply(|offset, contents| self.instance_wrapper.write_memory_from(Pointer::new(offset), contents))?;
 
 		self.globals_snapshot.apply(&*self.instance_wrapper)?;
 
@@ -104,12 +103,7 @@ impl WasmInstance for WasmtimeInstance {
 	}
 
 	fn get_global_const(&self, name: &str) -> Result<Option<Value>> {
-		let instance = InstanceWrapper::new(
-			&self.store,
-			&self.module_wrapper,
-			&self.imports,
-			self.heap_pages,
-		)?;
+		let instance = InstanceWrapper::new(&self.store, &self.module_wrapper, &self.imports, self.heap_pages)?;
 		instance.get_global_val(name)
 	}
 }
@@ -128,8 +122,8 @@ pub fn create_runtime(
 
 	let engine = Engine::new(&config);
 
-	let module_wrapper = ModuleWrapper::new(&engine, code)
-		.map_err(|e| WasmError::Other(format!("cannot create module: {}", e)))?;
+	let module_wrapper =
+		ModuleWrapper::new(&engine, code).map_err(|e| WasmError::Other(format!("cannot create module: {}", e)))?;
 
 	Ok(WasmtimeRuntime {
 		module_wrapper: Arc::new(module_wrapper),
@@ -157,10 +151,8 @@ fn perform_call(
 			Ok(results) => {
 				let retval = results[0].unwrap_i64() as u64;
 				Ok(unpack_ptr_and_len(retval))
-			},
-			Err(trap) => {
-				return Err(Error::from(format!("Wasm execution trapped: {}", trap)))
-			},
+			}
+			Err(trap) => return Err(Error::from(format!("Wasm execution trapped: {}", trap))),
 		}
 	});
 	let (output_ptr, output_len) = ret?;
@@ -180,11 +172,7 @@ fn inject_input_data(
 	Ok((data_ptr, data_len))
 }
 
-fn extract_output_data(
-	instance: &InstanceWrapper,
-	output_ptr: u32,
-	output_len: u32,
-) -> Result<Vec<u8>> {
+fn extract_output_data(instance: &InstanceWrapper, output_ptr: u32, output_len: u32) -> Result<Vec<u8>> {
 	let mut output = vec![0; output_len as usize];
 	instance.read_memory_into(Pointer::new(output_ptr), &mut output)?;
 	Ok(output)

@@ -244,8 +244,7 @@ impl<'a> From<&'a str> for ProtocolId {
 
 impl AsRef<str> for ProtocolId {
 	fn as_ref(&self) -> &str {
-		str::from_utf8(&self.0[..])
-			.expect("the only way to build a ProtocolId is through a UTF-8 String; qed")
+		str::from_utf8(&self.0[..]).expect("the only way to build a ProtocolId is through a UTF-8 String; qed")
 	}
 }
 
@@ -276,8 +275,7 @@ pub fn parse_str_addr(addr_str: &str) -> Result<(PeerId, Multiaddr), ParseErr> {
 /// Splits a Multiaddress into a Multiaddress and PeerId.
 pub fn parse_addr(mut addr: Multiaddr) -> Result<(PeerId, Multiaddr), ParseErr> {
 	let who = match addr.pop() {
-		Some(multiaddr::Protocol::P2p(key)) =>
-			PeerId::from_multihash(key).map_err(|_| ParseErr::InvalidPeerId)?,
+		Some(multiaddr::Protocol::P2p(key)) => PeerId::from_multihash(key).map_err(|_| ParseErr::InvalidPeerId)?,
 		_ => return Err(ParseErr::PeerIdMissing),
 	};
 
@@ -453,13 +451,11 @@ impl NetworkConfiguration {
 	/// Create new default configuration for localhost-only connection with random port (useful for
 	/// testing)
 	pub fn new_local() -> NetworkConfiguration {
-		let mut config =
-			NetworkConfiguration::new("test-node", "test-client", Default::default(), None);
+		let mut config = NetworkConfiguration::new("test-node", "test-client", Default::default(), None);
 
-		config.listen_addresses =
-			vec![iter::once(multiaddr::Protocol::Ip4(Ipv4Addr::new(127, 0, 0, 1)))
-				.chain(iter::once(multiaddr::Protocol::Tcp(0)))
-				.collect()];
+		config.listen_addresses = vec![iter::once(multiaddr::Protocol::Ip4(Ipv4Addr::new(127, 0, 0, 1)))
+			.chain(iter::once(multiaddr::Protocol::Tcp(0)))
+			.collect()];
 
 		config.allow_non_globals_in_dht = true;
 		config
@@ -468,13 +464,11 @@ impl NetworkConfiguration {
 	/// Create new default configuration for localhost-only connection with random port (useful for
 	/// testing)
 	pub fn new_memory() -> NetworkConfiguration {
-		let mut config =
-			NetworkConfiguration::new("test-node", "test-client", Default::default(), None);
+		let mut config = NetworkConfiguration::new("test-node", "test-client", Default::default(), None);
 
-		config.listen_addresses =
-			vec![iter::once(multiaddr::Protocol::Ip4(Ipv4Addr::new(127, 0, 0, 1)))
-				.chain(iter::once(multiaddr::Protocol::Tcp(0)))
-				.collect()];
+		config.listen_addresses = vec![iter::once(multiaddr::Protocol::Ip4(Ipv4Addr::new(127, 0, 0, 1)))
+			.chain(iter::once(multiaddr::Protocol::Tcp(0)))
+			.collect()];
 
 		config.allow_non_globals_in_dht = true;
 		config
@@ -626,9 +620,7 @@ where
 	W: Fn(&K) -> Vec<u8>,
 {
 	std::fs::read(&file)
-		.and_then(|mut sk_bytes| {
-			parse(&mut sk_bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
-		})
+		.and_then(|mut sk_bytes| parse(&mut sk_bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)))
 		.or_else(|e| {
 			if e.kind() == io::ErrorKind::NotFound {
 				file.as_ref().parent().map_or(Ok(()), fs::create_dir_all)?;
@@ -659,7 +651,11 @@ where
 	P: AsRef<Path>,
 {
 	use std::os::unix::fs::OpenOptionsExt;
-	fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)
+	fs::OpenOptions::new()
+		.write(true)
+		.create_new(true)
+		.mode(0o600)
+		.open(path)
 }
 
 /// Opens a file containing a secret key in write mode.
@@ -693,15 +689,21 @@ mod tests {
 		let tmp = tempdir_with_prefix("x");
 		std::fs::remove_dir(tmp.path()).unwrap(); // should be recreated
 		let file = tmp.path().join("x").to_path_buf();
-		let kp1 = NodeKeyConfig::Ed25519(Secret::File(file.clone())).into_keypair().unwrap();
-		let kp2 = NodeKeyConfig::Ed25519(Secret::File(file.clone())).into_keypair().unwrap();
+		let kp1 = NodeKeyConfig::Ed25519(Secret::File(file.clone()))
+			.into_keypair()
+			.unwrap();
+		let kp2 = NodeKeyConfig::Ed25519(Secret::File(file.clone()))
+			.into_keypair()
+			.unwrap();
 		assert!(file.is_file() && secret_bytes(&kp1) == secret_bytes(&kp2))
 	}
 
 	#[test]
 	fn test_secret_input() {
 		let sk = ed25519::SecretKey::generate();
-		let kp1 = NodeKeyConfig::Ed25519(Secret::Input(sk.clone())).into_keypair().unwrap();
+		let kp1 = NodeKeyConfig::Ed25519(Secret::Input(sk.clone()))
+			.into_keypair()
+			.unwrap();
 		let kp2 = NodeKeyConfig::Ed25519(Secret::Input(sk)).into_keypair().unwrap();
 		assert!(secret_bytes(&kp1) == secret_bytes(&kp2));
 	}

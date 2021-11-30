@@ -120,8 +120,7 @@ impl ExecutionContext {
 		match self {
 			Importing | Syncing | BlockConstruction => offchain::Capabilities::none(),
 			// Enable keystore and transaction pool by default for offchain calls.
-			OffchainCall(None) =>
-				[offchain::Capability::Keystore, offchain::Capability::TransactionPool][..].into(),
+			OffchainCall(None) => [offchain::Capability::Keystore, offchain::Capability::TransactionPool][..].into(),
 			OffchainCall(Some((_, capabilities))) => *capabilities,
 		}
 	}
@@ -180,9 +179,7 @@ impl sp_std::ops::Deref for OpaqueMetadata {
 }
 
 /// Simple blob to hold a `PeerId` without committing to its format.
-#[derive(
-	Default, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, PassByInner,
-)]
+#[derive(Default, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, PassByInner)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct OpaquePeerId(pub Vec<u8>);
 
@@ -233,9 +230,10 @@ impl<R: PartialEq + codec::Decode> PartialEq for NativeOrEncoded<R> {
 	fn eq(&self, other: &Self) -> bool {
 		match (self, other) {
 			(NativeOrEncoded::Native(l), NativeOrEncoded::Native(r)) => l == r,
-			(NativeOrEncoded::Native(n), NativeOrEncoded::Encoded(e)) |
-			(NativeOrEncoded::Encoded(e), NativeOrEncoded::Native(n)) =>
-				Some(n) == codec::Decode::decode(&mut &e[..]).ok().as_ref(),
+			(NativeOrEncoded::Native(n), NativeOrEncoded::Encoded(e))
+			| (NativeOrEncoded::Encoded(e), NativeOrEncoded::Native(n)) => {
+				Some(n) == codec::Decode::decode(&mut &e[..]).ok().as_ref()
+			}
 			(NativeOrEncoded::Encoded(l), NativeOrEncoded::Encoded(r)) => l == r,
 		}
 	}

@@ -69,11 +69,7 @@ pub struct ExportBlocksCmd {
 
 impl ExportBlocksCmd {
 	/// Run the export-blocks command
-	pub async fn run<B, C>(
-		&self,
-		client: Arc<C>,
-		database_config: DatabaseConfig,
-	) -> error::Result<()>
+	pub async fn run<B, C>(&self, client: Arc<C>, database_config: DatabaseConfig) -> error::Result<()>
 	where
 		B: BlockT,
 		C: BlockBackend<B> + UsageProvider<B> + 'static,
@@ -93,7 +89,9 @@ impl ExportBlocksCmd {
 			None => Box::new(io::stdout()),
 		};
 
-		export_blocks(client, file, from.into(), to, binary).await.map_err(Into::into)
+		export_blocks(client, file, from.into(), to, binary)
+			.await
+			.map_err(Into::into)
 	}
 }
 

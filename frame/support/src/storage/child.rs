@@ -33,15 +33,11 @@ pub fn get<T: Decode + Sized>(child_info: &ChildInfo, key: &[u8]) -> Option<T> {
 			sp_io::default_child_storage::get(storage_key, key).and_then(|v| {
 				Decode::decode(&mut &v[..]).map(Some).unwrap_or_else(|_| {
 					// TODO #3700: error should be handleable.
-					runtime_print!(
-						"ERROR: Corrupted state in child trie at {:?}/{:?}",
-						storage_key,
-						key
-					);
+					runtime_print!("ERROR: Corrupted state in child trie at {:?}/{:?}", storage_key, key);
 					None
 				})
 			})
-		},
+		}
 	}
 }
 
@@ -59,20 +55,16 @@ pub fn get_or<T: Decode + Sized>(child_info: &ChildInfo, key: &[u8], default_val
 
 /// Return the value of the item in storage under `key`, or `default_value()` if there is no
 /// explicit entry.
-pub fn get_or_else<T: Decode + Sized, F: FnOnce() -> T>(
-	child_info: &ChildInfo,
-	key: &[u8],
-	default_value: F,
-) -> T {
+pub fn get_or_else<T: Decode + Sized, F: FnOnce() -> T>(child_info: &ChildInfo, key: &[u8], default_value: F) -> T {
 	get(child_info, key).unwrap_or_else(default_value)
 }
 
 /// Put `value` in storage under `key`.
 pub fn put<T: Encode>(child_info: &ChildInfo, key: &[u8], value: &T) {
 	match child_info.child_type() {
-		ChildType::ParentKeyId => value.using_encoded(|slice| {
-			sp_io::default_child_storage::set(child_info.storage_key(), key, slice)
-		}),
+		ChildType::ParentKeyId => {
+			value.using_encoded(|slice| sp_io::default_child_storage::set(child_info.storage_key(), key, slice))
+		}
 	}
 }
 
@@ -99,28 +91,23 @@ pub fn take_or<T: Codec + Sized>(child_info: &ChildInfo, key: &[u8], default_val
 
 /// Return the value of the item in storage under `key`, or `default_value()` if there is no
 /// explicit entry. Ensure there is no explicit entry on return.
-pub fn take_or_else<T: Codec + Sized, F: FnOnce() -> T>(
-	child_info: &ChildInfo,
-	key: &[u8],
-	default_value: F,
-) -> T {
+pub fn take_or_else<T: Codec + Sized, F: FnOnce() -> T>(child_info: &ChildInfo, key: &[u8], default_value: F) -> T {
 	take(child_info, key).unwrap_or_else(default_value)
 }
 
 /// Check to see if `key` has an explicit entry in storage.
 pub fn exists(child_info: &ChildInfo, key: &[u8]) -> bool {
 	match child_info.child_type() {
-		ChildType::ParentKeyId =>
-			sp_io::default_child_storage::read(child_info.storage_key(), key, &mut [0; 0][..], 0)
-				.is_some(),
+		ChildType::ParentKeyId => {
+			sp_io::default_child_storage::read(child_info.storage_key(), key, &mut [0; 0][..], 0).is_some()
+		}
 	}
 }
 
 /// Remove all `storage_key` key/values
 pub fn kill_storage(child_info: &ChildInfo) {
 	match child_info.child_type() {
-		ChildType::ParentKeyId =>
-			sp_io::default_child_storage::storage_kill(child_info.storage_key()),
+		ChildType::ParentKeyId => sp_io::default_child_storage::storage_kill(child_info.storage_key()),
 	}
 }
 
@@ -129,7 +116,7 @@ pub fn kill(child_info: &ChildInfo, key: &[u8]) {
 	match child_info.child_type() {
 		ChildType::ParentKeyId => {
 			sp_io::default_child_storage::clear(child_info.storage_key(), key);
-		},
+		}
 	}
 }
 
@@ -143,8 +130,7 @@ pub fn get_raw(child_info: &ChildInfo, key: &[u8]) -> Option<Vec<u8>> {
 /// Put a raw byte slice into storage.
 pub fn put_raw(child_info: &ChildInfo, key: &[u8], value: &[u8]) {
 	match child_info.child_type() {
-		ChildType::ParentKeyId =>
-			sp_io::default_child_storage::set(child_info.storage_key(), key, value),
+		ChildType::ParentKeyId => sp_io::default_child_storage::set(child_info.storage_key(), key, value),
 	}
 }
 

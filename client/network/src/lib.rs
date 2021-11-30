@@ -271,8 +271,7 @@ pub use protocol::{
 	PeerInfo,
 };
 pub use service::{
-	NetworkService, NetworkWorker, NotificationSender, NotificationSenderReady, OutboundFailure,
-	RequestFailure,
+	NetworkService, NetworkWorker, NotificationSender, NotificationSenderReady, OutboundFailure, RequestFailure,
 };
 
 pub use sc_peerset::ReputationChange;
@@ -290,8 +289,7 @@ const MAX_CONNECTIONS_PER_PEER: usize = 2;
 /// Minimum Requirements for a Hash within Networking
 pub trait ExHashT: std::hash::Hash + Eq + std::fmt::Debug + Clone + Send + Sync + 'static {}
 
-impl<T> ExHashT for T where T: std::hash::Hash + Eq + std::fmt::Debug + Clone + Send + Sync + 'static
-{}
+impl<T> ExHashT for T where T: std::hash::Hash + Eq + std::fmt::Debug + Clone + Send + Sync + 'static {}
 
 /// Trait for providing information about the local network state
 pub trait NetworkStateInfo {

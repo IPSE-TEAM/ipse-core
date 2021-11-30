@@ -33,8 +33,7 @@ pub enum ContractAccessError {
 }
 
 /// A result type of a `rent_projection` call.
-pub type RentProjectionResult<BlockNumber> =
-	Result<RentProjection<BlockNumber>, ContractAccessError>;
+pub type RentProjectionResult<BlockNumber> = Result<RentProjection<BlockNumber>, ContractAccessError>;
 
 #[derive(Eq, PartialEq, codec::Encode, codec::Decode, sp_runtime::RuntimeDebug)]
 pub enum RentProjection<BlockNumber> {

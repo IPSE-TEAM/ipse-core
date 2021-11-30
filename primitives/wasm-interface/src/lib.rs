@@ -138,7 +138,10 @@ pub struct Pointer<T: PointerType> {
 impl<T: PointerType> Pointer<T> {
 	/// Create a new instance of `Self`.
 	pub fn new(ptr: u32) -> Self {
-		Self { ptr, _marker: Default::default() }
+		Self {
+			ptr,
+			_marker: Default::default(),
+		}
 	}
 
 	/// Calculate the offset from this pointer.
@@ -151,7 +154,10 @@ impl<T: PointerType> Pointer<T> {
 		offset
 			.checked_mul(T::SIZE)
 			.and_then(|o| self.ptr.checked_add(o))
-			.map(|ptr| Self { ptr, _marker: Default::default() })
+			.map(|ptr| Self {
+				ptr,
+				_marker: Default::default(),
+			})
 	}
 
 	/// Create a null pointer.
@@ -219,16 +225,19 @@ pub struct Signature {
 
 impl Signature {
 	/// Create a new instance of `Signature`.
-	pub fn new<T: Into<Cow<'static, [ValueType]>>>(
-		args: T,
-		return_value: Option<ValueType>,
-	) -> Self {
-		Self { args: args.into(), return_value }
+	pub fn new<T: Into<Cow<'static, [ValueType]>>>(args: T, return_value: Option<ValueType>) -> Self {
+		Self {
+			args: args.into(),
+			return_value,
+		}
 	}
 
 	/// Create a new instance of `Signature` with the given `args` and without any return value.
 	pub fn new_with_args<T: Into<Cow<'static, [ValueType]>>>(args: T) -> Self {
-		Self { args: args.into(), return_value: None }
+		Self {
+			args: args.into(),
+			return_value: None,
+		}
 	}
 }
 
@@ -323,13 +332,7 @@ pub trait Sandbox {
 	/// Delete a sandbox instance.
 	fn instance_teardown(&mut self, instance_id: u32) -> Result<()>;
 	/// Create a new sandbox instance.
-	fn instance_new(
-		&mut self,
-		dispatch_thunk_id: u32,
-		wasm: &[u8],
-		raw_env_def: &[u8],
-		state: u32,
-	) -> Result<u32>;
+	fn instance_new(&mut self, dispatch_thunk_id: u32, wasm: &[u8], raw_env_def: &[u8], state: u32) -> Result<u32>;
 
 	/// Get the value from a global with the given `name`. The sandbox is determined by the
 	/// given `instance_idx` instance.

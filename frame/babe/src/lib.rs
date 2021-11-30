@@ -339,11 +339,11 @@ impl<T: Trait> FindAuthor<u32> for Module<T> {
 		for (id, mut data) in digests.into_iter() {
 			if id == BABE_ENGINE_ID {
 				let pre_digest: PreDigest = PreDigest::decode(&mut data).ok()?;
-				return Some(pre_digest.authority_index())
+				return Some(pre_digest.authority_index());
 			}
 		}
 
-		return None
+		return None;
 	}
 }
 
@@ -456,8 +456,10 @@ impl<T: Trait> Module<T> {
 		// so that nodes can track changes.
 		let next_randomness = NextRandomness::get();
 
-		let next_epoch =
-			NextEpochDescriptor { authorities: next_authorities, randomness: next_randomness };
+		let next_epoch = NextEpochDescriptor {
+			authorities: next_authorities,
+			randomness: next_randomness,
+		};
 		Self::deposit_consensus(ConsensusLog::NextEpochData(next_epoch));
 
 		if let Some(next_config) = NextEpochConfig::take() {
@@ -497,78 +499,71 @@ impl<T: Trait> Module<T> {
 		// => let's ensure that we only modify the storage once per block
 		let initialized = Self::initialized().is_some();
 		if initialized {
-			return
+			return;
 		}
 
-		let maybe_pre_digest: Option<PreDigest> =
-			<frame_system::Module<T>>::digest()
-				.logs
-				.iter()
-				.filter_map(|s| s.as_pre_runtime())
-				.filter_map(|(id, mut data)| {
-					if id == BABE_ENGINE_ID {
-						PreDigest::decode(&mut data).ok()
-					} else {
-						None
-					}
-				})
-				.next();
-
-		let maybe_randomness: Option<schnorrkel::Randomness> =
-			maybe_pre_digest.and_then(|digest| {
-				// on the first non-zero block (i.e. block #1)
-				// this is where the first epoch (epoch #0) actually starts.
-				// we need to adjust internal storage accordingly.
-				if GenesisSlot::get() == 0 {
-					GenesisSlot::put(digest.slot_number());
-					debug_assert_ne!(GenesisSlot::get(), 0);
-
-					// deposit a log because this is the first block in epoch #0
-					// we use the same values as genesis because we haven't collected any
-					// randomness yet.
-					let next = NextEpochDescriptor {
-						authorities: Self::authorities(),
-						randomness: Self::randomness(),
-					};
-
-					Self::deposit_consensus(ConsensusLog::NextEpochData(next))
-				}
-
-				// the slot number of the current block being initialized
-				let current_slot = digest.slot_number();
-
-				// how many slots were skipped between current and last block
-				let lateness = current_slot.saturating_sub(CurrentSlot::get() + 1);
-				let lateness = T::BlockNumber::from(lateness as u32);
-
-				Lateness::<T>::put(lateness);
-				CurrentSlot::put(current_slot);
-
-				if let PreDigest::Primary(primary) = digest {
-					// place the VRF output into the `Initialized` storage item
-					// and it'll be put onto the under-construction randomness
-					// later, once we've decided which epoch this block is in.
-					//
-					// Reconstruct the bytes of VRFInOut using the authority id.
-					Authorities::get()
-						.get(primary.authority_index as usize)
-						.and_then(|author| {
-							schnorrkel::PublicKey::from_bytes(author.0.as_slice()).ok()
-						})
-						.and_then(|pubkey| {
-							let transcript = sp_consensus_babe::make_transcript(
-								&Self::randomness(),
-								current_slot,
-								EpochIndex::get(),
-							);
-
-							primary.vrf_output.0.attach_input_hash(&pubkey, transcript).ok()
-						})
-						.map(|inout| inout.make_bytes(&sp_consensus_babe::BABE_VRF_INOUT_CONTEXT))
+		let maybe_pre_digest: Option<PreDigest> = <frame_system::Module<T>>::digest()
+			.logs
+			.iter()
+			.filter_map(|s| s.as_pre_runtime())
+			.filter_map(|(id, mut data)| {
+				if id == BABE_ENGINE_ID {
+					PreDigest::decode(&mut data).ok()
 				} else {
 					None
 				}
-			});
+			})
+			.next();
+
+		let maybe_randomness: Option<schnorrkel::Randomness> = maybe_pre_digest.and_then(|digest| {
+			// on the first non-zero block (i.e. block #1)
+			// this is where the first epoch (epoch #0) actually starts.
+			// we need to adjust internal storage accordingly.
+			if GenesisSlot::get() == 0 {
+				GenesisSlot::put(digest.slot_number());
+				debug_assert_ne!(GenesisSlot::get(), 0);
+
+				// deposit a log because this is the first block in epoch #0
+				// we use the same values as genesis because we haven't collected any
+				// randomness yet.
+				let next = NextEpochDescriptor {
+					authorities: Self::authorities(),
+					randomness: Self::randomness(),
+				};
+
+				Self::deposit_consensus(ConsensusLog::NextEpochData(next))
+			}
+
+			// the slot number of the current block being initialized
+			let current_slot = digest.slot_number();
+
+			// how many slots were skipped between current and last block
+			let lateness = current_slot.saturating_sub(CurrentSlot::get() + 1);
+			let lateness = T::BlockNumber::from(lateness as u32);
+
+			Lateness::<T>::put(lateness);
+			CurrentSlot::put(current_slot);
+
+			if let PreDigest::Primary(primary) = digest {
+				// place the VRF output into the `Initialized` storage item
+				// and it'll be put onto the under-construction randomness
+				// later, once we've decided which epoch this block is in.
+				//
+				// Reconstruct the bytes of VRFInOut using the authority id.
+				Authorities::get()
+					.get(primary.authority_index as usize)
+					.and_then(|author| schnorrkel::PublicKey::from_bytes(author.0.as_slice()).ok())
+					.and_then(|pubkey| {
+						let transcript =
+							sp_consensus_babe::make_transcript(&Self::randomness(), current_slot, EpochIndex::get());
+
+						primary.vrf_output.0.attach_input_hash(&pubkey, transcript).ok()
+					})
+					.map(|inout| inout.make_bytes(&sp_consensus_babe::BABE_VRF_INOUT_CONTEXT))
+			} else {
+				None
+			}
+		});
 
 		Initialized::put(maybe_randomness);
 
@@ -612,26 +607,25 @@ impl<T: Trait> Module<T> {
 
 		// validate the equivocation proof
 		if !sp_consensus_babe::check_equivocation_proof(equivocation_proof) {
-			return Err(Error::<T>::InvalidEquivocationProof.into())
+			return Err(Error::<T>::InvalidEquivocationProof.into());
 		}
 
 		let validator_set_count = key_owner_proof.validator_count();
 		let session_index = key_owner_proof.session();
 
-		let epoch_index = (slot_number.saturating_sub(GenesisSlot::get()) /
-			T::EpochDuration::get())
-		.saturated_into::<u32>();
+		let epoch_index =
+			(slot_number.saturating_sub(GenesisSlot::get()) / T::EpochDuration::get()).saturated_into::<u32>();
 
 		// check that the slot number is consistent with the session index
 		// in the key ownership proof (i.e. slot is for that epoch)
 		if epoch_index != session_index {
-			return Err(Error::<T>::InvalidKeyOwnershipProof.into())
+			return Err(Error::<T>::InvalidKeyOwnershipProof.into());
 		}
 
 		// check the membership proof and extract the offender's id
 		let key = (sp_consensus_babe::KEY_TYPE, offender);
-		let offender = T::KeyOwnerProofSystem::check_proof(key, key_owner_proof)
-			.ok_or(Error::<T>::InvalidKeyOwnershipProof)?;
+		let offender =
+			T::KeyOwnerProofSystem::check_proof(key, key_owner_proof).ok_or(Error::<T>::InvalidKeyOwnershipProof)?;
 
 		let offence = BabeEquivocationOffence {
 			slot: slot_number,
@@ -645,8 +639,7 @@ impl<T: Trait> Module<T> {
 			None => vec![],
 		};
 
-		T::HandleEquivocation::report_offence(reporters, offence)
-			.map_err(|_| Error::<T>::DuplicateOffenceReport)?;
+		T::HandleEquivocation::report_offence(reporters, offence).map_err(|_| Error::<T>::DuplicateOffenceReport)?;
 
 		// waive the fee since the report is valid and beneficial
 		Ok(Pays::No.into())
@@ -660,11 +653,7 @@ impl<T: Trait> Module<T> {
 		equivocation_proof: EquivocationProof<T::Header>,
 		key_owner_proof: T::KeyOwnerProof,
 	) -> Option<()> {
-		T::HandleEquivocation::submit_unsigned_equivocation_report(
-			equivocation_proof,
-			key_owner_proof,
-		)
-		.ok()
+		T::HandleEquivocation::submit_unsigned_equivocation_report(equivocation_proof, key_owner_proof).ok()
 	}
 }
 
@@ -763,8 +752,7 @@ impl<T: Trait> ProvideInherent for Module<T> {
 		if timestamp_based_slot == seal_slot {
 			Ok(())
 		} else {
-			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal")
-				.into())
+			Err(sp_inherents::Error::from("timestamp set in block doesn't match slot in seal").into())
 		}
 	}
 }

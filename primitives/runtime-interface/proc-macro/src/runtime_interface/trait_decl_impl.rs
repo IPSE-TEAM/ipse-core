@@ -19,8 +19,8 @@
 //! default implementations and implements the trait for `&mut dyn Externalities`.
 
 use crate::utils::{
-	create_function_ident_with_version, generate_crate_access,
-	get_function_argument_types_without_ref, get_runtime_interface,
+	create_function_ident_with_version, generate_crate_access, get_function_argument_types_without_ref,
+	get_runtime_interface,
 };
 
 use syn::{
@@ -56,7 +56,10 @@ struct ToEssentialTraitDef {
 
 impl ToEssentialTraitDef {
 	fn new() -> Self {
-		ToEssentialTraitDef { errors: vec![], methods: vec![] }
+		ToEssentialTraitDef {
+			errors: vec![],
+			methods: vec![],
+		}
 	}
 
 	fn into_methods(self) -> Result<Vec<TraitItemMethod>> {
@@ -130,7 +133,7 @@ fn declare_essential_trait(trait_def: &ItemTrait) -> Result<TokenStream> {
 	let trait_ = &trait_def.ident;
 
 	if let Some(param) = trait_def.generics.params.first() {
-		return Err(Error::new(param.span(), "Generic parameters not supported."))
+		return Err(Error::new(param.span(), "Generic parameters not supported."));
 	}
 
 	let interface = get_runtime_interface(trait_def)?;

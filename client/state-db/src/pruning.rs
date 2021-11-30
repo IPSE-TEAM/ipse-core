@@ -72,10 +72,7 @@ fn to_journal_key(block: u64) -> Vec<u8> {
 }
 
 impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
-	pub fn new<D: MetaDb>(
-		db: &D,
-		count_insertions: bool,
-	) -> Result<RefWindow<BlockHash, Key>, Error<D::Error>> {
+	pub fn new<D: MetaDb>(db: &D, count_insertions: bool) -> Result<RefWindow<BlockHash, Key>, Error<D::Error>> {
 		let last_pruned = db.get_meta(&to_meta_key(LAST_PRUNED, &())).map_err(|e| Error::Db(e))?;
 		let pending_number: u64 = match last_pruned {
 			Some(buffer) => u64::decode(&mut buffer.as_slice())? + 1,
@@ -96,16 +93,10 @@ impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
 			let journal_key = to_journal_key(block);
 			match db.get_meta(&journal_key).map_err(|e| Error::Db(e))? {
 				Some(record) => {
-					let record: JournalRecord<BlockHash, Key> =
-						Decode::decode(&mut record.as_slice())?;
+					let record: JournalRecord<BlockHash, Key> = Decode::decode(&mut record.as_slice())?;
 					trace!(target: "state-db", "Pruning journal entry {} ({} inserted, {} deleted)", block, record.inserted.len(), record.deleted.len());
-					pruning.import(
-						&record.hash,
-						journal_key,
-						record.inserted.into_iter(),
-						record.deleted,
-					);
-				},
+					pruning.import(&record.hash, journal_key, record.inserted.into_iter(), record.deleted);
+				}
 				None => break,
 			}
 			block += 1;
@@ -124,7 +115,9 @@ impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
 			// remove all re-inserted keys from death rows
 			for k in inserted {
 				if let Some(block) = self.death_index.remove(&k) {
-					self.death_rows[(block - self.pending_number) as usize].deleted.remove(&k);
+					self.death_rows[(block - self.pending_number) as usize]
+						.deleted
+						.remove(&k);
 				}
 			}
 
@@ -158,7 +151,10 @@ impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
 	}
 
 	pub fn have_block(&self, hash: &BlockHash) -> bool {
-		self.death_rows.iter().skip(self.pending_prunings).any(|r| r.hash == *hash)
+		self.death_rows
+			.iter()
+			.skip(self.pending_prunings)
+			.any(|r| r.hash == *hash)
 	}
 
 	/// Prune next block. Expects at least one block in the window. Adds changes to `commit`.
@@ -167,7 +163,10 @@ impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
 			trace!(target: "state-db", "Pruning {:?} ({} deleted)", pruned.hash, pruned.deleted.len());
 			let index = self.pending_number + self.pending_prunings as u64;
 			commit.data.deleted.extend(pruned.deleted.iter().cloned());
-			commit.meta.inserted.push((to_meta_key(LAST_PRUNED, &()), index.encode()));
+			commit
+				.meta
+				.inserted
+				.push((to_meta_key(LAST_PRUNED, &()), index.encode()));
 			commit.meta.deleted.push(pruned.journal_key.clone());
 			self.pending_prunings += 1;
 		} else {
@@ -184,10 +183,17 @@ impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
 			Default::default()
 		};
 		let deleted = ::std::mem::take(&mut commit.data.deleted);
-		let journal_record = JournalRecord { hash: hash.clone(), inserted, deleted };
+		let journal_record = JournalRecord {
+			hash: hash.clone(),
+			inserted,
+			deleted,
+		};
 		let block = self.pending_number + self.death_rows.len() as u64;
 		let journal_key = to_journal_key(block);
-		commit.meta.inserted.push((journal_key.clone(), journal_record.encode()));
+		commit
+			.meta
+			.inserted
+			.push((journal_key.clone(), journal_record.encode()));
 		self.import(
 			&journal_record.hash,
 			journal_key,
@@ -201,8 +207,10 @@ impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
 	pub fn apply_pending(&mut self) {
 		self.pending_canonicalizations = 0;
 		for _ in 0..self.pending_prunings {
-			let pruned =
-				self.death_rows.pop_front().expect("pending_prunings is always < death_rows.len()");
+			let pruned = self
+				.death_rows
+				.pop_front()
+				.expect("pending_prunings is always < death_rows.len()");
 			trace!(target: "state-db", "Applying pruning {:?} ({} deleted)", pruned.hash, pruned.deleted.len());
 			if self.count_insertions {
 				for k in pruned.deleted.iter() {
@@ -221,7 +229,8 @@ impl<BlockHash: Hash, Key: Hash> RefWindow<BlockHash, Key> {
 		// `death_index` We don't bother to track and revert that for now. This means that a few
 		// nodes might end up no being deleted in case transaction fails and `revert_pending` is
 		// called.
-		self.death_rows.truncate(self.death_rows.len() - self.pending_canonicalizations);
+		self.death_rows
+			.truncate(self.death_rows.len() - self.pending_canonicalizations);
 		if self.count_insertions {
 			let new_max_block = self.death_rows.len() as u64 + self.pending_number;
 			self.death_index.retain(|_, block| *block < new_max_block);

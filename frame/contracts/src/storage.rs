@@ -79,13 +79,13 @@ pub fn write_contract_storage<T: Trait>(
 			if prev_value.is_empty() {
 				new_info.empty_pair_count -= 1;
 			}
-		},
+		}
 		(None, Some(new_value)) => {
 			new_info.total_pair_count += 1;
 			if new_value.is_empty() {
 				new_info.empty_pair_count += 1;
 			}
-		},
+		}
 		(Some(prev_value), Some(new_value)) => {
 			if prev_value.is_empty() {
 				new_info.empty_pair_count -= 1;
@@ -93,16 +93,23 @@ pub fn write_contract_storage<T: Trait>(
 			if new_value.is_empty() {
 				new_info.empty_pair_count += 1;
 			}
-		},
-		(None, None) => {},
+		}
+		(None, None) => {}
 	}
 
 	// Update the total storage size.
-	let prev_value_len =
-		opt_prev_value.as_ref().map(|old_value| old_value.len() as u32).unwrap_or(0);
-	let new_value_len = opt_new_value.as_ref().map(|new_value| new_value.len() as u32).unwrap_or(0);
-	new_info.storage_size =
-		new_info.storage_size.saturating_add(new_value_len).saturating_sub(prev_value_len);
+	let prev_value_len = opt_prev_value
+		.as_ref()
+		.map(|old_value| old_value.len() as u32)
+		.unwrap_or(0);
+	let new_value_len = opt_new_value
+		.as_ref()
+		.map(|new_value| new_value.len() as u32)
+		.unwrap_or(0);
+	new_info.storage_size = new_info
+		.storage_size
+		.saturating_add(new_value_len)
+		.saturating_sub(prev_value_len);
 
 	new_info.last_write = Some(<frame_system::Module<T>>::block_number());
 	<ContractInfoOf<T>>::insert(&account, ContractInfo::Alive(new_info));
@@ -117,9 +124,7 @@ pub fn write_contract_storage<T: Trait>(
 }
 
 /// Returns the rent allowance set for the contract give by the account id.
-pub fn rent_allowance<T: Trait>(
-	account: &AccountIdOf<T>,
-) -> Result<BalanceOf<T>, ContractAbsentError> {
+pub fn rent_allowance<T: Trait>(account: &AccountIdOf<T>) -> Result<BalanceOf<T>, ContractAbsentError> {
 	<ContractInfoOf<T>>::get(account)
 		.and_then(|i| i.as_alive().map(|i| i.rent_allowance))
 		.ok_or(ContractAbsentError)
@@ -136,7 +141,7 @@ pub fn set_rent_allowance<T: Trait>(
 		Some(ContractInfo::Alive(ref mut alive_info)) => {
 			alive_info.rent_allowance = rent_allowance;
 			Ok(())
-		},
+		}
 		_ => Err(ContractAbsentError),
 	})
 }
@@ -159,7 +164,7 @@ pub fn place_contract<T: Trait>(
 ) -> Result<(), &'static str> {
 	<ContractInfoOf<T>>::mutate(account, |maybe_contract_info| {
 		if maybe_contract_info.is_some() {
-			return Err("Alive contract or tombstone already exists")
+			return Err("Alive contract or tombstone already exists");
 		}
 
 		*maybe_contract_info = Some(

@@ -85,6 +85,8 @@ impl ProvideInherentData for InherentDataProvider {
 	fn error_to_string(&self, error: &[u8]) -> Option<String> {
 		use codec::Decode;
 
-		sp_inherents::Error::decode(&mut &error[..]).map(|e| e.into_string()).ok()
+		sp_inherents::Error::decode(&mut &error[..])
+			.map(|e| e.into_string())
+			.ok()
 	}
 }

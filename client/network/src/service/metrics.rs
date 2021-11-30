@@ -18,8 +18,8 @@
 
 use crate::transport::BandwidthSinks;
 use prometheus_endpoint::{
-	self as prometheus, Counter, CounterVec, Gauge, GaugeVec, HistogramOpts, MetricSource, Opts,
-	PrometheusError, Registry, SourcedCounter, SourcedGauge, U64,
+	self as prometheus, Counter, CounterVec, Gauge, GaugeVec, HistogramOpts, MetricSource, Opts, PrometheusError,
+	Registry, SourcedCounter, SourcedGauge, U64,
 };
 use std::{
 	str,
@@ -369,8 +369,7 @@ impl BandwidthCounters {
 	fn register(registry: &Registry, sinks: Arc<BandwidthSinks>) -> Result<(), PrometheusError> {
 		prometheus::register(
 			SourcedCounter::new(
-				&Opts::new("sub_libp2p_network_bytes_total", "Total bandwidth usage")
-					.variable_label("direction"),
+				&Opts::new("sub_libp2p_network_bytes_total", "Total bandwidth usage").variable_label("direction"),
 				BandwidthCounters(sinks),
 			)?,
 			registry,

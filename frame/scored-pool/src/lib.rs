@@ -100,8 +100,7 @@ use frame_system::{ensure_root, ensure_signed};
 use sp_runtime::traits::{AtLeast32Bit, MaybeSerializeDeserialize, StaticLookup, Zero};
 use sp_std::{fmt::Debug, prelude::*};
 
-type BalanceOf<T, I> =
-	<<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 type PoolT<T, I> = Vec<(<T as frame_system::Trait>::AccountId, Option<<T as Trait<I>>::Score>)>;
 
 /// The enum is supplied when refreshing the members set.
@@ -119,13 +118,7 @@ pub trait Trait<I = DefaultInstance>: frame_system::Trait {
 	type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
 	/// The score attributed to a member or candidate.
-	type Score: AtLeast32Bit
-		+ Clone
-		+ Copy
-		+ Default
-		+ FullCodec
-		+ MaybeSerializeDeserialize
-		+ Debug;
+	type Score: AtLeast32Bit + Clone + Copy + Default + FullCodec + MaybeSerializeDeserialize + Debug;
 
 	/// The overarching event type.
 	type Event: From<Event<Self, I>> + Into<<Self as frame_system::Trait>::Event>;
@@ -406,10 +399,10 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 		<Members<T, I>>::put(&new_members);
 
 		match notify {
-			ChangeReceiver::MembershipInitialized =>
-				T::MembershipInitialized::initialize_members(&new_members),
-			ChangeReceiver::MembershipChanged =>
-				T::MembershipChanged::set_members_sorted(&new_members[..], &old_members[..]),
+			ChangeReceiver::MembershipInitialized => T::MembershipInitialized::initialize_members(&new_members),
+			ChangeReceiver::MembershipChanged => {
+				T::MembershipChanged::set_members_sorted(&new_members[..], &old_members[..])
+			}
 		}
 	}
 
@@ -417,11 +410,7 @@ impl<T: Trait<I>, I: Instance> Module<T, I> {
 	///
 	/// If the entity is a member it is also removed from `Members` and
 	/// the deposit is returned.
-	fn remove_member(
-		mut pool: PoolT<T, I>,
-		remove: T::AccountId,
-		index: u32,
-	) -> Result<(), Error<T, I>> {
+	fn remove_member(mut pool: PoolT<T, I>, remove: T::AccountId, index: u32) -> Result<(), Error<T, I>> {
 		// all callers of this function in this module also check
 		// the index for validity before calling this function.
 		// nevertheless we check again here, to assert that there was

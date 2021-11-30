@@ -77,17 +77,13 @@ pub trait BlockchainEvents<Block: BlockT> {
 /// Interface for fetching block data.
 pub trait BlockBackend<Block: BlockT> {
 	/// Get block body by ID. Returns `None` if the body is not stored.
-	fn block_body(
-		&self,
-		id: &BlockId<Block>,
-	) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>>;
+	fn block_body(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Vec<<Block as BlockT>::Extrinsic>>>;
 
 	/// Get full block by id.
 	fn block(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<SignedBlock<Block>>>;
 
 	/// Get block status.
-	fn block_status(&self, id: &BlockId<Block>)
-		-> sp_blockchain::Result<sp_consensus::BlockStatus>;
+	fn block_status(&self, id: &BlockId<Block>) -> sp_blockchain::Result<sp_consensus::BlockStatus>;
 
 	/// Get block justification set by id.
 	fn justification(&self, id: &BlockId<Block>) -> sp_blockchain::Result<Option<Justification>>;
@@ -261,7 +257,10 @@ impl<B: BlockT> TryFrom<BlockImportNotification<B>> for sp_transaction_pool::Cha
 
 	fn try_from(n: BlockImportNotification<B>) -> Result<Self, ()> {
 		if n.is_new_best {
-			Ok(Self::NewBestBlock { hash: n.hash, tree_route: n.tree_route })
+			Ok(Self::NewBestBlock {
+				hash: n.hash,
+				tree_route: n.tree_route,
+			})
 		} else {
 			Err(())
 		}

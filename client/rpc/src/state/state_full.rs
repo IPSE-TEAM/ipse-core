@@ -31,14 +31,10 @@ use sc_client_api::backend::Backend;
 use sc_client_api::BlockchainEvents;
 use sc_rpc_api::state::ReadProof;
 use sp_blockchain::{
-	CachedHeaderMetadata, Error as ClientError, HeaderBackend, HeaderMetadata,
-	Result as ClientResult,
+	CachedHeaderMetadata, Error as ClientError, HeaderBackend, HeaderMetadata, Result as ClientResult,
 };
 use sp_core::{
-	storage::{
-		well_known_keys, ChildInfo, ChildType, PrefixedStorageKey, StorageChangeSet, StorageData,
-		StorageKey,
-	},
+	storage::{well_known_keys, ChildInfo, ChildType, PrefixedStorageKey, StorageChangeSet, StorageData, StorageKey},
 	Bytes,
 };
 use sp_runtime::{
@@ -81,14 +77,16 @@ pub struct FullState<BE, Block: BlockT, Client> {
 impl<BE, Block: BlockT, Client> FullState<BE, Block, Client>
 where
 	BE: Backend<Block>,
-	Client: StorageProvider<Block, BE>
-		+ HeaderBackend<Block>
-		+ HeaderMetadata<Block, Error = sp_blockchain::Error>,
+	Client: StorageProvider<Block, BE> + HeaderBackend<Block> + HeaderMetadata<Block, Error = sp_blockchain::Error>,
 	Block: BlockT + 'static,
 {
 	/// Create new state API backend for full nodes.
 	pub fn new(client: Arc<Client>, subscriptions: SubscriptionManager) -> Self {
-		Self { client, subscriptions, _phantom: PhantomData }
+		Self {
+			client,
+			subscriptions,
+			_phantom: PhantomData,
+		}
 	}
 
 	/// Returns given block hash or best block hash if None is passed.
@@ -104,11 +102,11 @@ where
 		from: Block::Hash,
 		to: Option<Block::Hash>,
 	) -> Result<QueryStorageRange<Block>> {
-		let to =
-			self.block_or_best(to).map_err(|e| invalid_block::<Block>(from, to, e.to_string()))?;
+		let to = self
+			.block_or_best(to)
+			.map_err(|e| invalid_block::<Block>(from, to, e.to_string()))?;
 
-		let invalid_block_err =
-			|e: ClientError| invalid_block::<Block>(from, Some(to), e.to_string());
+		let invalid_block_err = |e: ClientError| invalid_block::<Block>(from, Some(to), e.to_string());
 		let from_meta = self.client.header_metadata(from).map_err(invalid_block_err)?;
 		let to_meta = self.client.header_metadata(to).map_err(invalid_block_err)?;
 
@@ -117,7 +115,7 @@ where
 				&from_meta,
 				&to_meta,
 				"from number > to number".to_owned(),
-			))
+			));
 		}
 
 		// check if we can get from `to` to `from` by going through parent_hashes.
@@ -138,7 +136,7 @@ where
 					&from_meta,
 					&to_meta,
 					"from and to are on different forks".to_owned(),
-				))
+				));
 			}
 			hashes.reverse();
 			hashes
@@ -173,8 +171,10 @@ where
 	) -> Result<()> {
 		for block in range.unfiltered_range.start..range.unfiltered_range.end {
 			let block_hash = range.hashes[block].clone();
-			let mut block_changes =
-				StorageChangeSet { block: block_hash.clone(), changes: Vec::new() };
+			let mut block_changes = StorageChangeSet {
+				block: block_hash.clone(),
+				changes: Vec::new(),
+			};
 			let id = BlockId::hash(block_hash);
 			for key in keys {
 				let (has_changed, data) = {
@@ -212,28 +212,29 @@ where
 			),
 			None => return Ok(()),
 		};
-		let mut changes_map: BTreeMap<NumberFor<Block>, StorageChangeSet<Block::Hash>> =
-			BTreeMap::new();
+		let mut changes_map: BTreeMap<NumberFor<Block>, StorageChangeSet<Block::Hash>> = BTreeMap::new();
 		for key in keys {
 			let mut last_block = None;
 			let mut last_value = last_values.get(key).cloned().unwrap_or_default();
 			let key_changes = self.client.key_changes(begin, end, None, key).map_err(client_err)?;
 			for (block, _) in key_changes.into_iter().rev() {
 				if last_block == Some(block) {
-					continue
+					continue;
 				}
 
-				let block_hash =
-					range.hashes[(block - range.first_number).saturated_into::<usize>()].clone();
+				let block_hash = range.hashes[(block - range.first_number).saturated_into::<usize>()].clone();
 				let id = BlockId::Hash(block_hash);
 				let value_at_block = self.client.storage(&id, key).map_err(client_err)?;
 				if last_value == value_at_block {
-					continue
+					continue;
 				}
 
 				changes_map
 					.entry(block)
-					.or_insert_with(|| StorageChangeSet { block: block_hash, changes: Vec::new() })
+					.or_insert_with(|| StorageChangeSet {
+						block: block_hash,
+						changes: Vec::new(),
+					})
 					.changes
 					.push((key.clone(), value_at_block.clone()));
 				last_block = Some(block);
@@ -265,12 +266,7 @@ where
 		+ 'static,
 	Client::Api: Metadata<Block, Error = sp_blockchain::Error>,
 {
-	fn call(
-		&self,
-		block: Option<Block::Hash>,
-		method: String,
-		call_data: Bytes,
-	) -> FutureResult<Bytes> {
+	fn call(&self, block: Option<Block::Hash>, method: String, call_data: Bytes) -> FutureResult<Bytes> {
 		let r = self
 			.block_or_best(block)
 			.and_then(|block| {
@@ -289,11 +285,7 @@ where
 		Box::new(result(r))
 	}
 
-	fn storage_keys(
-		&self,
-		block: Option<Block::Hash>,
-		prefix: StorageKey,
-	) -> FutureResult<Vec<StorageKey>> {
+	fn storage_keys(&self, block: Option<Block::Hash>, prefix: StorageKey) -> FutureResult<Vec<StorageKey>> {
 		Box::new(result(
 			self.block_or_best(block)
 				.and_then(|block| self.client.storage_keys(&BlockId::Hash(block), &prefix))
@@ -323,22 +315,15 @@ where
 		Box::new(result(
 			self.block_or_best(block)
 				.and_then(|block| {
-					self.client.storage_keys_iter(
-						&BlockId::Hash(block),
-						prefix.as_ref(),
-						start_key.as_ref(),
-					)
+					self.client
+						.storage_keys_iter(&BlockId::Hash(block), prefix.as_ref(), start_key.as_ref())
 				})
 				.map(|v| v.take(count as usize).collect())
 				.map_err(client_err),
 		))
 	}
 
-	fn storage(
-		&self,
-		block: Option<Block::Hash>,
-		key: StorageKey,
-	) -> FutureResult<Option<StorageData>> {
+	fn storage(&self, block: Option<Block::Hash>, key: StorageKey) -> FutureResult<Option<StorageData>> {
 		Box::new(result(
 			self.block_or_best(block)
 				.and_then(|block| self.client.storage(&BlockId::Hash(block), &key))
@@ -346,11 +331,7 @@ where
 		))
 	}
 
-	fn storage_size(
-		&self,
-		block: Option<Block::Hash>,
-		key: StorageKey,
-	) -> FutureResult<Option<u64>> {
+	fn storage_size(&self, block: Option<Block::Hash>, key: StorageKey) -> FutureResult<Option<u64>> {
 		let block = match self.block_or_best(block) {
 			Ok(b) => b,
 			Err(e) => return Box::new(result(Err(client_err(e)))),
@@ -359,7 +340,7 @@ where
 		match self.client.storage(&BlockId::Hash(block), &key) {
 			Ok(Some(d)) => return Box::new(result(Ok(Some(d.0.len() as u64)))),
 			Err(e) => return Box::new(result(Err(client_err(e)))),
-			Ok(None) => {},
+			Ok(None) => {}
 		}
 
 		Box::new(result(
@@ -377,11 +358,7 @@ where
 		))
 	}
 
-	fn storage_hash(
-		&self,
-		block: Option<Block::Hash>,
-		key: StorageKey,
-	) -> FutureResult<Option<Block::Hash>> {
+	fn storage_hash(&self, block: Option<Block::Hash>, key: StorageKey) -> FutureResult<Option<Block::Hash>> {
 		Box::new(result(
 			self.block_or_best(block)
 				.and_then(|block| self.client.storage_hash(&BlockId::Hash(block), &key))
@@ -393,7 +370,10 @@ where
 		Box::new(result(
 			self.block_or_best(block)
 				.and_then(|block| {
-					self.client.runtime_api().metadata(&BlockId::Hash(block)).map(Into::into)
+					self.client
+						.runtime_api()
+						.metadata(&BlockId::Hash(block))
+						.map(Into::into)
 				})
 				.map_err(client_err),
 		))
@@ -433,19 +413,12 @@ where
 		self.query_storage(at, Some(at), keys)
 	}
 
-	fn read_proof(
-		&self,
-		block: Option<Block::Hash>,
-		keys: Vec<StorageKey>,
-	) -> FutureResult<ReadProof<Block::Hash>> {
+	fn read_proof(&self, block: Option<Block::Hash>, keys: Vec<StorageKey>) -> FutureResult<ReadProof<Block::Hash>> {
 		Box::new(result(
 			self.block_or_best(block)
 				.and_then(|block| {
 					self.client
-						.read_proof(
-							&BlockId::Hash(block),
-							&mut keys.iter().map(|key| key.0.as_ref()),
-						)
+						.read_proof(&BlockId::Hash(block), &mut keys.iter().map(|key| key.0.as_ref()))
 						.map(|proof| proof.iter_nodes().map(|node| node.into()).collect())
 						.map(|proof| ReadProof { at: block, proof })
 				})
@@ -453,20 +426,16 @@ where
 		))
 	}
 
-	fn subscribe_runtime_version(
-		&self,
-		_meta: crate::Metadata,
-		subscriber: Subscriber<RuntimeVersion>,
-	) {
-		let stream = match self.client.storage_changes_notification_stream(
-			Some(&[StorageKey(well_known_keys::CODE.to_vec())]),
-			None,
-		) {
+	fn subscribe_runtime_version(&self, _meta: crate::Metadata, subscriber: Subscriber<RuntimeVersion>) {
+		let stream = match self
+			.client
+			.storage_changes_notification_stream(Some(&[StorageKey(well_known_keys::CODE.to_vec())]), None)
+		{
 			Ok(stream) => stream,
 			Err(err) => {
 				let _ = subscriber.reject(Error::from(client_err(err)).into());
-				return
-			},
+				return;
+			}
 		};
 
 		self.subscriptions.add(subscriber, |sink| {
@@ -498,11 +467,7 @@ where
 		});
 	}
 
-	fn unsubscribe_runtime_version(
-		&self,
-		_meta: Option<crate::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_runtime_version(&self, _meta: Option<crate::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		Ok(self.subscriptions.cancel(id))
 	}
 
@@ -520,8 +485,8 @@ where
 			Ok(stream) => stream,
 			Err(err) => {
 				let _ = subscriber.reject(client_err(err).into());
-				return
-			},
+				return;
+			}
 		};
 
 		// initial values
@@ -568,11 +533,7 @@ where
 		});
 	}
 
-	fn unsubscribe_storage(
-		&self,
-		_meta: Option<crate::Metadata>,
-		id: SubscriptionId,
-	) -> RpcResult<bool> {
+	fn unsubscribe_storage(&self, _meta: Option<crate::Metadata>, id: SubscriptionId) -> RpcResult<bool> {
 		Ok(self.subscriptions.cancel(id))
 	}
 }
@@ -603,11 +564,11 @@ where
 			self.block_or_best(block)
 				.and_then(|block| {
 					let child_info = match ChildType::from_prefixed_key(&storage_key) {
-						Some((ChildType::ParentKeyId, storage_key)) =>
-							ChildInfo::new_default(storage_key),
+						Some((ChildType::ParentKeyId, storage_key)) => ChildInfo::new_default(storage_key),
 						None => return Err("Invalid child storage key".into()),
 					};
-					self.client.child_storage_keys(&BlockId::Hash(block), &child_info, &prefix)
+					self.client
+						.child_storage_keys(&BlockId::Hash(block), &child_info, &prefix)
 				})
 				.map_err(client_err),
 		))
@@ -623,8 +584,7 @@ where
 			self.block_or_best(block)
 				.and_then(|block| {
 					let child_info = match ChildType::from_prefixed_key(&storage_key) {
-						Some((ChildType::ParentKeyId, storage_key)) =>
-							ChildInfo::new_default(storage_key),
+						Some((ChildType::ParentKeyId, storage_key)) => ChildInfo::new_default(storage_key),
 						None => return Err("Invalid child storage key".into()),
 					};
 					self.client.child_storage(&BlockId::Hash(block), &child_info, &key)
@@ -643,8 +603,7 @@ where
 			self.block_or_best(block)
 				.and_then(|block| {
 					let child_info = match ChildType::from_prefixed_key(&storage_key) {
-						Some((ChildType::ParentKeyId, storage_key)) =>
-							ChildInfo::new_default(storage_key),
+						Some((ChildType::ParentKeyId, storage_key)) => ChildInfo::new_default(storage_key),
 						None => return Err("Invalid child storage key".into()),
 					};
 					self.client.child_storage_hash(&BlockId::Hash(block), &child_info, &key)
@@ -657,10 +616,7 @@ where
 /// Splits passed range into two subranges where:
 /// - first range has at least one element in it;
 /// - second range (optionally) starts at given `middle` element.
-pub(crate) fn split_range(
-	size: usize,
-	middle: Option<usize>,
-) -> (Range<usize>, Option<Range<usize>>) {
+pub(crate) fn split_range(size: usize, middle: Option<usize>) -> (Range<usize>, Option<Range<usize>>) {
 	// check if we can filter blocks-with-changes from some (sub)range using changes tries
 	let range2_begin = match middle {
 		// some of required changes tries are pruned => use available tries
@@ -685,9 +641,17 @@ fn invalid_block_range<B: BlockT>(
 ) -> Error {
 	let to_string = |h: &CachedHeaderMetadata<B>| format!("{} ({:?})", h.number, h.hash);
 
-	Error::InvalidBlockRange { from: to_string(from), to: to_string(to), details }
+	Error::InvalidBlockRange {
+		from: to_string(from),
+		to: to_string(to),
+		details,
+	}
 }
 
 fn invalid_block<B: BlockT>(from: B::Hash, to: Option<B::Hash>, details: String) -> Error {
-	Error::InvalidBlockRange { from: format!("{:?}", from), to: format!("{:?}", to), details }
+	Error::InvalidBlockRange {
+		from: format!("{:?}", from),
+		to: format!("{:?}", to),
+		details,
+	}
 }

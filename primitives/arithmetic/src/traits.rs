@@ -20,12 +20,10 @@
 use codec::HasCompact;
 pub use integer_sqrt::IntegerSquareRoot;
 pub use num_traits::{
-	checked_pow, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedShl, CheckedShr,
-	CheckedSub, One, Signed, Unsigned, Zero,
+	checked_pow, Bounded, CheckedAdd, CheckedDiv, CheckedMul, CheckedNeg, CheckedShl, CheckedShr, CheckedSub, One,
+	Signed, Unsigned, Zero,
 };
-use sp_std::ops::{
-	Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Shl, Shr, Sub, SubAssign,
-};
+use sp_std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Rem, RemAssign, Shl, Shr, Sub, SubAssign};
 use sp_std::{
 	self,
 	convert::{TryFrom, TryInto},
@@ -200,9 +198,7 @@ pub trait Saturating {
 	fn saturating_pow(self, exp: usize) -> Self;
 }
 
-impl<T: Clone + Zero + One + PartialOrd + CheckedMul + Bounded + num_traits::Saturating> Saturating
-	for T
-{
+impl<T: Clone + Zero + One + PartialOrd + CheckedMul + Bounded + num_traits::Saturating> Saturating for T {
 	fn saturating_add(self, o: Self) -> Self {
 		<Self as num_traits::Saturating>::saturating_add(self, o)
 	}

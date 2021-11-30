@@ -22,8 +22,7 @@ use sp_runtime::traits::Block as BlockT;
 /// Validates consensus messages.
 pub trait Validator<B: BlockT>: Send + Sync {
 	/// New peer is connected.
-	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, _who: &PeerId, _role: ObservedRole) {
-	}
+	fn new_peer(&self, _context: &mut dyn ValidatorContext<B>, _who: &PeerId, _role: ObservedRole) {}
 
 	/// New connection is dropped.
 	fn peer_disconnected(&self, _context: &mut dyn ValidatorContext<B>, _who: &PeerId) {}
@@ -42,9 +41,7 @@ pub trait Validator<B: BlockT>: Send + Sync {
 	}
 
 	/// Produce a closure for filtering egress messages.
-	fn message_allowed<'a>(
-		&'a self,
-	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
+	fn message_allowed<'a>(&'a self) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, _intent, _topic, _data| true)
 	}
 }
@@ -100,9 +97,7 @@ impl<B: BlockT> Validator<B> for DiscardAll {
 		Box::new(move |_topic, _data| true)
 	}
 
-	fn message_allowed<'a>(
-		&'a self,
-	) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
+	fn message_allowed<'a>(&'a self) -> Box<dyn FnMut(&PeerId, MessageIntent, &B::Hash, &[u8]) -> bool + 'a> {
 		Box::new(move |_who, _intent, _topic, _data| false)
 	}
 }

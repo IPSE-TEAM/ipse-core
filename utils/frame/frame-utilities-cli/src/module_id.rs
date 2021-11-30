@@ -17,10 +17,7 @@
 
 //! Implementation of the `moduleid` subcommand
 
-use sc_cli::{
-	utils::print_from_uri, with_crypto_scheme, CryptoSchemeFlag, Error, KeystoreParams,
-	OutputTypeFlag,
-};
+use sc_cli::{utils::print_from_uri, with_crypto_scheme, CryptoSchemeFlag, Error, KeystoreParams, OutputTypeFlag};
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_runtime::traits::AccountIdConversion;
 use sp_runtime::ModuleId;
@@ -69,9 +66,11 @@ impl ModuleIdCmd {
 		}
 		let password = self.keystore_params.read_password()?;
 
-		let id_fixed_array: [u8; 8] = self.id.as_bytes().try_into().map_err(|_| {
-			"Cannot convert argument to moduleid: argument should be 8-character string"
-		})?;
+		let id_fixed_array: [u8; 8] = self
+			.id
+			.as_bytes()
+			.try_into()
+			.map_err(|_| "Cannot convert argument to moduleid: argument should be 8-character string")?;
 
 		let account_id: R::AccountId = ModuleId(id_fixed_array).into_account();
 

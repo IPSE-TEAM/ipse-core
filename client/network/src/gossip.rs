@@ -204,11 +204,11 @@ async fn spawn_task<B: BlockT, H: ExHashT, M, F: Fn(M) -> Vec<u8>>(
 
 			loop {
 				if shared.stop_task.load(atomic::Ordering::Acquire) {
-					return
+					return;
 				}
 
 				if let Some(msg) = queue.pop_front() {
-					break 'next_msg msg
+					break 'next_msg msg;
 				}
 
 				// It is possible that the destructor of `QueuedSender` sets `stop_task` to

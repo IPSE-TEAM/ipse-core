@@ -40,13 +40,9 @@ use prometheus_endpoint::{register, Counter, CounterVec, Gauge, Opts, U64};
 use prost::Message;
 use rand::{seq::SliceRandom, thread_rng};
 use sc_client_api::blockchain::HeaderBackend;
-use sc_network::{
-	config::MultiaddrWithPeerId, DhtEvent, ExHashT, Multiaddr, NetworkStateInfo, PeerId,
-};
+use sc_network::{config::MultiaddrWithPeerId, DhtEvent, ExHashT, Multiaddr, NetworkStateInfo, PeerId};
 use sp_api::ProvideRuntimeApi;
-use sp_authority_discovery::{
-	AuthorityDiscoveryApi, AuthorityId, AuthorityPair, AuthoritySignature,
-};
+use sp_authority_discovery::{AuthorityDiscoveryApi, AuthorityId, AuthorityPair, AuthoritySignature};
 use sp_core::crypto::{key_types, Pair};
 use sp_core::traits::BareCryptoStorePtr;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
@@ -134,8 +130,7 @@ where
 	//
 	// There are 3 states:
 	//   - None: No addresses were specified.
-	//   - Some(vec![]): Addresses were specified, but none could be parsed as proper
-	//     Multiaddresses.
+	//   - Some(vec![]): Addresses were specified, but none could be parsed as proper Multiaddresses.
 	//   - Some(vec![a, b, c, ...]): Valid addresses were specified.
 	sentry_nodes: Option<Vec<Multiaddr>>,
 	/// Channel we receive Dht events on.
@@ -168,8 +163,7 @@ where
 	Block: BlockT + Unpin + 'static,
 	Network: NetworkProvider,
 	Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
-	<Client as ProvideRuntimeApi<Block>>::Api:
-		AuthorityDiscoveryApi<Block, Error = sp_blockchain::Error>,
+	<Client as ProvideRuntimeApi<Block>>::Api: AuthorityDiscoveryApi<Block, Error = sp_blockchain::Error>,
 	Self: Future<Output = ()>,
 {
 	/// Return a new [`Worker`].
@@ -224,7 +218,7 @@ where
 				Err(e) => {
 					error!(target: LOG_TARGET, "Failed to register metrics: {:?}", e);
 					None
-				},
+				}
 			},
 			None => None,
 		};
@@ -259,7 +253,7 @@ where
 						a.with(multiaddr::Protocol::P2p(peer_id.clone()))
 					}
 				}))
-			},
+			}
 		}
 	}
 
@@ -283,9 +277,11 @@ where
 		}
 
 		let mut serialized_addresses = vec![];
-		schema::AuthorityAddresses { addresses: addresses.map(|a| a.to_vec()).collect() }
-			.encode(&mut serialized_addresses)
-			.map_err(Error::EncodingProto)?;
+		schema::AuthorityAddresses {
+			addresses: addresses.map(|a| a.to_vec()).collect(),
+		}
+		.encode(&mut serialized_addresses)
+		.map_err(Error::EncodingProto)?;
 
 		let keys = Worker::get_own_public_keys_within_authority_set(&key_store, &self.client)?
 			.into_iter()
@@ -308,11 +304,15 @@ where
 			// is generated for a public key that is supported.
 			// Verify that all signatures exist for all provided keys.
 			let signature = sign_result.map_err(|_| Error::MissingSignature(key.clone()))?;
-			schema::SignedAuthorityAddresses { addresses: serialized_addresses.clone(), signature }
-				.encode(&mut signed_addresses)
-				.map_err(Error::EncodingProto)?;
+			schema::SignedAuthorityAddresses {
+				addresses: serialized_addresses.clone(),
+				signature,
+			}
+			.encode(&mut signed_addresses)
+			.map_err(Error::EncodingProto)?;
 
-			self.network.put_value(hash_authority_id(key.1.as_ref()), signed_addresses);
+			self.network
+				.put_value(hash_authority_id(key.1.as_ref()), signed_addresses);
 		}
 
 		Ok(())
@@ -398,12 +398,9 @@ where
 							metrics.handle_value_found_event_failure.inc();
 						}
 
-						debug!(
-							target: LOG_TARGET,
-							"Failed to handle Dht value found event: {:?}", e,
-						);
+						debug!(target: LOG_TARGET, "Failed to handle Dht value found event: {:?}", e,);
 					}
-				},
+				}
 				Some(DhtEvent::ValueNotFound(hash)) => {
 					if let Some(metrics) = &self.metrics {
 						metrics.dht_event_received.with_label_values(&["value_not_found"]).inc();
@@ -417,47 +414,48 @@ where
 							"Received 'ValueNotFound' for unexpected hash '{:?}'.", hash
 						)
 					}
-				},
+				}
 				Some(DhtEvent::ValuePut(hash)) => {
 					if let Some(metrics) = &self.metrics {
 						metrics.dht_event_received.with_label_values(&["value_put"]).inc();
 					}
 
 					debug!(target: LOG_TARGET, "Successfully put hash '{:?}' on Dht.", hash,)
-				},
+				}
 				Some(DhtEvent::ValuePutFailed(hash)) => {
 					if let Some(metrics) = &self.metrics {
-						metrics.dht_event_received.with_label_values(&["value_put_failed"]).inc();
+						metrics
+							.dht_event_received
+							.with_label_values(&["value_put_failed"])
+							.inc();
 					}
 
 					debug!(target: LOG_TARGET, "Failed to put hash '{:?}' on Dht.", hash)
-				},
+				}
 				None => {
 					debug!(target: LOG_TARGET, "Dht event stream terminated.");
-					return Poll::Ready(())
-				},
+					return Poll::Ready(());
+				}
 			}
 		}
 	}
 
-	fn handle_dht_value_found_event(
-		&mut self,
-		values: Vec<(libp2p::kad::record::Key, Vec<u8>)>,
-	) -> Result<()> {
+	fn handle_dht_value_found_event(&mut self, values: Vec<(libp2p::kad::record::Key, Vec<u8>)>) -> Result<()> {
 		// Ensure `values` is not empty and all its keys equal.
 		let remote_key = values
 			.iter()
 			.fold(Ok(None), |acc, (key, _)| match acc {
 				Ok(None) => Ok(Some(key.clone())),
-				Ok(Some(ref prev_key)) if prev_key != key =>
-					Err(Error::ReceivingDhtValueFoundEventWithDifferentKeys),
+				Ok(Some(ref prev_key)) if prev_key != key => Err(Error::ReceivingDhtValueFoundEventWithDifferentKeys),
 				x @ Ok(_) => x,
 				Err(e) => Err(e),
 			})?
 			.ok_or(Error::ReceivingDhtValueFoundEventWithNoRecords)?;
 
-		let authority_id: AuthorityId =
-			self.in_flight_lookups.remove(&remote_key).ok_or(Error::ReceivingUnexpectedRecord)?;
+		let authority_id: AuthorityId = self
+			.in_flight_lookups
+			.remove(&remote_key)
+			.ok_or(Error::ReceivingUnexpectedRecord)?;
 
 		let local_peer_id = self.network.local_peer_id();
 
@@ -465,14 +463,13 @@ where
 			.into_iter()
 			.map(|(_k, v)| {
 				let schema::SignedAuthorityAddresses { signature, addresses } =
-					schema::SignedAuthorityAddresses::decode(v.as_slice())
-						.map_err(Error::DecodingProto)?;
+					schema::SignedAuthorityAddresses::decode(v.as_slice()).map_err(Error::DecodingProto)?;
 
-				let signature = AuthoritySignature::decode(&mut &signature[..])
-					.map_err(Error::EncodingDecodingScale)?;
+				let signature =
+					AuthoritySignature::decode(&mut &signature[..]).map_err(Error::EncodingDecodingScale)?;
 
 				if !AuthorityPair::verify(&signature, &addresses, &authority_id) {
-					return Err(Error::VerifyingDhtPayload)
+					return Err(Error::VerifyingDhtPayload);
 				}
 
 				let addresses = schema::AuthorityAddresses::decode(addresses.as_slice())
@@ -503,7 +500,7 @@ where
 						};
 
 						// Discard if equal to local peer id, keep if it differs.
-						return !(peer_id == local_peer_id)
+						return !(peer_id == local_peer_id);
 					}
 
 					false // `protocol` is not a [`Protocol::P2p`], let's keep looking.
@@ -564,15 +561,23 @@ where
 		let addresses = self.addr_cache.get_random_subset();
 
 		if addresses.is_empty() {
-			debug!(target: LOG_TARGET, "Got no addresses in cache for peerset priority group.",);
-			return Ok(())
+			debug!(
+				target: LOG_TARGET,
+				"Got no addresses in cache for peerset priority group.",
+			);
+			return Ok(());
 		}
 
 		if let Some(metrics) = &self.metrics {
-			metrics.priority_group_size.set(addresses.len().try_into().unwrap_or(std::u64::MAX));
+			metrics
+				.priority_group_size
+				.set(addresses.len().try_into().unwrap_or(std::u64::MAX));
 		}
 
-		debug!(target: LOG_TARGET, "Applying priority group {:?} to peerset.", addresses,);
+		debug!(
+			target: LOG_TARGET,
+			"Applying priority group {:?} to peerset.", addresses,
+		);
 
 		self.network
 			.set_priority_group(
@@ -590,8 +595,7 @@ where
 	Block: BlockT + Unpin + 'static,
 	Network: NetworkProvider,
 	Client: ProvideRuntimeApi<Block> + Send + Sync + 'static + HeaderBackend<Block>,
-	<Client as ProvideRuntimeApi<Block>>::Api:
-		AuthorityDiscoveryApi<Block, Error = sp_blockchain::Error>,
+	<Client as ProvideRuntimeApi<Block>>::Api: AuthorityDiscoveryApi<Block, Error = sp_blockchain::Error>,
 {
 	type Output = ();
 
@@ -601,7 +605,7 @@ where
 			// `handle_dht_events` returns `Poll::Ready(())` when the Dht event stream terminated.
 			// Termination of the Dht event stream implies that the underlying network terminated,
 			// thus authority discovery should terminate as well.
-			return Poll::Ready(())
+			return Poll::Ready(());
 		}
 
 		// Publish own addresses.
@@ -639,14 +643,14 @@ where
 			match msg {
 				ServicetoWorkerMsg::GetAddressesByAuthorityId(authority, sender) => {
 					let _ = sender.send(
-						self.addr_cache.get_addresses_by_authority_id(&authority).map(Clone::clone),
+						self.addr_cache
+							.get_addresses_by_authority_id(&authority)
+							.map(Clone::clone),
 					);
-				},
+				}
 				ServicetoWorkerMsg::GetAuthorityIdByPeerId(peer_id, sender) => {
-					let _ = sender.send(
-						self.addr_cache.get_authority_id_by_peer_id(&peer_id).map(Clone::clone),
-					);
-				},
+					let _ = sender.send(self.addr_cache.get_authority_id_by_peer_id(&peer_id).map(Clone::clone));
+				}
 			}
 		}
 

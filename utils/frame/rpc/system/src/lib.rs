@@ -84,7 +84,12 @@ pub struct FullSystem<P: TransactionPool, C, B> {
 impl<P: TransactionPool, C, B> FullSystem<P, C, B> {
 	/// Create new `FullSystem` given client and transaction pool.
 	pub fn new(client: Arc<C>, pool: Arc<P>, deny_unsafe: DenyUnsafe) -> Self {
-		FullSystem { client, pool, deny_unsafe, _marker: Default::default() }
+		FullSystem {
+			client,
+			pool,
+			deny_unsafe,
+			_marker: Default::default(),
+		}
 	}
 }
 
@@ -119,13 +124,9 @@ where
 		Box::new(result(get_nonce()))
 	}
 
-	fn dry_run(
-		&self,
-		extrinsic: Bytes,
-		at: Option<<Block as traits::Block>::Hash>,
-	) -> FutureResult<Bytes> {
+	fn dry_run(&self, extrinsic: Bytes, at: Option<<Block as traits::Block>::Hash>) -> FutureResult<Bytes> {
 		if let Err(err) = self.deny_unsafe.check_if_safe() {
-			return Box::new(rpc_future::err(err.into()))
+			return Box::new(rpc_future::err(err.into()));
 		}
 
 		let dry_run = || {
@@ -134,12 +135,11 @@ where
 				// If the block hash is not supplied assume the best block.
 				self.client.info().best_hash));
 
-			let uxt: <Block as traits::Block>::Extrinsic = Decode::decode(&mut &*extrinsic)
-				.map_err(|e| RpcError {
-					code: ErrorCode::ServerError(Error::DecodeError.into()),
-					message: "Unable to dry run extrinsic.".into(),
-					data: Some(format!("{:?}", e).into()),
-				})?;
+			let uxt: <Block as traits::Block>::Extrinsic = Decode::decode(&mut &*extrinsic).map_err(|e| RpcError {
+				code: ErrorCode::ServerError(Error::DecodeError.into()),
+				message: "Unable to dry run extrinsic.".into(),
+				data: Some(format!("{:?}", e).into()),
+			})?;
 
 			let result = api.apply_extrinsic(&at, uxt).map_err(|e| RpcError {
 				code: ErrorCode::ServerError(Error::RuntimeError.into()),
@@ -170,7 +170,12 @@ impl<P: TransactionPool, C, F, Block> LightSystem<P, C, F, Block> {
 		fetcher: Arc<F>,
 		pool: Arc<P>,
 	) -> Self {
-		LightSystem { client, remote_blockchain, fetcher, pool }
+		LightSystem {
+			client,
+			remote_blockchain,
+			fetcher,
+			pool,
+		}
 	}
 }
 
@@ -209,8 +214,7 @@ where
 			})
 			.compat();
 		let future_nonce = future_nonce.and_then(|nonce| {
-			Decode::decode(&mut &nonce[..])
-				.map_err(|e| ClientError::CallResultDecode("Cannot decode account nonce", e))
+			Decode::decode(&mut &nonce[..]).map_err(|e| ClientError::CallResultDecode("Cannot decode account nonce", e))
 		});
 		let future_nonce = future_nonce.map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
@@ -224,11 +228,7 @@ where
 		Box::new(future_nonce)
 	}
 
-	fn dry_run(
-		&self,
-		_extrinsic: Bytes,
-		_at: Option<<Block as traits::Block>::Hash>,
-	) -> FutureResult<Bytes> {
+	fn dry_run(&self, _extrinsic: Bytes, _at: Option<<Block as traits::Block>::Hash>) -> FutureResult<Bytes> {
 		Box::new(result(Err(RpcError {
 			code: ErrorCode::MethodNotFound,
 			message: "Unable to dry run extrinsic.".into(),
@@ -390,6 +390,9 @@ mod tests {
 		// then
 		let bytes = res.wait().unwrap().0;
 		let apply_res: ApplyExtrinsicResult = Decode::decode(&mut bytes.as_slice()).unwrap();
-		assert_eq!(apply_res, Err(TransactionValidityError::Invalid(InvalidTransaction::Stale)));
+		assert_eq!(
+			apply_res,
+			Err(TransactionValidityError::Invalid(InvalidTransaction::Stale))
+		);
 	}
 }

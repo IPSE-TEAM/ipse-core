@@ -22,8 +22,8 @@ use sc_transaction_pool::txpool;
 use sp_api::{ProvideRuntimeApi, TransactionFor};
 use sp_blockchain::HeaderBackend;
 use sp_consensus::{
-	self, BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy,
-	ImportResult, Proposer, SelectChain,
+	self, BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy, ImportResult, Proposer,
+	SelectChain,
 };
 use sp_inherents::InherentDataProviders;
 use sp_runtime::{
@@ -57,8 +57,7 @@ pub struct SealBlockParams<'a, B: BlockT, BI, SC, C: ProvideRuntimeApi<B>, E, P:
 	/// SelectChain object
 	pub select_chain: &'a SC,
 	/// Digest provider for inclusion in blocks.
-	pub consensus_data_provider:
-		Option<&'a dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>,
+	pub consensus_data_provider: Option<&'a dyn ConsensusDataProvider<B, Transaction = TransactionFor<C, B>>>,
 	/// block import object
 	pub block_import: &'a mut BI,
 	/// inherent data provider
@@ -83,10 +82,7 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 	}: SealBlockParams<'_, B, BI, SC, C, E, P>,
 ) where
 	B: BlockT,
-	BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>>
-		+ Send
-		+ Sync
-		+ 'static,
+	BI: BlockImport<B, Error = sp_consensus::Error, Transaction = sp_api::TransactionFor<C, B>> + Send + Sync + 'static,
 	C: HeaderBackend<B> + ProvideRuntimeApi<B>,
 	E: Environment<B>,
 	<E as Environment<B>>::Error: std::fmt::Display,
@@ -96,7 +92,7 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 {
 	let future = async {
 		if pool.validated_pool().status().ready == 0 && !create_empty {
-			return Err(Error::EmptyTransactionPool)
+			return Err(Error::EmptyTransactionPool);
 		}
 
 		// get the header to build this new block on.
@@ -110,8 +106,10 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 			None => select_chain.best_chain()?,
 		};
 
-		let proposer =
-			env.init(&parent).map_err(|err| Error::StringError(format!("{}", err))).await?;
+		let proposer = env
+			.init(&parent)
+			.map_err(|err| Error::StringError(format!("{}", err)))
+			.await?;
 		let id = inherent_data_provider.create_inherent_data()?;
 		let inherents_len = id.len();
 
@@ -122,12 +120,17 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		};
 
 		let proposal = proposer
-			.propose(id.clone(), digest, Duration::from_secs(MAX_PROPOSAL_DURATION), false.into())
+			.propose(
+				id.clone(),
+				digest,
+				Duration::from_secs(MAX_PROPOSAL_DURATION),
+				false.into(),
+			)
 			.map_err(|err| Error::StringError(format!("{}", err)))
 			.await?;
 
 		if proposal.block.extrinsics().len() == inherents_len && !create_empty {
-			return Err(Error::EmptyTransactionPool)
+			return Err(Error::EmptyTransactionPool);
 		}
 
 		let (header, body) = proposal.block.deconstruct();
@@ -141,8 +144,10 @@ pub async fn seal_block<B, BI, SC, C, E, P>(
 		}
 
 		match block_import.import_block(params, HashMap::new())? {
-			ImportResult::Imported(aux) =>
-				Ok(CreatedBlock { hash: <B as BlockT>::Header::hash(&header), aux }),
+			ImportResult::Imported(aux) => Ok(CreatedBlock {
+				hash: <B as BlockT>::Header::hash(&header),
+				aux,
+			}),
 			other => Err(other.into()),
 		}
 	};

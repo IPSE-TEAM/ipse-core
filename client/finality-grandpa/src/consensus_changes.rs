@@ -26,7 +26,9 @@ pub(crate) struct ConsensusChanges<H, N> {
 impl<H, N> ConsensusChanges<H, N> {
 	/// Create empty consensus changes.
 	pub(crate) fn empty() -> Self {
-		ConsensusChanges { pending_changes: Vec::new() }
+		ConsensusChanges {
+			pending_changes: Vec::new(),
+		}
 	}
 }
 

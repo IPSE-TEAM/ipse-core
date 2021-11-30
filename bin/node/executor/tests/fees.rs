@@ -18,15 +18,13 @@
 use codec::{Encode, Joiner};
 use frame_support::{
 	traits::Currency,
-	weights::{
-		constants::ExtrinsicBaseWeight, GetDispatchInfo, IdentityFee, WeightToFeePolynomial,
-	},
+	weights::{constants::ExtrinsicBaseWeight, GetDispatchInfo, IdentityFee, WeightToFeePolynomial},
 	StorageMap, StorageValue,
 };
 use node_primitives::Balance;
 use node_runtime::{
-	constants::currency::*, Balances, Call, CheckedExtrinsic, Multiplier, Runtime,
-	TransactionByteFee, TransactionPayment,
+	constants::currency::*, Balances, Call, CheckedExtrinsic, Multiplier, Runtime, TransactionByteFee,
+	TransactionPayment,
 };
 use sp_core::NeverNativeValue;
 use sp_runtime::{FixedPointNumber, Perbill};
@@ -89,15 +87,9 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 	);
 
 	// execute a big block.
-	executor_call::<NeverNativeValue, fn() -> _>(
-		&mut t,
-		"Core_execute_block",
-		&block1.0,
-		true,
-		None,
-	)
-	.0
-	.unwrap();
+	executor_call::<NeverNativeValue, fn() -> _>(&mut t, "Core_execute_block", &block1.0, true, None)
+		.0
+		.unwrap();
 
 	// weight multiplier is increased for next block.
 	t.execute_with(|| {
@@ -108,15 +100,9 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 	});
 
 	// execute a big block.
-	executor_call::<NeverNativeValue, fn() -> _>(
-		&mut t,
-		"Core_execute_block",
-		&block2.0,
-		true,
-		None,
-	)
-	.0
-	.unwrap();
+	executor_call::<NeverNativeValue, fn() -> _>(&mut t, "Core_execute_block", &block2.0, true, None)
+		.0
+		.unwrap();
 
 	// weight multiplier is increased for next block.
 	t.execute_with(|| {
@@ -255,14 +241,7 @@ fn block_weight_capacity_report() {
 			len / 1024 / 1024,
 		);
 
-		let r = executor_call::<NeverNativeValue, fn() -> _>(
-			&mut t,
-			"Core_execute_block",
-			&block.0,
-			true,
-			None,
-		)
-		.0;
+		let r = executor_call::<NeverNativeValue, fn() -> _>(&mut t, "Core_execute_block", &block.0, true, None).0;
 
 		println!(" || Result = {:?}", r);
 		assert!(r.is_ok());
@@ -307,11 +286,7 @@ fn block_length_capacity_report() {
 				},
 				CheckedExtrinsic {
 					signed: Some((charlie(), signed_extra(nonce, 0))),
-					function: Call::System(frame_system::Call::remark(vec![
-						0u8;
-						(block_number * factor)
-							as usize
-					])),
+					function: Call::System(frame_system::Call::remark(vec![0u8; (block_number * factor) as usize])),
 				},
 			],
 		);
@@ -324,14 +299,7 @@ fn block_length_capacity_report() {
 			len / 1024 / 1024,
 		);
 
-		let r = executor_call::<NeverNativeValue, fn() -> _>(
-			&mut t,
-			"Core_execute_block",
-			&block.0,
-			true,
-			None,
-		)
-		.0;
+		let r = executor_call::<NeverNativeValue, fn() -> _>(&mut t, "Core_execute_block", &block.0, true, None).0;
 
 		println!(" || Result = {:?}", r);
 		assert!(r.is_ok());

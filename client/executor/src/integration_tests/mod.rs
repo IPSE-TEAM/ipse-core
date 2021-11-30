@@ -45,8 +45,7 @@ fn call_in_wasm<E: Externalities>(
 	execution_method: WasmExecutionMethod,
 	ext: &mut E,
 ) -> Result<Vec<u8>, String> {
-	let executor =
-		crate::WasmExecutor::new(execution_method, Some(1024), HostFunctions::host_functions(), 8);
+	let executor = crate::WasmExecutor::new(execution_method, Some(1024), HostFunctions::host_functions(), 8);
 	executor.call_in_wasm(
 		&wasm_binary_unwrap()[..],
 		None,
@@ -148,9 +147,7 @@ fn storage_should_work(wasm_method: WasmExecutionMethod) {
 		let mut ext = ext.ext();
 		ext.set_storage(b"foo".to_vec(), b"bar".to_vec());
 
-		let output =
-			call_in_wasm("test_data_in", &b"Hello world".to_vec().encode(), wasm_method, &mut ext)
-				.unwrap();
+		let output = call_in_wasm("test_data_in", &b"Hello world".to_vec().encode(), wasm_method, &mut ext).unwrap();
 
 		assert_eq!(output, b"all ok!".to_vec().encode());
 	}
@@ -179,9 +176,7 @@ fn clear_prefix_should_work(wasm_method: WasmExecutionMethod) {
 		ext.set_storage(b"bbb".to_vec(), b"5".to_vec());
 
 		// This will clear all entries which prefix is "ab".
-		let output =
-			call_in_wasm("test_clear_prefix", &b"ab".to_vec().encode(), wasm_method, &mut ext)
-				.unwrap();
+		let output = call_in_wasm("test_clear_prefix", &b"ab".to_vec().encode(), wasm_method, &mut ext).unwrap();
 
 		assert_eq!(output, b"all ok!".to_vec().encode());
 	}
@@ -207,8 +202,13 @@ fn blake2_256_should_work(wasm_method: WasmExecutionMethod) {
 		blake2_256(&b""[..]).to_vec().encode(),
 	);
 	assert_eq!(
-		call_in_wasm("test_blake2_256", &b"Hello world!".to_vec().encode(), wasm_method, &mut ext,)
-			.unwrap(),
+		call_in_wasm(
+			"test_blake2_256",
+			&b"Hello world!".to_vec().encode(),
+			wasm_method,
+			&mut ext,
+		)
+		.unwrap(),
 		blake2_256(&b"Hello world!"[..]).to_vec().encode(),
 	);
 }
@@ -223,8 +223,13 @@ fn blake2_128_should_work(wasm_method: WasmExecutionMethod) {
 		blake2_128(&b""[..]).to_vec().encode(),
 	);
 	assert_eq!(
-		call_in_wasm("test_blake2_128", &b"Hello world!".to_vec().encode(), wasm_method, &mut ext,)
-			.unwrap(),
+		call_in_wasm(
+			"test_blake2_128",
+			&b"Hello world!".to_vec().encode(),
+			wasm_method,
+			&mut ext,
+		)
+		.unwrap(),
 		blake2_128(&b"Hello world!"[..]).to_vec().encode(),
 	);
 }
@@ -236,12 +241,21 @@ fn sha2_256_should_work(wasm_method: WasmExecutionMethod) {
 	let mut ext = ext.ext();
 	assert_eq!(
 		call_in_wasm("test_sha2_256", &[0], wasm_method, &mut ext,).unwrap(),
-		hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").to_vec().encode(),
+		hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+			.to_vec()
+			.encode(),
 	);
 	assert_eq!(
-		call_in_wasm("test_sha2_256", &b"Hello world!".to_vec().encode(), wasm_method, &mut ext,)
-			.unwrap(),
-		hex!("c0535e4be2b79ffd93291305436bf889314e4a3faec05ecffcbb7df31ad9e51a").to_vec().encode(),
+		call_in_wasm(
+			"test_sha2_256",
+			&b"Hello world!".to_vec().encode(),
+			wasm_method,
+			&mut ext,
+		)
+		.unwrap(),
+		hex!("c0535e4be2b79ffd93291305436bf889314e4a3faec05ecffcbb7df31ad9e51a")
+			.to_vec()
+			.encode(),
 	);
 }
 
@@ -252,12 +266,21 @@ fn twox_256_should_work(wasm_method: WasmExecutionMethod) {
 	let mut ext = ext.ext();
 	assert_eq!(
 		call_in_wasm("test_twox_256", &[0], wasm_method, &mut ext,).unwrap(),
-		hex!("99e9d85137db46ef4bbea33613baafd56f963c64b1f3685a4eb4abd67ff6203a").to_vec().encode(),
+		hex!("99e9d85137db46ef4bbea33613baafd56f963c64b1f3685a4eb4abd67ff6203a")
+			.to_vec()
+			.encode(),
 	);
 	assert_eq!(
-		call_in_wasm("test_twox_256", &b"Hello world!".to_vec().encode(), wasm_method, &mut ext,)
-			.unwrap(),
-		hex!("b27dfd7f223f177f2a13647b533599af0c07f68bda23d96d059da2b451a35a74").to_vec().encode(),
+		call_in_wasm(
+			"test_twox_256",
+			&b"Hello world!".to_vec().encode(),
+			wasm_method,
+			&mut ext,
+		)
+		.unwrap(),
+		hex!("b27dfd7f223f177f2a13647b533599af0c07f68bda23d96d059da2b451a35a74")
+			.to_vec()
+			.encode(),
 	);
 }
 
@@ -271,8 +294,13 @@ fn twox_128_should_work(wasm_method: WasmExecutionMethod) {
 		hex!("99e9d85137db46ef4bbea33613baafd5").to_vec().encode(),
 	);
 	assert_eq!(
-		call_in_wasm("test_twox_128", &b"Hello world!".to_vec().encode(), wasm_method, &mut ext,)
-			.unwrap(),
+		call_in_wasm(
+			"test_twox_128",
+			&b"Hello world!".to_vec().encode(),
+			wasm_method,
+			&mut ext,
+		)
+		.unwrap(),
 		hex!("b27dfd7f223f177f2a13647b533599af").to_vec().encode(),
 	);
 }
@@ -338,7 +366,9 @@ fn ordered_trie_root_should_work(wasm_method: WasmExecutionMethod) {
 	let trie_input = vec![b"zero".to_vec(), b"one".to_vec(), b"two".to_vec()];
 	assert_eq!(
 		call_in_wasm("test_ordered_trie_root", &[0], wasm_method, &mut ext.ext(),).unwrap(),
-		Layout::<BlakeTwo256>::ordered_trie_root(trie_input.iter()).as_bytes().encode(),
+		Layout::<BlakeTwo256>::ordered_trie_root(trie_input.iter())
+			.as_bytes()
+			.encode(),
 	);
 }
 
@@ -352,7 +382,9 @@ fn offchain_index(wasm_method: WasmExecutionMethod) {
 
 	use sp_core::offchain::storage::OffchainOverlayedChange;
 	assert_eq!(
-		ext.ext().get_offchain_storage_changes().get(sp_core::offchain::STORAGE_PREFIX, b"k"),
+		ext.ext()
+			.get_offchain_storage_changes()
+			.get(sp_core::offchain::STORAGE_PREFIX, b"k"),
 		Some(OffchainOverlayedChange::SetValue(b"v".to_vec()))
 	);
 }
@@ -563,15 +595,17 @@ fn wasm_tracing_should_work(wasm_method: WasmExecutionMethod) {
 	// Create subscriber with wasm_tracing disabled
 	let test_subscriber = tracing_subscriber::fmt()
 		.finish()
-		.with(sc_tracing::ProfilingLayer::new_with_handler(Box::new(handler), "default"));
+		.with(sc_tracing::ProfilingLayer::new_with_handler(
+			Box::new(handler),
+			"default",
+		));
 
 	let _guard = tracing::subscriber::set_default(test_subscriber);
 
 	let mut ext = TestExternalities::default();
 	let mut ext = ext.ext();
 
-	let span_id =
-		call_in_wasm("test_enter_span", Default::default(), wasm_method, &mut ext).unwrap();
+	let span_id = call_in_wasm("test_enter_span", Default::default(), wasm_method, &mut ext).unwrap();
 
 	let span_id = u64::decode(&mut &span_id[..]).unwrap();
 

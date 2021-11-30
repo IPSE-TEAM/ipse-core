@@ -106,8 +106,15 @@ pub enum RpcContractExecResult {
 impl From<ContractExecResult> for RpcContractExecResult {
 	fn from(r: ContractExecResult) -> Self {
 		match r {
-			ContractExecResult::Success { flags, data, gas_consumed } =>
-				RpcContractExecResult::Success { flags, data: data.into(), gas_consumed },
+			ContractExecResult::Success {
+				flags,
+				data,
+				gas_consumed,
+			} => RpcContractExecResult::Success {
+				flags,
+				data: data.into(),
+				gas_consumed,
+			},
 			ContractExecResult::Error => RpcContractExecResult::Error(()),
 		}
 	}
@@ -132,12 +139,7 @@ pub trait ContractsApi<BlockHash, BlockNumber, AccountId, Balance> {
 	/// Returns the value under a specified storage `key` in a contract given by `address` param,
 	/// or `None` if it is not set.
 	#[rpc(name = "contracts_getStorage")]
-	fn get_storage(
-		&self,
-		address: AccountId,
-		key: H256,
-		at: Option<BlockHash>,
-	) -> Result<Option<Bytes>>;
+	fn get_storage(&self, address: AccountId, key: H256, at: Option<BlockHash>) -> Result<Option<Bytes>>;
 
 	/// Returns the projected time a given contract will be able to sustain paying its rent.
 	///
@@ -146,11 +148,7 @@ pub trait ContractsApi<BlockHash, BlockNumber, AccountId, Balance> {
 	///
 	/// Returns `None` if the contract is exempted from rent.
 	#[rpc(name = "contracts_rentProjection")]
-	fn rent_projection(
-		&self,
-		address: AccountId,
-		at: Option<BlockHash>,
-	) -> Result<Option<BlockNumber>>;
+	fn rent_projection(&self, address: AccountId, at: Option<BlockHash>) -> Result<Option<BlockNumber>>;
 }
 
 /// An implementation of contract specific RPC methods.
@@ -162,25 +160,19 @@ pub struct Contracts<C, B> {
 impl<C, B> Contracts<C, B> {
 	/// Create new `Contracts` with the given reference to the client.
 	pub fn new(client: Arc<C>) -> Self {
-		Contracts { client, _marker: Default::default() }
+		Contracts {
+			client,
+			_marker: Default::default(),
+		}
 	}
 }
 impl<C, Block, AccountId, Balance>
-	ContractsApi<
-		<Block as BlockT>::Hash,
-		<<Block as BlockT>::Header as HeaderT>::Number,
-		AccountId,
-		Balance,
-	> for Contracts<C, Block>
+	ContractsApi<<Block as BlockT>::Hash, <<Block as BlockT>::Header as HeaderT>::Number, AccountId, Balance>
+	for Contracts<C, Block>
 where
 	Block: BlockT,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-	C::Api: ContractsRuntimeApi<
-		Block,
-		AccountId,
-		Balance,
-		<<Block as BlockT>::Header as HeaderT>::Number,
-	>,
+	C::Api: ContractsRuntimeApi<Block, AccountId, Balance, <<Block as BlockT>::Header as HeaderT>::Number>,
 	AccountId: Codec,
 	Balance: Codec,
 {
@@ -194,7 +186,13 @@ where
 			// If the block hash is not supplied assume the best block.
 			self.client.info().best_hash));
 
-		let CallRequest { origin, dest, value, gas_limit, input_data } = call_request;
+		let CallRequest {
+			origin,
+			dest,
+			value,
+			gas_limit,
+			input_data,
+		} = call_request;
 
 		// Make sure that gas_limit fits into 64 bits.
 		let gas_limit: u64 = gas_limit.try_into().map_err(|_| Error {
@@ -212,7 +210,7 @@ where
 					gas_limit, max_gas_limit
 				),
 				data: None,
-			})
+			});
 		}
 
 		let exec_result = api
@@ -222,12 +220,7 @@ where
 		Ok(exec_result.into())
 	}
 
-	fn get_storage(
-		&self,
-		address: AccountId,
-		key: H256,
-		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<Option<Bytes>> {
+	fn get_storage(&self, address: AccountId, key: H256, at: Option<<Block as BlockT>::Hash>) -> Result<Option<Bytes>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.

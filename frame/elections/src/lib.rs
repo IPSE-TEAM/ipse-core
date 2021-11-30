@@ -35,8 +35,8 @@ use codec::{Decode, Encode};
 use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage, ensure,
 	traits::{
-		BalanceStatus, ChangeMembers, Currency, ExistenceRequirement, Get, LockIdentifier,
-		LockableCurrency, OnUnbalanced, ReservableCurrency, WithdrawReason, WithdrawReasons,
+		BalanceStatus, ChangeMembers, Currency, ExistenceRequirement, Get, LockIdentifier, LockableCurrency,
+		OnUnbalanced, ReservableCurrency, WithdrawReason, WithdrawReasons,
 	},
 	weights::{DispatchClass, Weight},
 };
@@ -140,8 +140,7 @@ pub const VOTER_SET_SIZE: usize = 64;
 /// NUmber of approvals grouped in one chunk.
 pub const APPROVAL_SET_SIZE: usize = 8;
 
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 type NegativeImbalanceOf<T> =
 	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
@@ -161,8 +160,7 @@ pub trait Trait: frame_system::Trait {
 	type ModuleId: Get<LockIdentifier>;
 
 	/// The currency that people are electing with.
-	type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber>
-		+ ReservableCurrency<Self::AccountId>;
+	type Currency: LockableCurrency<Self::AccountId, Moment = Self::BlockNumber> + ReservableCurrency<Self::AccountId>;
 
 	/// Handler for the unbalanced reduction when slashing a validator.
 	type BadPresentation: OnUnbalanced<NegativeImbalanceOf<Self>>;
@@ -756,9 +754,7 @@ impl<T: Trait> Module<T> {
 			None
 		} else {
 			let c = Self::members();
-			let (next_possible, count, coming) = if let Some((tally_end, comers, leavers)) =
-				Self::next_finalize()
-			{
+			let (next_possible, count, coming) = if let Some((tally_end, comers, leavers)) = Self::next_finalize() {
 				// if there's a tally in progress, then next tally can begin immediately afterwards
 				(tally_end, c.len() - leavers.len() + comers as usize, comers)
 			} else {
@@ -829,7 +825,10 @@ impl<T: Trait> Module<T> {
 		// far exceeds the amount of candidates and waste more computation than a reasonable voting
 		// bond would cover.
 		ensure!(candidates_len >= votes.len(), Error::<T>::TooManyVotes,);
-		ensure!(value >= T::MinimumVotingLock::get(), Error::<T>::InsufficientLockedValue);
+		ensure!(
+			value >= T::MinimumVotingLock::get(),
+			Error::<T>::InsufficientLockedValue
+		);
 
 		// Amount to be locked up.
 		let mut locked_balance = value.min(T::Currency::total_balance(&who));
@@ -858,7 +857,7 @@ impl<T: Trait> Module<T> {
 				CellStatus::Hole => {
 					// requested cell was a valid hole.
 					<Voters<T>>::mutate(set_index, |set| set[vec_index] = Some(who.clone()));
-				},
+				}
 				CellStatus::Head | CellStatus::Occupied => {
 					// Either occupied or out-of-range.
 					let next = Self::next_nonfull_voter_set();
@@ -880,7 +879,7 @@ impl<T: Trait> Module<T> {
 						NextVoterSet::put(next + 1);
 					}
 					<Voters<T>>::append(next, Some(who.clone()));
-				},
+				}
 			}
 
 			T::Currency::reserve(&who, T::VotingBond::get())?;
@@ -908,16 +907,15 @@ impl<T: Trait> Module<T> {
 		let members = Self::members();
 		let desired_seats = Self::desired_seats() as usize;
 		let number = <frame_system::Module<T>>::block_number();
-		let expiring =
-			members.iter().take_while(|i| i.1 <= number).map(|i| i.0.clone()).collect::<Vec<_>>();
+		let expiring = members
+			.iter()
+			.take_while(|i| i.1 <= number)
+			.map(|i| i.0.clone())
+			.collect::<Vec<_>>();
 		let retaining_seats = members.len() - expiring.len();
 		if retaining_seats < desired_seats {
 			let empty_seats = desired_seats - retaining_seats;
-			<NextFinalize<T>>::put((
-				number + Self::presentation_duration(),
-				empty_seats as u32,
-				expiring,
-			));
+			<NextFinalize<T>>::put((number + Self::presentation_duration(), empty_seats as u32, expiring));
 
 			// initialize leaderboard.
 			let leaderboard_size = empty_seats + T::CarryCount::get() as usize;
@@ -936,10 +934,8 @@ impl<T: Trait> Module<T> {
 	/// elected ones.
 	fn finalize_tally() -> DispatchResult {
 		let (_, coming, expiring): (T::BlockNumber, u32, Vec<T::AccountId>) =
-			<NextFinalize<T>>::take()
-				.ok_or("finalize can only be called after a tally is started.")?;
-		let leaderboard: Vec<(BalanceOf<T>, T::AccountId)> =
-			<Leaderboard<T>>::take().unwrap_or_default();
+			<NextFinalize<T>>::take().ok_or("finalize can only be called after a tally is started.")?;
+		let leaderboard: Vec<(BalanceOf<T>, T::AccountId)> = <Leaderboard<T>>::take().unwrap_or_default();
 		let new_expiry = <frame_system::Module<T>>::block_number() + Self::term_duration();
 
 		// return bond to winners.
@@ -957,20 +953,23 @@ impl<T: Trait> Module<T> {
 			.collect();
 
 		// Update last win index for anyone voted for any of the incomings.
-		incoming.iter().filter_map(|i| Self::candidate_reg_info(i)).for_each(|r| {
-			let index = r.1 as usize;
-			Self::all_voters()
-				.iter()
-				.filter_map(|mv| mv.as_ref())
-				.filter(|v| Self::approvals_of_at(*v, index))
-				.for_each(|v| {
-					<VoterInfoOf<T>>::mutate(v, |a| {
-						if let Some(activity) = a {
-							activity.last_win = Self::vote_index() + 1;
-						}
-					})
-				});
-		});
+		incoming
+			.iter()
+			.filter_map(|i| Self::candidate_reg_info(i))
+			.for_each(|r| {
+				let index = r.1 as usize;
+				Self::all_voters()
+					.iter()
+					.filter_map(|mv| mv.as_ref())
+					.filter(|v| Self::approvals_of_at(*v, index))
+					.for_each(|v| {
+						<VoterInfoOf<T>>::mutate(v, |a| {
+							if let Some(activity) = a {
+								activity.last_win = Self::vote_index() + 1;
+							}
+						})
+					});
+			});
 		let members = Self::members();
 		let outgoing: Vec<_> = members.iter().take(expiring.len()).map(|a| a.0.clone()).collect();
 
@@ -1015,8 +1014,7 @@ impl<T: Trait> Module<T> {
 			}
 		}
 		// discard any superfluous slots.
-		if let Some(last_index) = new_candidates.iter().rposition(|c| *c != T::AccountId::default())
-		{
+		if let Some(last_index) = new_candidates.iter().rposition(|c| *c != T::AccountId::default()) {
 			new_candidates.truncate(last_index + 1);
 		}
 
@@ -1047,7 +1045,7 @@ impl<T: Trait> Module<T> {
 		loop {
 			let next_set = <Voters<T>>::get(index);
 			if next_set.is_empty() {
-				break
+				break;
 			} else {
 				index += 1;
 				all.extend(next_set);
@@ -1129,7 +1127,7 @@ impl<T: Trait> Module<T> {
 	pub fn bool_to_flag(x: Vec<bool>) -> Vec<ApprovalFlag> {
 		let mut result: Vec<ApprovalFlag> = Vec::with_capacity(x.len() / APPROVAL_FLAG_LEN);
 		if x.is_empty() {
-			return result
+			return result;
 		}
 		result.push(0);
 		let mut index = 0;
@@ -1139,7 +1137,7 @@ impl<T: Trait> Module<T> {
 			result[index] += (if x[counter] { 1 } else { 0 }) << shl_index;
 			counter += 1;
 			if counter > x.len() - 1 {
-				break
+				break;
 			}
 			if counter % APPROVAL_FLAG_LEN == 0 {
 				result.push(0);
@@ -1153,12 +1151,14 @@ impl<T: Trait> Module<T> {
 	pub fn flag_to_bool(chunk: Vec<ApprovalFlag>) -> Vec<bool> {
 		let mut result = Vec::with_capacity(chunk.len());
 		if chunk.is_empty() {
-			return vec![]
+			return vec![];
 		}
 		chunk
 			.into_iter()
 			.map(|num| {
-				(0..APPROVAL_FLAG_LEN).map(|bit| Self::bit_at(num, bit)).collect::<Vec<bool>>()
+				(0..APPROVAL_FLAG_LEN)
+					.map(|bit| Self::bit_at(num, bit))
+					.collect::<Vec<bool>>()
 			})
 			.for_each(|c| {
 				let last_approve = match c.iter().rposition(|n| *n) {
@@ -1178,7 +1178,7 @@ impl<T: Trait> Module<T> {
 		loop {
 			let chunk = Self::approvals_of((who.clone(), index));
 			if chunk.is_empty() {
-				break
+				break;
 			}
 			all.extend(Self::flag_to_bool(chunk));
 			index += 1;
@@ -1195,7 +1195,7 @@ impl<T: Trait> Module<T> {
 				<ApprovalsOf<T>>::remove((who.clone(), index));
 				index += 1;
 			} else {
-				break
+				break;
 			}
 		}
 	}
@@ -1213,7 +1213,7 @@ impl<T: Trait> Module<T> {
 	fn get_offset(stake: BalanceOf<T>, t: VoteIndex) -> BalanceOf<T> {
 		let decay_ratio: BalanceOf<T> = T::DecayRatio::get().into();
 		if t > 150 {
-			return stake * decay_ratio
+			return stake * decay_ratio;
 		}
 		let mut offset = stake;
 		let mut r = Zero::zero();

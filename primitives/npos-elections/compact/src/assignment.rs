@@ -49,9 +49,7 @@ fn from_impl(count: usize) -> TokenStream2 {
 	let from_impl_rest = (3..=count)
 		.map(|c| {
 			let inner = (0..c - 1)
-				.map(
-					|i| quote!((index_of_target(&distribution[#i].0).or_invalid_index()?, distribution[#i].1),),
-				)
+				.map(|i| quote!((index_of_target(&distribution[#i].0).or_invalid_index()?, distribution[#i].1),))
 				.collect::<TokenStream2>();
 
 			let field_name = field_name_for(c);

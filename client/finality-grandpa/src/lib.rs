@@ -63,8 +63,7 @@ use parking_lot::RwLock;
 use prometheus_endpoint::{PrometheusError, Registry};
 use sc_client_api::{
 	backend::{AuxStore, Backend},
-	BlockchainEvents, CallExecutor, ExecutionStrategy, ExecutorProvider, Finalizer, LockImportRun,
-	TransactionFor,
+	BlockchainEvents, CallExecutor, ExecutionStrategy, ExecutorProvider, Finalizer, LockImportRun, TransactionFor,
 };
 use sc_telemetry::{telemetry, CONSENSUS_DEBUG, CONSENSUS_INFO};
 use sp_api::ProvideRuntimeApi;
@@ -125,9 +124,7 @@ pub use import::GrandpaBlockImport;
 pub use justification::GrandpaJustification;
 pub use light_import::{light_block_import, GrandpaLightBlockImport};
 pub use notification::{GrandpaJustificationSender, GrandpaJustificationStream};
-pub use voting_rule::{
-	BeforeBestBlockBy, ThreeQuartersOfTheUnfinalizedChain, VotingRule, VotingRulesBuilder,
-};
+pub use voting_rule::{BeforeBestBlockBy, ThreeQuartersOfTheUnfinalizedChain, VotingRule, VotingRulesBuilder};
 
 use aux_schema::PersistentData;
 use communication::{Network as NetworkT, NetworkBridge};
@@ -146,41 +143,24 @@ mod tests;
 pub type Message<Block> = finality_grandpa::Message<<Block as BlockT>::Hash, NumberFor<Block>>;
 
 /// A signed message.
-pub type SignedMessage<Block> = finality_grandpa::SignedMessage<
-	<Block as BlockT>::Hash,
-	NumberFor<Block>,
-	AuthoritySignature,
-	AuthorityId,
->;
+pub type SignedMessage<Block> =
+	finality_grandpa::SignedMessage<<Block as BlockT>::Hash, NumberFor<Block>, AuthoritySignature, AuthorityId>;
 
 /// A primary propose message for this chain's block type.
-pub type PrimaryPropose<Block> =
-	finality_grandpa::PrimaryPropose<<Block as BlockT>::Hash, NumberFor<Block>>;
+pub type PrimaryPropose<Block> = finality_grandpa::PrimaryPropose<<Block as BlockT>::Hash, NumberFor<Block>>;
 /// A prevote message for this chain's block type.
 pub type Prevote<Block> = finality_grandpa::Prevote<<Block as BlockT>::Hash, NumberFor<Block>>;
 /// A precommit message for this chain's block type.
 pub type Precommit<Block> = finality_grandpa::Precommit<<Block as BlockT>::Hash, NumberFor<Block>>;
 /// A catch up message for this chain's block type.
-pub type CatchUp<Block> = finality_grandpa::CatchUp<
-	<Block as BlockT>::Hash,
-	NumberFor<Block>,
-	AuthoritySignature,
-	AuthorityId,
->;
+pub type CatchUp<Block> =
+	finality_grandpa::CatchUp<<Block as BlockT>::Hash, NumberFor<Block>, AuthoritySignature, AuthorityId>;
 /// A commit message for this chain's block type.
-pub type Commit<Block> = finality_grandpa::Commit<
-	<Block as BlockT>::Hash,
-	NumberFor<Block>,
-	AuthoritySignature,
-	AuthorityId,
->;
+pub type Commit<Block> =
+	finality_grandpa::Commit<<Block as BlockT>::Hash, NumberFor<Block>, AuthoritySignature, AuthorityId>;
 /// A compact commit message for this chain's block type.
-pub type CompactCommit<Block> = finality_grandpa::CompactCommit<
-	<Block as BlockT>::Hash,
-	NumberFor<Block>,
-	AuthoritySignature,
-	AuthorityId,
->;
+pub type CompactCommit<Block> =
+	finality_grandpa::CompactCommit<<Block as BlockT>::Hash, NumberFor<Block>, AuthoritySignature, AuthorityId>;
 /// A global communication input stream for commits and catch up messages. Not
 /// exposed publicly, used internally to simplify types in the communication
 /// layer.
@@ -211,13 +191,12 @@ pub struct SharedVoterState {
 impl SharedVoterState {
 	/// Create a new empty `SharedVoterState` instance.
 	pub fn empty() -> Self {
-		Self { inner: Arc::new(RwLock::new(None)) }
+		Self {
+			inner: Arc::new(RwLock::new(None)),
+		}
 	}
 
-	fn reset(
-		&self,
-		voter_state: Box<dyn voter::VoterState<AuthorityId> + Sync + Send>,
-	) -> Option<()> {
+	fn reset(&self, voter_state: Box<dyn voter::VoterState<AuthorityId> + Sync + Send>) -> Option<()> {
 		let mut shared_voter_state = self.inner.try_write_for(Duration::from_secs(1))?;
 
 		*shared_voter_state = Some(voter_state);
@@ -232,7 +211,9 @@ impl SharedVoterState {
 
 impl Clone for SharedVoterState {
 	fn clone(&self) -> Self {
-		SharedVoterState { inner: self.inner.clone() }
+		SharedVoterState {
+			inner: self.inner.clone(),
+		}
 	}
 }
 
@@ -357,12 +338,7 @@ pub(crate) trait BlockSyncRequester<Block: BlockT> {
 	/// If the given vector of peers is empty then the underlying implementation
 	/// should make a best effort to fetch the block from any peers it is
 	/// connected to (NOTE: this assumption will change in the future #3629).
-	fn set_sync_fork_request(
-		&self,
-		peers: Vec<sc_network::PeerId>,
-		hash: Block::Hash,
-		number: NumberFor<Block>,
-	);
+	fn set_sync_fork_request(&self, peers: Vec<sc_network::PeerId>, hash: Block::Hash, number: NumberFor<Block>);
 }
 
 impl<Block, Network> BlockSyncRequester<Block> for NetworkBridge<Block, Network>
@@ -370,12 +346,7 @@ where
 	Block: BlockT,
 	Network: NetworkT<Block>,
 {
-	fn set_sync_fork_request(
-		&self,
-		peers: Vec<sc_network::PeerId>,
-		hash: Block::Hash,
-		number: NumberFor<Block>,
-	) {
+	fn set_sync_fork_request(&self, peers: Vec<sc_network::PeerId>, hash: Block::Hash, number: NumberFor<Block>) {
 		NetworkBridge::set_sync_fork_request(self, peers, hash, number)
 	}
 }
@@ -479,8 +450,7 @@ pub trait GenesisAuthoritySetProvider<Block: BlockT> {
 	fn get(&self) -> Result<AuthorityList, ClientError>;
 }
 
-impl<Block: BlockT, E> GenesisAuthoritySetProvider<Block>
-	for Arc<dyn ExecutorProvider<Block, Executor = E>>
+impl<Block: BlockT, E> GenesisAuthoritySetProvider<Block> for Arc<dyn ExecutorProvider<Block, Executor = E>>
 where
 	E: CallExecutor<Block>,
 {
@@ -497,12 +467,8 @@ where
 				None,
 			)
 			.and_then(|call_result| {
-				Decode::decode(&mut &call_result[..]).map_err(|err| {
-					ClientError::CallResultDecode(
-						"failed to decode GRANDPA authorities set proof",
-						err,
-					)
-				})
+				Decode::decode(&mut &call_result[..])
+					.map_err(|err| ClientError::CallResultDecode("failed to decode GRANDPA authorities set proof", err))
 			})
 	}
 }
@@ -519,12 +485,7 @@ where
 	BE: Backend<Block> + 'static,
 	Client: ClientForGrandpa<Block, BE> + 'static,
 {
-	block_import_with_authority_set_hard_forks(
-		client,
-		genesis_authorities_provider,
-		select_chain,
-		Default::default(),
-	)
+	block_import_with_authority_set_hard_forks(client, genesis_authorities_provider, select_chain, Default::default())
 }
 
 /// Make block importer and link half necessary to tie the background voter to
@@ -546,14 +507,13 @@ where
 	let chain_info = client.info();
 	let genesis_hash = chain_info.genesis_hash;
 
-	let persistent_data =
-		aux_schema::load_persistent(&*client, genesis_hash, <NumberFor<Block>>::zero(), || {
-			let authorities = genesis_authorities_provider.get()?;
-			telemetry!(CONSENSUS_DEBUG; "afg.loading_authorities";
-				"authorities_len" => ?authorities.len()
-			);
-			Ok(authorities)
-		})?;
+	let persistent_data = aux_schema::load_persistent(&*client, genesis_hash, <NumberFor<Block>>::zero(), || {
+		let authorities = genesis_authorities_provider.get()?;
+		telemetry!(CONSENSUS_DEBUG; "afg.loading_authorities";
+			"authorities_len" => ?authorities.len()
+		);
+		Ok(authorities)
+	})?;
 
 	let (voter_commands_tx, voter_commands_rx) = tracing_unbounded("mpsc_grandpa_voter_command");
 
@@ -606,16 +566,8 @@ fn global_communication<BE, Block: BlockT, C, N>(
 	keystore: Option<&BareCryptoStorePtr>,
 	metrics: Option<until_imported::Metrics>,
 ) -> (
-	impl Stream<
-		Item = Result<
-			CommunicationInH<Block, Block::Hash>,
-			CommandOrError<Block::Hash, NumberFor<Block>>,
-		>,
-	>,
-	impl Sink<
-			CommunicationOutH<Block, Block::Hash>,
-			Error = CommandOrError<Block::Hash, NumberFor<Block>>,
-		> + Unpin,
+	impl Stream<Item = Result<CommunicationInH<Block, Block::Hash>, CommandOrError<Block::Hash, NumberFor<Block>>>>,
+	impl Sink<CommunicationOutH<Block, Block::Hash>, Error = CommandOrError<Block::Hash, NumberFor<Block>>> + Unpin,
 )
 where
 	BE: Backend<Block> + 'static,
@@ -626,8 +578,7 @@ where
 	let is_voter = is_voter(voters, keystore).is_some();
 
 	// verification stream
-	let (global_in, global_out) =
-		network.global_communication(communication::SetId(set_id), voters.clone(), is_voter);
+	let (global_in, global_out) = network.global_communication(communication::SetId(set_id), voters.clone(), is_voter);
 
 	// block commit and catch up messages until relevant blocks are imported.
 	let global_in = UntilGlobalMessageBlocksImported::new(
@@ -750,8 +701,7 @@ where
 		let events = telemetry_on_connect.for_each(move |_| {
 			let curr = authorities.current_authorities();
 			let mut auths = curr.iter().map(|(p, _)| p);
-			let maybe_authority_id =
-				authority_id(&mut auths, conf.keystore.as_ref()).unwrap_or_default();
+			let maybe_authority_id = authority_id(&mut auths, conf.keystore.as_ref()).unwrap_or_default();
 
 			telemetry!(CONSENSUS_INFO; "afg.authority_set";
 				"authority_id" => maybe_authority_id.to_string(),
@@ -813,9 +763,7 @@ impl Metrics {
 /// Future that powers the voter.
 #[must_use]
 struct VoterWork<B, Block: BlockT, C, N: NetworkT<Block>, SC, VR> {
-	voter: Pin<
-		Box<dyn Future<Output = Result<(), CommandOrError<Block::Hash, NumberFor<Block>>>> + Send>,
-	>,
+	voter: Pin<Box<dyn Future<Output = Result<(), CommandOrError<Block::Hash, NumberFor<Block>>>> + Send>>,
 	shared_voter_state: SharedVoterState,
 	env: Arc<Environment<B, Block, C, N, SC, VR>>,
 	voter_commands_rx: TracingUnboundedReceiver<VoterCommand<Block::Hash, NumberFor<Block>>>,
@@ -853,7 +801,7 @@ where
 			Some(Err(e)) => {
 				debug!(target: "afg", "Failed to register metrics: {:?}", e);
 				None
-			},
+			}
 			None => None,
 		};
 
@@ -894,8 +842,7 @@ where
 	fn rebuild_voter(&mut self) {
 		debug!(target: "afg", "{}: Starting new voter with set ID {}", self.env.config.name(), self.env.set_id);
 
-		let authority_id =
-			is_voter(&self.env.voters, self.env.config.keystore.as_ref()).unwrap_or_default();
+		let authority_id = is_voter(&self.env.voters, self.env.config.keystore.as_ref()).unwrap_or_default();
 
 		telemetry!(CONSENSUS_DEBUG; "afg.starting_new_voter";
 			"name" => ?self.env.config.name(),
@@ -951,19 +898,15 @@ where
 				}
 
 				self.voter = Box::pin(voter);
-			},
+			}
 			VoterSetState::Paused { .. } => self.voter = Box::pin(future::pending()),
 		};
 	}
 
-	fn handle_voter_command(
-		&mut self,
-		command: VoterCommand<Block::Hash, NumberFor<Block>>,
-	) -> Result<(), Error> {
+	fn handle_voter_command(&mut self, command: VoterCommand<Block::Hash, NumberFor<Block>>) -> Result<(), Error> {
 		match command {
 			VoterCommand::ChangeAuthorities(new) => {
-				let voters: Vec<String> =
-					new.authorities.iter().map(move |(a, _)| format!("{}", a)).collect();
+				let voters: Vec<String> = new.authorities.iter().map(move |(a, _)| format!("{}", a)).collect();
 				telemetry!(CONSENSUS_INFO; "afg.voter_command_change_authorities";
 					"number" => ?new.canon_number,
 					"hash" => ?new.canon_hash,
@@ -1009,7 +952,7 @@ where
 
 				self.rebuild_voter();
 				Ok(())
-			},
+			}
 			VoterCommand::Pause(reason) => {
 				info!(target: "afg", "Pausing old validator set: {}", reason);
 
@@ -1024,7 +967,7 @@ where
 
 				self.rebuild_voter();
 				Ok(())
-			},
+			}
 		}
 	}
 }
@@ -1044,35 +987,33 @@ where
 
 	fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
 		match Future::poll(Pin::new(&mut self.voter), cx) {
-			Poll::Pending => {},
+			Poll::Pending => {}
 			Poll::Ready(Ok(())) => {
 				// voters don't conclude naturally
-				return Poll::Ready(Err(Error::Safety(
-					"finality-grandpa inner voter has concluded.".into(),
-				)))
-			},
+				return Poll::Ready(Err(Error::Safety("finality-grandpa inner voter has concluded.".into())));
+			}
 			Poll::Ready(Err(CommandOrError::Error(e))) => {
 				// return inner observer error
-				return Poll::Ready(Err(e))
-			},
+				return Poll::Ready(Err(e));
+			}
 			Poll::Ready(Err(CommandOrError::VoterCommand(command))) => {
 				// some command issued internally
 				self.handle_voter_command(command)?;
 				cx.waker().wake_by_ref();
-			},
+			}
 		}
 
 		match Stream::poll_next(Pin::new(&mut self.voter_commands_rx), cx) {
-			Poll::Pending => {},
+			Poll::Pending => {}
 			Poll::Ready(None) => {
 				// the `voter_commands_rx` stream should never conclude since it's never closed.
-				return Poll::Ready(Err(Error::Safety("`voter_commands_rx` was closed.".into())))
-			},
+				return Poll::Ready(Err(Error::Safety("`voter_commands_rx` was closed.".into())));
+			}
 			Poll::Ready(Some(command)) => {
 				// some command issued externally
 				self.handle_voter_command(command)?;
 				cx.waker().wake_by_ref();
-			},
+			}
 		}
 
 		Future::poll(Pin::new(&mut self.network), cx)
@@ -1110,10 +1051,7 @@ where
 /// Checks if this node is a voter in the given voter set.
 ///
 /// Returns the key pair of the node that is being used in the current voter set or `None`.
-fn is_voter(
-	voters: &Arc<VoterSet<AuthorityId>>,
-	keystore: Option<&BareCryptoStorePtr>,
-) -> Option<AuthorityId> {
+fn is_voter(voters: &Arc<VoterSet<AuthorityId>>, keystore: Option<&BareCryptoStorePtr>) -> Option<AuthorityId> {
 	match keystore {
 		Some(keystore) => voters
 			.iter()
@@ -1124,10 +1062,7 @@ fn is_voter(
 }
 
 /// Returns the authority id of this node, if available.
-fn authority_id<'a, I>(
-	authorities: &mut I,
-	keystore: Option<&BareCryptoStorePtr>,
-) -> Option<AuthorityId>
+fn authority_id<'a, I>(authorities: &mut I, keystore: Option<&BareCryptoStorePtr>) -> Option<AuthorityId>
 where
 	I: Iterator<Item = &'a AuthorityId>,
 {

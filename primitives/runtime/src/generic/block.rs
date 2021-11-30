@@ -24,9 +24,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use crate::codec::{Codec, Decode, Encode};
-use crate::traits::{
-	self, Block as BlockT, Header as HeaderT, MaybeMallocSizeOf, MaybeSerialize, Member, NumberFor,
-};
+use crate::traits::{self, Block as BlockT, Header as HeaderT, MaybeMallocSizeOf, MaybeSerialize, Member, NumberFor};
 use crate::Justification;
 use sp_core::RuntimeDebug;
 use sp_std::prelude::*;

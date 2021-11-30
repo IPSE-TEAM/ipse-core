@@ -106,7 +106,10 @@ where
 {
 	/// Create a new swap action value of balance.
 	pub fn new(value: <C as Currency<AccountId>>::Balance) -> Self {
-		Self { value, _marker: PhantomData }
+		Self {
+			value,
+			_marker: PhantomData,
+		}
 	}
 }
 

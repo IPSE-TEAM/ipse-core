@@ -55,8 +55,7 @@ pub trait StorageMap<K: FullEncode, V: FullCodec> {
 		let module_prefix_hashed = Twox128::hash(Self::module_prefix());
 		let storage_prefix_hashed = Twox128::hash(Self::storage_prefix());
 
-		let mut result =
-			Vec::with_capacity(module_prefix_hashed.len() + storage_prefix_hashed.len());
+		let mut result = Vec::with_capacity(module_prefix_hashed.len() + storage_prefix_hashed.len());
 
 		result.extend_from_slice(&module_prefix_hashed[..]);
 		result.extend_from_slice(&storage_prefix_hashed[..]);
@@ -79,9 +78,8 @@ pub trait StorageMap<K: FullEncode, V: FullCodec> {
 		let storage_prefix_hashed = Twox128::hash(Self::storage_prefix());
 		let key_hashed = key.borrow().using_encoded(Self::Hasher::hash);
 
-		let mut final_key = Vec::with_capacity(
-			module_prefix_hashed.len() + storage_prefix_hashed.len() + key_hashed.as_ref().len(),
-		);
+		let mut final_key =
+			Vec::with_capacity(module_prefix_hashed.len() + storage_prefix_hashed.len() + key_hashed.as_ref().len());
 
 		final_key.extend_from_slice(&module_prefix_hashed[..]);
 		final_key.extend_from_slice(&storage_prefix_hashed[..]);
@@ -106,8 +104,7 @@ impl<K: Decode + Sized, V: Decode + Sized, Hasher: ReversibleStorageHasher> Iter
 
 	fn next(&mut self) -> Option<(K, V)> {
 		loop {
-			let maybe_next = sp_io::storage::next_key(&self.previous_key)
-				.filter(|n| n.starts_with(&self.prefix));
+			let maybe_next = sp_io::storage::next_key(&self.previous_key).filter(|n| n.starts_with(&self.prefix));
 			break match maybe_next {
 				Some(next) => {
 					self.previous_key = next;
@@ -116,18 +113,17 @@ impl<K: Decode + Sized, V: Decode + Sized, Hasher: ReversibleStorageHasher> Iter
 							if self.drain {
 								unhashed::kill(&self.previous_key)
 							}
-							let mut key_material =
-								Hasher::reverse(&self.previous_key[self.prefix.len()..]);
+							let mut key_material = Hasher::reverse(&self.previous_key[self.prefix.len()..]);
 							match K::decode(&mut key_material) {
 								Ok(key) => Some((key, value)),
 								Err(_) => continue,
 							}
-						},
+						}
 						None => continue,
 					}
-				},
+				}
 				None => None,
-			}
+			};
 		}
 	}
 }
@@ -162,16 +158,14 @@ where
 	fn translate<O: Decode, F: Fn(K, O) -> Option<V>>(f: F) {
 		let prefix = G::prefix_hash();
 		let mut previous_key = prefix.clone();
-		while let Some(next) =
-			sp_io::storage::next_key(&previous_key).filter(|n| n.starts_with(&prefix))
-		{
+		while let Some(next) = sp_io::storage::next_key(&previous_key).filter(|n| n.starts_with(&prefix)) {
 			previous_key = next;
 			let value = match unhashed::get::<O>(&previous_key) {
 				Some(value) => value,
 				None => {
 					crate::debug::error!("Invalid translate: fail to decode old value");
-					continue
-				},
+					continue;
+				}
 			};
 
 			let mut key_material = G::Hasher::reverse(&previous_key[prefix.len()..]);
@@ -179,8 +173,8 @@ where
 				Ok(key) => key,
 				Err(_) => {
 					crate::debug::error!("Invalid translate: fail to decode key");
-					continue
-				},
+					continue;
+				}
 			};
 
 			match f(key, value) {
@@ -232,16 +226,11 @@ impl<K: FullEncode, V: FullCodec, G: StorageMap<K, V>> storage::StorageMap<K, V>
 	}
 
 	fn mutate<KeyArg: EncodeLike<K>, R, F: FnOnce(&mut Self::Query) -> R>(key: KeyArg, f: F) -> R {
-		Self::try_mutate(key, |v| Ok::<R, Never>(f(v)))
-			.expect("`Never` can not be constructed; qed")
+		Self::try_mutate(key, |v| Ok::<R, Never>(f(v))).expect("`Never` can not be constructed; qed")
 	}
 
-	fn mutate_exists<KeyArg: EncodeLike<K>, R, F: FnOnce(&mut Option<V>) -> R>(
-		key: KeyArg,
-		f: F,
-	) -> R {
-		Self::try_mutate_exists(key, |v| Ok::<R, Never>(f(v)))
-			.expect("`Never` can not be constructed; qed")
+	fn mutate_exists<KeyArg: EncodeLike<K>, R, F: FnOnce(&mut Option<V>) -> R>(key: KeyArg, f: F) -> R {
+		Self::try_mutate_exists(key, |v| Ok::<R, Never>(f(v))).expect("`Never` can not be constructed; qed")
 	}
 
 	fn try_mutate<KeyArg: EncodeLike<K>, R, E, F: FnOnce(&mut Self::Query) -> Result<R, E>>(
@@ -302,9 +291,7 @@ impl<K: FullEncode, V: FullCodec, G: StorageMap<K, V>> storage::StorageMap<K, V>
 			let key_hashed = key.borrow().using_encoded(OldHasher::hash);
 
 			let mut final_key = Vec::with_capacity(
-				module_prefix_hashed.len() +
-					storage_prefix_hashed.len() +
-					key_hashed.as_ref().len(),
+				module_prefix_hashed.len() + storage_prefix_hashed.len() + key_hashed.as_ref().len(),
 			);
 
 			final_key.extend_from_slice(&module_prefix_hashed[..]);

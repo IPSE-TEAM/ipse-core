@@ -103,16 +103,12 @@ impl InherentData {
 	/// identifier existed, otherwise an error is returned.
 	///
 	/// Inherent identifiers need to be unique, otherwise decoding of these values will not work!
-	pub fn put_data<I: codec::Encode>(
-		&mut self,
-		identifier: InherentIdentifier,
-		inherent: &I,
-	) -> Result<(), Error> {
+	pub fn put_data<I: codec::Encode>(&mut self, identifier: InherentIdentifier, inherent: &I) -> Result<(), Error> {
 		match self.data.entry(identifier) {
 			Entry::Vacant(entry) => {
 				entry.insert(inherent.encode());
 				Ok(())
-			},
+			}
 			Entry::Occupied(_) => Err("Inherent with same identifier already exists!".into()),
 		}
 	}
@@ -131,10 +127,7 @@ impl InherentData {
 	/// - `Ok(Some(I))` if the data could be found and deserialized.
 	/// - `Ok(None)` if the data could not be found.
 	/// - `Err(_)` if the data could be found, but deserialization did not work.
-	pub fn get_data<I: codec::Decode>(
-		&self,
-		identifier: &InherentIdentifier,
-	) -> Result<Option<I>, Error> {
+	pub fn get_data<I: codec::Decode>(&self, identifier: &InherentIdentifier) -> Result<Option<I>, Error> {
 		match self.data.get(identifier) {
 			Some(inherent) => I::decode(&mut &inherent[..])
 				.map_err(|_| "Could not decode requested inherent type!".into())
@@ -167,7 +160,11 @@ pub struct CheckInherentsResult {
 
 impl Default for CheckInherentsResult {
 	fn default() -> Self {
-		Self { okay: true, errors: InherentData::new(), fatal_error: false }
+		Self {
+			okay: true,
+			errors: InherentData::new(),
+			fatal_error: false,
+		}
 	}
 }
 
@@ -192,7 +189,7 @@ impl CheckInherentsResult {
 	) -> Result<(), Error> {
 		// Don't accept any other error
 		if self.fatal_error {
-			return Err("No other errors are accepted after an hard error!".into())
+			return Err("No other errors are accepted after an hard error!".into());
 		}
 
 		if error.is_fatal_error() {
@@ -214,10 +211,7 @@ impl CheckInherentsResult {
 	/// - `Ok(Some(I))` if the error could be found and deserialized.
 	/// - `Ok(None)` if the error could not be found.
 	/// - `Err(_)` if the error could be found, but deserialization did not work.
-	pub fn get_error<E: codec::Decode>(
-		&self,
-		identifier: &InherentIdentifier,
-	) -> Result<Option<E>, Error> {
+	pub fn get_error<E: codec::Decode>(&self, identifier: &InherentIdentifier) -> Result<Option<E>, Error> {
 		self.errors.get_data(identifier)
 	}
 
@@ -240,9 +234,7 @@ impl CheckInherentsResult {
 #[cfg(feature = "std")]
 impl PartialEq for CheckInherentsResult {
 	fn eq(&self, other: &Self) -> bool {
-		self.fatal_error == other.fatal_error &&
-			self.okay == other.okay &&
-			self.errors.data == other.errors.data
+		self.fatal_error == other.fatal_error && self.okay == other.okay && self.errors.data == other.errors.data
 	}
 }
 
@@ -268,10 +260,7 @@ impl InherentDataProviders {
 	/// # Result
 	///
 	/// Will return an error, if a provider with the same identifier already exists.
-	pub fn register_provider<P: ProvideInherentData + Send + Sync + 'static>(
-		&self,
-		provider: P,
-	) -> Result<(), Error> {
+	pub fn register_provider<P: ProvideInherentData + Send + Sync + 'static>(&self, provider: P) -> Result<(), Error> {
 		if self.has_provider(&provider.inherent_identifier()) {
 			Err(format!(
 				"Inherent data provider with identifier {:?} already exists!",
@@ -287,7 +276,10 @@ impl InherentDataProviders {
 
 	/// Returns if a provider for the given identifier exists.
 	pub fn has_provider(&self, identifier: &InherentIdentifier) -> bool {
-		self.providers.read().iter().any(|p| p.inherent_identifier() == identifier)
+		self.providers
+			.read()
+			.iter()
+			.any(|p| p.inherent_identifier() == identifier)
 	}
 
 	/// Create inherent data.
@@ -446,7 +438,10 @@ mod tests {
 
 		let decoded = InherentData::decode(&mut &encoded[..]).unwrap();
 
-		assert_eq!(decoded.get_data::<Vec<u32>>(&TEST_INHERENT_0).unwrap().unwrap(), inherent_0);
+		assert_eq!(
+			decoded.get_data::<Vec<u32>>(&TEST_INHERENT_0).unwrap().unwrap(),
+			inherent_0
+		);
 		assert_eq!(decoded.get_data::<u32>(&TEST_INHERENT_1).unwrap().unwrap(), inherent_1);
 	}
 
@@ -464,7 +459,9 @@ mod tests {
 
 	impl TestInherentDataProvider {
 		fn new() -> Self {
-			let inst = Self { registered: Default::default() };
+			let inst = Self {
+				registered: Default::default(),
+			};
 
 			// just make sure
 			assert!(!inst.is_registered());
@@ -522,7 +519,10 @@ mod tests {
 		let inherent_data = providers.create_inherent_data().unwrap();
 
 		assert_eq!(
-			inherent_data.get_data::<u32>(provider.inherent_identifier()).unwrap().unwrap(),
+			inherent_data
+				.get_data::<u32>(provider.inherent_identifier())
+				.unwrap()
+				.unwrap(),
 			42u32
 		);
 	}

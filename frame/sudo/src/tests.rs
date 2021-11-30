@@ -19,9 +19,7 @@
 
 use super::*;
 use frame_support::{assert_noop, assert_ok};
-use mock::{
-	new_test_ext, Call, Logger, LoggerCall, Origin, Sudo, SudoCall, System, Test, TestEvent,
-};
+use mock::{new_test_ext, Call, Logger, LoggerCall, Origin, Sudo, SudoCall, System, Test, TestEvent};
 
 #[test]
 fn test_setup_works() {

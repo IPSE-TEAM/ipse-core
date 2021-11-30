@@ -73,8 +73,15 @@ pub(crate) fn syn_err(message: &'static str) -> syn::Error {
 /// ```
 #[proc_macro]
 pub fn generate_solution_type(item: TokenStream) -> TokenStream {
-	let SolutionDef { vis, ident, count, voter_type, target_type, weight_type, compact_encoding } =
-		syn::parse_macro_input!(item as SolutionDef);
+	let SolutionDef {
+		vis,
+		ident,
+		count,
+		voter_type,
+		target_type,
+		weight_type,
+		compact_encoding,
+	} = syn::parse_macro_input!(item as SolutionDef);
 
 	let imports = imports().unwrap_or_else(|e| e.to_compile_error());
 
@@ -115,7 +122,9 @@ fn struct_def(
 	compact_encoding: bool,
 ) -> Result<TokenStream2> {
 	if count <= 2 {
-		Err(syn_err("cannot build compact solution struct with capacity less than 3."))?
+		Err(syn_err(
+			"cannot build compact solution struct with capacity less than 3.",
+		))?
 	}
 
 	let singles = {
@@ -345,7 +354,7 @@ fn imports() -> Result<TokenStream2> {
 			Ok(sp_npos_elections) => {
 				let ident = syn::Ident::new(&sp_npos_elections, Span::call_site());
 				Ok(quote!( extern crate #ident as _npos; ))
-			},
+			}
 			Err(e) => Err(syn::Error::new(Span::call_site(), &e)),
 		}
 	}
@@ -370,10 +379,14 @@ fn check_compact_attr(input: ParseStream) -> Result<bool> {
 			if segment.ident == Ident::new("compact", Span::call_site()) {
 				Ok(true)
 			} else {
-				Err(syn_err("generate_solution_type macro can only accept #[compact] attribute."))
+				Err(syn_err(
+					"generate_solution_type macro can only accept #[compact] attribute.",
+				))
 			}
 		} else {
-			Err(syn_err("generate_solution_type macro can only accept #[compact] attribute."))
+			Err(syn_err(
+				"generate_solution_type macro can only accept #[compact] attribute.",
+			))
 		}
 	} else {
 		Ok(false)
@@ -396,7 +409,7 @@ impl Parse for SolutionDef {
 		let generics: syn::AngleBracketedGenericArguments = input.parse()?;
 
 		if generics.args.len() != 3 {
-			return Err(syn_err("Must provide 3 generic args."))
+			return Err(syn_err("Must provide 3 generic args."));
 		}
 
 		let mut types: Vec<syn::Type> = generics
@@ -425,7 +438,15 @@ impl Parse for SolutionDef {
 		};
 		let count = int_lit.base10_parse::<usize>()?;
 
-		Ok(Self { vis, ident, voter_type, target_type, weight_type, count, compact_encoding })
+		Ok(Self {
+			vis,
+			ident,
+			voter_type,
+			target_type,
+			weight_type,
+			count,
+			compact_encoding,
+		})
 	}
 }
 

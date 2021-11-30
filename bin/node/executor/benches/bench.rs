@@ -20,9 +20,7 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use node_executor::Executor;
 use node_primitives::{BlockNumber, Hash};
 use node_runtime::constants::currency::*;
-use node_runtime::{
-	Block, BuildStorage, Call, CheckedExtrinsic, GenesisConfig, Header, UncheckedExtrinsic,
-};
+use node_runtime::{Block, BuildStorage, Call, CheckedExtrinsic, GenesisConfig, Header, UncheckedExtrinsic};
 // use node_testing::keyring::*;
 use frame_support::Hashable;
 use sc_executor::{Externalities, NativeExecutor, RuntimeInfo, WasmExecutionMethod};
@@ -64,11 +62,10 @@ fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
 }
 
 fn new_test_ext(genesis_config: &GenesisConfig) -> TestExternalities<BlakeTwo256> {
-	let mut test_ext = TestExternalities::new_with_code(
-		compact_code_unwrap(),
-		genesis_config.build_storage().unwrap(),
-	);
-	test_ext.ext().place_storage(well_known_keys::HEAP_PAGES.to_vec(), Some(HEAP_PAGES.encode()));
+	let mut test_ext = TestExternalities::new_with_code(compact_code_unwrap(), genesis_config.build_storage().unwrap());
+	test_ext
+		.ext()
+		.place_storage(well_known_keys::HEAP_PAGES.to_vec(), Some(HEAP_PAGES.encode()));
 	test_ext
 }
 
@@ -85,10 +82,9 @@ fn construct_block<E: Externalities>(
 	let extrinsics = extrinsics.into_iter().map(sign).collect::<Vec<_>>();
 
 	// calculate the header fields that we can.
-	let extrinsics_root =
-		Layout::<BlakeTwo256>::ordered_trie_root(extrinsics.iter().map(Encode::encode))
-			.to_fixed_bytes()
-			.into();
+	let extrinsics_root = Layout::<BlakeTwo256>::ordered_trie_root(extrinsics.iter().map(Encode::encode))
+		.to_fixed_bytes()
+		.into();
 
 	let header = Header {
 		parent_hash,
@@ -132,14 +128,7 @@ fn construct_block<E: Externalities>(
 	}
 
 	let header = match executor
-		.call::<NeverNativeValue, fn() -> _>(
-			ext,
-			&runtime_code,
-			"BlockBuilder_finalize_block",
-			&[0u8; 0],
-			true,
-			None,
-		)
+		.call::<NeverNativeValue, fn() -> _>(ext, &runtime_code, "BlockBuilder_finalize_block", &[0u8; 0], true, None)
 		.0
 		.unwrap()
 	{
@@ -151,10 +140,7 @@ fn construct_block<E: Externalities>(
 	(Block { header, extrinsics }.encode(), hash.into())
 }
 
-fn test_blocks(
-	genesis_config: &GenesisConfig,
-	executor: &NativeExecutor<Executor>,
-) -> Vec<(Vec<u8>, Hash)> {
+fn test_blocks(genesis_config: &GenesisConfig, executor: &NativeExecutor<Executor>) -> Vec<(Vec<u8>, Hash)> {
 	let mut test_ext = new_test_ext(genesis_config);
 	let mut block1_extrinsics = vec![CheckedExtrinsic {
 		signed: None,
@@ -164,8 +150,7 @@ fn test_blocks(
 		signed: Some((alice(), signed_extra(i, 0))),
 		function: Call::Balances(pallet_balances::Call::transfer(bob().into(), 1 * DOLLARS)),
 	}));
-	let block1 =
-		construct_block(executor, &mut test_ext.ext(), 1, GENESIS_HASH.into(), block1_extrinsics);
+	let block1 = construct_block(executor, &mut test_ext.ext(), 1, GENESIS_HASH.into(), block1_extrinsics);
 
 	vec![block1]
 }

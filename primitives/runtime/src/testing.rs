@@ -20,12 +20,10 @@
 use crate::codec::{Codec, Decode, Encode};
 use crate::traits::ValidateUnsigned;
 use crate::traits::{
-	self, Applyable, BlakeTwo256, Checkable, DispatchInfoOf, Dispatchable, OpaqueKeys,
-	PostDispatchInfoOf, SignedExtension,
+	self, Applyable, BlakeTwo256, Checkable, DispatchInfoOf, Dispatchable, OpaqueKeys, PostDispatchInfoOf,
+	SignedExtension,
 };
-use crate::transaction_validity::{
-	TransactionSource, TransactionValidity, TransactionValidityError,
-};
+use crate::transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError};
 use crate::{generic, ApplyExtrinsicResultWithInfo, CryptoTypeId, KeyTypeId};
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializer};
 use sp_core::{
@@ -45,20 +43,7 @@ use std::{
 /// 2. Can be converted to any `Public` key.
 /// 3. Implements `RuntimeAppPublic` so it can be used instead of regular application-specific
 ///    crypto.
-#[derive(
-	Default,
-	PartialEq,
-	Eq,
-	Clone,
-	Encode,
-	Decode,
-	Debug,
-	Hash,
-	Serialize,
-	Deserialize,
-	PartialOrd,
-	Ord,
-)]
+#[derive(Default, PartialEq, Eq, Clone, Encode, Decode, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub struct UintAuthorityId(pub u64);
 
 impl From<u64> for UintAuthorityId {
@@ -89,12 +74,7 @@ impl AsRef<[u8]> for UintAuthorityId {
 	fn as_ref(&self) -> &[u8] {
 		// Unsafe, i know, but it's test code and it's just there because it's really convenient to
 		// keep `UintAuthorityId` as a u64 under the hood.
-		unsafe {
-			std::slice::from_raw_parts(
-				&self.0 as *const u64 as *const _,
-				std::mem::size_of::<u64>(),
-			)
-		}
+		unsafe { std::slice::from_raw_parts(&self.0 as *const u64 as *const _, std::mem::size_of::<u64>()) }
 	}
 }
 
@@ -248,9 +228,8 @@ pub struct Block<Xt> {
 	pub extrinsics: Vec<Xt>,
 }
 
-impl<
-		Xt: 'static + Codec + Sized + Send + Sync + Serialize + Clone + Eq + Debug + traits::Extrinsic,
-	> traits::Block for Block<Xt>
+impl<Xt: 'static + Codec + Sized + Send + Sync + Serialize + Clone + Eq + Debug + traits::Extrinsic> traits::Block
+	for Block<Xt>
 {
 	type Extrinsic = Xt;
 	type Header = Header;
@@ -340,14 +319,16 @@ impl<Call: Codec + Sync + Send, Extra> traits::Extrinsic for TestXt<Call, Extra>
 	}
 
 	fn new(c: Call, sig: Option<Self::SignaturePayload>) -> Option<Self> {
-		Some(TestXt { signature: sig, call: c })
+		Some(TestXt {
+			signature: sig,
+			call: c,
+		})
 	}
 }
 
 impl<Origin, Call, Extra> Applyable for TestXt<Call, Extra>
 where
-	Call:
-		'static + Sized + Send + Sync + Clone + Eq + Codec + Debug + Dispatchable<Origin = Origin>,
+	Call: 'static + Sized + Send + Sync + Clone + Eq + Codec + Debug + Dispatchable<Origin = Origin>,
 	Extra: SignedExtension<AccountId = u64, Call = Call>,
 	Origin: From<Option<u64>>,
 {

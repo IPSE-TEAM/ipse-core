@@ -1,6 +1,6 @@
 use crate::{
-	AuthorityId, BabeAuthorityWeight, BabeEpochConfiguration, BabeGenesisConfiguration, Epoch,
-	NextEpochDescriptor, SlotNumber, VRF_OUTPUT_LENGTH,
+	AuthorityId, BabeAuthorityWeight, BabeEpochConfiguration, BabeGenesisConfiguration, Epoch, NextEpochDescriptor,
+	SlotNumber, VRF_OUTPUT_LENGTH,
 };
 use codec::{Decode, Encode};
 use sc_consensus_epochs::Epoch as EpochT;
@@ -52,7 +52,10 @@ impl EpochV0 {
 			duration: self.duration,
 			authorities: self.authorities,
 			randomness: self.randomness,
-			config: BabeEpochConfiguration { c: config.c, allowed_slots: config.allowed_slots },
+			config: BabeEpochConfiguration {
+				c: config.c,
+				allowed_slots: config.allowed_slots,
+			},
 		}
 	}
 }

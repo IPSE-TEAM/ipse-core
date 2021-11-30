@@ -300,8 +300,7 @@ where
 	}
 }
 
-pub type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+pub type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 pub type NegativeImbalanceOf<T> =
 	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
@@ -397,11 +396,7 @@ impl<T: Trait> ContractAddressFor<CodeHash<T>, T::AccountId> for SimpleAddressDe
 where
 	T::AccountId: UncheckedFrom<T::Hash> + AsRef<[u8]>,
 {
-	fn contract_address_for(
-		code_hash: &CodeHash<T>,
-		data: &[u8],
-		origin: &T::AccountId,
-	) -> T::AccountId {
+	fn contract_address_for(code_hash: &CodeHash<T>, data: &[u8], origin: &T::AccountId) -> T::AccountId {
 		let data_hash = T::Hashing::hash(data);
 
 		let mut buf = Vec::new();
@@ -678,7 +673,9 @@ impl<T: Trait> Module<T> {
 
 impl<T: Trait> Module<T> {
 	fn calc_code_put_costs(code: &Vec<u8>) -> Gas {
-		<Module<T>>::current_schedule().put_code_per_byte_cost.saturating_mul(code.len() as Gas)
+		<Module<T>>::current_schedule()
+			.put_code_per_byte_cost
+			.saturating_mul(code.len() as Gas)
 	}
 
 	fn execute_wasm(

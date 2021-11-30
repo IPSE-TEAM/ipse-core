@@ -35,14 +35,11 @@ use sp_std::prelude::*;
 /// `on_initialize(..)` or `on_finalization(..)`.
 /// **Must** be called during the session, which validator-set is to be stored for further
 /// off-chain processing. Otherwise the `FullIdentification` might not be available.
-pub fn store_session_validator_set_to_offchain<T: HistoricalTrait + SessionTrait>(
-	session_index: SessionIndex,
-) {
+pub fn store_session_validator_set_to_offchain<T: HistoricalTrait + SessionTrait>(session_index: SessionIndex) {
 	let encoded_validator_list = <SessionModule<T>>::validators()
 		.into_iter()
 		.filter_map(|validator_id: <T as SessionTrait>::ValidatorId| {
-			let full_identification =
-				<<T as HistoricalTrait>::FullIdentificationOf>::convert(validator_id.clone());
+			let full_identification = <<T as HistoricalTrait>::FullIdentificationOf>::convert(validator_id.clone());
 			full_identification.map(|full_identification| (validator_id, full_identification))
 		})
 		.collect::<Vec<_>>();

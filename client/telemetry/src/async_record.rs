@@ -119,7 +119,10 @@ impl AsyncRecord {
 	/// Serializes a `Record` and an `OwnedKVList`.
 	pub fn from(record: &Record, logger_values: &OwnedKVList) -> Self {
 		let mut ser = ToSendSerializer::new();
-		record.kv().serialize(record, &mut ser).expect("`ToSendSerializer` can't fail");
+		record
+			.kv()
+			.serialize(record, &mut ser)
+			.expect("`ToSendSerializer` can't fail");
 
 		AsyncRecord {
 			msg: fmt::format(*record.msg()),
@@ -133,7 +136,11 @@ impl AsyncRecord {
 
 	/// Deconstruct this `AsyncRecord` into a record and `OwnedKVList`.
 	pub fn as_record_values(&self, mut f: impl FnMut(&Record, &OwnedKVList)) {
-		let rs = RecordStatic { location: &*self.location, level: self.level, tag: &self.tag };
+		let rs = RecordStatic {
+			location: &*self.location,
+			level: self.level,
+			tag: &self.tag,
+		};
 
 		f(
 			&Record::new(&rs, &format_args!("{}", self.msg), BorrowedKV(&self.kv)),

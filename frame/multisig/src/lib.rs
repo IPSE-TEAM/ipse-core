@@ -47,9 +47,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, ensure, Parameter, RuntimeDebug,
-};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, Parameter, RuntimeDebug};
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, DispatchResultWithPostInfo, PostDispatchInfo},
 	traits::{Currency, Get, ReservableCurrency},
@@ -67,8 +65,7 @@ mod benchmarking;
 mod default_weights;
 mod tests;
 
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 /// Just a bunch of bytes, but they should decode to a valid `Call`.
 pub type OpaqueCall = Vec<u8>;
 
@@ -497,7 +494,7 @@ impl<T: Trait> Module<T> {
 				let call_hash = blake2_256(&call);
 				let call_len = call.len();
 				(call_hash, call_len, Some(call), should_store)
-			},
+			}
 			CallOrHash::Hash(h) => (h, 0, None, false),
 		};
 
@@ -543,11 +540,8 @@ impl<T: Trait> Module<T> {
 				));
 				Ok(get_result_weight(result)
 					.map(|actual_weight| {
-						T::WeightInfo::as_multi_complete(
-							other_signatories_len as u32,
-							call_len as u32,
-						)
-						.saturating_add(actual_weight)
+						T::WeightInfo::as_multi_complete(other_signatories_len as u32, call_len as u32)
+							.saturating_add(actual_weight)
 					})
 					.into())
 			} else {
@@ -556,12 +550,7 @@ impl<T: Trait> Module<T> {
 
 				// Store the call if desired.
 				let stored = if let Some(data) = maybe_call.filter(|_| store) {
-					Self::store_call_and_reserve(
-						who.clone(),
-						&call_hash,
-						data,
-						BalanceOf::<T>::zero(),
-					)?;
+					Self::store_call_and_reserve(who.clone(), &call_hash, data, BalanceOf::<T>::zero())?;
 					true
 				} else {
 					false
@@ -579,10 +568,7 @@ impl<T: Trait> Module<T> {
 				}
 
 				let final_weight = if stored {
-					T::WeightInfo::as_multi_approve_store(
-						other_signatories_len as u32,
-						call_len as u32,
-					)
+					T::WeightInfo::as_multi_approve_store(other_signatories_len as u32, call_len as u32)
 				} else {
 					T::WeightInfo::as_multi_approve(other_signatories_len as u32, call_len as u32)
 				};
@@ -639,24 +625,20 @@ impl<T: Trait> Module<T> {
 		other_deposit: BalanceOf<T>,
 	) -> DispatchResult {
 		ensure!(!Calls::<T>::contains_key(hash), Error::<T>::AlreadyStored);
-		let deposit = other_deposit +
-			T::DepositBase::get() +
-			T::DepositFactor::get() * BalanceOf::<T>::from(((data.len() + 31) / 32) as u32);
+		let deposit = other_deposit
+			+ T::DepositBase::get()
+			+ T::DepositFactor::get() * BalanceOf::<T>::from(((data.len() + 31) / 32) as u32);
 		T::Currency::reserve(&who, deposit)?;
 		Calls::<T>::insert(&hash, (data, who, deposit));
 		Ok(())
 	}
 
 	/// Attempt to decode and return the call, provided by the user or from storage.
-	fn get_call(
-		hash: &[u8; 32],
-		maybe_known: Option<&[u8]>,
-	) -> Option<(<T as Trait>::Call, usize)> {
+	fn get_call(hash: &[u8; 32], maybe_known: Option<&[u8]>) -> Option<(<T as Trait>::Call, usize)> {
 		maybe_known.map_or_else(
 			|| {
-				Calls::<T>::get(hash).and_then(|(data, ..)| {
-					Decode::decode(&mut &data[..]).ok().map(|d| (d, data.len()))
-				})
+				Calls::<T>::get(hash)
+					.and_then(|(data, ..)| Decode::decode(&mut &data[..]).ok().map(|d| (d, data.len())))
 			},
 			|data| Decode::decode(&mut &data[..]).ok().map(|d| (d, data.len())),
 		)

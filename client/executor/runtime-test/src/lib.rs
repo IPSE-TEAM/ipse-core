@@ -318,20 +318,14 @@ sp_core::wasm_export_functions! {
 }
 
 #[cfg(not(feature = "std"))]
-fn execute_sandboxed(
-	code: &[u8],
-	args: &[Value],
-) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> {
+fn execute_sandboxed(code: &[u8], args: &[Value]) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> {
 	struct State {
 		counter: u32,
 	}
 
-	fn env_assert(
-		_e: &mut State,
-		args: &[Value],
-	) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> {
+	fn env_assert(_e: &mut State, args: &[Value]) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> {
 		if args.len() != 1 {
-			return Err(sp_sandbox::HostError)
+			return Err(sp_sandbox::HostError);
 		}
 		let condition = args[0].as_i32().ok_or_else(|| sp_sandbox::HostError)?;
 		if condition != 0 {
@@ -340,12 +334,9 @@ fn execute_sandboxed(
 			Err(sp_sandbox::HostError)
 		}
 	}
-	fn env_inc_counter(
-		e: &mut State,
-		args: &[Value],
-	) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> {
+	fn env_inc_counter(e: &mut State, args: &[Value]) -> Result<sp_sandbox::ReturnValue, sp_sandbox::HostError> {
 		if args.len() != 1 {
-			return Err(sp_sandbox::HostError)
+			return Err(sp_sandbox::HostError);
 		}
 		let inc_by = args[0].as_i32().ok_or_else(|| sp_sandbox::HostError)?;
 		e.counter += inc_by as u32;

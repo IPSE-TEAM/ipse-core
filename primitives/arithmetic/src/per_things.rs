@@ -18,9 +18,7 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use crate::traits::{
-	BaseArithmetic, Bounded, SaturatedConversion, Saturating, UniqueSaturatedInto, Unsigned, Zero,
-};
+use crate::traits::{BaseArithmetic, Bounded, SaturatedConversion, Saturating, UniqueSaturatedInto, Unsigned, Zero};
 use codec::{CompactAs, Encode};
 use sp_debug_derive::RuntimeDebug;
 use sp_std::{convert::TryInto, fmt, ops, prelude::*};
@@ -343,20 +341,22 @@ where
 	let mut rem_mul_div_inner = (rem_mul_upper / denom_upper).saturated_into::<P::Inner>();
 	match rounding {
 		// Already rounded down
-		Rounding::Down => {},
+		Rounding::Down => {}
 		// Round up if the fractional part of the result is non-zero.
-		Rounding::Up =>
+		Rounding::Up => {
 			if rem_mul_upper % denom_upper > 0.into() {
 				// `rem * numer / denom` is less than `numer`, so this will not overflow.
 				rem_mul_div_inner = rem_mul_div_inner + 1.into();
-			},
+			}
+		}
 		// Round up if the fractional part of the result is greater than a half. An exact half is
 		// rounded down.
-		Rounding::Nearest =>
+		Rounding::Nearest => {
 			if rem_mul_upper % denom_upper > denom_upper / 2.into() {
 				// `rem * numer / denom` is less than `numer`, so this will not overflow.
 				rem_mul_div_inner = rem_mul_div_inner + 1.into();
-			},
+			}
+		}
 	}
 	rem_mul_div_inner.into()
 }

@@ -24,10 +24,7 @@ use std::{collections::HashMap, sync::Arc};
 
 /// Export the raw state at the given `block`. If `block` is `None`, the
 /// best block will be used.
-pub fn export_raw_state<B, BA, C>(
-	client: Arc<C>,
-	block: Option<BlockId<B>>,
-) -> Result<Storage, Error>
+pub fn export_raw_state<B, BA, C>(client: Arc<C>, block: Option<BlockId<B>>) -> Result<Storage, Error>
 where
 	C: UsageProvider<B> + StorageProvider<B, BA>,
 	B: BlockT,
@@ -47,8 +44,7 @@ where
 	{
 		let (key, _) = top_storage.swap_remove(pos);
 
-		let key =
-			StorageKey(key.0[well_known_keys::DEFAULT_CHILD_STORAGE_KEY_PREFIX.len()..].to_vec());
+		let key = StorageKey(key.0[well_known_keys::DEFAULT_CHILD_STORAGE_KEY_PREFIX.len()..].to_vec());
 		let child_info = ChildInfo::new_default(&key.0);
 
 		let keys = client.child_storage_keys(&block, &child_info, &empty_key)?;
@@ -61,7 +57,13 @@ where
 			Ok::<_, Error>(())
 		})?;
 
-		children_default.insert(key.0, StorageChild { child_info, data: pairs });
+		children_default.insert(
+			key.0,
+			StorageChild {
+				child_info,
+				data: pairs,
+			},
+		);
 	}
 
 	let top = top_storage.into_iter().map(|(k, v)| (k.0, v.0)).collect();

@@ -46,7 +46,10 @@ impl Options {
 }
 impl Default for Options {
 	fn default() -> Self {
-		Options { wasm_only: false, tracing: true }
+		Options {
+			wasm_only: false,
+			tracing: true,
+		}
 	}
 }
 
@@ -64,7 +67,7 @@ impl Parse for Options {
 			} else if lookahead.peek(Token![,]) {
 				let _ = input.parse::<Token![,]>();
 			} else {
-				return Err(lookahead.error())
+				return Err(lookahead.error());
 			}
 		}
 		Ok(res)
@@ -72,10 +75,7 @@ impl Parse for Options {
 }
 
 #[proc_macro_attribute]
-pub fn runtime_interface(
-	attrs: proc_macro::TokenStream,
-	input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub fn runtime_interface(attrs: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let trait_def = parse_macro_input!(input as ItemTrait);
 	let (wasm_only, tracing) = parse_macro_input!(attrs as Options).unpack();
 
@@ -87,17 +87,23 @@ pub fn runtime_interface(
 #[proc_macro_derive(PassByCodec)]
 pub fn pass_by_codec(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
-	pass_by::codec_derive_impl(input).unwrap_or_else(|e| e.to_compile_error()).into()
+	pass_by::codec_derive_impl(input)
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
 }
 
 #[proc_macro_derive(PassByInner)]
 pub fn pass_by_inner(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
-	pass_by::inner_derive_impl(input).unwrap_or_else(|e| e.to_compile_error()).into()
+	pass_by::inner_derive_impl(input)
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
 }
 
 #[proc_macro_derive(PassByEnum)]
 pub fn pass_by_enum(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 	let input = parse_macro_input!(input as DeriveInput);
-	pass_by::enum_derive_impl(input).unwrap_or_else(|e| e.to_compile_error()).into()
+	pass_by::enum_derive_impl(input)
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
 }

@@ -59,9 +59,7 @@ impl GenesisConfig {
 		let mut map: BTreeMap<Vec<u8>, Vec<u8>> = self
 			.balances
 			.iter()
-			.map(|&(ref account, balance)| {
-				(account.to_keyed_vec(b"balance:"), vec![].and(&balance))
-			})
+			.map(|&(ref account, balance)| (account.to_keyed_vec(b"balance:"), vec![].and(&balance)))
 			.map(|(k, v)| (blake2_256(&k[..])[..].to_vec(), v.to_vec()))
 			.chain(
 				vec![
@@ -75,15 +73,20 @@ impl GenesisConfig {
 			)
 			.collect();
 		if let Some(ref changes_trie_config) = self.changes_trie_config {
-			map.insert(well_known_keys::CHANGES_TRIE_CONFIG.to_vec(), changes_trie_config.encode());
+			map.insert(
+				well_known_keys::CHANGES_TRIE_CONFIG.to_vec(),
+				changes_trie_config.encode(),
+			);
 		}
 		map.insert(twox_128(&b"sys:auth"[..])[..].to_vec(), self.authorities.encode());
 		// Add the extra storage entries.
 		map.extend(self.extra_storage.top.clone().into_iter());
 
 		// Assimilate the system genesis config.
-		let mut storage =
-			Storage { top: map, children_default: self.extra_storage.children_default.clone() };
+		let mut storage = Storage {
+			top: map,
+			children_default: self.extra_storage.children_default.clone(),
+		};
 		let mut config = system::GenesisConfig::default();
 		config.authorities = self.authorities.clone();
 		config
@@ -96,10 +99,9 @@ impl GenesisConfig {
 
 pub fn insert_genesis_block(storage: &mut Storage) -> sp_core::hash::H256 {
 	let child_roots = storage.children_default.iter().map(|(sk, child_content)| {
-		let state_root =
-			<<<crate::Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
-				child_content.data.clone().into_iter().collect(),
-			);
+		let state_root = <<<crate::Block as BlockT>::Header as HeaderT>::Hashing as HashT>::trie_root(
+			child_content.data.clone().into_iter().collect(),
+		);
 		(sk.clone(), state_root.encode())
 	});
 	// add child roots to storage

@@ -111,9 +111,7 @@ use frame_support::{
 	decl_error, decl_event, decl_module, decl_storage,
 	dispatch::{self, DispatchError, DispatchResult},
 	ensure,
-	traits::{
-		EstimateNextNewSession, EstimateNextSessionRotation, FindAuthor, Get, ValidatorRegistration,
-	},
+	traits::{EstimateNextNewSession, EstimateNextSessionRotation, FindAuthor, Get, ValidatorRegistration},
 	weights::Weight,
 	ConsensusEngineId, Parameter,
 };
@@ -163,12 +161,7 @@ impl<
 }
 
 impl<
-		BlockNumber: Rem<Output = BlockNumber>
-			+ Sub<Output = BlockNumber>
-			+ Zero
-			+ PartialOrd
-			+ Saturating
-			+ Clone,
+		BlockNumber: Rem<Output = BlockNumber> + Sub<Output = BlockNumber> + Zero + PartialOrd + Saturating + Clone,
 		Period: Get<BlockNumber>,
 		Offset: Get<BlockNumber>,
 	> EstimateNextSessionRotation<BlockNumber> for PeriodicSessions<Period, Offset>
@@ -323,11 +316,7 @@ impl<AId> SessionHandler<AId> for Tuple {
 		)
 	}
 
-	fn on_new_session<Ks: OpaqueKeys>(
-		changed: bool,
-		validators: &[(AId, Ks)],
-		queued_validators: &[(AId, Ks)],
-	) {
+	fn on_new_session<Ks: OpaqueKeys>(changed: bool, validators: &[(AId, Ks)], queued_validators: &[(AId, Ks)]) {
 		for_tuples!(
 			#(
 				let our_keys: Box<dyn Iterator<Item=_>> = Box::new(validators.iter()
@@ -599,8 +588,10 @@ impl<T: Trait> Module<T> {
 
 		// Get queued session keys and validators.
 		let session_keys = <QueuedKeys<T>>::get();
-		let validators =
-			session_keys.iter().map(|(validator, _)| validator.clone()).collect::<Vec<_>>();
+		let validators = session_keys
+			.iter()
+			.map(|(validator, _)| validator.clone())
+			.collect::<Vec<_>>();
 		<Validators<T>>::put(&validators);
 
 		if changed {
@@ -616,15 +607,14 @@ impl<T: Trait> Module<T> {
 
 		// Get next validator set.
 		let maybe_next_validators = T::SessionManager::new_session(session_index + 1);
-		let (next_validators, next_identities_changed) =
-			if let Some(validators) = maybe_next_validators {
-				// NOTE: as per the documentation on `OnSessionEnding`, we consider
-				// the validator set as having changed even if the validators are the
-				// same as before, as underlying economic conditions may have changed.
-				(validators, true)
-			} else {
-				(<Validators<T>>::get(), false)
-			};
+		let (next_validators, next_identities_changed) = if let Some(validators) = maybe_next_validators {
+			// NOTE: as per the documentation on `OnSessionEnding`, we consider
+			// the validator set as having changed even if the validators are the
+			// same as before, as underlying economic conditions may have changed.
+			(validators, true)
+		} else {
+			(<Validators<T>>::get(), false)
+		};
 
 		// Queue next session keys.
 		let (queued_amalgamated, next_changed) = {
@@ -635,7 +625,7 @@ impl<T: Trait> Module<T> {
 			let mut now_session_keys = session_keys.iter();
 			let mut check_next_changed = |keys: &T::Keys| {
 				if changed {
-					return
+					return;
 				}
 				// since a new validator set always leads to `changed` starting
 				// as true, we can ensure that `now_session_keys` and `next_validators`
@@ -643,7 +633,7 @@ impl<T: Trait> Module<T> {
 				if let Some(&(_, ref old_keys)) = now_session_keys.next() {
 					if old_keys != keys {
 						changed = true;
-						return
+						return;
 					}
 				}
 			};
@@ -700,7 +690,11 @@ impl<T: Trait> Module<T> {
 	/// session is already disabled.
 	/// If used with the staking module it allows to force a new era in such case.
 	pub fn disable(c: &T::ValidatorId) -> sp_std::result::Result<bool, ()> {
-		Self::validators().iter().position(|i| i == c).map(Self::disable_index).ok_or(())
+		Self::validators()
+			.iter()
+			.position(|i| i == c)
+			.map(Self::disable_index)
+			.ok_or(())
 	}
 
 	/// Perform the set_key operation, checking for duplicates. Does not set `Changed`.
@@ -708,8 +702,7 @@ impl<T: Trait> Module<T> {
 	/// This ensures that the reference counter in system is incremented appropriately and as such
 	/// must accept an account ID, rather than a validator ID.
 	fn do_set_keys(account: &T::AccountId, keys: T::Keys) -> dispatch::DispatchResult {
-		let who = T::ValidatorIdOf::convert(account.clone())
-			.ok_or(Error::<T>::NoAssociatedValidatorId)?;
+		let who = T::ValidatorIdOf::convert(account.clone()).ok_or(Error::<T>::NoAssociatedValidatorId)?;
 
 		let old_keys = Self::inner_set_keys(&who, keys)?;
 		if old_keys.is_none() {
@@ -725,10 +718,7 @@ impl<T: Trait> Module<T> {
 	///
 	/// This does not ensure that the reference counter in system is incremented appropriately, it
 	/// must be done by the caller or the keys will be leaked in storage.
-	fn inner_set_keys(
-		who: &T::ValidatorId,
-		keys: T::Keys,
-	) -> Result<Option<T::Keys>, DispatchError> {
+	fn inner_set_keys(who: &T::ValidatorId, keys: T::Keys) -> Result<Option<T::Keys>, DispatchError> {
 		let old_keys = Self::load_keys(who);
 
 		for id in T::Keys::key_ids() {
@@ -742,7 +732,7 @@ impl<T: Trait> Module<T> {
 
 			if let Some(old) = old_keys.as_ref().map(|k| k.get_raw(*id)) {
 				if key == old {
-					continue
+					continue;
 				}
 
 				Self::clear_key_owner(*id, old);
@@ -756,8 +746,7 @@ impl<T: Trait> Module<T> {
 	}
 
 	fn do_purge_keys(account: &T::AccountId) -> DispatchResult {
-		let who = T::ValidatorIdOf::convert(account.clone())
-			.ok_or(Error::<T>::NoAssociatedValidatorId)?;
+		let who = T::ValidatorIdOf::convert(account.clone()).ok_or(Error::<T>::NoAssociatedValidatorId)?;
 
 		let old_keys = Self::take_keys(&who).ok_or(Error::<T>::NoKeys)?;
 		for id in T::Keys::key_ids() {
@@ -799,9 +788,7 @@ impl<T: Trait> Module<T> {
 /// registering account-ID of that session key index.
 pub struct FindAccountFromAuthorIndex<T, Inner>(sp_std::marker::PhantomData<(T, Inner)>);
 
-impl<T: Trait, Inner: FindAuthor<u32>> FindAuthor<T::ValidatorId>
-	for FindAccountFromAuthorIndex<T, Inner>
-{
+impl<T: Trait, Inner: FindAuthor<u32>> FindAuthor<T::ValidatorId> for FindAccountFromAuthorIndex<T, Inner> {
 	fn find_author<'a, I>(digests: I) -> Option<T::ValidatorId>
 	where
 		I: 'a + IntoIterator<Item = (ConsensusEngineId, &'a [u8])>,

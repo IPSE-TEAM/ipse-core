@@ -44,14 +44,16 @@ fn add_registrars<T: Trait>(r: u32) -> Result<(), &'static str> {
 		let _ = T::Currency::make_free_balance_be(&registrar, BalanceOf::<T>::max_value());
 		Identity::<T>::add_registrar(RawOrigin::Root.into(), registrar.clone())?;
 		Identity::<T>::set_fee(RawOrigin::Signed(registrar.clone()).into(), i.into(), 10.into())?;
-		let fields =
-			IdentityFields(
-				IdentityField::Display |
-					IdentityField::Legal | IdentityField::Web |
-					IdentityField::Riot | IdentityField::Email |
-					IdentityField::PgpFingerprint |
-					IdentityField::Image | IdentityField::Twitter,
-			);
+		let fields = IdentityFields(
+			IdentityField::Display
+				| IdentityField::Legal
+				| IdentityField::Web
+				| IdentityField::Riot
+				| IdentityField::Email
+				| IdentityField::PgpFingerprint
+				| IdentityField::Image
+				| IdentityField::Twitter,
+		);
 		Identity::<T>::set_fields(RawOrigin::Signed(registrar.clone()).into(), i.into(), fields)?;
 	}
 
@@ -61,10 +63,7 @@ fn add_registrars<T: Trait>(r: u32) -> Result<(), &'static str> {
 
 // Create `s` sub-accounts for the identity of `who` and return them.
 // Each will have 32 bytes of raw data added to it.
-fn create_sub_accounts<T: Trait>(
-	who: &T::AccountId,
-	s: u32,
-) -> Result<Vec<(T::AccountId, Data)>, &'static str> {
+fn create_sub_accounts<T: Trait>(who: &T::AccountId, s: u32) -> Result<Vec<(T::AccountId, Data)>, &'static str> {
 	let mut subs = Vec::new();
 	let who_origin = RawOrigin::Signed(who.clone());
 	let data = Data::Raw(vec![0; 32]);
@@ -84,10 +83,7 @@ fn create_sub_accounts<T: Trait>(
 
 // Adds `s` sub-accounts to the identity of `who`. Each will have 32 bytes of raw data added to it.
 // This additionally returns the vector of sub-accounts so it can be modified if needed.
-fn add_sub_accounts<T: Trait>(
-	who: &T::AccountId,
-	s: u32,
-) -> Result<Vec<(T::AccountId, Data)>, &'static str> {
+fn add_sub_accounts<T: Trait>(who: &T::AccountId, s: u32) -> Result<Vec<(T::AccountId, Data)>, &'static str> {
 	let who_origin = RawOrigin::Signed(who.clone());
 	let subs = create_sub_accounts::<T>(who, s)?;
 
@@ -113,7 +109,7 @@ fn create_identity_info<T: Trait>(num_fields: u32) -> IdentityInfo {
 		twitter: data.clone(),
 	};
 
-	return info
+	return info;
 }
 
 benchmarks! {

@@ -46,15 +46,15 @@ where
 					Ok(x) => x,
 					Err(e) => {
 						warn!(target: "uncles", "Unable to get chain head: {:?}", e);
-						return Vec::new()
-					},
+						return Vec::new();
+					}
 				};
 				match client.uncles(chain_head.hash(), MAX_UNCLE_GENERATIONS.into()) {
 					Ok(uncles) => uncles,
 					Err(e) => {
 						warn!(target: "uncles", "Unable to get uncles: {:?}", e);
 						Vec::new()
-					},
+					}
 				}
 			}))
 			.map_err(|err| sp_consensus::Error::InherentData(err.into()))?;

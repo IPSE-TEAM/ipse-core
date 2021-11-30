@@ -42,22 +42,25 @@ pub struct ModuleWrapper {
 
 impl ModuleWrapper {
 	pub fn new(engine: &Engine, code: &[u8]) -> Result<Self> {
-		let mut raw_module: elements::Module = elements::deserialize_buffer(code)
-			.map_err(|e| Error::from(format!("cannot decode module: {}", e)))?;
+		let mut raw_module: elements::Module =
+			elements::deserialize_buffer(code).map_err(|e| Error::from(format!("cannot decode module: {}", e)))?;
 		pwasm_utils::export_mutable_globals(&mut raw_module, "exported_internal_global");
-		let instrumented_code = elements::serialize(raw_module)
-			.map_err(|e| Error::from(format!("cannot encode module: {}", e)))?;
+		let instrumented_code =
+			elements::serialize(raw_module).map_err(|e| Error::from(format!("cannot encode module: {}", e)))?;
 
-		let module = Module::new(engine, &instrumented_code)
-			.map_err(|e| Error::from(format!("cannot create module: {}", e)))?;
+		let module =
+			Module::new(engine, &instrumented_code).map_err(|e| Error::from(format!("cannot create module: {}", e)))?;
 
-		let module_info = WasmModuleInfo::new(code)
-			.ok_or_else(|| Error::from("cannot deserialize module".to_string()))?;
+		let module_info =
+			WasmModuleInfo::new(code).ok_or_else(|| Error::from("cannot deserialize module".to_string()))?;
 
 		let data_segments_snapshot = DataSegmentsSnapshot::take(&module_info)
 			.map_err(|e| Error::from(format!("cannot take data segments snapshot: {}", e)))?;
 
-		Ok(Self { module, data_segments_snapshot })
+		Ok(Self {
+			module,
+			data_segments_snapshot,
+		})
 	}
 
 	pub fn module(&self) -> &Module {
@@ -115,12 +118,7 @@ fn extern_func(extern_: &Extern) -> Option<&Func> {
 
 impl InstanceWrapper {
 	/// Create a new instance wrapper from the given wasm module.
-	pub fn new(
-		store: &Store,
-		module_wrapper: &ModuleWrapper,
-		imports: &Imports,
-		heap_pages: u32,
-	) -> Result<Self> {
+	pub fn new(store: &Store, module_wrapper: &ModuleWrapper, imports: &Imports, heap_pages: u32) -> Result<Self> {
 		let instance = Instance::new(store, &module_wrapper.module, &imports.externs)
 			.map_err(|e| Error::from(format!("cannot instantiate: {}", e)))?;
 
@@ -131,10 +129,10 @@ impl InstanceWrapper {
 			None => {
 				let memory = get_linear_memory(&instance)?;
 				if !memory.grow(heap_pages).is_ok() {
-					return Err("failed top increase the linear memory size".into())
+					return Err("failed top increase the linear memory size".into());
 				}
 				memory
-			},
+			}
 		};
 
 		Ok(Self {
@@ -155,10 +153,10 @@ impl InstanceWrapper {
 			.instance
 			.get_export(name)
 			.ok_or_else(|| Error::from(format!("Exported method {} is not found", name)))?;
-		let entrypoint = extern_func(&export)
-			.ok_or_else(|| Error::from(format!("Export {} is not a function", name)))?;
+		let entrypoint =
+			extern_func(&export).ok_or_else(|| Error::from(format!("Export {} is not a function", name)))?;
 		match (entrypoint.ty().params(), entrypoint.ty().results()) {
-			(&[wasmtime::ValType::I32, wasmtime::ValType::I32], &[wasmtime::ValType::I64]) => {},
+			(&[wasmtime::ValType::I32, wasmtime::ValType::I32], &[wasmtime::ValType::I64]) => {}
 			_ => return Err(Error::from(format!("method {} have an unsupported signature", name))),
 		}
 		Ok(entrypoint.clone())
@@ -183,11 +181,13 @@ impl InstanceWrapper {
 			.get_export("__heap_base")
 			.ok_or_else(|| Error::from("__heap_base is not found"))?;
 
-		let heap_base_global = extern_global(&heap_base_export)
-			.ok_or_else(|| Error::from("__heap_base is not a global"))?;
+		let heap_base_global =
+			extern_global(&heap_base_export).ok_or_else(|| Error::from("__heap_base is not a global"))?;
 
-		let heap_base =
-			heap_base_global.get().i32().ok_or_else(|| Error::from("__heap_base is not a i32"))?;
+		let heap_base = heap_base_global
+			.get()
+			.i32()
+			.ok_or_else(|| Error::from("__heap_base is not a i32"))?;
 
 		Ok(heap_base as u32)
 	}
@@ -226,7 +226,11 @@ fn get_linear_memory(instance: &Instance) -> Result<Memory> {
 
 /// Extract the table from the given instance if any.
 fn get_table(instance: &Instance) -> Option<Table> {
-	instance.get_export("__indirect_function_table").as_ref().and_then(extern_table).cloned()
+	instance
+		.get_export("__indirect_function_table")
+		.as_ref()
+		.and_then(extern_table)
+		.cloned()
 }
 
 /// Functions realted to memory.
@@ -284,11 +288,7 @@ impl InstanceWrapper {
 	/// Deallocate the memory pointed by the given pointer.
 	///
 	/// Returns `Err` in case the given memory region cannot be deallocated.
-	pub fn deallocate(
-		&self,
-		allocator: &mut sp_allocator::FreeingBumpHeapAllocator,
-		ptr: Pointer<u8>,
-	) -> Result<()> {
+	pub fn deallocate(&self, allocator: &mut sp_allocator::FreeingBumpHeapAllocator, ptr: Pointer<u8>) -> Result<()> {
 		unsafe {
 			// This should be safe since we don't grow up memory while caching this reference and
 			// we give up the reference before returning from this function.

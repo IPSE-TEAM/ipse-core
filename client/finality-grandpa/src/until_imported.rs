@@ -23,8 +23,7 @@
 //! This is used for votes and commit messages currently.
 
 use super::{
-	BlockStatus as BlockStatusT, BlockSyncRequester as BlockSyncRequesterT, CommunicationIn, Error,
-	SignedMessage,
+	BlockStatus as BlockStatusT, BlockSyncRequester as BlockSyncRequesterT, CommunicationIn, Error, SignedMessage,
 };
 
 use finality_grandpa::voter;
@@ -161,8 +160,7 @@ where
 	metrics: Option<Metrics>,
 }
 
-impl<Block, BlockStatus, BlockSyncRequester, I, M> Unpin
-	for UntilImported<Block, BlockStatus, BlockSyncRequester, I, M>
+impl<Block, BlockStatus, BlockSyncRequester, I, M> Unpin for UntilImported<Block, BlockStatus, BlockSyncRequester, I, M>
 where
 	Block: BlockT,
 	I: Stream<Item = M::Blocked> + Unpin,
@@ -170,8 +168,7 @@ where
 {
 }
 
-impl<Block, BlockStatus, BlockSyncRequester, I, M>
-	UntilImported<Block, BlockStatus, BlockSyncRequester, I, M>
+impl<Block, BlockStatus, BlockSyncRequester, I, M> UntilImported<Block, BlockStatus, BlockSyncRequester, I, M>
 where
 	Block: BlockT,
 	BlockStatus: BlockStatusT<Block>,
@@ -216,8 +213,7 @@ where
 	}
 }
 
-impl<Block, BStatus, BSyncRequester, I, M> Stream
-	for UntilImported<Block, BStatus, BSyncRequester, I, M>
+impl<Block, BStatus, BSyncRequester, I, M> Stream for UntilImported<Block, BStatus, BSyncRequester, I, M>
 where
 	Block: BlockT,
 	BStatus: BlockStatusT<Block>,
@@ -239,7 +235,7 @@ where
 					// new input: schedule wait of any parts which require
 					// blocks to be known.
 					match M::needs_waiting(input, &this.status_check)? {
-						DiscardWaitOrReady::Discard => {},
+						DiscardWaitOrReady::Discard => {}
 						DiscardWaitOrReady::Wait(items) => {
 							for (target_hash, target_number, wait) in items {
 								this.pending
@@ -248,14 +244,14 @@ where
 									.2
 									.push(wait)
 							}
-						},
+						}
 						DiscardWaitOrReady::Ready(item) => this.ready.push_back(item),
 					}
 
 					if let Some(metrics) = &mut this.metrics {
 						metrics.waiting_messages_inc();
 					}
-				},
+				}
 				Poll::Pending => break,
 			}
 		}
@@ -267,12 +263,11 @@ where
 					// new block imported. queue up all messages tied to that hash.
 					if let Some((_, _, messages)) = this.pending.remove(&notification.hash) {
 						let canon_number = *notification.header.number();
-						let ready_messages =
-							messages.into_iter().filter_map(|m| m.wait_completed(canon_number));
+						let ready_messages = messages.into_iter().filter_map(|m| m.wait_completed(canon_number));
 
 						this.ready.extend(ready_messages);
 					}
-				},
+				}
 				Poll::Pending => break,
 			}
 		}
@@ -284,9 +279,7 @@ where
 
 		if update_interval {
 			let mut known_keys = Vec::new();
-			for (&block_hash, &mut (block_number, ref mut last_log, ref v)) in
-				this.pending.iter_mut()
-			{
+			for (&block_hash, &mut (block_number, ref mut last_log, ref v)) in this.pending.iter_mut() {
 				if let Some(number) = this.status_check.block_number(block_hash)? {
 					known_keys.push((block_hash, number));
 				} else {
@@ -305,11 +298,8 @@ where
 						// NOTE: when sending an empty vec of peers the
 						// underlying should make a best effort to sync the
 						// block from any peers it knows about.
-						this.block_sync_requester.set_sync_fork_request(
-							vec![],
-							block_hash,
-							block_number,
-						);
+						this.block_sync_requester
+							.set_sync_fork_request(vec![], block_hash, block_number);
 
 						*last_log = next_log;
 					}
@@ -318,8 +308,9 @@ where
 
 			for (known_hash, canon_number) in known_keys {
 				if let Some((_, _, pending_messages)) = this.pending.remove(&known_hash) {
-					let ready_messages =
-						pending_messages.into_iter().filter_map(|m| m.wait_completed(canon_number));
+					let ready_messages = pending_messages
+						.into_iter()
+						.filter_map(|m| m.wait_completed(canon_number));
 
 					this.ready.extend(ready_messages);
 				}
@@ -330,7 +321,7 @@ where
 			if let Some(metrics) = &mut this.metrics {
 				metrics.waiting_messages_dec();
 			}
-			return Poll::Ready(Some(Ok(ready)))
+			return Poll::Ready(Some(Ok(ready)));
 		}
 
 		if this.import_notifications.is_done() && this.incoming_messages.is_done() {
@@ -363,9 +354,9 @@ impl<Block: BlockT> BlockUntilImported<Block> for SignedMessage<Block> {
 		if let Some(number) = status_check.block_number(target_hash)? {
 			if number != target_number {
 				warn_authority_wrong_target(target_hash, msg.id);
-				return Ok(DiscardWaitOrReady::Discard)
+				return Ok(DiscardWaitOrReady::Discard);
 			} else {
-				return Ok(DiscardWaitOrReady::Ready(msg))
+				return Ok(DiscardWaitOrReady::Ready(msg));
 			}
 		}
 
@@ -444,14 +435,14 @@ impl<Block: BlockT> BlockUntilImported<Block> for BlockGlobalMessage<Block> {
 							entry.insert(KnownOrUnknown::Unknown(perceived_number));
 							perceived_number
 						}
-					},
+					}
 				};
 
 				if canon_number != perceived_number {
 					// invalid global message: messages targeting wrong number
 					// or at least different from other vote in same global
 					// message.
-					return Ok(false)
+					return Ok(false);
 				}
 
 				Ok(true)
@@ -460,15 +451,14 @@ impl<Block: BlockT> BlockUntilImported<Block> for BlockGlobalMessage<Block> {
 			match input {
 				voter::CommunicationIn::Commit(_, ref commit, ..) => {
 					// add known hashes from all precommits.
-					let precommit_targets =
-						commit.precommits.iter().map(|c| (c.target_number, c.target_hash));
+					let precommit_targets = commit.precommits.iter().map(|c| (c.target_number, c.target_hash));
 
 					for (target_number, target_hash) in precommit_targets {
 						if !query_known(target_hash, target_number)? {
-							return Ok(DiscardWaitOrReady::Discard)
+							return Ok(DiscardWaitOrReady::Discard);
 						}
 					}
-				},
+				}
 				voter::CommunicationIn::CatchUp(ref catch_up, ..) => {
 					// add known hashes from all prevotes and precommits.
 					let prevote_targets = catch_up
@@ -485,10 +475,10 @@ impl<Block: BlockT> BlockUntilImported<Block> for BlockGlobalMessage<Block> {
 
 					for (target_number, target_hash) in targets {
 						if !query_known(target_hash, target_number)? {
-							return Ok(DiscardWaitOrReady::Discard)
+							return Ok(DiscardWaitOrReady::Discard);
 						}
 					}
-				},
+				}
 			};
 		}
 
@@ -503,7 +493,7 @@ impl<Block: BlockT> BlockUntilImported<Block> for BlockGlobalMessage<Block> {
 		if unknown_hashes.is_empty() {
 			// none of the hashes in the global message were unknown.
 			// we can just return the message directly.
-			return Ok(DiscardWaitOrReady::Ready(input))
+			return Ok(DiscardWaitOrReady::Ready(input));
 		}
 
 		let locked_global = Arc::new(Mutex::new(Some(input)));
@@ -514,7 +504,10 @@ impl<Block: BlockT> BlockUntilImported<Block> for BlockGlobalMessage<Block> {
 				(
 					hash,
 					target_number,
-					BlockGlobalMessage { inner: locked_global.clone(), target_number },
+					BlockGlobalMessage {
+						inner: locked_global.clone(),
+						target_number,
+					},
 				)
 			})
 			.collect();
@@ -530,7 +523,7 @@ impl<Block: BlockT> BlockUntilImported<Block> for BlockGlobalMessage<Block> {
 			// Delete the inner message so it won't ever be forwarded. Future calls to
 			// `wait_completed` on the same `inner` will ignore it.
 			*self.inner.lock() = None;
-			return None
+			return None;
 		}
 
 		match Arc::try_unwrap(self.inner) {
@@ -571,14 +564,18 @@ mod tests {
 	impl TestChainState {
 		fn new() -> (Self, ImportNotifications<Block>) {
 			let (tx, rx) = tracing_unbounded("test");
-			let state =
-				TestChainState { sender: tx, known_blocks: Arc::new(Mutex::new(HashMap::new())) };
+			let state = TestChainState {
+				sender: tx,
+				known_blocks: Arc::new(Mutex::new(HashMap::new())),
+			};
 
 			(state, rx)
 		}
 
 		fn block_status(&self) -> TestBlockStatus {
-			TestBlockStatus { inner: self.known_blocks.clone() }
+			TestBlockStatus {
+				inner: self.known_blocks.clone(),
+			}
 		}
 
 		fn import_header(&self, header: Header) {
@@ -615,17 +612,14 @@ mod tests {
 
 	impl Default for TestBlockSyncRequester {
 		fn default() -> Self {
-			TestBlockSyncRequester { requests: Arc::new(Mutex::new(Vec::new())) }
+			TestBlockSyncRequester {
+				requests: Arc::new(Mutex::new(Vec::new())),
+			}
 		}
 	}
 
 	impl BlockSyncRequesterT<Block> for TestBlockSyncRequester {
-		fn set_sync_fork_request(
-			&self,
-			_peers: Vec<sc_network::PeerId>,
-			hash: Hash,
-			number: NumberFor<Block>,
-		) {
+		fn set_sync_fork_request(&self, _peers: Vec<sc_network::PeerId>, hash: Hash, number: NumberFor<Block>) {
 			self.requests.lock().push((hash, number));
 		}
 	}
@@ -689,10 +683,7 @@ mod tests {
 		futures::executor::block_on(work).0.unwrap().unwrap()
 	}
 
-	fn blocking_message_on_dependencies<F>(
-		msg: CommunicationIn<Block>,
-		enact_dependencies: F,
-	) -> CommunicationIn<Block>
+	fn blocking_message_on_dependencies<F>(msg: CommunicationIn<Block>, enact_dependencies: F) -> CommunicationIn<Block>
 	where
 		F: FnOnce(&TestChainState),
 	{
@@ -716,16 +707,17 @@ mod tests {
 		// dropped too early.
 		let inner_chain_state = chain_state.clone();
 		let work =
-			future::select(until_imported.into_future(), Delay::new(Duration::from_millis(100)))
-				.then(move |res| match res {
+			future::select(until_imported.into_future(), Delay::new(Duration::from_millis(100))).then(move |res| {
+				match res {
 					Either::Left(_) => panic!("timeout should have fired first"),
 					Either::Right((_, until_imported)) => {
 						// timeout fired. push in the headers.
 						enact_dependencies(&inner_chain_state);
 
 						until_imported
-					},
-				});
+					}
+				}
+			});
 
 		futures::executor::block_on(work).0.unwrap().unwrap()
 	}
@@ -740,14 +732,19 @@ mod tests {
 			target_hash: h1.hash(),
 			target_number: 5,
 			precommits: vec![
-				Precommit { target_hash: h2.hash(), target_number: 6 },
-				Precommit { target_hash: h3.hash(), target_number: 7 },
+				Precommit {
+					target_hash: h2.hash(),
+					target_number: 6,
+				},
+				Precommit {
+					target_hash: h3.hash(),
+					target_number: 7,
+				},
 			],
 			auth_data: Vec::new(), // not used
 		};
 
-		let unknown_commit =
-			|| voter::CommunicationIn::Commit(0, unknown_commit.clone(), voter::Callback::Blank);
+		let unknown_commit = || voter::CommunicationIn::Commit(0, unknown_commit.clone(), voter::Callback::Blank);
 
 		let res = blocking_message_on_dependencies(unknown_commit(), |chain_state| {
 			chain_state.import_header(h1);
@@ -768,14 +765,19 @@ mod tests {
 			target_hash: h1.hash(),
 			target_number: 5,
 			precommits: vec![
-				Precommit { target_hash: h2.hash(), target_number: 6 },
-				Precommit { target_hash: h3.hash(), target_number: 7 },
+				Precommit {
+					target_hash: h2.hash(),
+					target_number: 6,
+				},
+				Precommit {
+					target_hash: h3.hash(),
+					target_number: 7,
+				},
 			],
 			auth_data: Vec::new(), // not used
 		};
 
-		let known_commit =
-			|| voter::CommunicationIn::Commit(0, known_commit.clone(), voter::Callback::Blank);
+		let known_commit = || voter::CommunicationIn::Commit(0, known_commit.clone(), voter::Callback::Blank);
 
 		let res = message_all_dependencies_satisfied(known_commit(), |chain_state| {
 			chain_state.import_header(h1);
@@ -822,8 +824,7 @@ mod tests {
 			base_number: *h1.number(),
 		};
 
-		let unknown_catch_up =
-			|| voter::CommunicationIn::CatchUp(unknown_catch_up.clone(), voter::Callback::Blank);
+		let unknown_catch_up = || voter::CommunicationIn::CatchUp(unknown_catch_up.clone(), voter::Callback::Blank);
 
 		let res = blocking_message_on_dependencies(unknown_catch_up(), |chain_state| {
 			chain_state.import_header(h1);
@@ -870,8 +871,7 @@ mod tests {
 			base_number: *h1.number(),
 		};
 
-		let unknown_catch_up =
-			|| voter::CommunicationIn::CatchUp(unknown_catch_up.clone(), voter::Callback::Blank);
+		let unknown_catch_up = || voter::CommunicationIn::CatchUp(unknown_catch_up.clone(), voter::Callback::Blank);
 
 		let res = message_all_dependencies_satisfied(unknown_catch_up(), |chain_state| {
 			chain_state.import_header(h1);
@@ -910,14 +910,19 @@ mod tests {
 			target_hash: h1.hash(),
 			target_number: 5,
 			precommits: vec![
-				Precommit { target_hash: h2.hash(), target_number: 6 },
-				Precommit { target_hash: h3.hash(), target_number: 7 },
+				Precommit {
+					target_hash: h2.hash(),
+					target_number: 6,
+				},
+				Precommit {
+					target_hash: h3.hash(),
+					target_number: 7,
+				},
 			],
 			auth_data: Vec::new(), // not used
 		};
 
-		let unknown_commit =
-			|| voter::CommunicationIn::Commit(0, unknown_commit.clone(), voter::Callback::Blank);
+		let unknown_commit = || voter::CommunicationIn::Commit(0, unknown_commit.clone(), voter::Callback::Blank);
 
 		// we send the commit message and spawn the until_imported stream
 		global_tx.unbounded_send(unknown_commit()).unwrap();
@@ -930,10 +935,10 @@ mod tests {
 			let block_sync_requests = block_sync_requester.requests.lock();
 
 			// we request blocks targeted by the precommits that aren't imported
-			if block_sync_requests.contains(&(h2.hash(), *h2.number())) &&
-				block_sync_requests.contains(&(h3.hash(), *h3.number()))
+			if block_sync_requests.contains(&(h2.hash(), *h2.number()))
+				&& block_sync_requests.contains(&(h3.hash(), *h3.number()))
 			{
-				return Poll::Ready(())
+				return Poll::Ready(());
 			}
 
 			Poll::Pending
@@ -944,7 +949,7 @@ mod tests {
 		let timeout = Delay::new(Duration::from_secs(60));
 		let test = future::select(assert, timeout)
 			.map(|res| match res {
-				Either::Left(_) => {},
+				Either::Left(_) => {}
 				Either::Right(_) => panic!("timed out waiting for block sync request"),
 			})
 			.map(drop);
@@ -963,8 +968,7 @@ mod tests {
 			base_number: *header.number(),
 		};
 
-		let catch_up =
-			voter::CommunicationIn::CatchUp(unknown_catch_up.clone(), voter::Callback::Blank);
+		let catch_up = voter::CommunicationIn::CatchUp(unknown_catch_up.clone(), voter::Callback::Blank);
 
 		Arc::new(Mutex::new(Some(catch_up)))
 	}
@@ -973,10 +977,15 @@ mod tests {
 	fn block_global_message_wait_completed_return_when_all_awaited() {
 		let msg_inner = test_catch_up();
 
-		let waiting_block_1 =
-			BlockGlobalMessage::<Block> { inner: msg_inner.clone(), target_number: 1 };
+		let waiting_block_1 = BlockGlobalMessage::<Block> {
+			inner: msg_inner.clone(),
+			target_number: 1,
+		};
 
-		let waiting_block_2 = BlockGlobalMessage::<Block> { inner: msg_inner, target_number: 2 };
+		let waiting_block_2 = BlockGlobalMessage::<Block> {
+			inner: msg_inner,
+			target_number: 2,
+		};
 
 		// waiting_block_2 is still waiting for block 2, thus this should return `None`.
 		assert!(waiting_block_1.wait_completed(1).is_none());
@@ -990,10 +999,15 @@ mod tests {
 	fn block_global_message_wait_completed_return_none_on_block_number_missmatch() {
 		let msg_inner = test_catch_up();
 
-		let waiting_block_1 =
-			BlockGlobalMessage::<Block> { inner: msg_inner.clone(), target_number: 1 };
+		let waiting_block_1 = BlockGlobalMessage::<Block> {
+			inner: msg_inner.clone(),
+			target_number: 1,
+		};
 
-		let waiting_block_2 = BlockGlobalMessage::<Block> { inner: msg_inner, target_number: 2 };
+		let waiting_block_2 = BlockGlobalMessage::<Block> {
+			inner: msg_inner,
+			target_number: 2,
+		};
 
 		// Calling wait_completed with wrong block number should yield None.
 		assert!(waiting_block_1.wait_completed(1234).is_none());

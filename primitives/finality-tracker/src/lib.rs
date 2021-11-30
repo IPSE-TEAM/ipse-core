@@ -51,7 +51,10 @@ pub struct InherentDataProvider<F, N> {
 #[cfg(feature = "std")]
 impl<F, N> InherentDataProvider<F, N> {
 	pub fn new(final_oracle: F) -> Self {
-		InherentDataProvider { inner: final_oracle, _marker: Default::default() }
+		InherentDataProvider {
+			inner: final_oracle,
+			_marker: Default::default(),
+		}
 	}
 }
 

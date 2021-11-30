@@ -40,7 +40,10 @@ mod tests {
 					($name::from(1_000), "0x3e8"),
 					($name::from(100_000), "0x186a0"),
 					($name::from(u64::max_value()), "0xffffffffffffffff"),
-					($name::from(u64::max_value()) + $name::from(1), "0x10000000000000000"),
+					(
+						$name::from(u64::max_value()) + $name::from(1),
+						"0x10000000000000000",
+					),
 				];
 
 				for (number, expected) in tests {
@@ -63,13 +66,11 @@ mod tests {
 	#[test]
 	fn test_u256_codec() {
 		let res1 = vec![
-			120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0,
+			120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		];
 		let res2 = vec![
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-			0xff, 0xff, 0xff, 0xff,
 		];
 
 		assert_eq!(U256::from(120).encode(), res1);
@@ -84,10 +85,10 @@ mod tests {
 			ser::to_string_pretty(&!U256::zero()),
 			"\"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\""
 		);
-		assert!(ser::from_str::<U256>(
-			"\"0x1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\""
-		)
-		.unwrap_err()
-		.is_data());
+		assert!(
+			ser::from_str::<U256>("\"0x1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"")
+				.unwrap_err()
+				.is_data()
+		);
 	}
 }

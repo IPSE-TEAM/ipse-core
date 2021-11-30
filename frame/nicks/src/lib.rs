@@ -49,8 +49,7 @@ use frame_system::ensure_signed;
 use sp_runtime::traits::{StaticLookup, Zero};
 use sp_std::prelude::*;
 
-type BalanceOf<T> =
-	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 type NegativeImbalanceOf<T> =
 	<<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::NegativeImbalance;
 
@@ -245,8 +244,7 @@ mod tests {
 	use super::*;
 
 	use frame_support::{
-		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types,
-		weights::Weight,
+		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types, weights::Weight,
 	};
 	use frame_system::EnsureSignedBy;
 	use sp_core::H256;
@@ -330,9 +328,11 @@ mod tests {
 
 	fn new_test_ext() -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-		pallet_balances::GenesisConfig::<Test> { balances: vec![(1, 10), (2, 10)] }
-			.assimilate_storage(&mut t)
-			.unwrap();
+		pallet_balances::GenesisConfig::<Test> {
+			balances: vec![(1, 10), (2, 10)],
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 		t.into()
 	}
 
@@ -357,7 +357,11 @@ mod tests {
 
 			assert_ok!(Nicks::set_name(Origin::signed(2), b"Dave".to_vec()));
 			assert_eq!(Balances::reserved_balance(2), 2);
-			assert_ok!(Nicks::force_name(Origin::signed(1), 2, b"Dr. David Brubeck, III".to_vec()));
+			assert_ok!(Nicks::force_name(
+				Origin::signed(1),
+				2,
+				b"Dr. David Brubeck, III".to_vec()
+			));
 			assert_eq!(Balances::reserved_balance(2), 2);
 			assert_eq!(<NameOf<Test>>::get(2).unwrap(), (b"Dr. David Brubeck, III".to_vec(), 2));
 		});

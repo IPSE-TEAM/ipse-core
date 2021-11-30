@@ -42,7 +42,11 @@ pub struct TrackedMap<K, V> {
 
 impl<K, V> Default for TrackedMap<K, V> {
 	fn default() -> Self {
-		Self { index: Arc::new(HashMap::default().into()), bytes: 0.into(), length: 0.into() }
+		Self {
+			index: Arc::new(HashMap::default().into()),
+			bytes: 0.into(),
+			length: 0.into(),
+		}
 	}
 }
 
@@ -64,7 +68,9 @@ impl<K, V> TrackedMap<K, V> {
 
 	/// Lock map for read.
 	pub fn read<'a>(&'a self) -> TrackedMapReadAccess<'a, K, V> {
-		TrackedMapReadAccess { inner_guard: self.index.read() }
+		TrackedMapReadAccess {
+			inner_guard: self.index.read(),
+		}
 	}
 
 	/// Lock map for write.
@@ -88,7 +94,9 @@ where
 {
 	/// Lock map for read.
 	pub fn read<'a>(&'a self) -> TrackedMapReadAccess<'a, K, V> {
-		TrackedMapReadAccess { inner_guard: self.0.read() }
+		TrackedMapReadAccess {
+			inner_guard: self.0.read(),
+		}
 	}
 }
 

@@ -444,8 +444,7 @@ mod tests {
 	use super::*;
 
 	use frame_support::{
-		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types,
-		weights::Weight,
+		assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types, weights::Weight,
 	};
 	use frame_system::EnsureSignedBy;
 	use sp_core::H256;
@@ -541,11 +540,7 @@ mod tests {
 				BadOrigin
 			);
 			assert_noop!(
-				NodeAuthorization::add_well_known_node(
-					Origin::signed(1),
-					PeerId(vec![1, 2, 3]),
-					15
-				),
+				NodeAuthorization::add_well_known_node(Origin::signed(1), PeerId(vec![1, 2, 3]), 15),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
@@ -560,12 +555,7 @@ mod tests {
 			));
 			assert_eq!(
 				WellKnownNodes::get(),
-				BTreeSet::from_iter(vec![
-					test_node(10),
-					test_node(15),
-					test_node(20),
-					test_node(30)
-				])
+				BTreeSet::from_iter(vec![test_node(10), test_node(15), test_node(20), test_node(30)])
 			);
 			assert_eq!(Owners::<Test>::get(test_node(10)), 10);
 			assert_eq!(Owners::<Test>::get(test_node(20)), 20);
@@ -598,7 +588,10 @@ mod tests {
 			AdditionalConnections::insert(test_node(20), BTreeSet::from_iter(vec![test_node(40)]));
 			assert!(AdditionalConnections::contains_key(test_node(20)));
 
-			assert_ok!(NodeAuthorization::remove_well_known_node(Origin::signed(2), test_node(20)));
+			assert_ok!(NodeAuthorization::remove_well_known_node(
+				Origin::signed(2),
+				test_node(20)
+			));
 			assert_eq!(
 				WellKnownNodes::get(),
 				BTreeSet::from_iter(vec![test_node(10), test_node(30)])
@@ -612,27 +605,15 @@ mod tests {
 	fn swap_well_known_node_works() {
 		new_test_ext().execute_with(|| {
 			assert_noop!(
-				NodeAuthorization::swap_well_known_node(
-					Origin::signed(4),
-					test_node(20),
-					test_node(5)
-				),
+				NodeAuthorization::swap_well_known_node(Origin::signed(4), test_node(20), test_node(5)),
 				BadOrigin
 			);
 			assert_noop!(
-				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3),
-					PeerId(vec![1, 2, 3]),
-					test_node(20)
-				),
+				NodeAuthorization::swap_well_known_node(Origin::signed(3), PeerId(vec![1, 2, 3]), test_node(20)),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
-				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3),
-					test_node(20),
-					PeerId(vec![1, 2, 3])
-				),
+				NodeAuthorization::swap_well_known_node(Origin::signed(3), test_node(20), PeerId(vec![1, 2, 3])),
 				Error::<Test>::PeerIdTooLong
 			);
 
@@ -647,19 +628,11 @@ mod tests {
 			);
 
 			assert_noop!(
-				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3),
-					test_node(15),
-					test_node(5)
-				),
+				NodeAuthorization::swap_well_known_node(Origin::signed(3), test_node(15), test_node(5)),
 				Error::<Test>::NotExist
 			);
 			assert_noop!(
-				NodeAuthorization::swap_well_known_node(
-					Origin::signed(3),
-					test_node(20),
-					test_node(30)
-				),
+				NodeAuthorization::swap_well_known_node(Origin::signed(3), test_node(20), test_node(30)),
 				Error::<Test>::AlreadyJoined
 			);
 
@@ -793,28 +766,16 @@ mod tests {
 	fn add_connections_works() {
 		new_test_ext().execute_with(|| {
 			assert_noop!(
-				NodeAuthorization::add_connections(
-					Origin::signed(15),
-					PeerId(vec![1, 2, 3]),
-					vec![test_node(5)]
-				),
+				NodeAuthorization::add_connections(Origin::signed(15), PeerId(vec![1, 2, 3]), vec![test_node(5)]),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
-				NodeAuthorization::add_connections(
-					Origin::signed(15),
-					test_node(15),
-					vec![test_node(5)]
-				),
+				NodeAuthorization::add_connections(Origin::signed(15), test_node(15), vec![test_node(5)]),
 				Error::<Test>::NotClaimed
 			);
 
 			assert_noop!(
-				NodeAuthorization::add_connections(
-					Origin::signed(15),
-					test_node(20),
-					vec![test_node(5)]
-				),
+				NodeAuthorization::add_connections(Origin::signed(15), test_node(20), vec![test_node(5)]),
 				Error::<Test>::NotOwner
 			);
 
@@ -834,28 +795,16 @@ mod tests {
 	fn remove_connections_works() {
 		new_test_ext().execute_with(|| {
 			assert_noop!(
-				NodeAuthorization::remove_connections(
-					Origin::signed(15),
-					PeerId(vec![1, 2, 3]),
-					vec![test_node(5)]
-				),
+				NodeAuthorization::remove_connections(Origin::signed(15), PeerId(vec![1, 2, 3]), vec![test_node(5)]),
 				Error::<Test>::PeerIdTooLong
 			);
 			assert_noop!(
-				NodeAuthorization::remove_connections(
-					Origin::signed(15),
-					test_node(15),
-					vec![test_node(5)]
-				),
+				NodeAuthorization::remove_connections(Origin::signed(15), test_node(15), vec![test_node(5)]),
 				Error::<Test>::NotClaimed
 			);
 
 			assert_noop!(
-				NodeAuthorization::remove_connections(
-					Origin::signed(15),
-					test_node(20),
-					vec![test_node(5)]
-				),
+				NodeAuthorization::remove_connections(Origin::signed(15), test_node(20), vec![test_node(5)]),
 				Error::<Test>::NotOwner
 			);
 

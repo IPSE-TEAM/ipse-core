@@ -37,7 +37,10 @@ pub struct LruHashSet<T: Hash + Eq> {
 impl<T: Hash + Eq> LruHashSet<T> {
 	/// Create a new `LruHashSet` with the given (exclusive) limit.
 	pub fn new(limit: NonZeroUsize) -> Self {
-		Self { set: LinkedHashSet::new(), limit }
+		Self {
+			set: LinkedHashSet::new(),
+			limit,
+		}
 	}
 
 	/// Insert element into the set.
@@ -50,7 +53,7 @@ impl<T: Hash + Eq> LruHashSet<T> {
 			if self.set.len() == usize::from(self.limit) {
 				self.set.pop_front(); // remove oldest entry
 			}
-			return true
+			return true;
 		}
 		false
 	}

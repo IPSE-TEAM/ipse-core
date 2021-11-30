@@ -82,10 +82,7 @@ pub trait FilterUncle<Header, Author> {
 
 	/// Do additional filtering on a seal-checked uncle block, with the accumulated
 	/// filter.
-	fn filter_uncle(
-		header: &Header,
-		acc: &mut Self::Accumulator,
-	) -> Result<Option<Author>, &'static str>;
+	fn filter_uncle(header: &Header, acc: &mut Self::Accumulator) -> Result<Option<Author>, &'static str>;
 }
 
 impl<H, A> FilterUncle<H, A> for () {
@@ -123,16 +120,13 @@ where
 {
 	type Accumulator = BTreeSet<(Header::Number, Author)>;
 
-	fn filter_uncle(
-		header: &Header,
-		acc: &mut Self::Accumulator,
-	) -> Result<Option<Author>, &'static str> {
+	fn filter_uncle(header: &Header, acc: &mut Self::Accumulator) -> Result<Option<Author>, &'static str> {
 		let author = T::verify_seal(header)?;
 		let number = header.number();
 
 		if let Some(ref author) = author {
 			if !acc.insert((number.clone(), author.clone())) {
-				return Err("more than one uncle per number per author included")
+				return Err("more than one uncle per number per author included");
 			}
 		}
 
@@ -227,7 +221,7 @@ impl<T: Trait> Module<T> {
 	pub fn author() -> T::AccountId {
 		// Check the memoized storage value.
 		if let Some(author) = <Self as Store>::Author::get() {
-			return author
+			return author;
 		}
 
 		let digest = <frame_system::Module<T>>::digest();
@@ -256,10 +250,7 @@ impl<T: Trait> Module<T> {
 			let author = Self::verify_uncle(&uncle, prev_uncles, &mut acc)?;
 			let hash = uncle.hash();
 
-			T::EventHandler::note_uncle(
-				author.clone().unwrap_or_default(),
-				now - uncle.number().clone(),
-			);
+			T::EventHandler::note_uncle(author.clone().unwrap_or_default(), now - uncle.number().clone());
 			uncles.push(UncleEntryItem::Uncle(hash, author));
 		}
 
@@ -276,7 +267,11 @@ impl<T: Trait> Module<T> {
 
 		let (minimum_height, maximum_height) = {
 			let uncle_generations = T::UncleGenerations::get();
-			let min = if now >= uncle_generations { now - uncle_generations } else { Zero::zero() };
+			let min = if now >= uncle_generations {
+				now - uncle_generations
+			} else {
+				Zero::zero()
+			};
 
 			(min, now)
 		};
@@ -284,30 +279,30 @@ impl<T: Trait> Module<T> {
 		let hash = uncle.hash();
 
 		if uncle.number() < &One::one() {
-			return Err(Error::<T>::GenesisUncle.into())
+			return Err(Error::<T>::GenesisUncle.into());
 		}
 
 		if uncle.number() > &maximum_height {
-			return Err(Error::<T>::TooHighUncle.into())
+			return Err(Error::<T>::TooHighUncle.into());
 		}
 
 		{
 			let parent_number = uncle.number().clone() - One::one();
 			let parent_hash = <frame_system::Module<T>>::block_hash(&parent_number);
 			if &parent_hash != uncle.parent_hash() {
-				return Err(Error::<T>::InvalidUncleParent.into())
+				return Err(Error::<T>::InvalidUncleParent.into());
 			}
 		}
 
 		if uncle.number() < &minimum_height {
-			return Err(Error::<T>::OldUncle.into())
+			return Err(Error::<T>::OldUncle.into());
 		}
 
 		let duplicate = existing_uncles.into_iter().find(|h| **h == hash).is_some();
 		let in_chain = <frame_system::Module<T>>::block_hash(uncle.number()) == hash;
 
 		if duplicate || in_chain {
-			return Err(Error::<T>::UncleAlreadyIncluded.into())
+			return Err(Error::<T>::UncleAlreadyIncluded.into());
 		}
 
 		// check uncle validity.
@@ -356,12 +351,12 @@ impl<T: Trait> ProvideInherent for Module<T> {
 						existing_hashes.push(hash);
 
 						if set_uncles.len() == MAX_UNCLES {
-							break
+							break;
 						}
-					},
+					}
 					Err(_) => {
 						// skip this uncle
-					},
+					}
 				}
 			}
 		}
@@ -375,8 +370,9 @@ impl<T: Trait> ProvideInherent for Module<T> {
 
 	fn check_inherent(call: &Self::Call, _data: &InherentData) -> result::Result<(), Self::Error> {
 		match call {
-			Call::set_uncles(ref uncles) if uncles.len() > MAX_UNCLES =>
-				Err(InherentError::Uncles(Error::<T>::TooManyUncles.as_str().into())),
+			Call::set_uncles(ref uncles) if uncles.len() > MAX_UNCLES => {
+				Err(InherentError::Uncles(Error::<T>::TooManyUncles.as_str().into()))
+			}
 			_ => Ok(()),
 		}
 	}
@@ -461,7 +457,7 @@ mod tests {
 		{
 			for (id, data) in digests {
 				if id == TEST_ID {
-					return u64::decode(&mut &data[..]).ok()
+					return u64::decode(&mut &data[..]).ok();
 				}
 			}
 
@@ -487,10 +483,10 @@ mod tests {
 						Err(_) => return Err("wrong seal"),
 						Ok(a) => {
 							if a != author {
-								return Err("wrong author in seal")
+								return Err("wrong author in seal");
 							}
-							break
-						},
+							break;
+						}
 					}
 				}
 			}
@@ -598,10 +594,7 @@ mod tests {
 
 			// 2 of the same uncle at once
 			{
-				let uncle_a = seal_header(
-					create_header(3, canon_chain.canon_hash(2), [1; 32].into()),
-					author_a,
-				);
+				let uncle_a = seal_header(create_header(3, canon_chain.canon_hash(2), [1; 32].into()), author_a);
 				assert_eq!(
 					Authorship::verify_and_import_uncles(vec![uncle_a.clone(), uncle_a.clone()]),
 					Err(Error::<Test>::UncleAlreadyIncluded.into()),
@@ -610,10 +603,7 @@ mod tests {
 
 			// 2 of the same uncle at different times.
 			{
-				let uncle_a = seal_header(
-					create_header(3, canon_chain.canon_hash(2), [1; 32].into()),
-					author_a,
-				);
+				let uncle_a = seal_header(create_header(3, canon_chain.canon_hash(2), [1; 32].into()), author_a);
 
 				assert!(Authorship::verify_and_import_uncles(vec![uncle_a.clone()]).is_ok());
 
@@ -646,10 +636,7 @@ mod tests {
 			{
 				assert_eq!(System::block_number(), 8);
 
-				let gen_2 = seal_header(
-					create_header(2, canon_chain.canon_hash(1), [3; 32].into()),
-					author_a,
-				);
+				let gen_2 = seal_header(create_header(2, canon_chain.canon_hash(1), [3; 32].into()), author_a);
 
 				assert_eq!(
 					Authorship::verify_and_import_uncles(vec![gen_2]),
@@ -659,10 +646,7 @@ mod tests {
 
 			// siblings are also allowed
 			{
-				let other_8 = seal_header(
-					create_header(8, canon_chain.canon_hash(7), [1; 32].into()),
-					author_a,
-				);
+				let other_8 = seal_header(create_header(8, canon_chain.canon_hash(7), [1; 32].into()), author_a);
 
 				assert!(Authorship::verify_and_import_uncles(vec![other_8]).is_ok());
 			}
@@ -673,8 +657,7 @@ mod tests {
 	fn sets_author_lazily() {
 		new_test_ext().execute_with(|| {
 			let author = 42;
-			let mut header =
-				seal_header(create_header(1, Default::default(), [1; 32].into()), author);
+			let mut header = seal_header(create_header(1, Default::default(), [1; 32].into()), author);
 
 			header.digest_mut().pop(); // pop the seal off.
 			System::initialize(
@@ -700,10 +683,8 @@ mod tests {
 		let header_a1 = seal_header(create_header(1, Default::default(), [1; 32].into()), author_a);
 		let header_b1 = seal_header(create_header(1, Default::default(), [1; 32].into()), author_b);
 
-		let header_a2_1 =
-			seal_header(create_header(2, Default::default(), [1; 32].into()), author_a);
-		let header_a2_2 =
-			seal_header(create_header(2, Default::default(), [2; 32].into()), author_a);
+		let header_a2_1 = seal_header(create_header(2, Default::default(), [1; 32].into()), author_a);
+		let header_a2_2 = seal_header(create_header(2, Default::default(), [2; 32].into()), author_a);
 
 		let mut check_filter = move |uncle| Filter::filter_uncle(uncle, &mut acc);
 

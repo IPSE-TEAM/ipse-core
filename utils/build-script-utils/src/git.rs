@@ -23,9 +23,8 @@ use std::{env, fs, fs::File, io, io::Read, path::PathBuf};
 /// The file is searched from the `CARGO_MANIFEST_DIR` upwards. If the file can not be found,
 /// a warning is generated.
 pub fn rerun_if_git_head_changed() {
-	let mut manifest_dir = PathBuf::from(
-		env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` is always set by cargo."),
-	);
+	let mut manifest_dir =
+		PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` is always set by cargo."));
 	let manifest_dir_copy = manifest_dir.clone();
 
 	while manifest_dir.parent().is_some() {
@@ -33,16 +32,16 @@ pub fn rerun_if_git_head_changed() {
 			Err(err) => {
 				eprintln!("cargo:warning=Unable to read the Git repository: {}", err);
 
-				return
-			},
-			Ok(None) => {},
+				return;
+			}
+			Ok(None) => {}
 			Ok(Some(paths)) => {
 				for p in paths {
 					println!("cargo:rerun-if-changed={}", p.display());
 				}
 
-				return
-			},
+				return;
+			}
 		}
 
 		manifest_dir.pop();

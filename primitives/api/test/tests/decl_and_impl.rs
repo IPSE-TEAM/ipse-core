@@ -15,9 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use sp_api::{
-	decl_runtime_apis, impl_runtime_apis, mock_impl_runtime_apis, ApiExt, RuntimeApiInfo,
-};
+use sp_api::{decl_runtime_apis, impl_runtime_apis, mock_impl_runtime_apis, ApiExt, RuntimeApiInfo};
 
 use sp_runtime::{
 	generic::BlockId,
@@ -126,17 +124,12 @@ type TestClient = substrate_test_runtime_client::client::Client<
 fn test_client_side_function_signature() {
 	let _test: fn(&RuntimeApiImpl<Block, TestClient>, &BlockId<Block>, u64) -> Result<()> =
 		RuntimeApiImpl::<Block, TestClient>::test;
-	let _something_with_block: fn(
-		&RuntimeApiImpl<Block, TestClient>,
-		&BlockId<Block>,
-		Block,
-	) -> Result<Block> = RuntimeApiImpl::<Block, TestClient>::something_with_block;
+	let _something_with_block: fn(&RuntimeApiImpl<Block, TestClient>, &BlockId<Block>, Block) -> Result<Block> =
+		RuntimeApiImpl::<Block, TestClient>::something_with_block;
 
 	#[allow(deprecated)]
-	let _same_name_before_version_2: fn(
-		&RuntimeApiImpl<Block, TestClient>,
-		&BlockId<Block>,
-	) -> Result<String> = RuntimeApiImpl::<Block, TestClient>::same_name_before_version_2;
+	let _same_name_before_version_2: fn(&RuntimeApiImpl<Block, TestClient>, &BlockId<Block>) -> Result<String> =
+		RuntimeApiImpl::<Block, TestClient>::same_name_before_version_2;
 }
 
 #[test]

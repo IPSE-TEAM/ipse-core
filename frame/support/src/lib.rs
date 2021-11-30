@@ -71,12 +71,12 @@ pub mod weights;
 
 pub use self::dispatch::{Callable, IsSubType, Parameter};
 pub use self::hash::{
-	Blake2_128, Blake2_128Concat, Blake2_256, Hashable, Identity, ReversibleStorageHasher,
-	StorageHasher, Twox128, Twox256, Twox64Concat,
+	Blake2_128, Blake2_128Concat, Blake2_256, Hashable, Identity, ReversibleStorageHasher, StorageHasher, Twox128,
+	Twox256, Twox64Concat,
 };
 pub use self::storage::{
-	migration, IterableStorageDoubleMap, IterableStorageMap, StorageDoubleMap, StorageMap,
-	StoragePrefixedMap, StorageValue,
+	migration, IterableStorageDoubleMap, IterableStorageMap, StorageDoubleMap, StorageMap, StoragePrefixedMap,
+	StorageValue,
 };
 pub use sp_runtime::{self, print, traits::Printable, ConsensusEngineId};
 
@@ -275,7 +275,7 @@ pub use frame_support_procedural::{construct_runtime, decl_storage, transactiona
 #[macro_export]
 macro_rules! fail {
 	( $y:expr ) => {{
-		return Err($y.into())
+		return Err($y.into());
 		}};
 }
 
@@ -373,8 +373,8 @@ mod tests {
 	use super::*;
 	use codec::{Codec, EncodeLike};
 	use frame_metadata::{
-		DecodeDifferent, DefaultByteGetter, StorageEntryMetadata, StorageEntryModifier,
-		StorageEntryType, StorageHasher, StorageMetadata,
+		DecodeDifferent, DefaultByteGetter, StorageEntryMetadata, StorageEntryModifier, StorageEntryType,
+		StorageHasher, StorageMetadata,
 	};
 	use sp_io::TestExternalities;
 	use sp_std::{marker::PhantomData, result};
@@ -703,9 +703,7 @@ mod tests {
 					value: DecodeDifferent::Encode("u64"),
 					unused: false,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructData(
-					PhantomData::<Test>,
-				))),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructData(PhantomData::<Test>))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 			StorageEntryMetadata {
@@ -717,9 +715,9 @@ mod tests {
 					value: DecodeDifferent::Encode("u32"),
 					unused: false,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(
-					&__GetByteStructOptionLinkedMap(PhantomData::<Test>),
-				)),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructOptionLinkedMap(
+					PhantomData::<Test>,
+				))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 			StorageEntryMetadata {
@@ -731,9 +729,7 @@ mod tests {
 					value: DecodeDifferent::Encode("T::BlockNumber"),
 					unused: false,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericData(
-					PhantomData::<Test>,
-				))),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericData(PhantomData::<Test>))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 			StorageEntryMetadata {
@@ -745,9 +741,7 @@ mod tests {
 					value: DecodeDifferent::Encode("T::BlockNumber"),
 					unused: false,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericData2(
-					PhantomData::<Test>,
-				))),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericData2(PhantomData::<Test>))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 			StorageEntryMetadata {
@@ -760,9 +754,7 @@ mod tests {
 					value: DecodeDifferent::Encode("u64"),
 					key2_hasher: StorageHasher::Blake2_128Concat,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructDataDM(
-					PhantomData::<Test>,
-				))),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructDataDM(PhantomData::<Test>))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 			StorageEntryMetadata {
@@ -775,9 +767,7 @@ mod tests {
 					value: DecodeDifferent::Encode("T::BlockNumber"),
 					key2_hasher: StorageHasher::Identity,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericDataDM(
-					PhantomData::<Test>,
-				))),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericDataDM(PhantomData::<Test>))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 			StorageEntryMetadata {
@@ -790,9 +780,9 @@ mod tests {
 					value: DecodeDifferent::Encode("T::BlockNumber"),
 					key2_hasher: StorageHasher::Twox64Concat,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(
-					&__GetByteStructGenericData2DM(PhantomData::<Test>),
-				)),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericData2DM(
+					PhantomData::<Test>,
+				))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 			StorageEntryMetadata {
@@ -805,9 +795,9 @@ mod tests {
 					value: DecodeDifferent::Encode("Vec<u32>"),
 					key2_hasher: StorageHasher::Blake2_128Concat,
 				},
-				default: DecodeDifferent::Encode(DefaultByteGetter(
-					&__GetByteStructGenericData2DM(PhantomData::<Test>),
-				)),
+				default: DecodeDifferent::Encode(DefaultByteGetter(&__GetByteStructGenericData2DM(
+					PhantomData::<Test>,
+				))),
 				documentation: DecodeDifferent::Encode(&[]),
 			},
 		]),

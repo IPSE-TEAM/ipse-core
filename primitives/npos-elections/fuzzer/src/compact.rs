@@ -24,8 +24,7 @@ fn main() {
 				// The reencoded value should definitely be decodable (if unwrap() fails that is a
 				// valid panic/finding for the fuzzer):
 				let decoded2: InnerTestSolutionCompact =
-					<InnerTestSolutionCompact as codec::Decode>::decode(&mut reencoded.as_slice())
-						.unwrap();
+					<InnerTestSolutionCompact as codec::Decode>::decode(&mut reencoded.as_slice()).unwrap();
 				// And it should be equal to the original decoded object (resulting from directly
 				// decoding fuzzer_data):
 				assert_eq!(decoded, decoded2);

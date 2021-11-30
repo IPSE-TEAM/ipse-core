@@ -53,13 +53,12 @@ impl BuilderDef {
 				is_generic |= line.is_generic;
 
 				data = Some(match &line.storage_type {
-					StorageLineTypeDef::Simple(_) if line.is_option =>
-						quote_spanned!(builder.span() =>
-							// NOTE: the type of `data` is specified when used later in the code
-							let builder: fn(&Self) -> _ = #builder;
-							let data = builder(self);
-							let data = Option::as_ref(&data);
-						),
+					StorageLineTypeDef::Simple(_) if line.is_option => quote_spanned!(builder.span() =>
+						// NOTE: the type of `data` is specified when used later in the code
+						let builder: fn(&Self) -> _ = #builder;
+						let data = builder(self);
+						let data = Option::as_ref(&data);
+					),
 					_ => quote_spanned!(builder.span() =>
 						// NOTE: the type of `data` is specified when used later in the code
 						let builder: fn(&Self) -> _ = #builder;
@@ -70,8 +69,7 @@ impl BuilderDef {
 				is_generic |= line.is_generic;
 
 				data = Some(match &line.storage_type {
-					StorageLineTypeDef::Simple(_) if line.is_option =>
-						quote!( let data = Some(&self.#config); ),
+					StorageLineTypeDef::Simple(_) if line.is_option => quote!( let data = Some(&self.#config); ),
 					_ => quote!( let data = &self.#config; ),
 				});
 			};
@@ -86,14 +84,14 @@ impl BuilderDef {
 								<#storage_struct as #scrate::#storage_trait>::put::<&#value_type>(v);
 							}
 						}}
-					},
+					}
 					StorageLineTypeDef::Simple(_) if !line.is_option => {
 						quote! {{
 							#data
 							let v: &#value_type = data;
 							<#storage_struct as #scrate::#storage_trait>::put::<&#value_type>(v);
 						}}
-					},
+					}
 					StorageLineTypeDef::Simple(_) => unreachable!(),
 					StorageLineTypeDef::Map(map) => {
 						let key = &map.key;
@@ -106,7 +104,7 @@ impl BuilderDef {
 								>(k, v);
 							});
 						}}
-					},
+					}
 					StorageLineTypeDef::DoubleMap(map) => {
 						let key1 = &map.key1;
 						let key2 = &map.key2;
@@ -119,7 +117,7 @@ impl BuilderDef {
 								>(k1, k2, v);
 							});
 						}}
-					},
+					}
 				});
 			}
 		}

@@ -32,9 +32,7 @@ fn test_leaves_with_complex_block_tree() {
 fn test_blockchain_query_by_number_gets_canonical() {
 	let backend = Arc::new(TestBackend::new());
 
-	substrate_test_runtime_client::trait_tests::test_blockchain_query_by_number_gets_canonical(
-		backend,
-	);
+	substrate_test_runtime_client::trait_tests::test_blockchain_query_by_number_gets_canonical(backend);
 }
 
 #[test]

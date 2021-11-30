@@ -21,10 +21,7 @@
 //! _also_ provides a constant factor approximation of the Maximin problem, similar to that of the
 //! MMS algorithm.
 
-use crate::{
-	balance, setup_inputs, CandidatePtr, ElectionResult, ExtendedBalance, IdentifierT, VoteWeight,
-	Voter,
-};
+use crate::{balance, setup_inputs, CandidatePtr, ElectionResult, ExtendedBalance, IdentifierT, VoteWeight, Voter};
 use sp_arithmetic::{traits::Bounded, InnerOf, PerThing, Rational128};
 use sp_std::{prelude::*, rc::Rc};
 
@@ -65,13 +62,18 @@ where
 				balance(&mut voters, iterations, tolerance);
 			}
 		} else {
-			break
+			break;
 		}
 	}
 
-	let mut assignments =
-		voters.into_iter().filter_map(|v| v.into_assignment()).collect::<Vec<_>>();
-	let _ = assignments.iter_mut().map(|a| a.try_normalize()).collect::<Result<(), _>>()?;
+	let mut assignments = voters
+		.into_iter()
+		.filter_map(|v| v.into_assignment())
+		.collect::<Vec<_>>();
+	let _ = assignments
+		.iter_mut()
+		.map(|a| a.try_normalize())
+		.collect::<Result<(), _>>()?;
 	let winners = winners
 		.into_iter()
 		.map(|w_ptr| (w_ptr.borrow().who.clone(), w_ptr.borrow().backed_stake))
@@ -161,8 +163,10 @@ where
 			// `RationalInfinite` as the score type does not introduce significant overhead. Then we
 			// can switch the score type to `RationalInfinite` and ensure compatibility with any
 			// crazy token scale.
-			let score_n =
-				candidate.approval_stake.checked_mul(one).unwrap_or_else(|| Bounded::max_value());
+			let score_n = candidate
+				.approval_stake
+				.checked_mul(one)
+				.unwrap_or_else(|| Bounded::max_value());
 			candidate.score = Rational128::from(score_n, score_d);
 
 			// check if we have a new winner.
@@ -205,19 +209,19 @@ pub(crate) fn apply_elected<AccountId: IdentifierT>(
 			elected_backed_stake = elected_backed_stake.saturating_add(new_edge_weight);
 
 			// Iterate over all other edges.
-			for (_, edge) in
-				voter.edges.iter_mut().enumerate().filter(|(edge_index, edge_inner)| {
-					*edge_index != new_edge_index && edge_inner.weight > 0
-				}) {
+			for (_, edge) in voter
+				.edges
+				.iter_mut()
+				.enumerate()
+				.filter(|(edge_index, edge_inner)| *edge_index != new_edge_index && edge_inner.weight > 0)
+			{
 				let mut edge_candidate = edge.candidate.borrow_mut();
 				if edge_candidate.backed_stake > cutoff {
-					let stake_to_take =
-						edge.weight.saturating_mul(cutoff) / edge_candidate.backed_stake.max(1);
+					let stake_to_take = edge.weight.saturating_mul(cutoff) / edge_candidate.backed_stake.max(1);
 
 					// subtract this amount from this edge.
 					edge.weight = edge.weight.saturating_sub(stake_to_take);
-					edge_candidate.backed_stake =
-						edge_candidate.backed_stake.saturating_sub(stake_to_take);
+					edge_candidate.backed_stake = edge_candidate.backed_stake.saturating_sub(stake_to_take);
 
 					// inject it into the outer loop's edge.
 					elected_backed_stake = elected_backed_stake.saturating_add(stake_to_take);
@@ -251,8 +255,7 @@ mod tests {
 		let (candidates, mut voters) = setup_inputs(candidates, voters);
 
 		// Round 1
-		let winner =
-			calculate_max_score::<u32, Percent>(candidates.as_ref(), voters.as_ref()).unwrap();
+		let winner = calculate_max_score::<u32, Percent>(candidates.as_ref(), voters.as_ref()).unwrap();
 		assert_eq!(winner.borrow().who, 3);
 		assert_eq!(winner.borrow().score, 50u32.into());
 
@@ -283,8 +286,7 @@ mod tests {
 		balance(&mut voters, 10, 0);
 
 		// round 2
-		let winner =
-			calculate_max_score::<u32, Percent>(candidates.as_ref(), voters.as_ref()).unwrap();
+		let winner = calculate_max_score::<u32, Percent>(candidates.as_ref(), voters.as_ref()).unwrap();
 		assert_eq!(winner.borrow().who, 2);
 		assert_eq!(winner.borrow().score, 25u32.into());
 
@@ -359,14 +361,17 @@ mod tests {
 		assert_eq!(
 			assignments,
 			vec![
-				Assignment { who: 10u64, distribution: vec![(2, Perbill::one())] },
-				Assignment { who: 20, distribution: vec![(3, Perbill::one())] },
+				Assignment {
+					who: 10u64,
+					distribution: vec![(2, Perbill::one())]
+				},
+				Assignment {
+					who: 20,
+					distribution: vec![(3, Perbill::one())]
+				},
 				Assignment {
 					who: 30,
-					distribution: vec![
-						(2, Perbill::from_parts(666666666)),
-						(3, Perbill::from_parts(333333334)),
-					],
+					distribution: vec![(2, Perbill::from_parts(666666666)), (3, Perbill::from_parts(333333334)),],
 				},
 			]
 		)
@@ -385,22 +390,27 @@ mod tests {
 			(130, 1000, vec![61, 71]),
 		];
 
-		let ElectionResult { winners, assignments: _ } =
-			phragmms::<_, Perbill>(4, candidates, voters, Some((2, 0))).unwrap();
+		let ElectionResult {
+			winners,
+			assignments: _,
+		} = phragmms::<_, Perbill>(4, candidates, voters, Some((2, 0))).unwrap();
 		assert_eq!(winners, vec![(11, 3000), (31, 2000), (51, 1500), (61, 1500),]);
 	}
 
 	#[test]
 	fn large_balance_wont_overflow() {
 		let candidates = vec![1u32, 2, 3];
-		let mut voters =
-			(0..1000).map(|i| (10 + i, u64::max_value(), vec![1, 2, 3])).collect::<Vec<_>>();
+		let mut voters = (0..1000)
+			.map(|i| (10 + i, u64::max_value(), vec![1, 2, 3]))
+			.collect::<Vec<_>>();
 
 		// give a bit more to 1 and 3.
 		voters.push((2, u64::max_value(), vec![1, 3]));
 
-		let ElectionResult { winners, assignments: _ } =
-			phragmms::<_, Perbill>(2, candidates, voters, Some((2, 0))).unwrap();
+		let ElectionResult {
+			winners,
+			assignments: _,
+		} = phragmms::<_, Perbill>(2, candidates, voters, Some((2, 0))).unwrap();
 		assert_eq!(winners.into_iter().map(|(w, _)| w).collect::<Vec<_>>(), vec![1u32, 3]);
 	}
 }

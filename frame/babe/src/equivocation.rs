@@ -37,8 +37,8 @@
 use frame_support::{debug, traits::KeyOwnerProofSystem};
 use sp_consensus_babe::{EquivocationProof, SlotNumber};
 use sp_runtime::transaction_validity::{
-	InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity,
-	TransactionValidityError, ValidTransaction,
+	InvalidTransaction, TransactionPriority, TransactionSource, TransactionValidity, TransactionValidityError,
+	ValidTransaction,
 };
 use sp_runtime::{DispatchResult, Perbill};
 use sp_staking::{
@@ -108,7 +108,9 @@ pub struct EquivocationHandler<I, R> {
 
 impl<I, R> Default for EquivocationHandler<I, R> {
 	fn default() -> Self {
-		Self { _phantom: Default::default() }
+		Self {
+			_phantom: Default::default(),
+		}
 	}
 }
 
@@ -129,11 +131,7 @@ where
 	T: Trait + pallet_authorship::Trait + frame_system::offchain::SendTransactionTypes<Call<T>>,
 	// A system for reporting offences after valid equivocation reports are
 	// processed.
-	R: ReportOffence<
-		T::AccountId,
-		T::KeyOwnerIdentification,
-		BabeEquivocationOffence<T::KeyOwnerIdentification>,
-	>,
+	R: ReportOffence<T::AccountId, T::KeyOwnerIdentification, BabeEquivocationOffence<T::KeyOwnerIdentification>>,
 {
 	fn report_offence(
 		reporters: Vec<T::AccountId>,
@@ -176,15 +174,15 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 		if let Call::report_equivocation_unsigned(equivocation_proof, _) = call {
 			// discard equivocation report not coming from the local node
 			match source {
-				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ },
+				TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
 				_ => {
 					debug::warn!(
 						target: "babe",
 						"rejecting unsigned report equivocation transaction because it is not local/in-block."
 					);
 
-					return InvalidTransaction::Call.into()
-				},
+					return InvalidTransaction::Call.into();
+				}
 			}
 
 			ValidTransaction::with_tag_prefix("BabeEquivocation")
@@ -210,10 +208,8 @@ impl<T: Trait> frame_support::unsigned::ValidateUnsigned for Module<T> {
 
 			// check if the offence has already been reported,
 			// and if so then we can discard the report.
-			let is_known_offence = T::HandleEquivocation::is_known_offence(
-				&[offender],
-				&equivocation_proof.slot_number,
-			);
+			let is_known_offence =
+				T::HandleEquivocation::is_known_offence(&[offender], &equivocation_proof.slot_number);
 
 			if is_known_offence {
 				Err(InvalidTransaction::Stale.into())
@@ -240,9 +236,7 @@ pub struct BabeEquivocationOffence<FullIdentification> {
 	pub offender: FullIdentification,
 }
 
-impl<FullIdentification: Clone> Offence<FullIdentification>
-	for BabeEquivocationOffence<FullIdentification>
-{
+impl<FullIdentification: Clone> Offence<FullIdentification> for BabeEquivocationOffence<FullIdentification> {
 	const ID: Kind = *b"babe:equivocatio";
 	type TimeSlot = SlotNumber;
 

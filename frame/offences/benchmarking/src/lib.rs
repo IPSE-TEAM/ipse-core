@@ -42,8 +42,8 @@ use pallet_offences::{Module as Offences, Trait as OffencesTrait};
 use pallet_session::historical::{IdentificationTuple, Trait as HistoricalTrait};
 use pallet_session::{SessionManager, Trait as SessionTrait};
 use pallet_staking::{
-	ElectionStatus, Event as StakingEvent, Exposure, IndividualExposure, Module as Staking,
-	RewardDestination, Trait as StakingTrait, ValidatorPrefs, MAX_NOMINATIONS,
+	ElectionStatus, Event as StakingEvent, Exposure, IndividualExposure, Module as Staking, RewardDestination,
+	Trait as StakingTrait, ValidatorPrefs, MAX_NOMINATIONS,
 };
 
 const SEED: u32 = 0;
@@ -56,13 +56,7 @@ const MAX_DEFERRED_OFFENCES: u32 = 100;
 pub struct Module<T: Trait>(Offences<T>);
 
 pub trait Trait:
-	SessionTrait
-	+ StakingTrait
-	+ OffencesTrait
-	+ ImOnlineTrait
-	+ HistoricalTrait
-	+ BalancesTrait
-	+ IdTupleConvert<Self>
+	SessionTrait + StakingTrait + OffencesTrait + ImOnlineTrait + HistoricalTrait + BalancesTrait + IdTupleConvert<Self>
 {
 }
 
@@ -83,8 +77,7 @@ where
 }
 
 type LookupSourceOf<T> = <<T as SystemTrait>::Lookup as StaticLookup>::Source;
-type BalanceOf<T> =
-	<<T as StakingTrait>::Currency as Currency<<T as SystemTrait>::AccountId>>::Balance;
+type BalanceOf<T> = <<T as StakingTrait>::Currency as Currency<<T as SystemTrait>::AccountId>>::Balance;
 
 struct Offender<T: Trait> {
 	pub controller: T::AccountId,
@@ -113,19 +106,18 @@ fn create_offender<T: Trait>(n: u32, nominators: u32) -> Result<Offender<T>, &'s
 		reward_destination.clone(),
 	)?;
 
-	let validator_prefs = ValidatorPrefs { commission: Perbill::from_percent(50) };
+	let validator_prefs = ValidatorPrefs {
+		commission: Perbill::from_percent(50),
+	};
 	Staking::<T>::validate(RawOrigin::Signed(controller.clone()).into(), validator_prefs)?;
 
 	let mut individual_exposures = vec![];
 	let mut nominator_stashes = vec![];
 	// Create n nominators
 	for i in 0..nominators {
-		let nominator_stash: T::AccountId =
-			account("nominator stash", n * MAX_NOMINATORS + i, SEED);
-		let nominator_controller: T::AccountId =
-			account("nominator controller", n * MAX_NOMINATORS + i, SEED);
-		let nominator_controller_lookup: LookupSourceOf<T> =
-			T::Lookup::unlookup(nominator_controller.clone());
+		let nominator_stash: T::AccountId = account("nominator stash", n * MAX_NOMINATORS + i, SEED);
+		let nominator_controller: T::AccountId = account("nominator controller", n * MAX_NOMINATORS + i, SEED);
+		let nominator_controller_lookup: LookupSourceOf<T> = T::Lookup::unlookup(nominator_controller.clone());
 		T::Currency::make_free_balance_be(&nominator_stash, free_amount.into());
 
 		Staking::<T>::bond(
@@ -141,17 +133,26 @@ fn create_offender<T: Trait>(n: u32, nominators: u32) -> Result<Offender<T>, &'s
 			selected_validators,
 		)?;
 
-		individual_exposures
-			.push(IndividualExposure { who: nominator_stash.clone(), value: amount.clone() });
+		individual_exposures.push(IndividualExposure {
+			who: nominator_stash.clone(),
+			value: amount.clone(),
+		});
 		nominator_stashes.push(nominator_stash.clone());
 	}
 
-	let exposure =
-		Exposure { total: amount.clone() * n.into(), own: amount, others: individual_exposures };
+	let exposure = Exposure {
+		total: amount.clone() * n.into(),
+		own: amount,
+		others: individual_exposures,
+	};
 	let current_era = 0u32;
 	Staking::<T>::add_era_stakers(current_era.into(), stash.clone().into(), exposure);
 
-	Ok(Offender { controller, stash, nominator_stashes })
+	Ok(Offender {
+		controller,
+		stash,
+		nominator_stashes,
+	})
 }
 
 fn make_offenders<T: Trait>(

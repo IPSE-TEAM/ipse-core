@@ -23,8 +23,8 @@ use common::*;
 use honggfuzz::fuzz;
 use rand::{self, SeedableRng};
 use sp_npos_elections::{
-	assignment_ratio_to_staked_normalized, build_support_map, evaluate_support, is_score_better,
-	phragmms, to_without_backing, VoteWeight,
+	assignment_ratio_to_staked_normalized, build_support_map, evaluate_support, is_score_better, phragmms,
+	to_without_backing, VoteWeight,
 };
 use sp_runtime::Perbill;
 
@@ -53,34 +53,24 @@ fn main() {
 			let stake_of = |who: &AccountId| -> VoteWeight { *stake_of_tree.get(who).unwrap() };
 
 			let unbalanced_score = {
-				let staked = assignment_ratio_to_staked_normalized(
-					unbalanced.assignments.clone(),
-					&stake_of,
-				)
-				.unwrap();
+				let staked = assignment_ratio_to_staked_normalized(unbalanced.assignments.clone(), &stake_of).unwrap();
 				let winners = to_without_backing(unbalanced.winners.clone());
 				let support = build_support_map(winners.as_ref(), staked.as_ref()).unwrap();
 
 				let score = evaluate_support(&support);
 				if score[0] == 0 {
 					// such cases cannot be improved by balancing.
-					return
+					return;
 				}
 				score
 			};
 
-			let balanced = phragmms::<AccountId, sp_runtime::Perbill>(
-				to_elect,
-				candidates,
-				voters,
-				Some((iterations, 0)),
-			)
-			.unwrap();
+			let balanced =
+				phragmms::<AccountId, sp_runtime::Perbill>(to_elect, candidates, voters, Some((iterations, 0)))
+					.unwrap();
 
 			let balanced_score = {
-				let staked =
-					assignment_ratio_to_staked_normalized(balanced.assignments.clone(), &stake_of)
-						.unwrap();
+				let staked = assignment_ratio_to_staked_normalized(balanced.assignments.clone(), &stake_of).unwrap();
 				let winners = to_without_backing(balanced.winners);
 				let support = build_support_map(winners.as_ref(), staked.as_ref()).unwrap();
 
@@ -97,9 +87,9 @@ fn main() {
 			// The only guarantee of balancing is such that the first and third element of the score
 			// cannot decrease.
 			assert!(
-				balanced_score[0] >= unbalanced_score[0] &&
-					balanced_score[1] == unbalanced_score[1] &&
-					balanced_score[2] <= unbalanced_score[2]
+				balanced_score[0] >= unbalanced_score[0]
+					&& balanced_score[1] == unbalanced_score[1]
+					&& balanced_score[2] <= unbalanced_score[2]
 			);
 		});
 	}

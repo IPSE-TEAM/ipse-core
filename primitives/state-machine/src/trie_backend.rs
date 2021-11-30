@@ -40,7 +40,9 @@ where
 {
 	/// Create new trie-based backend.
 	pub fn new(storage: S, root: H::Out) -> Self {
-		TrieBackend { essence: TrieBackendEssence::new(storage, root) }
+		TrieBackend {
+			essence: TrieBackendEssence::new(storage, root),
+		}
 	}
 
 	/// Get backend essence reference.
@@ -87,11 +89,7 @@ where
 		self.essence.storage(key)
 	}
 
-	fn child_storage(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageValue>, Self::Error> {
+	fn child_storage(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageValue>, Self::Error> {
 		self.essence.child_storage(child_info, key)
 	}
 
@@ -99,11 +97,7 @@ where
 		self.essence.next_storage_key(key)
 	}
 
-	fn next_child_storage_key(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageKey>, Self::Error> {
+	fn next_child_storage_key(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageKey>, Self::Error> {
 		self.essence.next_child_storage_key(child_info, key)
 	}
 
@@ -119,12 +113,7 @@ where
 		self.essence.for_keys_in_child_storage(child_info, f)
 	}
 
-	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(
-		&self,
-		child_info: &ChildInfo,
-		prefix: &[u8],
-		f: F,
-	) {
+	fn for_child_keys_with_prefix<F: FnMut(&[u8])>(&self, child_info: &ChildInfo, prefix: &[u8], f: F) {
 		self.essence.for_child_keys_with_prefix(child_info, prefix, f)
 	}
 
@@ -145,7 +134,7 @@ where
 			Err(e) => {
 				debug!(target: "trie", "Error extracting trie values: {}", e);
 				Vec::new()
-			},
+			}
 		}
 	}
 
@@ -168,10 +157,7 @@ where
 			.unwrap_or_default()
 	}
 
-	fn storage_root<'a>(
-		&self,
-		delta: impl Iterator<Item = (&'a [u8], Option<&'a [u8]>)>,
-	) -> (H::Out, Self::Transaction)
+	fn storage_root<'a>(&self, delta: impl Iterator<Item = (&'a [u8], Option<&'a [u8]>)>) -> (H::Out, Self::Transaction)
 	where
 		H::Out: Ord,
 	{
@@ -211,18 +197,13 @@ where
 			Err(e) => {
 				warn!(target: "trie", "Failed to read child storage root: {}", e);
 				default_root.clone()
-			},
+			}
 		};
 
 		{
 			let mut eph = Ephemeral::new(self.essence.backend_storage(), &mut write_overlay);
 
-			match child_delta_trie_root::<Layout<H>, _, _, _, _, _, _>(
-				child_info.keyspace(),
-				&mut eph,
-				root,
-				delta,
-			) {
+			match child_delta_trie_root::<Layout<H>, _, _, _, _, _, _>(child_info.keyspace(), &mut eph, root, delta) {
 				Ok(ret) => root = ret,
 				Err(e) => warn!(target: "trie", "Failed to write to trie: {}", e),
 			}
@@ -301,7 +282,9 @@ pub mod tests {
 	fn read_from_child_storage_returns_some() {
 		let test_trie = test_trie();
 		assert_eq!(
-			test_trie.child_storage(&ChildInfo::new_default(CHILD_KEY_1), b"value3").unwrap(),
+			test_trie
+				.child_storage(&ChildInfo::new_default(CHILD_KEY_1), b"value3")
+				.unwrap(),
 			Some(vec![142u8]),
 		);
 	}
@@ -338,8 +321,7 @@ pub mod tests {
 
 	#[test]
 	fn storage_root_transaction_is_non_empty() {
-		let (new_root, mut tx) =
-			test_trie().storage_root(iter::once((&b"new-key"[..], Some(&b"new-value"[..]))));
+		let (new_root, mut tx) = test_trie().storage_root(iter::once((&b"new-key"[..], Some(&b"new-value"[..]))));
 		assert!(!tx.drain().is_empty());
 		assert!(new_root != test_trie().storage_root(iter::empty()).0);
 	}

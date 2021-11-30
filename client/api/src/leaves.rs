@@ -74,7 +74,11 @@ where
 {
 	/// Construct a new, blank leaf set.
 	pub fn new() -> Self {
-		Self { storage: BTreeMap::new(), pending_added: Vec::new(), pending_removed: Vec::new() }
+		Self {
+			storage: BTreeMap::new(),
+			pending_added: Vec::new(),
+			pending_removed: Vec::new(),
+		}
 	}
 
 	/// Read the leaf list from the DB, using given prefix for keys.
@@ -90,10 +94,14 @@ where
 				for (number, hashes) in vals.into_iter() {
 					storage.insert(Reverse(number), hashes);
 				}
-			},
-			None => {},
+			}
+			None => {}
 		}
-		Ok(Self { storage, pending_added: Vec::new(), pending_removed: Vec::new() })
+		Ok(Self {
+			storage,
+			pending_added: Vec::new(),
+			pending_removed: Vec::new(),
+		})
 	}
 
 	/// update the leaf list on import. returns a displaced leaf if there was one.
@@ -107,7 +115,10 @@ where
 				self.pending_removed.push(parent_hash.clone());
 				Some(ImportDisplaced {
 					new_hash: hash.clone(),
-					displaced: LeafSetItem { hash: parent_hash, number: new_number },
+					displaced: LeafSetItem {
+						hash: parent_hash,
+						number: new_number,
+					},
 				})
 			} else {
 				None
@@ -130,13 +141,16 @@ where
 	/// will be pruned soon afterwards anyway.
 	pub fn finalize_height(&mut self, number: N) -> FinalizationDisplaced<H, N> {
 		let boundary = if number == N::zero() {
-			return FinalizationDisplaced { leaves: BTreeMap::new() }
+			return FinalizationDisplaced {
+				leaves: BTreeMap::new(),
+			};
 		} else {
 			number - N::one()
 		};
 
 		let below_boundary = self.storage.split_off(&Reverse(boundary));
-		self.pending_removed.extend(below_boundary.values().flat_map(|h| h.iter()).cloned());
+		self.pending_removed
+			.extend(below_boundary.values().flat_map(|h| h.iter()).cloned());
 		FinalizationDisplaced { leaves: below_boundary }
 	}
 
@@ -171,8 +185,10 @@ where
 		}
 
 		let best_number = Reverse(best_number);
-		let leaves_contains_best =
-			self.storage.get(&best_number).map_or(false, |hashes| hashes.contains(&best_hash));
+		let leaves_contains_best = self
+			.storage
+			.get(&best_number)
+			.map_or(false, |hashes| hashes.contains(&best_hash));
 
 		// we need to make sure that the best block exists in the leaf set as
 		// this is an invariant of regular block import.
@@ -185,7 +201,11 @@ where
 	/// returns an iterator over all hashes in the leaf set
 	/// ordered by their block number descending.
 	pub fn hashes(&self) -> Vec<H> {
-		self.storage.iter().flat_map(|(_, hashes)| hashes.iter()).cloned().collect()
+		self.storage
+			.iter()
+			.flat_map(|(_, hashes)| hashes.iter())
+			.cloned()
+			.collect()
 	}
 
 	/// Number of known leaves
@@ -194,12 +214,7 @@ where
 	}
 
 	/// Write the leaf list to the database transaction.
-	pub fn prepare_transaction(
-		&mut self,
-		tx: &mut Transaction<DbHash>,
-		column: u32,
-		prefix: &[u8],
-	) {
+	pub fn prepare_transaction(&mut self, tx: &mut Transaction<DbHash>, column: u32, prefix: &[u8]) {
 		let leaves: Vec<_> = self.storage.iter().map(|(n, h)| (n.0.clone(), h.clone())).collect();
 		tx.set_from_vec(column, prefix, leaves.encode());
 		self.pending_added.clear();
@@ -208,7 +223,9 @@ where
 
 	#[cfg(test)]
 	fn contains(&self, number: N, hash: H) -> bool {
-		self.storage.get(&Reverse(number)).map_or(false, |hashes| hashes.contains(&hash))
+		self.storage
+			.get(&Reverse(number))
+			.map_or(false, |hashes| hashes.contains(&hash))
 	}
 
 	fn insert_leaf(&mut self, number: Reverse<N>, hash: H) {

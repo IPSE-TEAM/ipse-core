@@ -27,9 +27,8 @@ use rand::{self, Rng};
 use sp_npos_elections::{ElectionResult, VoteWeight};
 
 use sp_npos_elections::{
-	assignment_ratio_to_staked, assignment_ratio_to_staked, balance_solution, build_support_map,
-	seq_phragmen, to_without_backing, Assignment, ExtendedBalance, IdentifierT, StakedAssignment,
-	VoteWeight,
+	assignment_ratio_to_staked, assignment_ratio_to_staked, balance_solution, build_support_map, seq_phragmen,
+	to_without_backing, Assignment, ExtendedBalance, IdentifierT, StakedAssignment, VoteWeight,
 };
 use sp_runtime::{traits::Zero, PerThing, Perbill};
 use std::collections::BTreeMap;
@@ -75,7 +74,9 @@ mod bench_closure_and_slice {
 
 	#[bench]
 	fn closure(b: &mut Bencher) {
-		let assignments = (0..1000).map(|_| random_assignment()).collect::<Vec<Assignment<_, _>>>();
+		let assignments = (0..1000)
+			.map(|_| random_assignment())
+			.collect::<Vec<Assignment<_, _>>>();
 		let stake_of = |x: &u32| -> VoteWeight { (x * 2 + 100).into() };
 
 		// each have one clone of assignments
@@ -84,7 +85,9 @@ mod bench_closure_and_slice {
 
 	#[bench]
 	fn slice(b: &mut Bencher) {
-		let assignments = (0..1000).map(|_| random_assignment()).collect::<Vec<Assignment<_, _>>>();
+		let assignments = (0..1000)
+			.map(|_| random_assignment())
+			.collect::<Vec<Assignment<_, _>>>();
 		let stake_of = |x: &u32| -> VoteWeight { (x * 2 + 100).into() };
 
 		b.iter(|| {
@@ -130,13 +133,8 @@ fn do_phragmen(
 	});
 
 	b.iter(|| {
-		let ElectionResult { winners, assignments } = seq_phragmen::<AccountId, Perbill>(
-			to_elect,
-			Zero::zero(),
-			candidates.clone(),
-			voters.clone(),
-		)
-		.unwrap();
+		let ElectionResult { winners, assignments } =
+			seq_phragmen::<AccountId, Perbill>(to_elect, Zero::zero(), candidates.clone(), voters.clone()).unwrap();
 
 		let stake_of = |who: &AccountId| -> VoteWeight { *stake_of_tree.get(who).unwrap() };
 

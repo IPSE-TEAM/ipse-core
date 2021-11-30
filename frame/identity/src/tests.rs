@@ -19,10 +19,7 @@
 
 use super::*;
 
-use frame_support::{
-	assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types,
-	weights::Weight,
-};
+use frame_support::{assert_noop, assert_ok, impl_outer_origin, ord_parameter_types, parameter_types, weights::Weight};
 use frame_system::{EnsureOneOf, EnsureRoot, EnsureSignedBy};
 use sp_core::H256;
 use sp_runtime::traits::BadOrigin;
@@ -146,7 +143,10 @@ fn editing_subaccounts_should_work() {
 	new_test_ext().execute_with(|| {
 		let data = |x| Data::Raw(vec![x; 1]);
 
-		assert_noop!(Identity::add_sub(Origin::signed(10), 20, data(1)), Error::<Test>::NoIdentity);
+		assert_noop!(
+			Identity::add_sub(Origin::signed(10), 20, data(1)),
+			Error::<Test>::NoIdentity
+		);
 
 		assert_ok!(Identity::set_identity(Origin::signed(10), ten()));
 
@@ -236,7 +236,11 @@ fn adding_registrar_should_work() {
 		assert_ok!(Identity::set_fields(Origin::signed(3), 0, fields));
 		assert_eq!(
 			Identity::registrars(),
-			vec![Some(RegistrarInfo { account: 3, fee: 10, fields })]
+			vec![Some(RegistrarInfo {
+				account: 3,
+				fee: 10,
+				fields
+			})]
 		);
 	});
 }
@@ -301,8 +305,16 @@ fn uninvited_judgement_should_work() {
 			Error::<Test>::InvalidJudgement
 		);
 
-		assert_ok!(Identity::provide_judgement(Origin::signed(3), 0, 10, Judgement::Reasonable));
-		assert_eq!(Identity::identity(10).unwrap().judgements, vec![(0, Judgement::Reasonable)]);
+		assert_ok!(Identity::provide_judgement(
+			Origin::signed(3),
+			0,
+			10,
+			Judgement::Reasonable
+		));
+		assert_eq!(
+			Identity::identity(10).unwrap().judgements,
+			vec![(0, Judgement::Reasonable)]
+		);
 	});
 }
 
@@ -311,7 +323,12 @@ fn clearing_judgement_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::add_registrar(Origin::signed(1), 3));
 		assert_ok!(Identity::set_identity(Origin::signed(10), ten()));
-		assert_ok!(Identity::provide_judgement(Origin::signed(3), 0, 10, Judgement::Reasonable));
+		assert_ok!(Identity::provide_judgement(
+			Origin::signed(3),
+			0,
+			10,
+			Judgement::Reasonable
+		));
 		assert_ok!(Identity::clear_identity(Origin::signed(10)));
 		assert_eq!(Identity::identity(10), None);
 	});
@@ -333,7 +350,10 @@ fn killing_slashing_should_work() {
 fn setting_subaccounts_should_work() {
 	new_test_ext().execute_with(|| {
 		let mut subs = vec![(20, Data::Raw(vec![40; 1]))];
-		assert_noop!(Identity::set_subs(Origin::signed(10), subs.clone()), Error::<Test>::NotFound);
+		assert_noop!(
+			Identity::set_subs(Origin::signed(10), subs.clone()),
+			Error::<Test>::NotFound
+		);
 
 		assert_ok!(Identity::set_identity(Origin::signed(10), ten()));
 		assert_ok!(Identity::set_subs(Origin::signed(10), subs.clone()));
@@ -377,7 +397,10 @@ fn setting_subaccounts_should_work() {
 fn clearing_account_should_remove_subaccounts_and_refund() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::set_identity(Origin::signed(10), ten()));
-		assert_ok!(Identity::set_subs(Origin::signed(10), vec![(20, Data::Raw(vec![40; 1]))]));
+		assert_ok!(Identity::set_subs(
+			Origin::signed(10),
+			vec![(20, Data::Raw(vec![40; 1]))]
+		));
 		assert_ok!(Identity::clear_identity(Origin::signed(10)));
 		assert_eq!(Balances::free_balance(10), 100);
 		assert!(Identity::super_of(20).is_none());
@@ -388,7 +411,10 @@ fn clearing_account_should_remove_subaccounts_and_refund() {
 fn killing_account_should_remove_subaccounts_and_not_refund() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::set_identity(Origin::signed(10), ten()));
-		assert_ok!(Identity::set_subs(Origin::signed(10), vec![(20, Data::Raw(vec![40; 1]))]));
+		assert_ok!(Identity::set_subs(
+			Origin::signed(10),
+			vec![(20, Data::Raw(vec![40; 1]))]
+		));
 		assert_ok!(Identity::kill_identity(Origin::signed(2), 10));
 		assert_eq!(Balances::free_balance(10), 80);
 		assert!(Identity::super_of(20).is_none());
@@ -400,14 +426,22 @@ fn cancelling_requested_judgement_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::add_registrar(Origin::signed(1), 3));
 		assert_ok!(Identity::set_fee(Origin::signed(3), 0, 10));
-		assert_noop!(Identity::cancel_request(Origin::signed(10), 0), Error::<Test>::NoIdentity);
+		assert_noop!(
+			Identity::cancel_request(Origin::signed(10), 0),
+			Error::<Test>::NoIdentity
+		);
 		assert_ok!(Identity::set_identity(Origin::signed(10), ten()));
 		assert_ok!(Identity::request_judgement(Origin::signed(10), 0, 10));
 		assert_ok!(Identity::cancel_request(Origin::signed(10), 0));
 		assert_eq!(Balances::free_balance(10), 90);
 		assert_noop!(Identity::cancel_request(Origin::signed(10), 0), Error::<Test>::NotFound);
 
-		assert_ok!(Identity::provide_judgement(Origin::signed(3), 0, 10, Judgement::Reasonable));
+		assert_ok!(Identity::provide_judgement(
+			Origin::signed(3),
+			0,
+			10,
+			Judgement::Reasonable
+		));
 		assert_noop!(
 			Identity::cancel_request(Origin::signed(10), 0),
 			Error::<Test>::JudgementGiven
@@ -434,7 +468,12 @@ fn requesting_judgement_should_work() {
 			Identity::request_judgement(Origin::signed(10), 0, 10),
 			Error::<Test>::StickyJudgement
 		);
-		assert_ok!(Identity::provide_judgement(Origin::signed(3), 0, 10, Judgement::Erroneous));
+		assert_ok!(Identity::provide_judgement(
+			Origin::signed(3),
+			0,
+			10,
+			Judgement::Erroneous
+		));
 		// Registrar got their payment now.
 		assert_eq!(Balances::free_balance(3), 20);
 
@@ -449,7 +488,12 @@ fn requesting_judgement_should_work() {
 		assert_ok!(Identity::request_judgement(Origin::signed(10), 1, 10));
 
 		// Re-requesting after the judgement has been reduced works.
-		assert_ok!(Identity::provide_judgement(Origin::signed(3), 0, 10, Judgement::OutOfDate));
+		assert_ok!(Identity::provide_judgement(
+			Origin::signed(3),
+			0,
+			10,
+			Judgement::OutOfDate
+		));
 		assert_ok!(Identity::request_judgement(Origin::signed(10), 0, 10));
 	});
 }

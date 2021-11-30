@@ -25,8 +25,7 @@ use futures::{
 };
 use log::{debug, error};
 use prometheus_endpoint::{
-	exponential_buckets, register, CounterVec, HistogramOpts, HistogramVec, Opts, PrometheusError,
-	Registry, U64,
+	exponential_buckets, register, CounterVec, HistogramOpts, HistogramVec, Opts, PrometheusError, Registry, U64,
 };
 use sp_utils::mpsc::{tracing_unbounded, TracingUnboundedReceiver, TracingUnboundedSender};
 use std::{panic, pin::Pin, result::Result};
@@ -58,24 +57,15 @@ impl SpawnTaskHandle {
 	}
 
 	/// Spawns the blocking task with the given name. See also `spawn`.
-	pub fn spawn_blocking(
-		&self,
-		name: &'static str,
-		task: impl Future<Output = ()> + Send + 'static,
-	) {
+	pub fn spawn_blocking(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static) {
 		self.spawn_inner(name, task, TaskType::Blocking)
 	}
 
 	/// Helper function that implements the spawning logic. See `spawn` and `spawn_blocking`.
-	fn spawn_inner(
-		&self,
-		name: &'static str,
-		task: impl Future<Output = ()> + Send + 'static,
-		task_type: TaskType,
-	) {
+	fn spawn_inner(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static, task_type: TaskType) {
 		if self.task_notifier.is_closed() {
 			debug!("Attempt to spawn a new task has been prevented: {}", name);
-			return
+			return;
 		}
 
 		let on_exit = self.on_exit.clone();
@@ -95,8 +85,7 @@ impl SpawnTaskHandle {
 				let task = {
 					let poll_duration = metrics.poll_duration.with_label_values(&[name]);
 					let poll_start = metrics.poll_start.with_label_values(&[name]);
-					let inner =
-						prometheus_future::with_poll_durations(poll_duration, poll_start, task);
+					let inner = prometheus_future::with_poll_durations(poll_duration, poll_start, task);
 					// The logic of `AssertUnwindSafe` here is ok considering that we throw
 					// away the `Future` after it has panicked.
 					panic::AssertUnwindSafe(inner).catch_unwind()
@@ -107,14 +96,14 @@ impl SpawnTaskHandle {
 					Either::Right((Err(payload), _)) => {
 						metrics.tasks_ended.with_label_values(&[name, "panic"]).inc();
 						panic::resume_unwind(payload)
-					},
+					}
 					Either::Right((Ok(()), _)) => {
 						metrics.tasks_ended.with_label_values(&[name, "finished"]).inc();
-					},
+					}
 					Either::Left(((), _)) => {
 						// The `on_exit` has triggered.
 						metrics.tasks_ended.with_label_values(&[name, "interrupted"]).inc();
-					},
+					}
 				}
 			} else {
 				futures::pin_mut!(task);
@@ -160,7 +149,10 @@ impl SpawnEssentialTaskHandle {
 		essential_failed_tx: TracingUnboundedSender<()>,
 		spawn_task_handle: SpawnTaskHandle,
 	) -> SpawnEssentialTaskHandle {
-		SpawnEssentialTaskHandle { essential_failed_tx, inner: spawn_task_handle }
+		SpawnEssentialTaskHandle {
+			essential_failed_tx,
+			inner: spawn_task_handle,
+		}
 	}
 
 	/// Spawns the given task with the given name.
@@ -173,20 +165,11 @@ impl SpawnEssentialTaskHandle {
 	/// Spawns the blocking task with the given name.
 	///
 	/// See also [`SpawnTaskHandle::spawn_blocking`].
-	pub fn spawn_blocking(
-		&self,
-		name: &'static str,
-		task: impl Future<Output = ()> + Send + 'static,
-	) {
+	pub fn spawn_blocking(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static) {
 		self.spawn_inner(name, task, TaskType::Blocking)
 	}
 
-	fn spawn_inner(
-		&self,
-		name: &'static str,
-		task: impl Future<Output = ()> + Send + 'static,
-		task_type: TaskType,
-	) {
+	fn spawn_inner(&self, name: &'static str, task: impl Future<Output = ()> + Send + 'static, task_type: TaskType) {
 		let essential_failed = self.essential_failed_tx.clone();
 		let essential_task = std::panic::AssertUnwindSafe(task).catch_unwind().map(move |_| {
 			log::error!("Essential task `{}` failed. Shutting down service.", name);
@@ -228,10 +211,7 @@ pub struct TaskManager {
 impl TaskManager {
 	/// If a Prometheus registry is passed, it will be used to report statistics about the
 	/// service tasks.
-	pub(super) fn new(
-		executor: TaskExecutor,
-		prometheus_registry: Option<&Registry>,
-	) -> Result<Self, PrometheusError> {
+	pub(super) fn new(executor: TaskExecutor, prometheus_registry: Option<&Registry>) -> Result<Self, PrometheusError> {
 		let (signal, on_exit) = exit_future::signal();
 
 		// A side-channel for essential tasks to communicate shutdown.
@@ -243,8 +223,10 @@ impl TaskManager {
 		// NOTE: for_each_concurrent will await on all the JoinHandle futures at the same time. It
 		// is possible to limit this but it's actually better for the memory foot print to await
 		// them all to not accumulate anything on that stream.
-		let completion_future = executor
-			.spawn(Box::pin(background_tasks.for_each_concurrent(None, |x| x)), TaskType::Async);
+		let completion_future = executor.spawn(
+			Box::pin(background_tasks.for_each_concurrent(None, |x| x)),
+			TaskType::Async,
+		);
 
 		Ok(Self {
 			on_exit,
@@ -304,9 +286,7 @@ impl TaskManager {
 	///
 	/// This function will not wait until the end of the remaining task. You must call and await
 	/// `clean_shutdown()` after this.
-	pub fn future<'a>(
-		&'a mut self,
-	) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
+	pub fn future<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), Error>> + Send + 'a>> {
 		Box::pin(async move {
 			let mut t1 = self.essential_failed_rx.next().fuse();
 			let mut t2 = self.on_exit.clone().fuse();
@@ -368,38 +348,50 @@ struct Metrics {
 impl Metrics {
 	fn register(registry: &Registry) -> Result<Self, PrometheusError> {
 		Ok(Self {
-			poll_duration: register(HistogramVec::new(
-				HistogramOpts {
-					common_opts: Opts::new(
-						"tasks_polling_duration",
-						"Duration in seconds of each invocation of Future::poll"
+			poll_duration: register(
+				HistogramVec::new(
+					HistogramOpts {
+						common_opts: Opts::new(
+							"tasks_polling_duration",
+							"Duration in seconds of each invocation of Future::poll",
+						),
+						buckets: exponential_buckets(0.001, 4.0, 9)
+							.expect("function parameters are constant and always valid; qed"),
+					},
+					&["task_name"],
+				)?,
+				registry,
+			)?,
+			poll_start: register(
+				CounterVec::new(
+					Opts::new(
+						"tasks_polling_started_total",
+						"Total number of times we started invoking Future::poll",
 					),
-					buckets: exponential_buckets(0.001, 4.0, 9)
-						.expect("function parameters are constant and always valid; qed"),
-				},
-				&["task_name"]
-			)?, registry)?,
-			poll_start: register(CounterVec::new(
-				Opts::new(
-					"tasks_polling_started_total",
-					"Total number of times we started invoking Future::poll"
-				),
-				&["task_name"]
-			)?, registry)?,
-			tasks_spawned: register(CounterVec::new(
-				Opts::new(
-					"tasks_spawned_total",
-					"Total number of tasks that have been spawned on the Service"
-				),
-				&["task_name"]
-			)?, registry)?,
-			tasks_ended: register(CounterVec::new(
-				Opts::new(
-					"tasks_ended_total",
-					"Total number of tasks for which Future::poll has returned Ready(()) or panicked"
-				),
-				&["task_name", "reason"]
-			)?, registry)?,
+					&["task_name"],
+				)?,
+				registry,
+			)?,
+			tasks_spawned: register(
+				CounterVec::new(
+					Opts::new(
+						"tasks_spawned_total",
+						"Total number of tasks that have been spawned on the Service",
+					),
+					&["task_name"],
+				)?,
+				registry,
+			)?,
+			tasks_ended: register(
+				CounterVec::new(
+					Opts::new(
+						"tasks_ended_total",
+						"Total number of tasks for which Future::poll has returned Ready(()) or panicked",
+					),
+					&["task_name", "reason"],
+				)?,
+				registry,
+			)?,
 		})
 	}
 }

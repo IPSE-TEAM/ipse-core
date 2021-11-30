@@ -32,7 +32,7 @@ fn storage_line_metadata_type(scrate: &TokenStream, line: &StorageLineDefExt) ->
 					#scrate::metadata::DecodeDifferent::Encode(#value_type),
 				)
 			}
-		},
+		}
 		StorageLineTypeDef::Map(map) => {
 			let hasher = map.hasher.into_metadata();
 			let key = &map.key;
@@ -45,7 +45,7 @@ fn storage_line_metadata_type(scrate: &TokenStream, line: &StorageLineDefExt) ->
 					unused: false,
 				}
 			}
-		},
+		}
 		StorageLineTypeDef::DoubleMap(map) => {
 			let hasher1 = map.hasher1.into_metadata();
 			let hasher2 = map.hasher2.into_metadata();
@@ -62,7 +62,7 @@ fn storage_line_metadata_type(scrate: &TokenStream, line: &StorageLineDefExt) ->
 					key2_hasher: #scrate::metadata::#hasher2,
 				}
 			}
-		},
+		}
 	}
 }
 
@@ -78,10 +78,8 @@ fn default_byte_getter(
 		.unwrap_or_else(|| quote!(Default::default()));
 
 	let str_name = line.name.to_string();
-	let struct_name =
-		syn::Ident::new(&("__GetByteStruct".to_string() + &str_name), line.name.span());
-	let cache_name =
-		syn::Ident::new(&("__CACHE_GET_BYTE_STRUCT_".to_string() + &str_name), line.name.span());
+	let struct_name = syn::Ident::new(&("__GetByteStruct".to_string() + &str_name), line.name.span());
+	let cache_name = syn::Ident::new(&("__CACHE_GET_BYTE_STRUCT_".to_string() + &str_name), line.name.span());
 
 	let runtime_generic = &def.module_runtime_generic;
 	let runtime_trait = &def.module_runtime_trait;

@@ -18,8 +18,8 @@
 //! Private implementation details of BABE digests.
 
 use super::{
-	AllowedSlots, AuthorityId, AuthorityIndex, AuthoritySignature, BabeAuthorityWeight,
-	BabeEpochConfiguration, SlotNumber, BABE_ENGINE_ID,
+	AllowedSlots, AuthorityId, AuthorityIndex, AuthoritySignature, BabeAuthorityWeight, BabeEpochConfiguration,
+	SlotNumber, BABE_ENGINE_ID,
 };
 use codec::{Codec, Decode, Encode};
 use sp_runtime::{generic::OpaqueDigestItemId, DigestItem, RuntimeDebug};
@@ -187,20 +187,18 @@ where
 	}
 
 	fn as_next_epoch_descriptor(&self) -> Option<NextEpochDescriptor> {
-		self.try_to(OpaqueDigestItemId::Consensus(&BABE_ENGINE_ID)).and_then(
-			|x: super::ConsensusLog| match x {
+		self.try_to(OpaqueDigestItemId::Consensus(&BABE_ENGINE_ID))
+			.and_then(|x: super::ConsensusLog| match x {
 				super::ConsensusLog::NextEpochData(n) => Some(n),
 				_ => None,
-			},
-		)
+			})
 	}
 
 	fn as_next_config_descriptor(&self) -> Option<NextConfigDescriptor> {
-		self.try_to(OpaqueDigestItemId::Consensus(&BABE_ENGINE_ID)).and_then(
-			|x: super::ConsensusLog| match x {
+		self.try_to(OpaqueDigestItemId::Consensus(&BABE_ENGINE_ID))
+			.and_then(|x: super::ConsensusLog| match x {
 				super::ConsensusLog::NextConfigData(n) => Some(n),
 				_ => None,
-			},
-		)
+			})
 	}
 }

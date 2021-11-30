@@ -64,20 +64,15 @@ impl InsertCmd {
 
 		let (keystore, public) = match self.keystore_params.keystore_config(base_path)? {
 			KeystoreConfig::Path { path, password } => {
-				let public = with_crypto_scheme!(
-					self.crypto_scheme.scheme,
-					to_vec(&suri, password.clone())
-				)?;
+				let public = with_crypto_scheme!(self.crypto_scheme.scheme, to_vec(&suri, password.clone()))?;
 				let keystore = KeyStore::open(path, password).map_err(|e| format!("{}", e))?;
 				(keystore, public)
-			},
+			}
 			_ => unreachable!("keystore_config always returns path and password; qed"),
 		};
 
 		let key_type = KeyTypeId::try_from(self.key_type.as_str()).map_err(|_| {
-			Error::Other(
-				"Cannot convert argument to keytype: argument should be 4-character string".into(),
-			)
+			Error::Other("Cannot convert argument to keytype: argument should be 4-character string".into())
 		})?;
 
 		keystore

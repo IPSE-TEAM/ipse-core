@@ -34,9 +34,7 @@ pub use sc_client_api::{
 	cht,
 	light::{LocalOrRemote, RemoteBlockchain, Storage},
 };
-use sp_blockchain::{
-	CachedHeaderMetadata, Error as ClientError, HeaderMetadata, Result as ClientResult,
-};
+use sp_blockchain::{CachedHeaderMetadata, Error as ClientError, HeaderMetadata, Result as ClientResult};
 
 /// Light client blockchain.
 pub struct Blockchain<S> {
@@ -80,10 +78,7 @@ where
 		self.storage.number(hash)
 	}
 
-	fn hash(
-		&self,
-		number: <<Block as BlockT>::Header as HeaderT>::Number,
-	) -> ClientResult<Option<Block::Hash>> {
+	fn hash(&self, number: <<Block as BlockT>::Header as HeaderT>::Number) -> ClientResult<Option<Block::Hash>> {
 		self.storage.hash(number)
 	}
 }
@@ -95,10 +90,7 @@ where
 {
 	type Error = ClientError;
 
-	fn header_metadata(
-		&self,
-		hash: Block::Hash,
-	) -> Result<CachedHeaderMetadata<Block>, Self::Error> {
+	fn header_metadata(&self, hash: Block::Hash) -> Result<CachedHeaderMetadata<Block>, Self::Error> {
 		self.storage.header_metadata(hash)
 	}
 
@@ -157,7 +149,7 @@ where
 	) -> ClientResult<LocalOrRemote<Block::Header, RemoteHeaderRequest<Block::Header>>> {
 		// first, try to read header from local storage
 		if let Some(local_header) = self.storage.header(id)? {
-			return Ok(LocalOrRemote::Local(local_header))
+			return Ok(LocalOrRemote::Local(local_header));
 		}
 
 		// we need to know block number to check if it's a part of CHT
@@ -170,9 +162,8 @@ where
 		};
 
 		// if the header is genesis (never pruned), non-canonical, or from future => return
-		if number.is_zero() || self.storage.status(BlockId::Number(number))? == BlockStatus::Unknown
-		{
-			return Ok(LocalOrRemote::Unknown)
+		if number.is_zero() || self.storage.status(BlockId::Number(number))? == BlockStatus::Unknown {
+			return Ok(LocalOrRemote::Unknown);
 		}
 
 		Ok(LocalOrRemote::Remote(RemoteHeaderRequest {

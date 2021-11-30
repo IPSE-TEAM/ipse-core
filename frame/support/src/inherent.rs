@@ -251,8 +251,12 @@ mod tests {
 		let inherents = InherentData::new().create_extrinsics();
 
 		let expected = vec![
-			Extrinsic { function: Call::Test(CallTest::Something) },
-			Extrinsic { function: Call::Test2(CallTest2::Something) },
+			Extrinsic {
+				function: Call::Test(CallTest::Something),
+			},
+			Extrinsic {
+				function: Call::Test2(CallTest2::Something),
+			},
 		];
 		assert_eq!(expected, inherents);
 	}
@@ -261,14 +265,18 @@ mod tests {
 	fn check_inherents_works() {
 		let block = Block::new(
 			Header::new_from_number(1),
-			vec![Extrinsic { function: Call::Test(CallTest::Something) }],
+			vec![Extrinsic {
+				function: Call::Test(CallTest::Something),
+			}],
 		);
 
 		assert!(InherentData::new().check_extrinsics(&block).ok());
 
 		let block = Block::new(
 			Header::new_from_number(1),
-			vec![Extrinsic { function: Call::Test(CallTest::SomethingElse) }],
+			vec![Extrinsic {
+				function: Call::Test(CallTest::SomethingElse),
+			}],
 		);
 
 		assert!(InherentData::new().check_extrinsics(&block).fatal_error());

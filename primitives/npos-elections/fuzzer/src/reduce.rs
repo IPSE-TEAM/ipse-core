@@ -50,8 +50,7 @@ fn main() {
 			let rng = rand::rngs::SmallRng::seed_from_u64(seed);
 			target_count = to_range(target_count, 100, 1000);
 			voter_count = to_range(voter_count, 100, 2000);
-			let (assignments, winners) =
-				generate_random_phragmen_assignment(voter_count, target_count, 8, 8, rng);
+			let (assignments, winners) = generate_random_phragmen_assignment(voter_count, target_count, 8, 8, rng);
 			reduce_and_compare(&assignments, &winners);
 		});
 	}
@@ -88,8 +87,7 @@ fn generate_random_phragmen_assignment(
 
 		let distribution = (0..targets_to_chose)
 			.map(|_| {
-				let target =
-					targets_to_chose_from.remove(rng.gen_range(0, targets_to_chose_from.len()));
+				let target = targets_to_chose_from.remove(rng.gen_range(0, targets_to_chose_from.len()));
 				if winners.iter().find(|w| **w == target).is_none() {
 					winners.push(target.clone());
 				}
@@ -97,7 +95,10 @@ fn generate_random_phragmen_assignment(
 			})
 			.collect::<Vec<(AccountId, ExtendedBalance)>>();
 
-		assignments.push(StakedAssignment { who: (acc as AccountId), distribution });
+		assignments.push(StakedAssignment {
+			who: (acc as AccountId),
+			distribution,
+		});
 	});
 
 	(assignments, winners)
@@ -139,6 +140,8 @@ fn reduce_and_compare(assignment: &Vec<StakedAssignment<AccountId>>, winners: &V
 
 fn assignment_len(assignments: &[StakedAssignment<AccountId>]) -> u32 {
 	let mut counter = 0;
-	assignments.iter().for_each(|x| x.distribution.iter().for_each(|_| counter += 1));
+	assignments
+		.iter()
+		.for_each(|x| x.distribution.iter().for_each(|_| counter += 1));
 	counter
 }

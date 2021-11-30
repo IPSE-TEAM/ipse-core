@@ -50,8 +50,7 @@ impl<'a> ContractModule<'a> {
 	fn new(original_code: &[u8], schedule: &'a Schedule) -> Result<Self, &'static str> {
 		use wasmi_validation::{validate_module, PlainValidator};
 
-		let module =
-			elements::deserialize_buffer(original_code).map_err(|_| "Can't decode wasm code")?;
+		let module = elements::deserialize_buffer(original_code).map_err(|_| "Can't decode wasm code")?;
 
 		// Make sure that the module is valid.
 		validate_module::<PlainValidator>(&module).map_err(|_| "Module is not valid")?;
@@ -68,7 +67,7 @@ impl<'a> ContractModule<'a> {
 	/// we reject such a module.
 	fn ensure_no_internal_memory(&self) -> Result<(), &'static str> {
 		if self.module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
-			return Err("module declares internal memory")
+			return Err("module declares internal memory");
 		}
 		Ok(())
 	}
@@ -79,13 +78,13 @@ impl<'a> ContractModule<'a> {
 			// In Wasm MVP spec, there may be at most one table declared. Double check this
 			// explicitly just in case the Wasm version changes.
 			if table_section.entries().len() > 1 {
-				return Err("multiple tables declared")
+				return Err("multiple tables declared");
 			}
 			if let Some(table_type) = table_section.entries().first() {
 				// Check the table's initial size as there is no instruction or environment function
 				// capable of growing the table.
 				if table_type.limits().initial() > limit {
-					return Err("table exceeds maximum size allowed")
+					return Err("table exceeds maximum size allowed");
 				}
 			}
 		}
@@ -97,9 +96,10 @@ impl<'a> ContractModule<'a> {
 		if let Some(global_section) = self.module.global_section() {
 			for global in global_section.entries() {
 				match global.global_type().content_type() {
-					ValueType::F32 | ValueType::F64 =>
-						return Err("use of floating point type in globals is forbidden"),
-					_ => {},
+					ValueType::F32 | ValueType::F64 => {
+						return Err("use of floating point type in globals is forbidden")
+					}
+					_ => {}
 				}
 			}
 		}
@@ -108,9 +108,10 @@ impl<'a> ContractModule<'a> {
 			for func_body in code_section.bodies() {
 				for local in func_body.locals() {
 					match local.value_type() {
-						ValueType::F32 | ValueType::F64 =>
-							return Err("use of floating point type in locals is forbidden"),
-						_ => {},
+						ValueType::F32 | ValueType::F64 => {
+							return Err("use of floating point type in locals is forbidden")
+						}
+						_ => {}
 					}
 				}
 			}
@@ -123,14 +124,13 @@ impl<'a> ContractModule<'a> {
 						let return_type = func_type.return_type();
 						for value_type in func_type.params().iter().chain(return_type.iter()) {
 							match value_type {
-								ValueType::F32 | ValueType::F64 =>
-									return Err(
-										"use of floating point type in function types is forbidden",
-									),
-								_ => {},
+								ValueType::F32 | ValueType::F64 => {
+									return Err("use of floating point type in function types is forbidden")
+								}
+								_ => {}
 							}
 						}
-					},
+					}
 				}
 			}
 		}
@@ -146,17 +146,21 @@ impl<'a> ContractModule<'a> {
 		.with_grow_cost(self.schedule.grow_mem_cost.clone().saturated_into())
 		.with_forbidden_floats();
 
-		let contract_module =
-			pwasm_utils::inject_gas_counter(self.module, &gas_rules, IMPORT_MODULE_FN)
-				.map_err(|_| "gas instrumentation failed")?;
-		Ok(ContractModule { module: contract_module, schedule: self.schedule })
+		let contract_module = pwasm_utils::inject_gas_counter(self.module, &gas_rules, IMPORT_MODULE_FN)
+			.map_err(|_| "gas instrumentation failed")?;
+		Ok(ContractModule {
+			module: contract_module,
+			schedule: self.schedule,
+		})
 	}
 
 	fn inject_stack_height_metering(self) -> Result<Self, &'static str> {
-		let contract_module =
-			pwasm_utils::stack_height::inject_limiter(self.module, self.schedule.max_stack_height)
-				.map_err(|_| "stack height instrumentation failed")?;
-		Ok(ContractModule { module: contract_module, schedule: self.schedule })
+		let contract_module = pwasm_utils::stack_height::inject_limiter(self.module, self.schedule.max_stack_height)
+			.map_err(|_| "stack height instrumentation failed")?;
+		Ok(ContractModule {
+			module: contract_module,
+			schedule: self.schedule,
+		})
 	}
 
 	/// Check that the module has required exported functions. For now
@@ -209,8 +213,8 @@ impl<'a> ContractModule<'a> {
 				Some(fn_idx) => fn_idx,
 				None => {
 					// Underflow here means fn_idx points to imported function which we don't allow!
-					return Err("entry point points to an imported function")
-				},
+					return Err("entry point points to an imported function");
+				}
 			};
 
 			// Then check the signature.
@@ -222,19 +226,18 @@ impl<'a> ContractModule<'a> {
 			let Type::Function(ref func_ty) = types
 				.get(func_ty_idx as usize)
 				.ok_or_else(|| "function has a non-existent type")?;
-			if !func_ty.params().is_empty() ||
-				!(func_ty.return_type().is_none() ||
-					func_ty.return_type() == Some(ValueType::I32))
+			if !func_ty.params().is_empty()
+				|| !(func_ty.return_type().is_none() || func_ty.return_type() == Some(ValueType::I32))
 			{
-				return Err("entry point has wrong signature")
+				return Err("entry point has wrong signature");
 			}
 		}
 
 		if !deploy_found {
-			return Err("deploy function isn't exported")
+			return Err("deploy function isn't exported");
 		}
 		if !call_found {
-			return Err("call function isn't exported")
+			return Err("call function isn't exported");
 		}
 
 		Ok(())
@@ -260,23 +263,23 @@ impl<'a> ContractModule<'a> {
 				&External::Global(_) => return Err("Cannot import globals"),
 				&External::Function(ref type_idx) => {
 					if import.module() != IMPORT_MODULE_FN {
-						return Err("Invalid module for imported function")
+						return Err("Invalid module for imported function");
 					}
 					type_idx
-				},
+				}
 				&External::Memory(ref memory_type) => {
 					if import.module() != IMPORT_MODULE_MEMORY {
-						return Err("Invalid module for imported memory")
+						return Err("Invalid module for imported memory");
 					}
 					if import.field() != "memory" {
-						return Err("Memory import must have the field name 'memory'")
+						return Err("Memory import must have the field name 'memory'");
 					}
 					if imported_mem_type.is_some() {
-						return Err("Multiple memory imports defined")
+						return Err("Multiple memory imports defined");
 					}
 					imported_mem_type = Some(memory_type);
-					continue
-				},
+					continue;
+				}
 			};
 
 			let Type::Function(ref func_ty) = types
@@ -286,15 +289,13 @@ impl<'a> ContractModule<'a> {
 			// We disallow importing `seal_println` unless debug features are enabled,
 			// which should only be allowed on a dev chain
 			if !self.schedule.enable_println && import.field().as_bytes() == b"seal_println" {
-				return Err("module imports `seal_println` but debug features disabled")
+				return Err("module imports `seal_println` but debug features disabled");
 			}
 
 			// We disallow importing `gas` function here since it is treated as implementation
 			// detail.
-			if import.field().as_bytes() == b"gas" ||
-				!C::can_satisfy(import.field().as_bytes(), func_ty)
-			{
-				return Err("module imports a non-existent function")
+			if import.field().as_bytes() == b"gas" || !C::can_satisfy(import.field().as_bytes(), func_ty) {
+				return Err("module imports a non-existent function");
 			}
 		}
 		Ok(imported_mem_type)
@@ -336,20 +337,18 @@ pub fn prepare_contract<C: ImportSatisfyCheck>(
 		let limits = memory_type.limits();
 		match (limits.initial(), limits.maximum()) {
 			(initial, Some(maximum)) if initial > maximum => {
-				return Err(
-					"Requested initial number of pages should not exceed the requested maximum",
-				)
-			},
+				return Err("Requested initial number of pages should not exceed the requested maximum")
+			}
 			(_, Some(maximum)) if maximum > schedule.max_memory_pages => {
 				return Err("Maximum number of pages should not exceed the configured maximum.")
-			},
+			}
 			(initial, Some(maximum)) => MemoryDefinition { initial, maximum },
 			(_, None) => {
 				// Maximum number of pages should be always declared.
 				// This isn't a hard requirement and can be treated as a maximum set
 				// to configured maximum.
-				return Err("Maximum number of pages should be always declared.")
-			},
+				return Err("Maximum number of pages should be always declared.");
+			}
 		}
 	} else {
 		// If none memory imported then just crate an empty placeholder.

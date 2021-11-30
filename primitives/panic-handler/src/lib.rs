@@ -100,20 +100,29 @@ impl AbortGuard {
 	/// Create a new guard. While the guard is alive, panics that happen in the current thread will
 	/// unwind the stack (unless another guard is created afterwards).
 	pub fn force_unwind() -> AbortGuard {
-		AbortGuard { previous_val: set_abort(OnPanic::Unwind), _not_send: PhantomData }
+		AbortGuard {
+			previous_val: set_abort(OnPanic::Unwind),
+			_not_send: PhantomData,
+		}
 	}
 
 	/// Create a new guard. While the guard is alive, panics that happen in the current thread will
 	/// abort the process (unless another guard is created afterwards).
 	pub fn force_abort() -> AbortGuard {
-		AbortGuard { previous_val: set_abort(OnPanic::Abort), _not_send: PhantomData }
+		AbortGuard {
+			previous_val: set_abort(OnPanic::Abort),
+			_not_send: PhantomData,
+		}
 	}
 
 	/// Create a new guard. While the guard is alive, panics that happen in the current thread will
 	/// **never** abort the process (even if `AbortGuard::force_abort()` guard will be created
 	/// afterwards).
 	pub fn never_abort() -> AbortGuard {
-		AbortGuard { previous_val: set_abort(OnPanic::NeverAbort), _not_send: PhantomData }
+		AbortGuard {
+			previous_val: set_abort(OnPanic::NeverAbort),
+			_not_send: PhantomData,
+		}
 	}
 }
 

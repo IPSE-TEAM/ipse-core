@@ -113,14 +113,10 @@ pub const CALL: &<Test as Trait>::Call = &Call;
 
 /// Create new externalities for `System` module tests.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut ext: sp_io::TestExternalities =
-		GenesisConfig::default().build_storage::<Test>().unwrap().into();
+	let mut ext: sp_io::TestExternalities = GenesisConfig::default().build_storage::<Test>().unwrap().into();
 	// Add to each test the initial weight of a block
 	ext.execute_with(|| {
-		System::register_extra_weight_unchecked(
-			<Test as Trait>::BlockExecutionWeight::get(),
-			DispatchClass::Mandatory,
-		)
+		System::register_extra_weight_unchecked(<Test as Trait>::BlockExecutionWeight::get(), DispatchClass::Mandatory)
 	});
 	ext
 }

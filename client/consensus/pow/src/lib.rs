@@ -49,9 +49,8 @@ use sp_consensus::import_queue::{
 	BasicQueue, BoxBlockImport, BoxFinalityProofImport, BoxJustificationImport, Verifier,
 };
 use sp_consensus::{
-	BlockCheckParams, BlockImport, BlockImportParams, BlockOrigin, CanAuthorWith, Environment,
-	Error as ConsensusError, ForkChoiceStrategy, ImportResult, Proposer, RecordProof, SelectChain,
-	SyncOracle,
+	BlockCheckParams, BlockImport, BlockImportParams, BlockOrigin, CanAuthorWith, Environment, Error as ConsensusError,
+	ForkChoiceStrategy, ImportResult, Proposer, RecordProof, SelectChain, SyncOracle,
 };
 use sp_consensus_pow::{Seal, TotalDifficulty, POW_ENGINE_ID};
 use sp_inherents::{InherentData, InherentDataProviders};
@@ -59,10 +58,7 @@ use sp_runtime::generic::{BlockId, Digest, DigestItem};
 use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
 use sp_runtime::{Justification, RuntimeString};
 use sp_timestamp::{InherentError as TIError, TimestampInherentData};
-use std::{
-	any::Any, borrow::Cow, cmp::Ordering, collections::HashMap, marker::PhantomData, sync::Arc,
-	time::Duration,
-};
+use std::{any::Any, borrow::Cow, cmp::Ordering, collections::HashMap, marker::PhantomData, sync::Arc, time::Duration};
 
 use crate::worker::UntilImportedOrTimeout;
 
@@ -170,11 +166,7 @@ pub trait PowAlgorithm<B: BlockT> {
 	/// Verify that the seal is valid against given pre hash when parent block is not yet imported.
 	///
 	/// None means that preliminary verify is not available for this algorithm.
-	fn preliminary_verify(
-		&self,
-		_pre_hash: &B::Hash,
-		_seal: &Seal,
-	) -> Result<Option<bool>, Error<B>> {
+	fn preliminary_verify(&self, _pre_hash: &B::Hash, _seal: &Seal) -> Result<Option<bool>, Error<B>> {
 		Ok(None)
 	}
 	/// Break a fork choice tie.
@@ -265,7 +257,7 @@ where
 		const MAX_TIMESTAMP_DRIFT_SECS: u64 = 60;
 
 		if *block.header().number() < self.check_inherents_after {
-			return Ok(())
+			return Ok(());
 		}
 
 		if let Err(e) = self.can_author_with.can_author_with(&block_id) {
@@ -275,7 +267,7 @@ where
 				e,
 			);
 
-			return Ok(())
+			return Ok(());
 		}
 
 		let inherent_res = self
@@ -285,18 +277,21 @@ where
 			.map_err(Error::Client)?;
 
 		if !inherent_res.ok() {
-			inherent_res.into_errors().try_for_each(|(i, e)| match TIError::try_from(&i, &e) {
-				Some(TIError::ValidAtTimestamp(timestamp)) => {
-					if timestamp > timestamp_now + MAX_TIMESTAMP_DRIFT_SECS {
-						return Err(Error::TooFarInFuture)
-					}
+			inherent_res
+				.into_errors()
+				.try_for_each(|(i, e)| match TIError::try_from(&i, &e) {
+					Some(TIError::ValidAtTimestamp(timestamp)) => {
+						if timestamp > timestamp_now + MAX_TIMESTAMP_DRIFT_SECS {
+							return Err(Error::TooFarInFuture);
+						}
 
-					Ok(())
-				},
-				Some(TIError::Other(e)) => Err(Error::Runtime(e)),
-				None =>
-					Err(Error::CheckInherents(self.inherent_data_providers.error_to_string(&i, &e))),
-			})
+						Ok(())
+					}
+					Some(TIError::Other(e)) => Err(Error::Runtime(e)),
+					None => Err(Error::CheckInherents(
+						self.inherent_data_providers.error_to_string(&i, &e),
+					)),
+				})
 		} else {
 			Ok(())
 		}
@@ -338,10 +333,11 @@ where
 		let mut aux = PowAux::read::<_, B>(self.client.as_ref(), &parent_hash)?;
 
 		if let Some(inner_body) = block.body.take() {
-			let inherent_data =
-				self.inherent_data_providers.create_inherent_data().map_err(|e| e.into_string())?;
-			let timestamp_now =
-				inherent_data.timestamp_inherent_data().map_err(|e| e.into_string())?;
+			let inherent_data = self
+				.inherent_data_providers
+				.create_inherent_data()
+				.map_err(|e| e.into_string())?;
+			let timestamp_now = inherent_data.timestamp_inherent_data().map_err(|e| e.into_string())?;
 
 			let check_block = B::new(block.header.clone(), inner_body);
 
@@ -357,8 +353,7 @@ where
 
 		let inner_seal = fetch_seal::<B>(block.post_digests.last(), block.header.hash())?;
 
-		let intermediate =
-			block.take_intermediate::<PowIntermediate<Algorithm::Difficulty>>(INTERMEDIATE_KEY)?;
+		let intermediate = block.take_intermediate::<PowIntermediate<Algorithm::Difficulty>>(INTERMEDIATE_KEY)?;
 
 		let difficulty = match intermediate.difficulty {
 			Some(difficulty) => difficulty,
@@ -374,7 +369,7 @@ where
 			&inner_seal,
 			difficulty,
 		)? {
-			return Err(Error::<B>::InvalidSeal.into())
+			return Err(Error::<B>::InvalidSeal.into());
 		}
 
 		aux.difficulty = difficulty;
@@ -388,11 +383,10 @@ where
 					Ordering::Less => false,
 					Ordering::Greater => true,
 					Ordering::Equal => {
-						let best_inner_seal =
-							fetch_seal::<B>(best_header.digest().logs.last(), best_hash)?;
+						let best_inner_seal = fetch_seal::<B>(best_header.digest().logs.last(), best_hash)?;
 
 						self.algorithm.break_tie(&best_inner_seal, &inner_seal)
-					},
+					}
 				},
 			));
 		}
@@ -409,32 +403,37 @@ pub struct PowVerifier<B: BlockT, Algorithm> {
 
 impl<B: BlockT, Algorithm> PowVerifier<B, Algorithm> {
 	pub fn new(algorithm: Algorithm) -> Self {
-		Self { algorithm, _marker: PhantomData }
+		Self {
+			algorithm,
+			_marker: PhantomData,
+		}
 	}
 
-	fn check_header(
-		&self,
-		mut header: B::Header,
-	) -> Result<(B::Header, DigestItem<B::Hash>), Error<B>>
+	fn check_header(&self, mut header: B::Header) -> Result<(B::Header, DigestItem<B::Hash>), Error<B>>
 	where
 		Algorithm: PowAlgorithm<B>,
 	{
 		let hash = header.hash();
 
 		let (seal, inner_seal) = match header.digest_mut().pop() {
-			Some(DigestItem::Seal(id, seal)) =>
+			Some(DigestItem::Seal(id, seal)) => {
 				if id == POW_ENGINE_ID {
 					(DigestItem::Seal(id, seal.clone()), seal)
 				} else {
-					return Err(Error::WrongEngine(id))
-				},
+					return Err(Error::WrongEngine(id));
+				}
+			}
 			_ => return Err(Error::HeaderUnsealed(hash)),
 		};
 
 		let pre_hash = header.hash();
 
-		if !self.algorithm.preliminary_verify(&pre_hash, &inner_seal)?.unwrap_or(true) {
-			return Err(Error::FailedPreliminaryVerify)
+		if !self
+			.algorithm
+			.preliminary_verify(&pre_hash, &inner_seal)?
+			.unwrap_or(true)
+		{
+			return Err(Error::FailedPreliminaryVerify);
 		}
 
 		Ok((header, seal))
@@ -569,7 +568,7 @@ where
 		if sync_oracle.is_major_syncing() {
 			debug!(target: "pow", "Skipping proposal due to sync.");
 			worker.lock().on_major_syncing();
-			return Either::Left(future::ready(()))
+			return Either::Left(future::ready(()));
 		}
 
 		let best_header = match select_chain.best_chain() {
@@ -581,8 +580,8 @@ where
 					 Select best chain error: {:?}",
 					err
 				);
-				return Either::Left(future::ready(()))
-			},
+				return Either::Left(future::ready(()));
+			}
 		};
 		let best_hash = best_header.hash();
 
@@ -593,11 +592,11 @@ where
 				 Probably a node update is required!",
 				err,
 			);
-			return Either::Left(future::ready(()))
+			return Either::Left(future::ready(()));
 		}
 
 		if worker.lock().best_hash() == Some(best_hash) {
-			return Either::Left(future::ready(()))
+			return Either::Left(future::ready(()));
 		}
 
 		// The worker is locked for the duration of the whole proposing period. Within this period,
@@ -612,8 +611,8 @@ where
 					 Fetch difficulty failed: {:?}",
 					err,
 				);
-				return Either::Left(future::ready(()))
-			},
+				return Either::Left(future::ready(()));
+			}
 		};
 
 		let awaiting_proposer = env.init(&best_header);
@@ -626,8 +625,8 @@ where
 					 Creating inherent data failed: {:?}",
 					err,
 				);
-				return Either::Left(future::ready(()))
-			},
+				return Either::Left(future::ready(()));
+			}
 		};
 		let mut inherent_digest = Digest::<Block::Hash>::default();
 		if let Some(pre_runtime) = &pre_runtime {
@@ -646,8 +645,8 @@ where
 						 Creating proposer failed: {:?}",
 						err,
 					);
-					return
-				},
+					return;
+				}
 			};
 
 			let proposal = match proposer
@@ -662,8 +661,8 @@ where
 						 Creating proposal failed: {:?}",
 						err,
 					);
-					return
-				},
+					return;
+				}
 			};
 
 			let build = MiningBuild::<Block, Algorithm, C> {
@@ -689,11 +688,10 @@ fn find_pre_digest<B: BlockT>(header: &B::Header) -> Result<Option<Vec<u8>>, Err
 	for log in header.digest().logs() {
 		trace!(target: "pow", "Checking log {:?}, looking for pre runtime digest", log);
 		match (log, pre_digest.is_some()) {
-			(DigestItem::PreRuntime(POW_ENGINE_ID, _), true) =>
-				return Err(Error::MultiplePreRuntimeDigests),
+			(DigestItem::PreRuntime(POW_ENGINE_ID, _), true) => return Err(Error::MultiplePreRuntimeDigests),
 			(DigestItem::PreRuntime(POW_ENGINE_ID, v), false) => {
 				pre_digest = Some(v.clone());
-			},
+			}
 			(_, _) => trace!(target: "pow", "Ignoring digest not meant for us"),
 		}
 	}
@@ -702,17 +700,15 @@ fn find_pre_digest<B: BlockT>(header: &B::Header) -> Result<Option<Vec<u8>>, Err
 }
 
 /// Fetch PoW seal.
-fn fetch_seal<B: BlockT>(
-	digest: Option<&DigestItem<B::Hash>>,
-	hash: B::Hash,
-) -> Result<Vec<u8>, Error<B>> {
+fn fetch_seal<B: BlockT>(digest: Option<&DigestItem<B::Hash>>, hash: B::Hash) -> Result<Vec<u8>, Error<B>> {
 	match digest {
-		Some(DigestItem::Seal(id, seal)) =>
+		Some(DigestItem::Seal(id, seal)) => {
 			if id == &POW_ENGINE_ID {
 				Ok(seal.clone())
 			} else {
-				return Err(Error::<B>::WrongEngine(*id).into())
-			},
+				return Err(Error::<B>::WrongEngine(*id).into());
+			}
+		}
 		_ => return Err(Error::<B>::HeaderUnsealed(hash).into()),
 	}
 }

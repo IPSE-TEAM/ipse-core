@@ -103,9 +103,7 @@ pub struct TelemetryConfig {
 ///
 /// The URL string can be either a URL or a multiaddress.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct TelemetryEndpoints(
-	#[serde(deserialize_with = "url_or_multiaddr_deser")] Vec<(Multiaddr, u8)>,
-);
+pub struct TelemetryEndpoints(#[serde(deserialize_with = "url_or_multiaddr_deser")] Vec<(Multiaddr, u8)>);
 
 /// Custom deserializer for TelemetryEndpoints, used to convert urls or multiaddr to multiaddr.
 fn url_or_multiaddr_deser<'de, D>(deserializer: D) -> Result<Vec<(Multiaddr, u8)>, D::Error>
@@ -143,7 +141,7 @@ fn url_to_multiaddr(url: &str) -> Result<Multiaddr, libp2p::multiaddr::Error> {
 
 	// If not, try the `ws://path/url` format.
 	if let Ok(ma) = libp2p::multiaddr::from_url(url) {
-		return Ok(ma)
+		return Ok(ma);
 	}
 
 	// If we have no clue about the format of that string, assume that we were expecting a
@@ -200,7 +198,9 @@ pub fn init_telemetry(config: TelemetryConfig) -> Telemetry {
 
 	let (sender, receiver) = mpsc::channel(16);
 	let guard = {
-		let logger = TelemetryDrain { sender: std::panic::AssertUnwindSafe(sender) };
+		let logger = TelemetryDrain {
+			sender: std::panic::AssertUnwindSafe(sender),
+		};
 		let root = slog::Logger::root(slog::Drain::fuse(logger), slog::o!());
 		slog_scope::set_global_logger(root)
 	};
@@ -210,7 +210,7 @@ pub fn init_telemetry(config: TelemetryConfig) -> Telemetry {
 		Err(err) => {
 			error!(target: "telemetry", "Failed to initialize telemetry worker: {:?}", err);
 			None
-		},
+		}
 	};
 
 	Telemetry {
@@ -248,8 +248,8 @@ impl Stream for Telemetry {
 				// Returning `Pending` here means that we may never get polled again, but this is
 				// ok because we're in a situation where something else is actually currently doing
 				// the polling.
-				return Poll::Pending
-			},
+				return Poll::Pending;
+			}
 		};
 
 		let mut has_connected = false;
@@ -266,16 +266,14 @@ impl Stream for Telemetry {
 				}
 			}
 
-			if let Poll::Ready(Some(log_entry)) =
-				Stream::poll_next(Pin::new(&mut inner.receiver), cx)
-			{
+			if let Poll::Ready(Some(log_entry)) = Stream::poll_next(Pin::new(&mut inner.receiver), cx) {
 				if let Some(worker) = inner.worker.as_mut() {
 					log_entry.as_record_values(|rec, val| {
 						let _ = worker.log(rec, val);
 					});
 				}
 			} else {
-				break
+				break;
 			}
 		}
 
@@ -295,11 +293,7 @@ impl slog::Drain for TelemetryDrain {
 	type Ok = ();
 	type Err = ();
 
-	fn log(
-		&self,
-		record: &slog::Record,
-		values: &slog::OwnedKVList,
-	) -> Result<Self::Ok, Self::Err> {
+	fn log(&self, record: &slog::Record, values: &slog::OwnedKVList) -> Result<Self::Ok, Self::Err> {
 		let before = Instant::now();
 
 		let serialized = async_record::AsyncRecord::from(record, values);
@@ -341,8 +335,7 @@ mod telemetry_endpoints_tests {
 			("wss://telemetry.polkadot.io/submit/".into(), 3),
 			("/ip4/80.123.90.4/tcp/5432".into(), 4),
 		];
-		let telem =
-			TelemetryEndpoints::new(endp.clone()).expect("Telemetry endpoint should be valid");
+		let telem = TelemetryEndpoints::new(endp.clone()).expect("Telemetry endpoint should be valid");
 		let mut res: Vec<(Multiaddr, u8)> = vec![];
 		for (a, b) in endp.iter() {
 			res.push((url_to_multiaddr(a).expect("provided url should be valid"), *b))

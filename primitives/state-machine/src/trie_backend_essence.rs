@@ -26,8 +26,8 @@ use sp_core::storage::ChildInfo;
 use sp_std::{boxed::Box, ops::Deref, vec::Vec};
 use sp_trie::trie_types::{Layout, TrieDB, TrieError};
 use sp_trie::{
-	empty_child_trie_root, for_keys_in_child_trie, read_child_trie_value, read_trie_value, DBValue,
-	KeySpacedDB, MemoryDB, PrefixedMemoryDB, Trie, TrieDBIterator,
+	empty_child_trie_root, for_keys_in_child_trie, read_child_trie_value, read_trie_value, DBValue, KeySpacedDB,
+	MemoryDB, PrefixedMemoryDB, Trie, TrieDBIterator,
 };
 #[cfg(feature = "std")]
 use std::sync::Arc;
@@ -60,7 +60,11 @@ where
 {
 	/// Create new trie-based backend.
 	pub fn new(storage: S, root: H::Out) -> Self {
-		TrieBackendEssence { storage, root, empty: H::hash(&[0u8]) }
+		TrieBackendEssence {
+			storage,
+			root,
+			empty: H::hash(&[0u8]),
+		}
 	}
 
 	/// Get backend storage reference.
@@ -101,11 +105,7 @@ where
 
 	/// Return the next key in the child trie i.e. the minimum key that is strictly superior to
 	/// `key` in lexicographic order.
-	pub fn next_child_storage_key(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageKey>> {
+	pub fn next_child_storage_key(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageKey>> {
 		let child_root = match self.child_root(child_info)? {
 			Some(child_root) => child_root,
 			None => return Ok(None),
@@ -114,7 +114,7 @@ where
 		let mut hash = H::Out::default();
 
 		if child_root.len() != hash.as_ref().len() {
-			return Err(format!("Invalid child storage hash at {:?}", child_info.storage_key()))
+			return Err(format!("Invalid child storage hash at {:?}", child_info.storage_key()));
 		}
 		// note: child_root and hash must be same size, panics otherwise.
 		hash.as_mut().copy_from_slice(&child_root[..]);
@@ -138,8 +138,7 @@ where
 			dyn_eph = self;
 		}
 
-		let trie =
-			TrieDB::<H>::new(dyn_eph, root).map_err(|e| format!("TrieDB creation error: {}", e))?;
+		let trie = TrieDB::<H>::new(dyn_eph, root).map_err(|e| format!("TrieDB creation error: {}", e))?;
 		let mut iter = trie.iter().map_err(|e| format!("TrieDB iteration error: {}", e))?;
 
 		// The key just after the one given in input, basically `key++0`.
@@ -150,13 +149,13 @@ where
 		potential_next_key.extend_from_slice(key);
 		potential_next_key.push(0);
 
-		iter.seek(&potential_next_key).map_err(|e| format!("TrieDB iterator seek error: {}", e))?;
+		iter.seek(&potential_next_key)
+			.map_err(|e| format!("TrieDB iterator seek error: {}", e))?;
 
 		let next_element = iter.next();
 
 		let next_key = if let Some(next_element) = next_element {
-			let (next_key, _) =
-				next_element.map_err(|e| format!("TrieDB iterator next error: {}", e))?;
+			let (next_key, _) = next_element.map_err(|e| format!("TrieDB iterator next error: {}", e))?;
 			Some(next_key)
 		} else {
 			None
@@ -173,19 +172,14 @@ where
 	}
 
 	/// Get the value of child storage at given key.
-	pub fn child_storage(
-		&self,
-		child_info: &ChildInfo,
-		key: &[u8],
-	) -> Result<Option<StorageValue>> {
+	pub fn child_storage(&self, child_info: &ChildInfo, key: &[u8]) -> Result<Option<StorageValue>> {
 		let root = self
 			.child_root(child_info)?
 			.unwrap_or_else(|| empty_child_trie_root::<Layout<H>>().encode());
 
 		let map_e = |e| format!("Trie lookup error: {}", e);
 
-		read_child_trie_value::<Layout<H>, _>(child_info.keyspace(), self, &root, key)
-			.map_err(map_e)
+		read_child_trie_value::<Layout<H>, _>(child_info.keyspace(), self, &root, key).map_err(map_e)
 	}
 
 	/// Retrieve all entries keys of child storage and call `f` for each of those keys.
@@ -194,30 +188,23 @@ where
 			Ok(v) => v.unwrap_or_else(|| empty_child_trie_root::<Layout<H>>().encode()),
 			Err(e) => {
 				debug!(target: "trie", "Error while iterating child storage: {}", e);
-				return
-			},
+				return;
+			}
 		};
 
-		if let Err(e) =
-			for_keys_in_child_trie::<Layout<H>, _, _>(child_info.keyspace(), self, &root, f)
-		{
+		if let Err(e) = for_keys_in_child_trie::<Layout<H>, _, _>(child_info.keyspace(), self, &root, f) {
 			debug!(target: "trie", "Error while iterating child storage: {}", e);
 		}
 	}
 
 	/// Execute given closure for all keys starting with prefix.
-	pub fn for_child_keys_with_prefix<F: FnMut(&[u8])>(
-		&self,
-		child_info: &ChildInfo,
-		prefix: &[u8],
-		mut f: F,
-	) {
+	pub fn for_child_keys_with_prefix<F: FnMut(&[u8])>(&self, child_info: &ChildInfo, prefix: &[u8], mut f: F) {
 		let root_vec = match self.child_root(child_info) {
 			Ok(v) => v.unwrap_or_else(|| empty_child_trie_root::<Layout<H>>().encode()),
 			Err(e) => {
 				debug!(target: "trie", "Error while iterating child storage: {}", e);
-				return
-			},
+				return;
+			}
 		};
 		let mut root = H::Out::default();
 		root.as_mut().copy_from_slice(&root_vec);
@@ -272,9 +259,7 @@ pub(crate) struct Ephemeral<'a, S: 'a + TrieBackendStorage<H>, H: 'a + Hasher> {
 	overlay: &'a mut S::Overlay,
 }
 
-impl<'a, S: 'a + TrieBackendStorage<H>, H: 'a + Hasher> hash_db::AsHashDB<H, DBValue>
-	for Ephemeral<'a, S, H>
-{
+impl<'a, S: 'a + TrieBackendStorage<H>, H: 'a + Hasher> hash_db::AsHashDB<H, DBValue> for Ephemeral<'a, S, H> {
 	fn as_hash_db<'b>(&'b self) -> &'b (dyn hash_db::HashDB<H, DBValue> + 'b) {
 		self
 	}
@@ -289,9 +274,7 @@ impl<'a, S: TrieBackendStorage<H>, H: Hasher> Ephemeral<'a, S, H> {
 	}
 }
 
-impl<'a, S: 'a + TrieBackendStorage<H>, H: Hasher> hash_db::HashDB<H, DBValue>
-	for Ephemeral<'a, S, H>
-{
+impl<'a, S: 'a + TrieBackendStorage<H>, H: Hasher> hash_db::HashDB<H, DBValue> for Ephemeral<'a, S, H> {
 	fn get(&self, key: &H::Out, prefix: Prefix) -> Option<DBValue> {
 		if let Some(val) = hash_db::HashDB::get(self.overlay, key, prefix) {
 			Some(val)
@@ -301,7 +284,7 @@ impl<'a, S: 'a + TrieBackendStorage<H>, H: Hasher> hash_db::HashDB<H, DBValue>
 				Err(e) => {
 					warn!(target: "trie", "Failed to read from DB: {}", e);
 					None
-				},
+				}
 			}
 		}
 	}
@@ -323,9 +306,7 @@ impl<'a, S: 'a + TrieBackendStorage<H>, H: Hasher> hash_db::HashDB<H, DBValue>
 	}
 }
 
-impl<'a, S: 'a + TrieBackendStorage<H>, H: Hasher> hash_db::HashDBRef<H, DBValue>
-	for Ephemeral<'a, S, H>
-{
+impl<'a, S: 'a + TrieBackendStorage<H>, H: Hasher> hash_db::HashDBRef<H, DBValue> for Ephemeral<'a, S, H> {
 	fn get(&self, key: &H::Out, prefix: Prefix) -> Option<DBValue> {
 		hash_db::HashDB::get(self, key, prefix)
 	}
@@ -370,9 +351,7 @@ impl<H: Hasher> TrieBackendStorage<H> for MemoryDB<H> {
 	}
 }
 
-impl<S: TrieBackendStorage<H>, H: Hasher> hash_db::AsHashDB<H, DBValue>
-	for TrieBackendEssence<S, H>
-{
+impl<S: TrieBackendStorage<H>, H: Hasher> hash_db::AsHashDB<H, DBValue> for TrieBackendEssence<S, H> {
 	fn as_hash_db<'b>(&'b self) -> &'b (dyn hash_db::HashDB<H, DBValue> + 'b) {
 		self
 	}
@@ -384,14 +363,14 @@ impl<S: TrieBackendStorage<H>, H: Hasher> hash_db::AsHashDB<H, DBValue>
 impl<S: TrieBackendStorage<H>, H: Hasher> hash_db::HashDB<H, DBValue> for TrieBackendEssence<S, H> {
 	fn get(&self, key: &H::Out, prefix: Prefix) -> Option<DBValue> {
 		if *key == self.empty {
-			return Some([0u8].to_vec())
+			return Some([0u8].to_vec());
 		}
 		match self.storage.get(&key, prefix) {
 			Ok(x) => x,
 			Err(e) => {
 				warn!(target: "trie", "Failed to read from DB: {}", e);
 				None
-			},
+			}
 		}
 	}
 
@@ -412,9 +391,7 @@ impl<S: TrieBackendStorage<H>, H: Hasher> hash_db::HashDB<H, DBValue> for TrieBa
 	}
 }
 
-impl<S: TrieBackendStorage<H>, H: Hasher> hash_db::HashDBRef<H, DBValue>
-	for TrieBackendEssence<S, H>
-{
+impl<S: TrieBackendStorage<H>, H: Hasher> hash_db::HashDBRef<H, DBValue> for TrieBackendEssence<S, H> {
 	fn get(&self, key: &H::Out, prefix: Prefix) -> Option<DBValue> {
 		hash_db::HashDB::get(self, key, prefix)
 	}
@@ -472,10 +449,22 @@ mod test {
 		let mdb = essence_1.into_storage();
 		let essence_2 = TrieBackendEssence::new(mdb, root_2);
 
-		assert_eq!(essence_2.next_child_storage_key(child_info, b"2"), Ok(Some(b"3".to_vec())));
-		assert_eq!(essence_2.next_child_storage_key(child_info, b"3"), Ok(Some(b"4".to_vec())));
-		assert_eq!(essence_2.next_child_storage_key(child_info, b"4"), Ok(Some(b"6".to_vec())));
-		assert_eq!(essence_2.next_child_storage_key(child_info, b"5"), Ok(Some(b"6".to_vec())));
+		assert_eq!(
+			essence_2.next_child_storage_key(child_info, b"2"),
+			Ok(Some(b"3".to_vec()))
+		);
+		assert_eq!(
+			essence_2.next_child_storage_key(child_info, b"3"),
+			Ok(Some(b"4".to_vec()))
+		);
+		assert_eq!(
+			essence_2.next_child_storage_key(child_info, b"4"),
+			Ok(Some(b"6".to_vec()))
+		);
+		assert_eq!(
+			essence_2.next_child_storage_key(child_info, b"5"),
+			Ok(Some(b"6".to_vec()))
+		);
 		assert_eq!(essence_2.next_child_storage_key(child_info, b"6"), Ok(None));
 	}
 }

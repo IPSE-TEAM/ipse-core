@@ -38,7 +38,7 @@ pub fn gcd(a: u128, b: u128) -> u128 {
 		((x, y), (1, 1)) => {
 			let (x, y) = (min(x, y), max(x, y));
 			gcd((y - x) >> 1, x)
-		},
+		}
 		_ => unreachable!(),
 	}
 }
@@ -68,7 +68,7 @@ pub fn to_big_uint(x: u128) -> biguint::BigUint {
 /// Invariant: c must be greater than or equal to 1.
 pub fn multiply_by_rational(mut a: u128, mut b: u128, mut c: u128) -> Result<u128, &'static str> {
 	if a.is_zero() || b.is_zero() {
-		return Ok(Zero::zero())
+		return Ok(Zero::zero());
 	}
 	c = c.max(1);
 

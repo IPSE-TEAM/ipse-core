@@ -22,9 +22,7 @@ use serde::{Deserialize, Serialize};
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block as BlockT, Member, NumberFor},
-	transaction_validity::{
-		TransactionLongevity, TransactionPriority, TransactionSource, TransactionTag,
-	},
+	transaction_validity::{TransactionLongevity, TransactionPriority, TransactionSource, TransactionTag},
 };
 use std::{collections::HashMap, hash::Hash, pin::Pin, sync::Arc};
 
@@ -175,10 +173,7 @@ pub trait TransactionPool: Send + Sync {
 	/// Transaction hash type.
 	type Hash: Hash + Eq + Member + Serialize;
 	/// In-pool transaction type.
-	type InPoolTransaction: InPoolTransaction<
-		Transaction = TransactionFor<Self>,
-		Hash = TxHash<Self>,
-	>;
+	type InPoolTransaction: InPoolTransaction<Transaction = TransactionFor<Self>, Hash = TxHash<Self>>;
 	/// Error type.
 	type Error: From<crate::error::Error> + crate::error::IntoPoolError;
 
@@ -217,12 +212,7 @@ pub trait TransactionPool: Send + Sync {
 	fn ready_at(
 		&self,
 		at: NumberFor<Self::Block>,
-	) -> Pin<
-		Box<
-			dyn Future<Output = Box<dyn Iterator<Item = Arc<Self::InPoolTransaction>> + Send>>
-				+ Send,
-		>,
-	>;
+	) -> Pin<Box<dyn Future<Output = Box<dyn Iterator<Item = Arc<Self::InPoolTransaction>> + Send>> + Send>>;
 
 	/// Get an iterator for ready transactions ordered by priority.
 	fn ready(&self) -> Box<dyn Iterator<Item = Arc<Self::InPoolTransaction>> + Send>;
@@ -289,11 +279,8 @@ pub trait LocalTransactionPool: Send + Sync {
 	/// NOTE: It MUST NOT be used for transactions that originate from the
 	/// network or RPC, since the validation is performed with
 	/// `TransactionSource::Local`.
-	fn submit_local(
-		&self,
-		at: &BlockId<Self::Block>,
-		xt: LocalTransactionFor<Self>,
-	) -> Result<Self::Hash, Self::Error>;
+	fn submit_local(&self, at: &BlockId<Self::Block>, xt: LocalTransactionFor<Self>)
+		-> Result<Self::Hash, Self::Error>;
 }
 
 /// An abstraction for transaction pool.
@@ -311,11 +298,7 @@ pub trait OffchainSubmitTransaction<Block: BlockT>: Send + Sync {
 }
 
 impl<TPool: LocalTransactionPool> OffchainSubmitTransaction<TPool::Block> for TPool {
-	fn submit_at(
-		&self,
-		at: &BlockId<TPool::Block>,
-		extrinsic: <TPool::Block as BlockT>::Extrinsic,
-	) -> Result<(), ()> {
+	fn submit_at(&self, at: &BlockId<TPool::Block>, extrinsic: <TPool::Block as BlockT>::Extrinsic) -> Result<(), ()> {
 		log::debug!(
 			target: "txpool",
 			"(offchain call) Submitting a transaction to the pool: {:?}",

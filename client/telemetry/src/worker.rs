@@ -58,11 +58,7 @@ trait StreamAndSink<I>: Stream + Sink<I> {}
 impl<T: ?Sized + Stream + Sink<I>, I> StreamAndSink<I> for T {}
 
 type WsTrans = libp2p::core::transport::boxed::Boxed<
-	Pin<
-		Box<
-			dyn StreamAndSink<Vec<u8>, Item = Result<Vec<u8>, io::Error>, Error = io::Error> + Send,
-		>,
-	>,
+	Pin<Box<dyn StreamAndSink<Vec<u8>, Item = Result<Vec<u8>, io::Error>, Error = io::Error> + Send>>,
 	io::Error,
 >;
 
@@ -127,8 +123,7 @@ impl TelemetryWorker {
 		for (node, _) in &mut self.nodes {
 			loop {
 				match node::Node::poll(Pin::new(node), cx) {
-					Poll::Ready(node::NodeEvent::Connected) =>
-						return Poll::Ready(TelemetryWorkerEvent::Connected),
+					Poll::Ready(node::NodeEvent::Connected) => return Poll::Ready(TelemetryWorkerEvent::Connected),
 					Poll::Ready(node::NodeEvent::Disconnected(_)) => continue,
 					Poll::Pending => break,
 				}
@@ -149,18 +144,22 @@ impl TelemetryWorker {
 			Err(err) => {
 				warn!(target: "telemetry", "Failed to parse telemetry tag {:?}: {:?}",
 					record.tag(), err);
-				return Err(())
-			},
+				return Err(());
+			}
 		};
 
 		// None of the nodes want that verbosity, so just return without doing any serialization.
-		if self.nodes.iter().all(|(_, node_max_verbosity)| msg_verbosity > *node_max_verbosity) {
+		if self
+			.nodes
+			.iter()
+			.all(|(_, node_max_verbosity)| msg_verbosity > *node_max_verbosity)
+		{
 			trace!(
 				target: "telemetry",
 				"Skipping log entry because verbosity {:?} is too high for all endpoints",
 				msg_verbosity
 			);
-			return Ok(())
+			return Ok(());
 		}
 
 		// Turn the message into JSON.
@@ -174,7 +173,7 @@ impl TelemetryWorker {
 			if msg_verbosity > *node_max_verbosity {
 				trace!(target: "telemetry", "Skipping {:?} for log entry with verbosity {:?}",
 					node.addr(), msg_verbosity);
-				continue
+				continue;
 			}
 
 			// `send_message` returns an error if we're not connected, which we silently ignore.
@@ -210,7 +209,7 @@ impl<T: AsyncRead> Stream for StreamSink<T> {
 			Ok(n) => {
 				buf.truncate(n);
 				Poll::Ready(Some(Ok(buf)))
-			},
+			}
 			Err(err) => Poll::Ready(Some(Err(err))),
 		}
 	}
@@ -225,7 +224,7 @@ impl<T: AsyncWrite> StreamSink<T> {
 				error!(target: "telemetry",
 					"Detected some internal buffering happening in the telemetry");
 				let err = io::Error::new(io::ErrorKind::Other, "Internal buffering detected");
-				return Poll::Ready(Err(err))
+				return Poll::Ready(Err(err));
 			}
 		}
 

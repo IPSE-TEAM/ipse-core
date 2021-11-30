@@ -21,16 +21,16 @@
 use crate::arg_enums::Database;
 use crate::error::Result;
 use crate::{
-	init_logger, DatabaseParams, ImportParams, KeystoreParams, NetworkParams, NodeKeyParams,
-	OffchainWorkerParams, PruningParams, SharedParams, SubstrateCli,
+	init_logger, DatabaseParams, ImportParams, KeystoreParams, NetworkParams, NodeKeyParams, OffchainWorkerParams,
+	PruningParams, SharedParams, SubstrateCli,
 };
 use log::warn;
 use names::{Generator, Name};
 use sc_client_api::execution_extensions::ExecutionStrategies;
 use sc_service::config::{
-	BasePath, Configuration, DatabaseConfig, ExtTransport, KeystoreConfig, NetworkConfiguration,
-	NodeKeyConfig, OffchainWorkerConfig, PrometheusConfig, PruningMode, Role, RpcMethods,
-	TaskExecutor, TelemetryEndpoints, TransactionPoolOptions, WasmExecutionMethod,
+	BasePath, Configuration, DatabaseConfig, ExtTransport, KeystoreConfig, NetworkConfiguration, NodeKeyConfig,
+	OffchainWorkerConfig, PrometheusConfig, PruningMode, Role, RpcMethods, TaskExecutor, TelemetryEndpoints,
+	TransactionPoolOptions, WasmExecutionMethod,
 };
 use sc_service::{ChainSpec, TracingReceiver};
 use std::net::SocketAddr;
@@ -193,7 +193,10 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	///
 	/// By default this is retrieved from `DatabaseParams` if it is available. Otherwise its `None`.
 	fn database_cache_size(&self) -> Result<Option<usize>> {
-		Ok(self.database_params().map(|x| x.database_cache_size()).unwrap_or_default())
+		Ok(self
+			.database_params()
+			.map(|x| x.database_cache_size())
+			.unwrap_or_default())
 	}
 
 	/// Get the database backend variant.
@@ -204,15 +207,15 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	}
 
 	/// Get the database configuration object for the parameters provided
-	fn database_config(
-		&self,
-		base_path: &PathBuf,
-		cache_size: usize,
-		database: Database,
-	) -> Result<DatabaseConfig> {
+	fn database_config(&self, base_path: &PathBuf, cache_size: usize, database: Database) -> Result<DatabaseConfig> {
 		Ok(match database {
-			Database::RocksDb => DatabaseConfig::RocksDb { path: base_path.join("db"), cache_size },
-			Database::ParityDb => DatabaseConfig::ParityDb { path: base_path.join("paritydb") },
+			Database::RocksDb => DatabaseConfig::RocksDb {
+				path: base_path.join("db"),
+				cache_size,
+			},
+			Database::ParityDb => DatabaseConfig::ParityDb {
+				path: base_path.join("paritydb"),
+			},
 		})
 	}
 
@@ -266,11 +269,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	///
 	/// By default this is retrieved from `ImportParams` if it is available. Otherwise its
 	/// `ExecutionStrategies::default()`.
-	fn execution_strategies(
-		&self,
-		is_dev: bool,
-		is_validator: bool,
-	) -> Result<ExecutionStrategies> {
+	fn execution_strategies(&self, is_dev: bool, is_validator: bool) -> Result<ExecutionStrategies> {
 		Ok(self
 			.import_params()
 			.map(|x| x.execution_strategies(is_dev, is_validator))
@@ -330,10 +329,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	/// Get the telemetry endpoints (if any)
 	///
 	/// By default this is retrieved from the chain spec loaded by `load_spec`.
-	fn telemetry_endpoints(
-		&self,
-		chain_spec: &Box<dyn ChainSpec>,
-	) -> Result<Option<TelemetryEndpoints>> {
+	fn telemetry_endpoints(&self, chain_spec: &Box<dyn ChainSpec>) -> Result<Option<TelemetryEndpoints>> {
 		Ok(chain_spec.telemetry_endpoints().clone())
 	}
 
@@ -386,7 +382,10 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	/// By default this is retrieved from `ImportParams` if it is available. Otherwise its
 	/// `None`.
 	fn tracing_targets(&self) -> Result<Option<String>> {
-		Ok(self.import_params().map(|x| x.tracing_targets()).unwrap_or_else(|| Default::default()))
+		Ok(self
+			.import_params()
+			.map(|x| x.tracing_targets())
+			.unwrap_or_else(|| Default::default()))
 	}
 
 	/// Get the TracingReceiver value from the current object
@@ -422,11 +421,7 @@ pub trait CliConfiguration<DCV: DefaultConfigurationValues = ()>: Sized {
 	}
 
 	/// Create a Configuration object from the current object
-	fn create_configuration<C: SubstrateCli>(
-		&self,
-		cli: &C,
-		task_executor: TaskExecutor,
-	) -> Result<Configuration> {
+	fn create_configuration<C: SubstrateCli>(&self, cli: &C, task_executor: TaskExecutor) -> Result<Configuration> {
 		let is_dev = self.is_dev()?;
 		let chain_id = self.chain_id(is_dev)?;
 		let chain_spec = cli.load_spec(chain_id.as_str())?;
@@ -542,7 +537,7 @@ pub fn generate_node_name() -> String {
 		let count = node_name.chars().count();
 
 		if count < NODE_NAME_MAX_LENGTH {
-			return node_name
+			return node_name;
 		}
 	}
 }

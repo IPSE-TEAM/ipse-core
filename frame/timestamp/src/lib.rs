@@ -122,11 +122,7 @@ pub trait WeightInfo {
 /// The module configuration trait
 pub trait Trait: frame_system::Trait {
 	/// Type used for expressing timestamp.
-	type Moment: Parameter
-		+ Default
-		+ AtLeast32Bit
-		+ Scale<Self::BlockNumber, Output = Self::Moment>
-		+ Copy;
+	type Moment: Parameter + Default + AtLeast32Bit + Scale<Self::BlockNumber, Output = Self::Moment> + Copy;
 
 	/// Something which can be notified when the timestamp is set. Set this to `()` if not needed.
 	type OnTimestampSet: OnTimestampSet<Self::Moment>;
@@ -381,9 +377,7 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic(
-		expected = "Timestamp must increment by at least <MinimumPeriod> between sequential blocks"
-	)]
+	#[should_panic(expected = "Timestamp must increment by at least <MinimumPeriod> between sequential blocks")]
 	fn block_period_minimum_enforced() {
 		new_test_ext().execute_with(|| {
 			Timestamp::set_timestamp(42);

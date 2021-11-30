@@ -37,7 +37,7 @@ fn main() {
 		fuzz!(|data: (Vec<Ty>, Ty)| {
 			let (data, norm) = data;
 			if data.len() == 0 {
-				return
+				return;
 			}
 			let pre_sum: u128 = data.iter().map(|x| *x as u128).sum();
 

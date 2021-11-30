@@ -82,8 +82,7 @@ impl<Hash, Ex> WaitingTransaction<Hash, Ex> {
 			.filter(|tag| {
 				// is true if the tag is already satisfied either via transaction in the pool
 				// or one that was recently included.
-				let is_provided = provided.contains_key(&**tag) ||
-					recently_pruned.iter().any(|x| x.contains(&**tag));
+				let is_provided = provided.contains_key(&**tag) || recently_pruned.iter().any(|x| x.contains(&**tag));
 				!is_provided
 			})
 			.cloned()
@@ -122,7 +121,10 @@ pub struct FutureTransactions<Hash: hash::Hash + Eq, Ex> {
 
 impl<Hash: hash::Hash + Eq, Ex> Default for FutureTransactions<Hash, Ex> {
 	fn default() -> Self {
-		FutureTransactions { wanted_tags: Default::default(), waiting: Default::default() }
+		FutureTransactions {
+			wanted_tags: Default::default(),
+			waiting: Default::default(),
+		}
 	}
 }
 
@@ -164,7 +166,10 @@ impl<Hash: hash::Hash + Eq + Clone, Ex> FutureTransactions<Hash, Ex> {
 
 	/// Returns a list of known transactions
 	pub fn by_hashes(&self, hashes: &[Hash]) -> Vec<Option<Arc<Transaction<Hash, Ex>>>> {
-		hashes.iter().map(|h| self.waiting.get(h).map(|x| x.transaction.clone())).collect()
+		hashes
+			.iter()
+			.map(|h| self.waiting.get(h).map(|x| x.transaction.clone()))
+			.collect()
 	}
 
 	/// Satisfies provided tags in transactions that are waiting for them.
@@ -224,10 +229,7 @@ impl<Hash: hash::Hash + Eq + Clone, Ex> FutureTransactions<Hash, Ex> {
 	}
 
 	/// Fold a list of future transactions to compute a single value.
-	pub fn fold<R, F: FnMut(Option<R>, &WaitingTransaction<Hash, Ex>) -> Option<R>>(
-		&mut self,
-		f: F,
-	) -> Option<R> {
+	pub fn fold<R, F: FnMut(Option<R>, &WaitingTransaction<Hash, Ex>) -> Option<R>>(&mut self, f: F) -> Option<R> {
 		self.waiting.values().fold(None, f)
 	}
 

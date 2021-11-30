@@ -62,7 +62,9 @@ impl pallet_session::SessionManager<u64> for TestSessionManager {
 impl pallet_session::historical::SessionManager<u64, u64> for TestSessionManager {
 	fn new_session(_new_index: SessionIndex) -> Option<Vec<(u64, u64)>> {
 		VALIDATORS.with(|l| {
-			l.borrow_mut().take().map(|validators| validators.iter().map(|v| (*v, *v)).collect())
+			l.borrow_mut()
+				.take()
+				.map(|validators| validators.iter().map(|v| (*v, *v)).collect())
 		})
 	}
 	fn end_session(_: SessionIndex) {}
@@ -92,7 +94,9 @@ impl ReportOffence<u64, IdentificationTuple, Offence> for OffenceHandler {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+	let t = frame_system::GenesisConfig::default()
+		.build_storage::<Runtime>()
+		.unwrap();
 	t.into()
 }
 
@@ -145,8 +149,7 @@ parameter_types! {
 
 impl pallet_session::Trait for Runtime {
 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-	type SessionManager =
-		pallet_session::historical::NoteHistoricalRoot<Runtime, TestSessionManager>;
+	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Runtime, TestSessionManager>;
 	type SessionHandler = (ImOnline,);
 	type ValidatorId = u64;
 	type ValidatorIdOf = ConvertInto;

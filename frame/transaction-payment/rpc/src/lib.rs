@@ -47,7 +47,10 @@ pub struct TransactionPayment<C, P> {
 impl<C, P> TransactionPayment<C, P> {
 	/// Create new `TransactionPayment` with the given reference to the client.
 	pub fn new(client: Arc<C>) -> Self {
-		TransactionPayment { client, _marker: Default::default() }
+		TransactionPayment {
+			client,
+			_marker: Default::default(),
+		}
 	}
 }
 

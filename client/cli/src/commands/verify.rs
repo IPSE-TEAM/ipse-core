@@ -74,24 +74,21 @@ where
 			"signature has an invalid length. read {} bytes, expected {} bytes",
 			sig_data.len(),
 			signature.as_ref().len(),
-		)))
+		)));
 	}
 	signature.as_mut().copy_from_slice(&sig_data);
 
 	let pubkey = if let Ok(pubkey_vec) = hex::decode(uri) {
 		Pair::Public::from_slice(pubkey_vec.as_slice())
 	} else {
-		Pair::Public::from_string(uri).map_err(|_| {
-			error::Error::Other(format!(
-				"Invalid URI; expecting either a secret URI or a public URI."
-			))
-		})?
+		Pair::Public::from_string(uri)
+			.map_err(|_| error::Error::Other(format!("Invalid URI; expecting either a secret URI or a public URI.")))?
 	};
 
 	if Pair::verify(&signature, &message, &pubkey) {
 		println!("Signature verifies correctly.");
 	} else {
-		return Err(error::Error::Other("Signature invalid.".into()))
+		return Err(error::Error::Other("Signature invalid.".into()));
 	}
 
 	Ok(())

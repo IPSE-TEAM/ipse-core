@@ -93,17 +93,12 @@ impl<B: BlockT> Link<B> for BufferedLinkSender<B> {
 		count: usize,
 		results: Vec<(Result<BlockImportResult<NumberFor<B>>, BlockImportError>, B::Hash)>,
 	) {
-		let _ =
-			self.tx.unbounded_send(BlockImportWorkerMsg::BlocksProcessed(imported, count, results));
+		let _ = self
+			.tx
+			.unbounded_send(BlockImportWorkerMsg::BlocksProcessed(imported, count, results));
 	}
 
-	fn justification_imported(
-		&mut self,
-		who: Origin,
-		hash: &B::Hash,
-		number: NumberFor<B>,
-		success: bool,
-	) {
+	fn justification_imported(&mut self, who: Origin, hash: &B::Hash, number: NumberFor<B>, success: bool) {
 		let msg = BlockImportWorkerMsg::JustificationImported(who, hash.clone(), number, success);
 		let _ = self.tx.unbounded_send(msg);
 	}
@@ -120,8 +115,7 @@ impl<B: BlockT> Link<B> for BufferedLinkSender<B> {
 		request_block: (B::Hash, NumberFor<B>),
 		finalization_result: Result<(B::Hash, NumberFor<B>), ()>,
 	) {
-		let msg =
-			BlockImportWorkerMsg::FinalityProofImported(who, request_block, finalization_result);
+		let msg = BlockImportWorkerMsg::FinalityProofImported(who, request_block, finalization_result);
 		let _ = self.tx.unbounded_send(msg);
 	}
 
@@ -155,16 +149,17 @@ impl<B: BlockT> BufferedLinkReceiver<B> {
 			};
 
 			match msg {
-				BlockImportWorkerMsg::BlocksProcessed(imported, count, results) =>
-					link.blocks_processed(imported, count, results),
-				BlockImportWorkerMsg::JustificationImported(who, hash, number, success) =>
-					link.justification_imported(who, &hash, number, success),
-				BlockImportWorkerMsg::RequestJustification(hash, number) =>
-					link.request_justification(&hash, number),
-				BlockImportWorkerMsg::FinalityProofImported(who, block, result) =>
-					link.finality_proof_imported(who, block, result),
-				BlockImportWorkerMsg::RequestFinalityProof(hash, number) =>
-					link.request_finality_proof(&hash, number),
+				BlockImportWorkerMsg::BlocksProcessed(imported, count, results) => {
+					link.blocks_processed(imported, count, results)
+				}
+				BlockImportWorkerMsg::JustificationImported(who, hash, number, success) => {
+					link.justification_imported(who, &hash, number, success)
+				}
+				BlockImportWorkerMsg::RequestJustification(hash, number) => link.request_justification(&hash, number),
+				BlockImportWorkerMsg::FinalityProofImported(who, block, result) => {
+					link.finality_proof_imported(who, block, result)
+				}
+				BlockImportWorkerMsg::RequestFinalityProof(hash, number) => link.request_finality_proof(&hash, number),
 			}
 		}
 	}

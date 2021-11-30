@@ -44,7 +44,7 @@ where
 			block.encode_to(&mut buf);
 			let reader = std::io::Cursor::new(buf);
 			import_blocks(client, import_queue, reader, true, true)
-		},
+		}
 		Ok(None) => Box::pin(future::err("Unknown block".into())),
 		Err(e) => Box::pin(future::err(format!("Error reading block: {:?}", e).into())),
 	}

@@ -20,8 +20,8 @@
 use super::*;
 use codec::Encode;
 use frame_support::{
-	assert_noop, assert_ok, impl_outer_dispatch, impl_outer_event, impl_outer_origin,
-	ord_parameter_types, parameter_types,
+	assert_noop, assert_ok, impl_outer_dispatch, impl_outer_event, impl_outer_origin, ord_parameter_types,
+	parameter_types,
 	traits::{Contains, Filter, OnInitialize},
 	weights::Weight,
 };
@@ -46,10 +46,22 @@ mod public_proposals;
 mod scheduling;
 mod voting;
 
-const AYE: Vote = Vote { aye: true, conviction: Conviction::None };
-const NAY: Vote = Vote { aye: false, conviction: Conviction::None };
-const BIG_AYE: Vote = Vote { aye: true, conviction: Conviction::Locked1x };
-const BIG_NAY: Vote = Vote { aye: false, conviction: Conviction::Locked1x };
+const AYE: Vote = Vote {
+	aye: true,
+	conviction: Conviction::None,
+};
+const NAY: Vote = Vote {
+	aye: false,
+	conviction: Conviction::None,
+};
+const BIG_AYE: Vote = Vote {
+	aye: true,
+	conviction: Conviction::Locked1x,
+};
+const BIG_NAY: Vote = Vote {
+	aye: false,
+	conviction: Conviction::Locked1x,
+};
 
 const MAX_PROPOSALS: u32 = 100;
 
@@ -307,19 +319,31 @@ fn begin_referendum() -> ReferendumIndex {
 }
 
 fn aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: AYE, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: AYE,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: NAY, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: NAY,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn big_aye(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: BIG_AYE, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: BIG_AYE,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn big_nay(who: u64) -> AccountVote<u64> {
-	AccountVote::Standard { vote: BIG_NAY, balance: Balances::free_balance(&who) }
+	AccountVote::Standard {
+		vote: BIG_NAY,
+		balance: Balances::free_balance(&who),
+	}
 }
 
 fn tally(r: ReferendumIndex) -> Tally<u64> {

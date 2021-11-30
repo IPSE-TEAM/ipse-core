@@ -22,12 +22,7 @@ use super::*;
 #[test]
 fn missing_preimage_should_fail() {
 	new_test_ext().execute_with(|| {
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal_hash(2),
-			VoteThreshold::SuperMajorityApprove,
-			0,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal_hash(2), VoteThreshold::SuperMajorityApprove, 0);
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 
 		next_block();
@@ -85,11 +80,7 @@ fn preimage_deposit_should_be_reapable_earlier_by_owner() {
 
 		next_block();
 		assert_noop!(
-			Democracy::reap_preimage(
-				Origin::signed(6),
-				set_balance_proposal_hash(2),
-				u32::max_value()
-			),
+			Democracy::reap_preimage(Origin::signed(6), set_balance_proposal_hash(2), u32::max_value()),
 			Error::<Test>::TooEarly
 		);
 		next_block();
@@ -108,11 +99,7 @@ fn preimage_deposit_should_be_reapable_earlier_by_owner() {
 fn preimage_deposit_should_be_reapable() {
 	new_test_ext_execute_with_cond(|operational| {
 		assert_noop!(
-			Democracy::reap_preimage(
-				Origin::signed(5),
-				set_balance_proposal_hash(2),
-				u32::max_value()
-			),
+			Democracy::reap_preimage(Origin::signed(5), set_balance_proposal_hash(2), u32::max_value()),
 			Error::<Test>::PreimageMissing
 		);
 
@@ -128,11 +115,7 @@ fn preimage_deposit_should_be_reapable() {
 		next_block();
 		next_block();
 		assert_noop!(
-			Democracy::reap_preimage(
-				Origin::signed(5),
-				set_balance_proposal_hash(2),
-				u32::max_value()
-			),
+			Democracy::reap_preimage(Origin::signed(5), set_balance_proposal_hash(2), u32::max_value()),
 			Error::<Test>::TooEarly
 		);
 
@@ -153,20 +136,12 @@ fn noting_imminent_preimage_for_free_should_work() {
 	new_test_ext_execute_with_cond(|operational| {
 		PREIMAGE_BYTE_DEPOSIT.with(|v| *v.borrow_mut() = 1);
 
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal_hash(2),
-			VoteThreshold::SuperMajorityApprove,
-			1,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal_hash(2), VoteThreshold::SuperMajorityApprove, 1);
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 
 		assert_noop!(
 			if operational {
-				Democracy::note_imminent_preimage_operational(
-					Origin::signed(6),
-					set_balance_proposal(2),
-				)
+				Democracy::note_imminent_preimage_operational(Origin::signed(6), set_balance_proposal(2))
 			} else {
 				Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2))
 			},
@@ -176,7 +151,10 @@ fn noting_imminent_preimage_for_free_should_work() {
 		next_block();
 
 		// Now we're in the dispatch queue it's all good.
-		assert_ok!(Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2)));
+		assert_ok!(Democracy::note_imminent_preimage(
+			Origin::signed(6),
+			set_balance_proposal(2)
+		));
 
 		next_block();
 
@@ -204,17 +182,15 @@ fn note_imminent_preimage_can_only_be_successful_once() {
 	new_test_ext().execute_with(|| {
 		PREIMAGE_BYTE_DEPOSIT.with(|v| *v.borrow_mut() = 1);
 
-		let r = Democracy::inject_referendum(
-			2,
-			set_balance_proposal_hash(2),
-			VoteThreshold::SuperMajorityApprove,
-			1,
-		);
+		let r = Democracy::inject_referendum(2, set_balance_proposal_hash(2), VoteThreshold::SuperMajorityApprove, 1);
 		assert_ok!(Democracy::vote(Origin::signed(1), r, aye(1)));
 		next_block();
 
 		// First time works
-		assert_ok!(Democracy::note_imminent_preimage(Origin::signed(6), set_balance_proposal(2)));
+		assert_ok!(Democracy::note_imminent_preimage(
+			Origin::signed(6),
+			set_balance_proposal(2)
+		));
 
 		// Second time fails
 		assert_noop!(

@@ -52,8 +52,7 @@ pub fn rpc_handler<M: PubSubMetadata>(
 	let mut methods = io.iter().map(|x| x.0.clone()).collect::<Vec<String>>();
 	io.add_method("rpc_methods", {
 		methods.sort();
-		let methods = serde_json::to_value(&methods)
-			.expect("Serialization of Vec<String> is infallible; qed");
+		let methods = serde_json::to_value(&methods).expect("Serialization of Vec<String> is infallible; qed");
 
 		move |_| {
 			Ok(serde_json::json!({
@@ -88,7 +87,11 @@ mod inner {
 			.threads(4)
 			.health_api(("/health", "system_health"))
 			.allowed_hosts(hosts_filtering(cors.is_some()))
-			.rest_api(if cors.is_some() { http::RestApi::Secure } else { http::RestApi::Unsecure })
+			.rest_api(if cors.is_some() {
+				http::RestApi::Secure
+			} else {
+				http::RestApi::Unsecure
+			})
 			.cors(map_cors::<http::AccessControlAllowOrigin>(cors))
 			.max_request_body_size(MAX_PAYLOAD)
 			.start_http(addr)
@@ -97,10 +100,7 @@ mod inner {
 	/// Start IPC server listening on given path.
 	///
 	/// **Note**: Only available if `not(target_os = "unknown")`.
-	pub fn start_ipc<M: pubsub::PubSubMetadata + Default>(
-		addr: &str,
-		io: RpcHandler<M>,
-	) -> io::Result<ipc::Server> {
+	pub fn start_ipc<M: pubsub::PubSubMetadata + Default>(addr: &str, io: RpcHandler<M>) -> io::Result<ipc::Server> {
 		let builder = ipc::ServerBuilder::new(io);
 		#[cfg(target_os = "unix")]
 		builder.set_security_attributes({
@@ -114,36 +114,31 @@ mod inner {
 	/// Start WS server listening on given address.
 	///
 	/// **Note**: Only available if `not(target_os = "unknown")`.
-	pub fn start_ws<
-		M: pubsub::PubSubMetadata + From<jsonrpc_core::futures::sync::mpsc::Sender<String>>,
-	>(
+	pub fn start_ws<M: pubsub::PubSubMetadata + From<jsonrpc_core::futures::sync::mpsc::Sender<String>>>(
 		addr: &std::net::SocketAddr,
 		max_connections: Option<usize>,
 		cors: Option<&Vec<String>>,
 		io: RpcHandler<M>,
 	) -> io::Result<ws::Server> {
-		ws::ServerBuilder::with_meta_extractor(io, |context: &ws::RequestContext| {
-			context.sender().into()
-		})
-		.max_payload(MAX_PAYLOAD)
-		.max_connections(max_connections.unwrap_or(WS_MAX_CONNECTIONS))
-		.allowed_origins(map_cors(cors))
-		.allowed_hosts(hosts_filtering(cors.is_some()))
-		.start(addr)
-		.map_err(|err| match err {
-			ws::Error::Io(io) => io,
-			ws::Error::ConnectionClosed => io::ErrorKind::BrokenPipe.into(),
-			e => {
-				error!("{}", e);
-				io::ErrorKind::Other.into()
-			},
-		})
+		ws::ServerBuilder::with_meta_extractor(io, |context: &ws::RequestContext| context.sender().into())
+			.max_payload(MAX_PAYLOAD)
+			.max_connections(max_connections.unwrap_or(WS_MAX_CONNECTIONS))
+			.allowed_origins(map_cors(cors))
+			.allowed_hosts(hosts_filtering(cors.is_some()))
+			.start(addr)
+			.map_err(|err| match err {
+				ws::Error::Io(io) => io,
+				ws::Error::ConnectionClosed => io::ErrorKind::BrokenPipe.into(),
+				e => {
+					error!("{}", e);
+					io::ErrorKind::Other.into()
+				}
+			})
 	}
 
-	fn map_cors<T: for<'a> From<&'a str>>(
-		cors: Option<&Vec<String>>,
-	) -> http::DomainsValidation<T> {
-		cors.map(|x| x.iter().map(AsRef::as_ref).map(Into::into).collect::<Vec<_>>()).into()
+	fn map_cors<T: for<'a> From<&'a str>>(cors: Option<&Vec<String>>) -> http::DomainsValidation<T> {
+		cors.map(|x| x.iter().map(AsRef::as_ref).map(Into::into).collect::<Vec<_>>())
+			.into()
 	}
 
 	fn hosts_filtering(enable: bool) -> http::DomainsValidation<http::Host> {

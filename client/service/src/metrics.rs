@@ -46,12 +46,7 @@ struct PrometheusMetrics {
 }
 
 impl PrometheusMetrics {
-	fn setup(
-		registry: &Registry,
-		name: &str,
-		version: &str,
-		roles: u64,
-	) -> Result<Self, PrometheusError> {
+	fn setup(registry: &Registry, name: &str, version: &str, roles: u64) -> Result<Self, PrometheusError> {
 		register(
 			Gauge::<U64>::with_opts(
 				Opts::new(
@@ -65,13 +60,17 @@ impl PrometheusMetrics {
 		)?
 		.set(1);
 
-		register(Gauge::<U64>::new("node_roles", "The roles the node is running as")?, &registry)?
-			.set(roles);
+		register(
+			Gauge::<U64>::new("node_roles", "The roles the node is running as")?,
+			&registry,
+		)?
+		.set(roles);
 
 		register_globals(registry)?;
 
-		let start_time_since_epoch =
-			SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default();
+		let start_time_since_epoch = SystemTime::now()
+			.duration_since(SystemTime::UNIX_EPOCH)
+			.unwrap_or_default();
 		register(
 			Gauge::<U64>::new(
 				"process_start_time_seconds",
@@ -84,10 +83,7 @@ impl PrometheusMetrics {
 		Ok(Self {
 			// generic internals
 			block_height: register(
-				GaugeVec::new(
-					Opts::new("block_height", "Block height info of the chain"),
-					&["status"],
-				)?,
+				GaugeVec::new(Opts::new("block_height", "Block height info of the chain"), &["status"])?,
 				registry,
 			)?,
 
@@ -97,10 +93,7 @@ impl PrometheusMetrics {
 			)?,
 
 			ready_transactions_number: register(
-				Gauge::new(
-					"ready_transactions_number",
-					"Number of transactions in the ready queue",
-				)?,
+				Gauge::new("ready_transactions_number", "Number of transactions in the ready queue")?,
 				registry,
 			)?,
 
@@ -109,10 +102,7 @@ impl PrometheusMetrics {
 				Gauge::new("database_cache_bytes", "RocksDB cache size in bytes")?,
 				registry,
 			)?,
-			state_cache: register(
-				Gauge::new("state_cache_bytes", "State cache size in bytes")?,
-				registry,
-			)?,
+			state_cache: register(Gauge::new("state_cache_bytes", "State cache size in bytes")?, registry)?,
 			state_db: register(
 				GaugeVec::new(
 					Opts::new("state_db_cache_bytes", "State DB cache in bytes"),
@@ -148,10 +138,7 @@ impl MetricsService {
 
 	/// Creates a `MetricsService` that sends metrics
 	/// to prometheus alongside the telemetry.
-	pub fn with_prometheus(
-		registry: &Registry,
-		config: &Configuration,
-	) -> Result<Self, PrometheusError> {
+	pub fn with_prometheus(registry: &Registry, config: &Configuration) -> Result<Self, PrometheusError> {
 		let role_bits = match config.role {
 			Role::Full => 1u64,
 			Role::Light => 2u64,
@@ -159,17 +146,13 @@ impl MetricsService {
 			Role::Authority { .. } => 4u64,
 		};
 
-		PrometheusMetrics::setup(
-			registry,
-			&config.network.node_name,
-			&config.impl_version,
-			role_bits,
-		)
-		.map(|p| MetricsService {
-			metrics: Some(p),
-			last_total_bytes_inbound: 0,
-			last_total_bytes_outbound: 0,
-			last_update: Instant::now(),
+		PrometheusMetrics::setup(registry, &config.network.node_name, &config.impl_version, role_bits).map(|p| {
+			MetricsService {
+				metrics: Some(p),
+				last_total_bytes_inbound: 0,
+				last_total_bytes_outbound: 0,
+				last_update: Instant::now(),
+			}
 		})
 	}
 
@@ -208,20 +191,20 @@ impl MetricsService {
 				match Self::latest(rx) {
 					Ok(status) => {
 						net_status = status;
-					},
+					}
 					Err(()) => {
 						net_status_rx = None;
-					},
+					}
 				}
 			}
 			if let Some(rx) = net_state_rx.as_mut() {
 				match Self::latest(rx) {
 					Ok(state) => {
 						net_state = state;
-					},
+					}
 					Err(()) => {
 						net_state_rx = None;
-					},
+					}
 				}
 			}
 
@@ -242,8 +225,8 @@ impl MetricsService {
 				Some(v) => value = Some(v),
 				None => {
 					log::error!("Receiver closed unexpectedly.");
-					return Err(())
-				},
+					return Err(());
+				}
 			}
 		}
 
@@ -280,7 +263,10 @@ impl MetricsService {
 		);
 
 		if let Some(metrics) = self.metrics.as_ref() {
-			metrics.block_height.with_label_values(&["finalized"]).set(finalized_number);
+			metrics
+				.block_height
+				.with_label_values(&["finalized"])
+				.set(finalized_number);
 			metrics.block_height.with_label_values(&["best"]).set(best_number);
 
 			if let Ok(leaves) = u64::try_from(info.chain.number_leaves) {
@@ -298,7 +284,10 @@ impl MetricsService {
 					.with_label_values(&["non_canonical"])
 					.set(info.memory.state_db.non_canonical.as_bytes() as u64);
 				if let Some(pruning) = info.memory.state_db.pruning {
-					metrics.state_db.with_label_values(&["pruning"]).set(pruning.as_bytes() as u64);
+					metrics
+						.state_db
+						.with_label_values(&["pruning"])
+						.set(pruning.as_bytes() as u64);
 				}
 				metrics
 					.state_db
@@ -337,7 +326,10 @@ impl MetricsService {
 					.map(|num: NumberFor<T>| num.unique_saturated_into() as u64);
 
 				if let Some(best_seen_block) = best_seen_block {
-					metrics.block_height.with_label_values(&["sync_target"]).set(best_seen_block);
+					metrics
+						.block_height
+						.with_label_values(&["sync_target"])
+						.set(best_seen_block);
 				}
 			}
 		}

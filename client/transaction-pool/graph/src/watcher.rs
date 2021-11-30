@@ -54,7 +54,10 @@ pub struct Sender<H, BH> {
 
 impl<H, BH> Default for Sender<H, BH> {
 	fn default() -> Self {
-		Sender { receivers: Default::default(), is_finalized: false }
+		Sender {
+			receivers: Default::default(),
+			is_finalized: false,
+		}
 	}
 }
 
@@ -128,6 +131,7 @@ impl<H: Clone, BH: Clone> Sender<H, BH> {
 	}
 
 	fn send(&mut self, status: TransactionStatus<H, BH>) {
-		self.receivers.retain(|sender| sender.unbounded_send(status.clone()).is_ok())
+		self.receivers
+			.retain(|sender| sender.unbounded_send(status.clone()).is_ok())
 	}
 }

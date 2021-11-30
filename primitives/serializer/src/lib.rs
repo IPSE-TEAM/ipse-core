@@ -37,9 +37,6 @@ pub fn encode<T: serde::Serialize + ?Sized>(value: &T) -> Vec<u8> {
 }
 
 /// Serialize the given data structure as JSON into the IO stream.
-pub fn to_writer<W: ::std::io::Write, T: serde::Serialize + ?Sized>(
-	writer: W,
-	value: &T,
-) -> Result<()> {
+pub fn to_writer<W: ::std::io::Write, T: serde::Serialize + ?Sized>(writer: W, value: &T) -> Result<()> {
 	serde_json::to_writer(writer, value)
 }

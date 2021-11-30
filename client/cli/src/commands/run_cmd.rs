@@ -343,17 +343,11 @@ impl CliConfiguration for RunCmd {
 		}))
 	}
 
-	fn telemetry_endpoints(
-		&self,
-		chain_spec: &Box<dyn ChainSpec>,
-	) -> Result<Option<TelemetryEndpoints>> {
+	fn telemetry_endpoints(&self, chain_spec: &Box<dyn ChainSpec>) -> Result<Option<TelemetryEndpoints>> {
 		Ok(if self.no_telemetry {
 			None
 		} else if !self.telemetry_endpoints.is_empty() {
-			Some(
-				TelemetryEndpoints::new(self.telemetry_endpoints.clone())
-					.map_err(|e| e.to_string())?,
-			)
+			Some(TelemetryEndpoints::new(self.telemetry_endpoints.clone()).map_err(|e| e.to_string())?)
 		} else {
 			chain_spec.telemetry_endpoints().clone()
 		})
@@ -367,9 +361,13 @@ impl CliConfiguration for RunCmd {
 		Ok(if is_light {
 			sc_service::Role::Light
 		} else if is_authority {
-			sc_service::Role::Authority { sentry_nodes: self.sentry_nodes.clone() }
+			sc_service::Role::Authority {
+				sentry_nodes: self.sentry_nodes.clone(),
+			}
 		} else if !self.sentry.is_empty() {
-			sc_service::Role::Sentry { validators: self.sentry.clone() }
+			sc_service::Role::Sentry {
+				validators: self.sentry.clone(),
+			}
 		} else {
 			sc_service::Role::Full
 		})
@@ -384,8 +382,11 @@ impl CliConfiguration for RunCmd {
 		Ok(if self.no_prometheus {
 			None
 		} else {
-			let interface =
-				if self.prometheus_external { Ipv4Addr::UNSPECIFIED } else { Ipv4Addr::LOCALHOST };
+			let interface = if self.prometheus_external {
+				Ipv4Addr::UNSPECIFIED
+			} else {
+				Ipv4Addr::LOCALHOST
+			};
 
 			Some(PrometheusConfig::new_with_default_registry(SocketAddr::new(
 				interface.into(),
@@ -431,7 +432,10 @@ impl CliConfiguration for RunCmd {
 			self.validator,
 		)?;
 
-		Ok(Some(SocketAddr::new(interface, self.rpc_port.unwrap_or(default_listen_port))))
+		Ok(Some(SocketAddr::new(
+			interface,
+			self.rpc_port.unwrap_or(default_listen_port),
+		)))
 	}
 
 	fn rpc_ipc(&self) -> Result<Option<String>> {
@@ -446,7 +450,10 @@ impl CliConfiguration for RunCmd {
 			self.validator,
 		)?;
 
-		Ok(Some(SocketAddr::new(interface, self.ws_port.unwrap_or(default_listen_port))))
+		Ok(Some(SocketAddr::new(
+			interface,
+			self.ws_port.unwrap_or(default_listen_port),
+		)))
 	}
 
 	fn rpc_methods(&self) -> Result<sc_service::config::RpcMethods> {
@@ -474,19 +481,19 @@ impl CliConfiguration for RunCmd {
 pub fn is_node_name_valid(_name: &str) -> std::result::Result<(), &str> {
 	let name = _name.to_string();
 	if name.chars().count() >= crate::NODE_NAME_MAX_LENGTH {
-		return Err("Node name too long")
+		return Err("Node name too long");
 	}
 
 	let invalid_chars = r"[\\.@]";
 	let re = Regex::new(invalid_chars).unwrap();
 	if re.is_match(&name) {
-		return Err("Node name should not contain invalid chars such as '.' and '@'")
+		return Err("Node name should not contain invalid chars such as '.' and '@'");
 	}
 
 	let invalid_patterns = r"(https?:\\/+)?(www)+";
 	let re = Regex::new(invalid_patterns).unwrap();
 	if re.is_match(&name) {
-		return Err("Node name should not contain urls")
+		return Err("Node name should not contain urls");
 	}
 
 	Ok(())
@@ -505,7 +512,7 @@ fn rpc_interface(
 		or `--rpc-methods=unsafe` if you understand the risks. See the options \
 		description for more information."
 				.to_owned(),
-		))
+		));
 	}
 
 	if is_external || is_unsafe_external {
@@ -545,10 +552,11 @@ fn parse_telemetry_endpoints(s: &str) -> std::result::Result<(String, u8), Telem
 		None => Err(TelemetryParsingError::MissingVerbosity),
 		Some(pos_) => {
 			let url = s[..pos_].to_string();
-			let verbosity =
-				s[pos_ + 1..].parse().map_err(TelemetryParsingError::VerbosityParsingError)?;
+			let verbosity = s[pos_ + 1..]
+				.parse()
+				.map_err(TelemetryParsingError::VerbosityParsingError)?;
 			Ok((url, verbosity))
-		},
+		}
 	}
 }
 
@@ -581,8 +589,8 @@ fn parse_cors(s: &str) -> std::result::Result<Cors, Box<dyn std::error::Error>> 
 		match part {
 			"all" | "*" => {
 				is_all = true;
-				break
-			},
+				break;
+			}
 			other => origins.push(other.to_owned()),
 		}
 	}

@@ -164,11 +164,7 @@ pub trait RootsStorage<H: Hasher, Number: BlockNumber>: Send + Sync {
 	fn build_anchor(&self, hash: H::Out) -> Result<AnchorBlockId<H::Out, Number>, String>;
 	/// Get changes trie root for the block with given number which is an ancestor (or the block
 	/// itself) of the anchor_block (i.e. anchor_block.number >= block).
-	fn root(
-		&self,
-		anchor: &AnchorBlockId<H::Out, Number>,
-		block: Number,
-	) -> Result<Option<H::Out>, String>;
+	fn root(&self, anchor: &AnchorBlockId<H::Out, Number>, block: Number) -> Result<Option<H::Out>, String>;
 }
 
 /// Changes trie storage. Provides access to trie roots and trie nodes.
@@ -187,13 +183,9 @@ pub trait Storage<H: Hasher, Number: BlockNumber>: RootsStorage<H, Number> {
 }
 
 /// Changes trie storage -> trie backend essence adapter.
-pub struct TrieBackendStorageAdapter<'a, H: Hasher, Number: BlockNumber>(
-	pub &'a dyn Storage<H, Number>,
-);
+pub struct TrieBackendStorageAdapter<'a, H: Hasher, Number: BlockNumber>(pub &'a dyn Storage<H, Number>);
 
-impl<'a, H: Hasher, N: BlockNumber> crate::TrieBackendStorage<H>
-	for TrieBackendStorageAdapter<'a, H, N>
-{
+impl<'a, H: Hasher, N: BlockNumber> crate::TrieBackendStorage<H> for TrieBackendStorageAdapter<'a, H, N> {
 	type Overlay = sp_trie::MemoryDB<H>;
 
 	fn get(&self, key: &H::Out, prefix: Prefix) -> Result<Option<DBValue>, String> {
@@ -224,7 +216,11 @@ impl<'a, H, Number> State<'a, H, Number> {
 
 impl<'a, H, Number: Clone> Clone for State<'a, H, Number> {
 	fn clone(&self) -> Self {
-		State { config: self.config.clone(), zero: self.zero.clone(), storage: self.storage }
+		State {
+			config: self.config.clone(),
+			zero: self.zero.clone(),
+			storage: self.storage,
+		}
 	}
 }
 
@@ -248,10 +244,7 @@ where
 	H::Out: Ord + 'static + Encode,
 {
 	/// Panics when `res.is_err() && panic`, otherwise it returns `Err(())` on an error.
-	fn maybe_panic<R, E: std::fmt::Debug>(
-		res: std::result::Result<R, E>,
-		panic: bool,
-	) -> std::result::Result<R, ()> {
+	fn maybe_panic<R, E: std::fmt::Debug>(res: std::result::Result<R, E>, panic: bool) -> std::result::Result<R, ()> {
 		res.map(Ok).unwrap_or_else(|e| {
 			if panic {
 				panic!(
@@ -276,12 +269,11 @@ where
 
 	// prepare configuration range - we already know zero block. Current block may be the end block
 	// if configuration has been changed in this block
-	let is_config_changed =
-		match changes.storage(sp_core::storage::well_known_keys::CHANGES_TRIE_CONFIG) {
-			Some(Some(new_config)) => new_config != &state.config.encode()[..],
-			Some(None) => true,
-			None => false,
-		};
+	let is_config_changed = match changes.storage(sp_core::storage::well_known_keys::CHANGES_TRIE_CONFIG) {
+		Some(Some(new_config)) => new_config != &state.config.encode()[..],
+		Some(None) => true,
+		None => false,
+	};
 	let config_range = ConfigurationRange {
 		config: &state.config,
 		zero: state.zero.clone(),
@@ -291,13 +283,7 @@ where
 	// storage errors are considered fatal (similar to situations when runtime fetches values from
 	// storage)
 	let (input_pairs, child_input_pairs, digest_input_blocks) = maybe_panic(
-		prepare_input::<B, H, Number>(
-			backend,
-			state.storage,
-			config_range.clone(),
-			changes,
-			&parent,
-		),
+		prepare_input::<B, H, Number>(backend, state.storage, config_range.clone(), changes, &parent),
 		panic_on_storage_error,
 	)?;
 
@@ -326,8 +312,7 @@ where
 				maybe_panic(trie.insert(&key, &value), panic_on_storage_error)?;
 			}
 
-			cache_action =
-				cache_action.insert(Some(child_index.storage_key.clone()), storage_changed_keys);
+			cache_action = cache_action.insert(Some(child_index.storage_key.clone()), storage_changed_keys);
 		}
 		if not_empty {
 			child_roots.push(input::InputPair::ChildIndex(child_index, root.as_ref().to_vec()));
@@ -368,21 +353,20 @@ fn prepare_cached_build_data<Number: BlockNumber>(
 	// because it'll never be used again for building other tries
 	// => let's clear the cache
 	if !config.config.is_digest_build_enabled() {
-		return IncompleteCacheAction::Clear
+		return IncompleteCacheAction::Clear;
 	}
 
 	// when this is the last block where current configuration is active
 	// => let's clear the cache
 	if config.end.as_ref() == Some(&block) {
-		return IncompleteCacheAction::Clear
+		return IncompleteCacheAction::Clear;
 	}
 
 	// we do not need to cache anything when top-level digest trie is created, because
 	// it'll never be used again for building other tries
 	// => let's clear the cache
 	match config.config.digest_level_at_block(config.zero.clone(), block) {
-		Some((digest_level, _, _)) if digest_level == config.config.digest_levels =>
-			IncompleteCacheAction::Clear,
+		Some((digest_level, _, _)) if digest_level == config.config.digest_levels => IncompleteCacheAction::Clear,
 		_ => IncompleteCacheAction::CacheBuildData(IncompleteCachedBuildData::new()),
 	}
 }
@@ -393,15 +377,32 @@ mod tests {
 
 	#[test]
 	fn cache_is_cleared_when_digests_are_disabled() {
-		let config = Configuration { digest_interval: 0, digest_levels: 0 };
-		let config_range = ConfigurationRange { zero: 0, end: None, config: &config };
-		assert_eq!(prepare_cached_build_data(config_range, 8u32), IncompleteCacheAction::Clear);
+		let config = Configuration {
+			digest_interval: 0,
+			digest_levels: 0,
+		};
+		let config_range = ConfigurationRange {
+			zero: 0,
+			end: None,
+			config: &config,
+		};
+		assert_eq!(
+			prepare_cached_build_data(config_range, 8u32),
+			IncompleteCacheAction::Clear
+		);
 	}
 
 	#[test]
 	fn build_data_is_cached_when_digests_are_enabled() {
-		let config = Configuration { digest_interval: 8, digest_levels: 2 };
-		let config_range = ConfigurationRange { zero: 0, end: None, config: &config };
+		let config = Configuration {
+			digest_interval: 8,
+			digest_levels: 2,
+		};
+		let config_range = ConfigurationRange {
+			zero: 0,
+			end: None,
+			config: &config,
+		};
 		assert!(prepare_cached_build_data(config_range.clone(), 4u32).collects_changed_keys());
 		assert!(prepare_cached_build_data(config_range.clone(), 7u32).collects_changed_keys());
 		assert!(prepare_cached_build_data(config_range, 8u32).collects_changed_keys());
@@ -409,15 +410,32 @@ mod tests {
 
 	#[test]
 	fn cache_is_cleared_when_digests_are_enabled_and_top_level_digest_is_built() {
-		let config = Configuration { digest_interval: 8, digest_levels: 2 };
-		let config_range = ConfigurationRange { zero: 0, end: None, config: &config };
-		assert_eq!(prepare_cached_build_data(config_range, 64u32), IncompleteCacheAction::Clear);
+		let config = Configuration {
+			digest_interval: 8,
+			digest_levels: 2,
+		};
+		let config_range = ConfigurationRange {
+			zero: 0,
+			end: None,
+			config: &config,
+		};
+		assert_eq!(
+			prepare_cached_build_data(config_range, 64u32),
+			IncompleteCacheAction::Clear
+		);
 	}
 
 	#[test]
 	fn cache_is_cleared_when_end_block_of_configuration_is_built() {
-		let config = Configuration { digest_interval: 8, digest_levels: 2 };
-		let config_range = ConfigurationRange { zero: 0, end: Some(4u32), config: &config };
+		let config = Configuration {
+			digest_interval: 8,
+			digest_levels: 2,
+		};
+		let config_range = ConfigurationRange {
+			zero: 0,
+			end: Some(4u32),
+			config: &config,
+		};
 		assert_eq!(
 			prepare_cached_build_data(config_range.clone(), 4u32),
 			IncompleteCacheAction::Clear

@@ -18,10 +18,9 @@
 use crate::utils::{
 	extract_all_signature_types, extract_block_type_from_trait_path, extract_impl_trait,
 	extract_parameter_names_types_and_borrows, generate_call_api_at_fn_name, generate_crate_access,
-	generate_hidden_includes, generate_method_runtime_api_impl_name,
-	generate_native_call_generator_fn_name, generate_runtime_mod_name_for_trait,
-	prefix_function_with_trait, return_type_extract_type, AllowSelfRefInParameters,
-	RequireQualifiedTraitPath,
+	generate_hidden_includes, generate_method_runtime_api_impl_name, generate_native_call_generator_fn_name,
+	generate_runtime_mod_name_for_trait, prefix_function_with_trait, return_type_extract_type,
+	AllowSelfRefInParameters, RequireQualifiedTraitPath,
 };
 
 use proc_macro2::{Span, TokenStream};
@@ -33,8 +32,7 @@ use syn::{
 	parse::{Error, Parse, ParseStream, Result},
 	parse_macro_input, parse_quote,
 	spanned::Spanned,
-	Attribute, GenericArgument, Ident, ImplItem, ItemImpl, Path, PathArguments, Signature, Type,
-	TypePath,
+	Attribute, GenericArgument, Ident, ImplItem, ItemImpl, Path, PathArguments, Signature, Type, TypePath,
 };
 
 use std::collections::HashSet;
@@ -65,14 +63,8 @@ impl Parse for RuntimeApiImpls {
 
 /// Generates the call to the implementation of the requested function.
 /// The generated code includes decoding of the input arguments and encoding of the output.
-fn generate_impl_call(
-	signature: &Signature,
-	runtime: &Type,
-	input: &Ident,
-	impl_trait: &Path,
-) -> Result<TokenStream> {
-	let params =
-		extract_parameter_names_types_and_borrows(signature, AllowSelfRefInParameters::No)?;
+fn generate_impl_call(signature: &Signature, runtime: &Type, input: &Ident, impl_trait: &Path) -> Result<TokenStream> {
+	let params = extract_parameter_names_types_and_borrows(signature, AllowSelfRefInParameters::No)?;
 
 	let c = generate_crate_access(HIDDEN_INCLUDES_ID);
 	let fn_name = &signature.ident;
@@ -98,10 +90,7 @@ fn generate_impl_call(
 }
 
 /// Generate all the implementation calls for the given functions.
-fn generate_impl_calls(
-	impls: &[ItemImpl],
-	input: &Ident,
-) -> Result<Vec<(Ident, Ident, TokenStream, Vec<Attribute>)>> {
+fn generate_impl_calls(impls: &[ItemImpl], input: &Ident) -> Result<Vec<(Ident, Ident, TokenStream, Vec<Attribute>)>> {
 	let mut impl_calls = Vec::new();
 
 	for impl_ in impls {
@@ -115,8 +104,7 @@ fn generate_impl_calls(
 
 		for item in &impl_.items {
 			if let ImplItem::Method(method) = item {
-				let impl_call =
-					generate_impl_call(&method.sig, &impl_.self_ty, input, &impl_trait)?;
+				let impl_call = generate_impl_call(&method.sig, &impl_.self_ty, input, &impl_trait)?;
 
 				impl_calls.push((
 					impl_trait_ident.clone(),
@@ -135,8 +123,9 @@ fn generate_impl_calls(
 fn generate_dispatch_function(impls: &[ItemImpl]) -> Result<TokenStream> {
 	let data = Ident::new("__sp_api__input_data", Span::call_site());
 	let c = generate_crate_access(HIDDEN_INCLUDES_ID);
-	let impl_calls =
-		generate_impl_calls(impls, &data)?.into_iter().map(|(trait_, fn_name, impl_, attrs)| {
+	let impl_calls = generate_impl_calls(impls, &data)?
+		.into_iter()
+		.map(|(trait_, fn_name, impl_, attrs)| {
 			let name = prefix_function_with_trait(&trait_, &fn_name);
 			quote!(
 				#( #attrs )*
@@ -159,10 +148,10 @@ fn generate_dispatch_function(impls: &[ItemImpl]) -> Result<TokenStream> {
 fn generate_wasm_interface(impls: &[ItemImpl]) -> Result<TokenStream> {
 	let input = Ident::new("input", Span::call_site());
 	let c = generate_crate_access(HIDDEN_INCLUDES_ID);
-	let impl_calls =
-		generate_impl_calls(impls, &input)?.into_iter().map(|(trait_, fn_name, impl_, attrs)| {
-			let fn_name =
-				Ident::new(&prefix_function_with_trait(&trait_, &fn_name), Span::call_site());
+	let impl_calls = generate_impl_calls(impls, &input)?
+		.into_iter()
+		.map(|(trait_, fn_name, impl_, attrs)| {
+			let fn_name = Ident::new(&prefix_function_with_trait(&trait_, &fn_name), Span::call_site());
 
 			quote!(
 				#( #attrs )*
@@ -449,8 +438,11 @@ struct ApiRuntimeImplToApiRuntimeApiImpl<'a> {
 
 impl<'a> Fold for ApiRuntimeImplToApiRuntimeApiImpl<'a> {
 	fn fold_type_path(&mut self, input: TypePath) -> TypePath {
-		let new_ty_path =
-			if input == *self.runtime_block { parse_quote!(__SR_API_BLOCK__) } else { input };
+		let new_ty_path = if input == *self.runtime_block {
+			parse_quote!(__SR_API_BLOCK__)
+		} else {
+			input
+		};
 
 		fold::fold_type_path(self, new_ty_path)
 	}
@@ -459,8 +451,7 @@ impl<'a> Fold for ApiRuntimeImplToApiRuntimeApiImpl<'a> {
 		let block = {
 			let runtime_mod_path = self.runtime_mod_path;
 			let runtime = self.runtime_type;
-			let native_call_generator_ident =
-				generate_native_call_generator_fn_name(&input.sig.ident);
+			let native_call_generator_ident = generate_native_call_generator_fn_name(&input.sig.ident);
 			let call_api_at_call = generate_call_api_at_fn_name(&input.sig.ident);
 			let trait_generic_arguments = self.trait_generic_arguments;
 			let crate_ = generate_crate_access(HIDDEN_INCLUDES_ID);
@@ -481,22 +472,20 @@ impl<'a> Fold for ApiRuntimeImplToApiRuntimeApiImpl<'a> {
 					.collect::<Vec<_>>()
 			};
 
-			let (param_types, error) = match extract_parameter_names_types_and_borrows(
-				&input.sig,
-				AllowSelfRefInParameters::No,
-			) {
-				Ok(res) => (
-					res.into_iter()
-						.map(|v| {
-							let ty = v.1;
-							let borrow = v.2;
-							quote!( #borrow #ty )
-						})
-						.collect::<Vec<_>>(),
-					None,
-				),
-				Err(e) => (Vec::new(), Some(e.to_compile_error())),
-			};
+			let (param_types, error) =
+				match extract_parameter_names_types_and_borrows(&input.sig, AllowSelfRefInParameters::No) {
+					Ok(res) => (
+						res.into_iter()
+							.map(|v| {
+								let ty = v.1;
+								let borrow = v.2;
+								quote!( #borrow #ty )
+							})
+							.collect::<Vec<_>>(),
+						None,
+					),
+					Err(e) => (Vec::new(), Some(e.to_compile_error())),
+				};
 
 			// Rewrite the input parameters.
 			input.sig.inputs = parse_quote! {
@@ -507,8 +496,7 @@ impl<'a> Fold for ApiRuntimeImplToApiRuntimeApiImpl<'a> {
 				params_encoded: Vec<u8>,
 			};
 
-			input.sig.ident =
-				generate_method_runtime_api_impl_name(&self.impl_trait, &input.sig.ident);
+			input.sig.ident = generate_method_runtime_api_impl_name(&self.impl_trait, &input.sig.ident);
 			let ret_type = return_type_extract_type(&input.sig.output);
 
 			// Generate the correct return type.
@@ -572,16 +560,16 @@ impl<'a> Fold for ApiRuntimeImplToApiRuntimeApiImpl<'a> {
 		let crate_ = generate_crate_access(HIDDEN_INCLUDES_ID);
 
 		// Implement the trait for the `RuntimeApiImpl`
-		input.self_ty =
-			Box::new(parse_quote!( RuntimeApiImpl<__SR_API_BLOCK__, RuntimeApiImplCall> ));
+		input.self_ty = Box::new(parse_quote!( RuntimeApiImpl<__SR_API_BLOCK__, RuntimeApiImplCall> ));
 
 		input.generics.params.push(parse_quote!(
 			__SR_API_BLOCK__: #crate_::BlockT + std::panic::UnwindSafe +
 				std::panic::RefUnwindSafe
 		));
-		input.generics.params.push(
-			parse_quote!( RuntimeApiImplCall: #crate_::CallApiAt<__SR_API_BLOCK__> + 'static ),
-		);
+		input
+			.generics
+			.params
+			.push(parse_quote!( RuntimeApiImplCall: #crate_::CallApiAt<__SR_API_BLOCK__> + 'static ));
 
 		let where_clause = input.generics.make_where_clause();
 
@@ -653,9 +641,8 @@ fn generate_runtime_api_versions(impls: &[ItemImpl]) -> Result<TokenStream> {
 	let mut processed_traits = HashSet::new();
 
 	for impl_ in impls {
-		let mut path = extend_with_runtime_decl_path(
-			extract_impl_trait(&impl_, RequireQualifiedTraitPath::Yes)?.clone(),
-		);
+		let mut path =
+			extend_with_runtime_decl_path(extract_impl_trait(&impl_, RequireQualifiedTraitPath::Yes)?.clone());
 		// Remove the trait
 		let trait_ = path
 			.segments
@@ -671,7 +658,7 @@ fn generate_runtime_api_versions(impls: &[ItemImpl]) -> Result<TokenStream> {
 				"Two traits with the same name detected! \
 					The trait name is used to generate its ID. \
 					Please rename one trait at the declaration!",
-			))
+			));
 		}
 
 		let id: Path = parse_quote!( #path ID );
@@ -696,7 +683,9 @@ pub fn impl_runtime_apis_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
 	// Parse all impl blocks
 	let RuntimeApiImpls { impls: api_impls } = parse_macro_input!(input as RuntimeApiImpls);
 
-	impl_runtime_apis_impl_inner(&api_impls).unwrap_or_else(|e| e.to_compile_error()).into()
+	impl_runtime_apis_impl_inner(&api_impls)
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
 }
 
 fn impl_runtime_apis_impl_inner(api_impls: &[ItemImpl]) -> Result<TokenStream> {

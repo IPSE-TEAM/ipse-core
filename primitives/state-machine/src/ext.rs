@@ -17,10 +17,7 @@
 
 //! Concrete externalities implementation.
 
-use crate::{
-	backend::Backend, overlayed_changes::OverlayedExtensions, OverlayedChanges, StorageKey,
-	StorageValue,
-};
+use crate::{backend::Backend, overlayed_changes::OverlayedExtensions, OverlayedChanges, StorageKey, StorageValue};
 use codec::{Decode, Encode, EncodeAppend};
 use hash_db::Hasher;
 use sp_core::{
@@ -134,7 +131,13 @@ where
 		storage_transaction_cache: &'a mut StorageTransactionCache<B::Transaction, H, N>,
 		backend: &'a B,
 	) -> Self {
-		Ext { overlay, backend, id: 0, storage_transaction_cache, _phantom: Default::default() }
+		Ext {
+			overlay,
+			backend,
+			id: 0,
+			storage_transaction_cache,
+			_phantom: Default::default(),
+		}
 	}
 
 	/// Create a new `Ext` from overlayed changes and read-only backend
@@ -253,7 +256,9 @@ where
 			.child_storage(child_info, key)
 			.map(|x| x.map(|x| x.to_vec()))
 			.unwrap_or_else(|| {
-				self.backend.child_storage(child_info, key).expect(EXT_NOT_ALLOWED_TO_FAIL)
+				self.backend
+					.child_storage(child_info, key)
+					.expect(EXT_NOT_ALLOWED_TO_FAIL)
 			});
 
 		trace!(target: "state", "{:04x}: GetChild({}) {}={:?}",
@@ -273,7 +278,9 @@ where
 			.child_storage(child_info, key)
 			.map(|x| x.map(|x| H::hash(x)))
 			.unwrap_or_else(|| {
-				self.backend.child_storage_hash(child_info, key).expect(EXT_NOT_ALLOWED_TO_FAIL)
+				self.backend
+					.child_storage_hash(child_info, key)
+					.expect(EXT_NOT_ALLOWED_TO_FAIL)
 			});
 
 		trace!(target: "state", "{:04x}: ChildHash({}) {}={:?}",
@@ -307,7 +314,10 @@ where
 
 		let result = match self.overlay.child_storage(child_info, key) {
 			Some(x) => x.is_some(),
-			_ => self.backend.exists_child_storage(child_info, key).expect(EXT_NOT_ALLOWED_TO_FAIL),
+			_ => self
+				.backend
+				.exists_child_storage(child_info, key)
+				.expect(EXT_NOT_ALLOWED_TO_FAIL),
 		};
 
 		trace!(target: "state", "{:04x}: ChildExists({}) {}={:?}",
@@ -324,34 +334,37 @@ where
 		let next_overlay_key_change = self.overlay.next_storage_key_change(key);
 
 		match (next_backend_key, next_overlay_key_change) {
-			(Some(backend_key), Some(overlay_key)) if &backend_key[..] < overlay_key.0 =>
-				Some(backend_key),
+			(Some(backend_key), Some(overlay_key)) if &backend_key[..] < overlay_key.0 => Some(backend_key),
 			(backend_key, None) => backend_key,
-			(_, Some(overlay_key)) =>
+			(_, Some(overlay_key)) => {
 				if overlay_key.1.value().is_some() {
 					Some(overlay_key.0.to_vec())
 				} else {
 					self.next_storage_key(&overlay_key.0[..])
-				},
+				}
+			}
 		}
 	}
 
 	fn next_child_storage_key(&self, child_info: &ChildInfo, key: &[u8]) -> Option<StorageKey> {
-		let next_backend_key =
-			self.backend.next_child_storage_key(child_info, key).expect(EXT_NOT_ALLOWED_TO_FAIL);
-		let next_overlay_key_change =
-			self.overlay.next_child_storage_key_change(child_info.storage_key(), key);
+		let next_backend_key = self
+			.backend
+			.next_child_storage_key(child_info, key)
+			.expect(EXT_NOT_ALLOWED_TO_FAIL);
+		let next_overlay_key_change = self
+			.overlay
+			.next_child_storage_key_change(child_info.storage_key(), key);
 
 		match (next_backend_key, next_overlay_key_change) {
-			(Some(backend_key), Some(overlay_key)) if &backend_key[..] < overlay_key.0 =>
-				Some(backend_key),
+			(Some(backend_key), Some(overlay_key)) if &backend_key[..] < overlay_key.0 => Some(backend_key),
 			(backend_key, None) => backend_key,
-			(_, Some(overlay_key)) =>
+			(_, Some(overlay_key)) => {
 				if overlay_key.1.value().is_some() {
 					Some(overlay_key.0.to_vec())
 				} else {
 					self.next_child_storage_key(child_info, &overlay_key.0[..])
-				},
+				}
+			}
 		}
 	}
 
@@ -364,19 +377,14 @@ where
 		let _guard = guard();
 		if is_child_storage_key(&key) {
 			warn!(target: "trie", "Refuse to directly set child storage key");
-			return
+			return;
 		}
 
 		self.mark_dirty();
 		self.overlay.set_storage(key, value);
 	}
 
-	fn place_child_storage(
-		&mut self,
-		child_info: &ChildInfo,
-		key: StorageKey,
-		value: Option<StorageValue>,
-	) {
+	fn place_child_storage(&mut self, child_info: &ChildInfo, key: StorageKey, value: Option<StorageValue>) {
 		trace!(target: "state", "{:04x}: PutChild({}) {}={:?}",
 			self.id,
 			HexDisplay::from(&child_info.storage_key()),
@@ -411,7 +419,7 @@ where
 		let _guard = guard();
 		if is_child_storage_key(prefix) {
 			warn!(target: "trie", "Refuse to directly clear prefix that is part of child storage key");
-			return
+			return;
 		}
 
 		self.mark_dirty();
@@ -448,7 +456,10 @@ where
 
 		let backend = &mut self.backend;
 		let current_value = self.overlay.value_mut_or_insert_with(&key, || {
-			backend.storage(&key).expect(EXT_NOT_ALLOWED_TO_FAIL).unwrap_or_default()
+			backend
+				.storage(&key)
+				.expect(EXT_NOT_ALLOWED_TO_FAIL)
+				.unwrap_or_default()
 		});
 		StorageAppend::new(current_value).append(value);
 	}
@@ -464,7 +475,7 @@ where
 				self.id,
 				HexDisplay::from(&root.as_ref()),
 			);
-			return root.encode()
+			return root.encode();
 		}
 
 		let root = self.overlay.storage_root(self.backend, self.storage_transaction_cache);
@@ -505,7 +516,8 @@ where
 				if is_empty {
 					self.overlay.set_storage(prefixed_storage_key.into_inner(), None);
 				} else {
-					self.overlay.set_storage(prefixed_storage_key.into_inner(), Some(root.clone()));
+					self.overlay
+						.set_storage(prefixed_storage_key.into_inner(), Some(root.clone()));
 				}
 
 				trace!(target: "state", "{:04x}: ChildRoot({}) {}",
@@ -673,7 +685,7 @@ impl<'a> StorageAppend<'a> {
 					"Failed to append value, resetting storage item to `[value]`.",
 				);
 				value.encode()
-			},
+			}
 		};
 	}
 }
@@ -698,10 +710,7 @@ where
 		Err(sp_externalities::Error::ExtensionsAreNotSupported)
 	}
 
-	fn deregister_extension_by_type_id(
-		&mut self,
-		_type_id: TypeId,
-	) -> Result<(), sp_externalities::Error> {
+	fn deregister_extension_by_type_id(&mut self, _type_id: TypeId) -> Result<(), sp_externalities::Error> {
 		Err(sp_externalities::Error::ExtensionsAreNotSupported)
 	}
 }
@@ -729,10 +738,7 @@ where
 		}
 	}
 
-	fn deregister_extension_by_type_id(
-		&mut self,
-		type_id: TypeId,
-	) -> Result<(), sp_externalities::Error> {
+	fn deregister_extension_by_type_id(&mut self, type_id: TypeId) -> Result<(), sp_externalities::Error> {
 		if let Some(ref mut extensions) = self.extensions {
 			if extensions.deregister(type_id) {
 				Ok(())
@@ -749,9 +755,7 @@ where
 mod tests {
 	use super::*;
 	use crate::{
-		changes_trie::{
-			Configuration as ChangesTrieConfiguration, InMemoryStorage as TestChangesTrieStorage,
-		},
+		changes_trie::{Configuration as ChangesTrieConfiguration, InMemoryStorage as TestChangesTrieStorage},
 		InMemoryBackend,
 	};
 	use codec::Encode;
@@ -783,7 +787,10 @@ mod tests {
 	}
 
 	fn changes_trie_config() -> ChangesTrieConfiguration {
-		ChangesTrieConfiguration { digest_interval: 0, digest_levels: 0 }
+		ChangesTrieConfiguration {
+			digest_interval: 0,
+			digest_levels: 0,
+		}
 	}
 
 	#[test]
@@ -792,8 +799,7 @@ mod tests {
 		let mut offchain_overlay = prepare_offchain_overlay_with_changes();
 		let mut cache = StorageTransactionCache::default();
 		let backend = TestBackend::default();
-		let mut ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
+		let mut ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
 		assert_eq!(ext.storage_changes_root(&H256::default().encode()).unwrap(), None);
 	}
 
@@ -803,8 +809,7 @@ mod tests {
 		let mut offchain_overlay = prepare_offchain_overlay_with_changes();
 		let mut cache = StorageTransactionCache::default();
 		let backend = TestBackend::default();
-		let mut ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
+		let mut ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
 		assert_eq!(ext.storage_changes_root(&H256::default().encode()).unwrap(), None);
 	}
 
@@ -816,8 +821,7 @@ mod tests {
 		let storage = TestChangesTrieStorage::with_blocks(vec![(99, Default::default())]);
 		let state = Some(ChangesTrieState::new(changes_trie_config(), Zero::zero(), &storage));
 		let backend = TestBackend::default();
-		let mut ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, state, None);
+		let mut ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, state, None);
 		assert_eq!(
 			ext.storage_changes_root(&H256::default().encode()).unwrap(),
 			Some(hex!("bb0c2ef6e1d36d5490f9766cfcc7dfe2a6ca804504c3bb206053890d6dd02376").to_vec()),
@@ -834,8 +838,7 @@ mod tests {
 		let storage = TestChangesTrieStorage::with_blocks(vec![(99, Default::default())]);
 		let state = Some(ChangesTrieState::new(changes_trie_config(), Zero::zero(), &storage));
 		let backend = TestBackend::default();
-		let mut ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, state, None);
+		let mut ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, state, None);
 		assert_eq!(
 			ext.storage_changes_root(&H256::default().encode()).unwrap(),
 			Some(hex!("96f5aae4690e7302737b6f9b7f8567d5bbb9eac1c315f80101235a92d9ec27f4").to_vec()),
@@ -859,8 +862,7 @@ mod tests {
 		}
 		.into();
 
-		let ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
+		let ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
 
 		// next_backend < next_overlay
 		assert_eq!(ext.next_storage_key(&[5]), Some(vec![10]));
@@ -876,8 +878,7 @@ mod tests {
 
 		drop(ext);
 		overlay.set_storage(vec![50], Some(vec![50]));
-		let ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
+		let ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
 
 		// next_overlay exist but next_backend doesn't exist
 		assert_eq!(ext.next_storage_key(&[40]), Some(vec![50]));
@@ -909,8 +910,7 @@ mod tests {
 
 		let mut offchain_overlay = prepare_offchain_overlay_with_changes();
 
-		let ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
+		let ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
 
 		// next_backend < next_overlay
 		assert_eq!(ext.next_child_storage_key(child_info, &[5]), Some(vec![10]));
@@ -926,8 +926,7 @@ mod tests {
 
 		drop(ext);
 		overlay.set_child_storage(child_info, vec![50], Some(vec![50]));
-		let ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
+		let ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
 
 		// next_overlay exist but next_backend doesn't exist
 		assert_eq!(ext.next_child_storage_key(child_info, &[40]), Some(vec![50]));
@@ -957,8 +956,7 @@ mod tests {
 		}
 		.into();
 
-		let ext =
-			TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
+		let ext = TestExt::new(&mut overlay, &mut offchain_overlay, &mut cache, &backend, None, None);
 
 		assert_eq!(ext.child_storage(child_info, &[10]), Some(vec![10]));
 		assert_eq!(

@@ -106,10 +106,7 @@ fn deposit_event_should_work() {
 				},
 				EventRecord {
 					phase: Phase::ApplyExtrinsic(1),
-					event: SysEvent::ExtrinsicFailed(
-						DispatchError::BadOrigin.into(),
-						Default::default()
-					),
+					event: SysEvent::ExtrinsicFailed(DispatchError::BadOrigin.into(), Default::default()),
 					topics: vec![]
 				},
 				EventRecord {
@@ -134,7 +131,10 @@ fn deposit_event_uses_actual_weight() {
 		);
 		System::note_finished_initialize();
 
-		let pre_info = DispatchInfo { weight: 1000, ..Default::default() };
+		let pre_info = DispatchInfo {
+			weight: 1000,
+			..Default::default()
+		};
 		System::note_applied_extrinsic(&Ok(Some(300).into()), pre_info);
 		System::note_applied_extrinsic(&Ok(Some(1000).into()), pre_info);
 		System::note_applied_extrinsic(
@@ -175,7 +175,10 @@ fn deposit_event_uses_actual_weight() {
 					phase: Phase::ApplyExtrinsic(3),
 					event: SysEvent::ExtrinsicFailed(
 						DispatchError::BadOrigin.into(),
-						DispatchInfo { weight: 999, ..Default::default() },
+						DispatchInfo {
+							weight: 999,
+							..Default::default()
+						},
 					),
 					topics: vec![]
 				},
@@ -231,8 +234,14 @@ fn deposit_event_topics() {
 
 		// Check that the topic-events mapping reflects the deposited topics.
 		// Note that these are indexes of the events.
-		assert_eq!(System::event_topics(&topics[0]), vec![(BLOCK_NUMBER, 0), (BLOCK_NUMBER, 1)],);
-		assert_eq!(System::event_topics(&topics[1]), vec![(BLOCK_NUMBER, 0), (BLOCK_NUMBER, 2)],);
+		assert_eq!(
+			System::event_topics(&topics[0]),
+			vec![(BLOCK_NUMBER, 0), (BLOCK_NUMBER, 1)],
+		);
+		assert_eq!(
+			System::event_topics(&topics[1]),
+			vec![(BLOCK_NUMBER, 0), (BLOCK_NUMBER, 2)],
+		);
 		assert_eq!(System::event_topics(&topics[2]), vec![(BLOCK_NUMBER, 0)],);
 	});
 }

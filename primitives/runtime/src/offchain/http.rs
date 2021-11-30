@@ -48,9 +48,7 @@
 //! assert_eq!(body.error(), &None);
 //! ```
 
-use sp_core::offchain::{
-	HttpError, HttpRequestId as RequestId, HttpRequestStatus as RequestStatus, Timestamp,
-};
+use sp_core::offchain::{HttpError, HttpRequestId as RequestId, HttpRequestStatus as RequestStatus, Timestamp};
 use sp_core::RuntimeDebug;
 #[cfg(not(feature = "std"))]
 use sp_std::prelude::vec;
@@ -100,7 +98,10 @@ mod header {
 	impl Header {
 		/// Creates new header given it's name and value.
 		pub fn new(name: &str, value: &str) -> Self {
-			Header { name: name.as_bytes().to_vec(), value: value.as_bytes().to_vec() }
+			Header {
+				name: name.as_bytes().to_vec(),
+				value: value.as_bytes().to_vec(),
+			}
 		}
 
 		/// Returns the name of this header.
@@ -160,7 +161,13 @@ impl<'a, T> Request<'a, T> {
 	pub fn post(url: &'a str, body: T) -> Self {
 		let req: Request = Request::default();
 
-		Request { url, body, method: Method::Post, headers: req.headers, deadline: req.deadline }
+		Request {
+			url,
+			body,
+			method: Method::Post,
+			headers: req.headers,
+			deadline: req.deadline,
+		}
 	}
 }
 
@@ -265,10 +272,7 @@ impl PendingRequest {
 
 	/// Attempts to wait for the request to finish,
 	/// but will return `Err` in case the deadline is reached.
-	pub fn try_wait(
-		self,
-		deadline: impl Into<Option<Timestamp>>,
-	) -> Result<HttpResult, PendingRequest> {
+	pub fn try_wait(self, deadline: impl Into<Option<Timestamp>>) -> Result<HttpResult, PendingRequest> {
 		Self::try_wait_all(vec![self], deadline)
 			.pop()
 			.expect("One request passed, one status received; qed")
@@ -322,13 +326,19 @@ pub struct Response {
 
 impl Response {
 	fn new(id: RequestId, code: u16) -> Self {
-		Self { id, code, headers: None }
+		Self {
+			id,
+			code,
+			headers: None,
+		}
 	}
 
 	/// Retrieve the headers for this response.
 	pub fn headers(&mut self) -> &Headers {
 		if self.headers.is_none() {
-			self.headers = Some(Headers { raw: sp_io::offchain::http_response_headers(self.id) });
+			self.headers = Some(Headers {
+				raw: sp_io::offchain::http_response_headers(self.id),
+			});
 		}
 		self.headers.as_ref().expect("Headers were just set; qed")
 	}
@@ -403,30 +413,27 @@ impl Iterator for ResponseBody {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.error.is_some() {
-			return None
+			return None;
 		}
 
 		if self.filled_up_to.is_none() {
-			let result =
-				sp_io::offchain::http_response_read_body(self.id, &mut self.buffer, self.deadline);
+			let result = sp_io::offchain::http_response_read_body(self.id, &mut self.buffer, self.deadline);
 			match result {
 				Err(e) => {
 					self.error = Some(e);
-					return None
-				},
-				Ok(0) => {
-					return None
-				},
+					return None;
+				}
+				Ok(0) => return None,
 				Ok(size) => {
 					self.position = 0;
 					self.filled_up_to = Some(size as usize);
-				},
+				}
 			}
 		}
 
 		if Some(self.position) == self.filled_up_to {
 			self.filled_up_to = None;
-			return self.next()
+			return self.next();
 		}
 
 		let result = self.buffer[self.position];
@@ -453,7 +460,7 @@ impl Headers {
 		let raw = name.as_bytes();
 		for &(ref key, ref val) in &self.raw {
 			if &**key == raw {
-				return str::from_utf8(&val).ok()
+				return str::from_utf8(&val).ok();
 			}
 		}
 		None
@@ -461,7 +468,10 @@ impl Headers {
 
 	/// Convert this headers into an iterator.
 	pub fn into_iter(&self) -> HeadersIterator {
-		HeadersIterator { collection: &self.raw, index: None }
+		HeadersIterator {
+			collection: &self.raw,
+			index: None,
+		}
 	}
 }
 
@@ -486,9 +496,12 @@ impl<'a> HeadersIterator<'a> {
 	///
 	/// Note that you have to call `next` prior to calling this
 	pub fn current(&self) -> Option<(&str, &str)> {
-		self.collection
-			.get(self.index?)
-			.map(|val| (str::from_utf8(&val.0).unwrap_or(""), str::from_utf8(&val.1).unwrap_or("")))
+		self.collection.get(self.index?).map(|val| {
+			(
+				str::from_utf8(&val.0).unwrap_or(""),
+				str::from_utf8(&val.1).unwrap_or(""),
+			)
+		})
 	}
 }
 

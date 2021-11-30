@@ -77,9 +77,7 @@ use sp_arithmetic::{
 	traits::{Bounded, Zero},
 	InnerOf, Normalizable, PerThing, Rational128, ThresholdOrd,
 };
-use sp_std::{
-	cell::RefCell, cmp::Ordering, collections::btree_map::BTreeMap, fmt::Debug, prelude::*, rc::Rc,
-};
+use sp_std::{cell::RefCell, cmp::Ordering, collections::btree_map::BTreeMap, fmt::Debug, prelude::*, rc::Rc};
 
 #[cfg(feature = "std")]
 use codec::{Decode, Encode};
@@ -227,7 +225,11 @@ pub struct Voter<AccountId> {
 #[cfg(feature = "std")]
 impl<A: IdentifierT> std::fmt::Debug for Voter<A> {
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter<'_>) -> sp_std::fmt::Result {
-		write!(f, "Voter({:?}, budget = {}, edges = {:?})", self.who, self.budget, self.edges)
+		write!(
+			f,
+			"Voter({:?}, budget = {}, edges = {:?})",
+			self.who, self.budget, self.edges
+		)
 	}
 }
 
@@ -295,7 +297,13 @@ impl<AccountId: IdentifierT> Voter<AccountId> {
 		let elected_edge_weights = self
 			.edges
 			.iter()
-			.filter_map(|e| if e.candidate.borrow().elected { Some(e.weight) } else { None })
+			.filter_map(|e| {
+				if e.candidate.borrow().elected {
+					Some(e.weight)
+				} else {
+					None
+				}
+			})
 			.collect::<Vec<_>>();
 		elected_edge_weights.normalize(self.budget).map(|normalized| {
 			// here we count on the fact that normalize does not change the order, and that vector
@@ -371,7 +379,10 @@ where
 			})
 			.collect::<Vec<(AccountId, ExtendedBalance)>>();
 
-		StakedAssignment { who: self.who, distribution }
+		StakedAssignment {
+			who: self.who,
+			distribution,
+		}
 	}
 
 	/// Try and normalize this assignment.
@@ -385,15 +396,19 @@ where
 	/// this crate may statically assert that this can never happen and safely `expect` this to
 	/// return `Ok`.
 	pub fn try_normalize(&mut self) -> Result<(), &'static str> {
-		self.distribution.iter().map(|(_, p)| *p).collect::<Vec<_>>().normalize(P::one()).map(
-			|normalized_ratios| {
-				self.distribution.iter_mut().zip(normalized_ratios).for_each(
-					|((_, old), corrected)| {
+		self.distribution
+			.iter()
+			.map(|(_, p)| *p)
+			.collect::<Vec<_>>()
+			.normalize(P::one())
+			.map(|normalized_ratios| {
+				self.distribution
+					.iter_mut()
+					.zip(normalized_ratios)
+					.for_each(|((_, old), corrected)| {
 						*old = corrected;
-					},
-				)
-			},
-		)
+					})
+			})
 	}
 }
 
@@ -440,7 +455,10 @@ impl<AccountId> StakedAssignment<AccountId> {
 			})
 			.collect::<Vec<(AccountId, P)>>();
 
-		Assignment { who: self.who, distribution }
+		Assignment {
+			who: self.who,
+			distribution,
+		}
 	}
 
 	/// Try and normalize this assignment.
@@ -460,17 +478,20 @@ impl<AccountId> StakedAssignment<AccountId> {
 			.collect::<Vec<_>>()
 			.normalize(stake)
 			.map(|normalized_weights| {
-				self.distribution.iter_mut().zip(normalized_weights.into_iter()).for_each(
-					|((_, weight), corrected)| {
+				self.distribution
+					.iter_mut()
+					.zip(normalized_weights.into_iter())
+					.for_each(|((_, weight), corrected)| {
 						*weight = corrected;
-					},
-				)
+					})
 			})
 	}
 
 	/// Get the total stake of this assignment (aka voter budget).
 	pub fn total(&self) -> ExtendedBalance {
-		self.distribution.iter().fold(Zero::zero(), |a, b| a.saturating_add(b.1))
+		self.distribution
+			.iter()
+			.fold(Zero::zero(), |a, b| a.saturating_add(b.1))
 	}
 }
 
@@ -544,7 +565,7 @@ where
 				support.total = support.total.saturating_add(*weight_extended);
 				support.voters.push((who.clone(), *weight_extended));
 			} else {
-				return Err(c.clone())
+				return Err(c.clone());
 			}
 		}
 	}
@@ -624,7 +645,10 @@ pub(crate) fn setup_inputs<AccountId: IdentifierT>(
 		.enumerate()
 		.map(|(idx, who)| {
 			c_idx_cache.insert(who.clone(), idx);
-			Rc::new(RefCell::new(Candidate { who, ..Default::default() }))
+			Rc::new(RefCell::new(Candidate {
+				who,
+				..Default::default()
+			}))
 		})
 		.collect::<Vec<CandidatePtr<AccountId>>>();
 
@@ -635,13 +659,12 @@ pub(crate) fn setup_inputs<AccountId: IdentifierT>(
 			for v in votes {
 				if edges.iter().any(|e| e.who == v) {
 					// duplicate edge.
-					continue
+					continue;
 				}
 				if let Some(idx) = c_idx_cache.get(&v) {
 					// This candidate is valid + already cached.
 					let mut candidate = candidates[*idx].borrow_mut();
-					candidate.approval_stake =
-						candidate.approval_stake.saturating_add(voter_stake.into());
+					candidate.approval_stake = candidate.approval_stake.saturating_add(voter_stake.into());
 					edges.push(Edge {
 						who: v.clone(),
 						candidate: Rc::clone(&candidates[*idx]),
@@ -649,7 +672,12 @@ pub(crate) fn setup_inputs<AccountId: IdentifierT>(
 					});
 				} // else {} would be wrong votes. We don't really care about it.
 			}
-			Voter { who, edges, budget: voter_stake.into(), load: Rational128::zero() }
+			Voter {
+				who,
+				edges,
+				budget: voter_stake.into(),
+				load: Rational128::zero(),
+			}
 		})
 		.collect::<Vec<_>>();
 

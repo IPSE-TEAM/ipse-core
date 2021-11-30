@@ -98,12 +98,11 @@ impl From<InvalidTransaction> for &'static str {
 			InvalidTransaction::BadProof => "Transaction has a bad signature",
 			InvalidTransaction::AncientBirthBlock => "Transaction has an ancient birth block",
 			InvalidTransaction::ExhaustsResources => "Transaction would exhaust the block limits",
-			InvalidTransaction::Payment =>
-				"Inability to pay some fees (e.g. account balance too low)",
-			InvalidTransaction::BadMandatory =>
-				"A call was labelled as mandatory, but resulted in an Error.",
-			InvalidTransaction::MandatoryDispatch =>
-				"Transaction dispatch is mandatory; transactions may not have mandatory dispatches.",
+			InvalidTransaction::Payment => "Inability to pay some fees (e.g. account balance too low)",
+			InvalidTransaction::BadMandatory => "A call was labelled as mandatory, but resulted in an Error.",
+			InvalidTransaction::MandatoryDispatch => {
+				"Transaction dispatch is mandatory; transactions may not have mandatory dispatches."
+			}
 			InvalidTransaction::Custom(_) => "InvalidTransaction custom error",
 		}
 	}
@@ -124,10 +123,10 @@ pub enum UnknownTransaction {
 impl From<UnknownTransaction> for &'static str {
 	fn from(unknown: UnknownTransaction) -> &'static str {
 		match unknown {
-			UnknownTransaction::CannotLookup =>
-				"Could not lookup information required to validate the transaction",
-			UnknownTransaction::NoUnsignedValidator =>
-				"Could not find an unsigned validator for the unsigned transaction",
+			UnknownTransaction::CannotLookup => "Could not lookup information required to validate the transaction",
+			UnknownTransaction::NoUnsignedValidator => {
+				"Could not find an unsigned validator for the unsigned transaction"
+			}
 			UnknownTransaction::Custom(_) => "UnknownTransaction custom error",
 		}
 	}
@@ -203,9 +202,7 @@ impl Into<TransactionValidity> for UnknownTransaction {
 /// Depending on the source we might apply different validation schemes.
 /// For instance we can disallow specific kinds of transactions if they were not produced
 /// by our local node (for instance off-chain workers).
-#[derive(
-	Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, parity_util_mem::MallocSizeOf,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, parity_util_mem::MallocSizeOf)]
 pub enum TransactionSource {
 	/// Transaction is already included in block.
 	///
@@ -280,7 +277,10 @@ impl ValidTransaction {
 	/// To avoid conflicts between different parts in runtime it's recommended to build `requires`
 	/// and `provides` tags with a unique prefix.
 	pub fn with_tag_prefix(prefix: &'static str) -> ValidTransactionBuilder {
-		ValidTransactionBuilder { prefix: Some(prefix), validity: Default::default() }
+		ValidTransactionBuilder {
+			prefix: Some(prefix),
+			validity: Default::default(),
+		}
 	}
 
 	/// Combine two instances into one, as a best effort. This will take the superset of each of the
@@ -417,10 +417,7 @@ mod tests {
 		let encoded = v.encode();
 		assert_eq!(
 			encoded,
-			vec![
-				0, 5, 0, 0, 0, 0, 0, 0, 0, 4, 16, 1, 2, 3, 4, 4, 12, 4, 5, 6, 42, 0, 0, 0, 0, 0, 0,
-				0, 0
-			]
+			vec![0, 5, 0, 0, 0, 0, 0, 0, 0, 4, 16, 1, 2, 3, 4, 4, 12, 4, 5, 6, 42, 0, 0, 0, 0, 0, 0, 0, 0]
 		);
 
 		// decode back

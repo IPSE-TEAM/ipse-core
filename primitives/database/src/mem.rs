@@ -37,16 +37,16 @@ where
 			match change {
 				Change::Set(col, key, value) => {
 					s.0.entry(col).or_default().insert(key, value);
-				},
+				}
 				Change::Remove(col, key) => {
 					s.0.entry(col).or_default().remove(&key);
-				},
+				}
 				Change::Store(hash, preimage) => {
 					s.1.insert(hash, preimage);
-				},
+				}
 				Change::Release(hash) => {
 					s.1.remove(&hash);
-				},
+				}
 			}
 		}
 

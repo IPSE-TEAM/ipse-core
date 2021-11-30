@@ -35,17 +35,11 @@ const REBROADCAST_AFTER: Duration = Duration::from_secs(2 * 60);
 
 /// A sender used to send neighbor packets to a background job.
 #[derive(Clone)]
-pub(super) struct NeighborPacketSender<B: BlockT>(
-	TracingUnboundedSender<(Vec<PeerId>, NeighborPacket<NumberFor<B>>)>,
-);
+pub(super) struct NeighborPacketSender<B: BlockT>(TracingUnboundedSender<(Vec<PeerId>, NeighborPacket<NumberFor<B>>)>);
 
 impl<B: BlockT> NeighborPacketSender<B> {
 	/// Send a neighbor packet for the background worker to gossip to peers.
-	pub fn send(
-		&self,
-		who: Vec<sc_network::PeerId>,
-		neighbor_packet: NeighborPacket<NumberFor<B>>,
-	) {
+	pub fn send(&self, who: Vec<sc_network::PeerId>, neighbor_packet: NeighborPacket<NumberFor<B>>) {
 		if let Err(err) = self.0.unbounded_send((who, neighbor_packet)) {
 			debug!(target: "afg", "Failed to send neighbor packet: {:?}", err);
 		}
@@ -66,9 +60,8 @@ impl<B: BlockT> Unpin for NeighborPacketWorker<B> {}
 
 impl<B: BlockT> NeighborPacketWorker<B> {
 	pub(super) fn new() -> (Self, NeighborPacketSender<B>) {
-		let (tx, rx) = tracing_unbounded::<(Vec<PeerId>, NeighborPacket<NumberFor<B>>)>(
-			"mpsc_grandpa_neighbor_packet_worker",
-		);
+		let (tx, rx) =
+			tracing_unbounded::<(Vec<PeerId>, NeighborPacket<NumberFor<B>>)>("mpsc_grandpa_neighbor_packet_worker");
 		let delay = Delay::new(REBROADCAST_AFTER);
 
 		(NeighborPacketWorker { last: None, delay, rx }, NeighborPacketSender(tx))
@@ -86,10 +79,10 @@ impl<B: BlockT> Stream for NeighborPacketWorker<B> {
 				this.delay.reset(REBROADCAST_AFTER);
 				this.last = Some((to.clone(), packet.clone()));
 
-				return Poll::Ready(Some((to, GossipMessage::<B>::from(packet))))
-			},
+				return Poll::Ready(Some((to, GossipMessage::<B>::from(packet))));
+			}
 			// Don't return yet, maybe the timer fired.
-			Poll::Pending => {},
+			Poll::Pending => {}
 		};
 
 		ready!(this.delay.poll_unpin(cx));
@@ -105,7 +98,7 @@ impl<B: BlockT> Stream for NeighborPacketWorker<B> {
 		while let Poll::Ready(()) = this.delay.poll_unpin(cx) {}
 
 		if let Some((ref to, ref packet)) = this.last {
-			return Poll::Ready(Some((to.clone(), GossipMessage::<B>::from(packet.clone()))))
+			return Poll::Ready(Some((to.clone(), GossipMessage::<B>::from(packet.clone()))));
 		}
 
 		Poll::Pending

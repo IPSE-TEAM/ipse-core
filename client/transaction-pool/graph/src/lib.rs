@@ -39,6 +39,6 @@ pub mod watcher;
 
 pub use self::base_pool::Transaction;
 pub use self::pool::{
-	BlockHash, ChainApi, EventStream, ExtrinsicFor, ExtrinsicHash, NumberFor, Options, Pool,
-	TransactionFor, ValidatedTransaction,
+	BlockHash, ChainApi, EventStream, ExtrinsicFor, ExtrinsicHash, NumberFor, Options, Pool, TransactionFor,
+	ValidatedTransaction,
 };

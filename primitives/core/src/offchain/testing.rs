@@ -23,8 +23,8 @@
 use crate::offchain::{
 	self,
 	storage::{InMemOffchainStorage, OffchainOverlayedChange, OffchainOverlayedChanges},
-	HttpError, HttpRequestId as RequestId, HttpRequestStatus as RequestStatus, OffchainStorage,
-	OpaqueNetworkState, StorageKind, Timestamp, TransactionPool,
+	HttpError, HttpRequestId as RequestId, HttpRequestStatus as RequestStatus, OffchainStorage, OpaqueNetworkState,
+	StorageKind, Timestamp, TransactionPool,
 };
 use crate::OpaquePeerId;
 use std::{
@@ -66,7 +66,9 @@ pub struct TestPersistentOffchainDB {
 impl TestPersistentOffchainDB {
 	/// Create a new and empty offchain storage db for persistent items
 	pub fn new() -> Self {
-		Self { persistent: Arc::new(RwLock::new(InMemOffchainStorage::default())) }
+		Self {
+			persistent: Arc::new(RwLock::new(InMemOffchainStorage::default())),
+		}
 	}
 
 	/// Apply a set of off-chain changes directly to the test backend
@@ -74,8 +76,7 @@ impl TestPersistentOffchainDB {
 		let mut me = self.persistent.write();
 		for ((_prefix, key), value_operation) in changes.drain() {
 			match value_operation {
-				OffchainOverlayedChange::SetValue(val) =>
-					me.set(b"", key.as_slice(), val.as_slice()),
+				OffchainOverlayedChange::SetValue(val) => me.set(b"", key.as_slice(), val.as_slice()),
 				OffchainOverlayedChange::Remove => me.remove(b"", key.as_slice()),
 			}
 		}
@@ -95,14 +96,10 @@ impl OffchainStorage for TestPersistentOffchainDB {
 		self.persistent.read().get(prefix, key)
 	}
 
-	fn compare_and_set(
-		&mut self,
-		prefix: &[u8],
-		key: &[u8],
-		old_value: Option<&[u8]>,
-		new_value: &[u8],
-	) -> bool {
-		self.persistent.write().compare_and_set(prefix, key, old_value, new_value)
+	fn compare_and_set(&mut self, prefix: &[u8], key: &[u8], old_value: Option<&[u8]>, new_value: &[u8]) -> bool {
+		self.persistent
+			.write()
+			.compare_and_set(prefix, key, old_value, new_value)
 	}
 }
 
@@ -137,12 +134,12 @@ impl OffchainState {
 		match self.requests.get_mut(&RequestId(id)) {
 			None => {
 				panic!("Missing pending request: {:?}.\n\nAll: {:?}", id, self.requests);
-			},
+			}
 			Some(req) => {
 				assert_eq!(*req, expected,);
 				req.response = Some(response.into());
 				req.response_headers = response_headers.into_iter().collect();
-			},
+			}
 		}
 	}
 
@@ -191,9 +188,7 @@ impl TestOffchainExt {
 	}
 
 	/// Create new `TestOffchainExt` and a reference to the internal state.
-	pub fn with_offchain_db(
-		offchain_db: TestPersistentOffchainDB,
-	) -> (Self, Arc<RwLock<OffchainState>>) {
+	pub fn with_offchain_db(offchain_db: TestPersistentOffchainDB) -> (Self, Arc<RwLock<OffchainState>>) {
 		let (ext, state) = Self::new();
 		ext.0.write().persistent_storage = offchain_db;
 		(ext, state)
@@ -206,7 +201,10 @@ impl offchain::Externalities for TestOffchainExt {
 	}
 
 	fn network_state(&self) -> Result<OpaqueNetworkState, ()> {
-		Ok(OpaqueNetworkState { peer_id: Default::default(), external_addresses: vec![] })
+		Ok(OpaqueNetworkState {
+			peer_id: Default::default(),
+			external_addresses: vec![],
+		})
 	}
 
 	fn timestamp(&mut self) -> Timestamp {
@@ -246,10 +244,8 @@ impl offchain::Externalities for TestOffchainExt {
 	) -> bool {
 		let mut state = self.0.write();
 		match kind {
-			StorageKind::LOCAL =>
-				state.local_storage.compare_and_set(b"", key, old_value, new_value),
-			StorageKind::PERSISTENT =>
-				state.persistent_storage.compare_and_set(b"", key, old_value, new_value),
+			StorageKind::LOCAL => state.local_storage.compare_and_set(b"", key, old_value, new_value),
+			StorageKind::PERSISTENT => state.persistent_storage.compare_and_set(b"", key, old_value, new_value),
 		}
 	}
 
@@ -261,12 +257,7 @@ impl offchain::Externalities for TestOffchainExt {
 		}
 	}
 
-	fn http_request_start(
-		&mut self,
-		method: &str,
-		uri: &str,
-		meta: &[u8],
-	) -> Result<RequestId, ()> {
+	fn http_request_start(&mut self, method: &str, uri: &str, meta: &[u8]) -> Result<RequestId, ()> {
 		let mut state = self.0.write();
 		let id = RequestId(state.requests.len() as u16);
 		state.requests.insert(
@@ -281,12 +272,7 @@ impl offchain::Externalities for TestOffchainExt {
 		Ok(id)
 	}
 
-	fn http_request_add_header(
-		&mut self,
-		request_id: RequestId,
-		name: &str,
-		value: &str,
-	) -> Result<(), ()> {
+	fn http_request_add_header(&mut self, request_id: RequestId, name: &str, value: &str) -> Result<(), ()> {
 		let mut state = self.0.write();
 		if let Some(req) = state.requests.get_mut(&request_id) {
 			req.headers.push((name.into(), value.into()));
@@ -320,17 +306,12 @@ impl offchain::Externalities for TestOffchainExt {
 		Ok(())
 	}
 
-	fn http_response_wait(
-		&mut self,
-		ids: &[RequestId],
-		_deadline: Option<Timestamp>,
-	) -> Vec<RequestStatus> {
+	fn http_response_wait(&mut self, ids: &[RequestId], _deadline: Option<Timestamp>) -> Vec<RequestStatus> {
 		let state = self.0.read();
 
 		ids.iter()
 			.map(|id| match state.requests.get(id) {
-				Some(req) if req.response.is_none() =>
-					panic!("No `response` provided for request with id: {:?}", id),
+				Some(req) if req.response.is_none() => panic!("No `response` provided for request with id: {:?}", id),
 				None => RequestStatus::Invalid,
 				_ => RequestStatus::Finished(200),
 			})

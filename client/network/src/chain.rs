@@ -48,19 +48,11 @@ impl<Block: BlockT, T> Client<Block> for T where
 /// Finality proof provider.
 pub trait FinalityProofProvider<Block: BlockT>: Send + Sync {
 	/// Prove finality of the block.
-	fn prove_finality(
-		&self,
-		for_block: Block::Hash,
-		request: &[u8],
-	) -> Result<Option<Vec<u8>>, Error>;
+	fn prove_finality(&self, for_block: Block::Hash, request: &[u8]) -> Result<Option<Vec<u8>>, Error>;
 }
 
 impl<Block: BlockT> FinalityProofProvider<Block> for () {
-	fn prove_finality(
-		&self,
-		_for_block: Block::Hash,
-		_request: &[u8],
-	) -> Result<Option<Vec<u8>>, Error> {
+	fn prove_finality(&self, _for_block: Block::Hash, _request: &[u8]) -> Result<Option<Vec<u8>>, Error> {
 		Ok(None)
 	}
 }

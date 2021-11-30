@@ -24,8 +24,8 @@ use super::*;
 use crate as proxy;
 use codec::{Decode, Encode};
 use frame_support::{
-	assert_noop, assert_ok, dispatch::DispatchError, impl_outer_dispatch, impl_outer_event,
-	impl_outer_origin, parameter_types, traits::Filter, weights::Weight, RuntimeDebug,
+	assert_noop, assert_ok, dispatch::DispatchError, impl_outer_dispatch, impl_outer_event, impl_outer_origin,
+	parameter_types, traits::Filter, weights::Weight, RuntimeDebug,
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -132,8 +132,7 @@ impl InstanceFilter<Call> for ProxyType {
 	fn filter(&self, c: &Call) -> bool {
 		match self {
 			ProxyType::Any => true,
-			ProxyType::JustTransfer =>
-				matches!(c, Call::Balances(pallet_balances::Call::transfer(..))),
+			ProxyType::JustTransfer => matches!(c, Call::Balances(pallet_balances::Call::transfer(..))),
 			ProxyType::JustUtility => matches!(c, Call::Utility(..)),
 		}
 	}
@@ -201,7 +200,13 @@ fn expect_event<E: Into<TestEvent>>(e: E) {
 }
 
 fn last_events(n: usize) -> Vec<TestEvent> {
-	system::Module::<Test>::events().into_iter().rev().take(n).rev().map(|e| e.event).collect()
+	system::Module::<Test>::events()
+		.into_iter()
+		.rev()
+		.take(n)
+		.rev()
+		.map(|e| e.event)
+		.collect()
 }
 
 fn expect_events(e: Vec<TestEvent>) {
@@ -218,7 +223,14 @@ fn announcement_works() {
 		assert_ok!(Proxy::announce(Origin::signed(3), 1, [1; 32].into()));
 		assert_eq!(
 			Announcements::<Test>::get(3),
-			(vec![Announcement { real: 1, call_hash: [1; 32].into(), height: 1 }], 2)
+			(
+				vec![Announcement {
+					real: 1,
+					call_hash: [1; 32].into(),
+					height: 1
+				}],
+				2
+			)
 		);
 		assert_eq!(Balances::reserved_balance(3), 2);
 
@@ -227,15 +239,26 @@ fn announcement_works() {
 			Announcements::<Test>::get(3),
 			(
 				vec![
-					Announcement { real: 1, call_hash: [1; 32].into(), height: 1 },
-					Announcement { real: 2, call_hash: [2; 32].into(), height: 1 },
+					Announcement {
+						real: 1,
+						call_hash: [1; 32].into(),
+						height: 1
+					},
+					Announcement {
+						real: 2,
+						call_hash: [2; 32].into(),
+						height: 1
+					},
 				],
 				3
 			)
 		);
 		assert_eq!(Balances::reserved_balance(3), 3);
 
-		assert_noop!(Proxy::announce(Origin::signed(3), 2, [3; 32].into()), Error::<Test>::TooMany);
+		assert_noop!(
+			Proxy::announce(Origin::signed(3), 2, [3; 32].into()),
+			Error::<Test>::TooMany
+		);
 	});
 }
 
@@ -251,7 +274,14 @@ fn remove_announcement_works() {
 		assert_ok!(Proxy::remove_announcement(Origin::signed(3), 1, [1; 32].into()));
 		assert_eq!(
 			Announcements::<Test>::get(3),
-			(vec![Announcement { real: 2, call_hash: [2; 32].into(), height: 1 }], 2)
+			(
+				vec![Announcement {
+					real: 2,
+					call_hash: [2; 32].into(),
+					height: 1
+				}],
+				2
+			)
 		);
 		assert_eq!(Balances::reserved_balance(3), 2);
 	});
@@ -271,7 +301,14 @@ fn reject_announcement_works() {
 		assert_ok!(Proxy::reject_announcement(Origin::signed(1), 3, [1; 32].into()));
 		assert_eq!(
 			Announcements::<Test>::get(3),
-			(vec![Announcement { real: 2, call_hash: [2; 32].into(), height: 1 }], 2)
+			(
+				vec![Announcement {
+					real: 2,
+					call_hash: [2; 32].into(),
+					height: 1
+				}],
+				2
+			)
 		);
 		assert_eq!(Balances::reserved_balance(3), 2);
 	});
@@ -280,7 +317,10 @@ fn reject_announcement_works() {
 #[test]
 fn announcer_must_be_proxy() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(Proxy::announce(Origin::signed(2), 1, H256::zero()), Error::<Test>::NotProxy);
+		assert_noop!(
+			Proxy::announce(Origin::signed(2), 1, H256::zero()),
+			Error::<Test>::NotProxy
+		);
 	});
 }
 
@@ -317,7 +357,14 @@ fn proxy_announced_removes_announcement_and_returns_deposit() {
 		assert_ok!(Proxy::proxy_announced(Origin::signed(0), 3, 1, None, call.clone()));
 		assert_eq!(
 			Announcements::<Test>::get(3),
-			(vec![Announcement { real: 2, call_hash, height: 1 }], 2)
+			(
+				vec![Announcement {
+					real: 2,
+					call_hash,
+					height: 1
+				}],
+				2
+			)
 		);
 		assert_eq!(Balances::reserved_balance(3), 2);
 	});
@@ -463,9 +510,7 @@ fn proxying_works() {
 		expect_event(RawEvent::ProxyExecuted(Err(DispatchError::BadOrigin)));
 
 		let call = Box::new(Call::Balances(BalancesCall::transfer_keep_alive(6, 1)));
-		assert_ok!(
-			Call::Proxy(super::Call::proxy(1, None, call.clone())).dispatch(Origin::signed(2))
-		);
+		assert_ok!(Call::Proxy(super::Call::proxy(1, None, call.clone())).dispatch(Origin::signed(2)));
 		expect_event(RawEvent::ProxyExecuted(Err(DispatchError::BadOrigin)));
 		assert_ok!(Proxy::proxy(Origin::signed(3), 1, None, call.clone()));
 		expect_event(RawEvent::ProxyExecuted(Ok(())));

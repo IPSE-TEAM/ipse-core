@@ -66,8 +66,7 @@ pub trait StorageDoubleMap<K1: FullEncode, K2: FullEncode, V: FullCodec> {
 		let module_prefix_hashed = Twox128::hash(Self::module_prefix());
 		let storage_prefix_hashed = Twox128::hash(Self::storage_prefix());
 
-		let mut result =
-			Vec::with_capacity(module_prefix_hashed.len() + storage_prefix_hashed.len());
+		let mut result = Vec::with_capacity(module_prefix_hashed.len() + storage_prefix_hashed.len());
 
 		result.extend_from_slice(&module_prefix_hashed[..]);
 		result.extend_from_slice(&storage_prefix_hashed[..]);
@@ -90,9 +89,8 @@ pub trait StorageDoubleMap<K1: FullEncode, K2: FullEncode, V: FullCodec> {
 		let storage_prefix_hashed = Twox128::hash(Self::storage_prefix());
 		let key_hashed = k1.borrow().using_encoded(Self::Hasher1::hash);
 
-		let mut final_key = Vec::with_capacity(
-			module_prefix_hashed.len() + storage_prefix_hashed.len() + key_hashed.as_ref().len(),
-		);
+		let mut final_key =
+			Vec::with_capacity(module_prefix_hashed.len() + storage_prefix_hashed.len() + key_hashed.as_ref().len());
 
 		final_key.extend_from_slice(&module_prefix_hashed[..]);
 		final_key.extend_from_slice(&storage_prefix_hashed[..]);
@@ -113,10 +111,10 @@ pub trait StorageDoubleMap<K1: FullEncode, K2: FullEncode, V: FullCodec> {
 		let key2_hashed = k2.borrow().using_encoded(Self::Hasher2::hash);
 
 		let mut final_key = Vec::with_capacity(
-			module_prefix_hashed.len() +
-				storage_prefix_hashed.len() +
-				key1_hashed.as_ref().len() +
-				key2_hashed.as_ref().len(),
+			module_prefix_hashed.len()
+				+ storage_prefix_hashed.len()
+				+ key1_hashed.as_ref().len()
+				+ key2_hashed.as_ref().len(),
 		);
 
 		final_key.extend_from_slice(&module_prefix_hashed[..]);
@@ -238,8 +236,7 @@ where
 		KArg2: EncodeLike<K2>,
 		F: FnOnce(&mut Self::Query) -> R,
 	{
-		Self::try_mutate(k1, k2, |v| Ok::<R, Never>(f(v)))
-			.expect("`Never` can not be constructed; qed")
+		Self::try_mutate(k1, k2, |v| Ok::<R, Never>(f(v))).expect("`Never` can not be constructed; qed")
 	}
 
 	fn mutate_exists<KArg1, KArg2, R, F>(k1: KArg1, k2: KArg2, f: F) -> R
@@ -248,8 +245,7 @@ where
 		KArg2: EncodeLike<K2>,
 		F: FnOnce(&mut Option<V>) -> R,
 	{
-		Self::try_mutate_exists(k1, k2, |v| Ok::<R, Never>(f(v)))
-			.expect("`Never` can not be constructed; qed")
+		Self::try_mutate_exists(k1, k2, |v| Ok::<R, Never>(f(v))).expect("`Never` can not be constructed; qed")
 	}
 
 	fn try_mutate<KArg1, KArg2, R, E, F>(k1: KArg1, k2: KArg2, f: F) -> Result<R, E>
@@ -318,10 +314,10 @@ where
 			let key2_hashed = key2.borrow().using_encoded(OldHasher2::hash);
 
 			let mut final_key = Vec::with_capacity(
-				module_prefix_hashed.len() +
-					storage_prefix_hashed.len() +
-					key1_hashed.as_ref().len() +
-					key2_hashed.as_ref().len(),
+				module_prefix_hashed.len()
+					+ storage_prefix_hashed.len()
+					+ key1_hashed.as_ref().len()
+					+ key2_hashed.as_ref().len(),
 			);
 
 			final_key.extend_from_slice(&module_prefix_hashed[..]);
@@ -391,24 +387,22 @@ where
 	fn translate<O: Decode, F: Fn(K1, K2, O) -> Option<V>>(f: F) {
 		let prefix = G::prefix_hash();
 		let mut previous_key = prefix.clone();
-		while let Some(next) =
-			sp_io::storage::next_key(&previous_key).filter(|n| n.starts_with(&prefix))
-		{
+		while let Some(next) = sp_io::storage::next_key(&previous_key).filter(|n| n.starts_with(&prefix)) {
 			previous_key = next;
 			let value = match unhashed::get::<O>(&previous_key) {
 				Some(value) => value,
 				None => {
 					crate::debug::error!("Invalid translate: fail to decode old value");
-					continue
-				},
+					continue;
+				}
 			};
 			let mut key_material = G::Hasher1::reverse(&previous_key[prefix.len()..]);
 			let key1 = match K1::decode(&mut key_material) {
 				Ok(key1) => key1,
 				Err(_) => {
 					crate::debug::error!("Invalid translate: fail to decode key1");
-					continue
-				},
+					continue;
+				}
 			};
 
 			let mut key2_material = G::Hasher2::reverse(&key_material);
@@ -416,8 +410,8 @@ where
 				Ok(key2) => key2,
 				Err(_) => {
 					crate::debug::error!("Invalid translate: fail to decode key2");
-					continue
-				},
+					continue;
+				}
 			};
 
 			match f(key1, key2, value) {

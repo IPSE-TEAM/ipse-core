@@ -60,11 +60,7 @@ pub trait BareCryptoStore: Send + Sync {
 	/// If the given seed is `Some(_)`, the key pair will only be stored in memory.
 	///
 	/// Returns the public key of the generated key pair.
-	fn sr25519_generate_new(
-		&mut self,
-		id: KeyTypeId,
-		seed: Option<&str>,
-	) -> Result<sr25519::Public, Error>;
+	fn sr25519_generate_new(&mut self, id: KeyTypeId, seed: Option<&str>) -> Result<sr25519::Public, Error>;
 	/// Returns all ed25519 public keys for the given key type.
 	fn ed25519_public_keys(&self, id: KeyTypeId) -> Vec<ed25519::Public>;
 	/// Generate a new ed25519 key pair for the given key type and an optional seed.
@@ -72,11 +68,7 @@ pub trait BareCryptoStore: Send + Sync {
 	/// If the given seed is `Some(_)`, the key pair will only be stored in memory.
 	///
 	/// Returns the public key of the generated key pair.
-	fn ed25519_generate_new(
-		&mut self,
-		id: KeyTypeId,
-		seed: Option<&str>,
-	) -> Result<ed25519::Public, Error>;
+	fn ed25519_generate_new(&mut self, id: KeyTypeId, seed: Option<&str>) -> Result<ed25519::Public, Error>;
 	/// Returns all ecdsa public keys for the given key type.
 	fn ecdsa_public_keys(&self, id: KeyTypeId) -> Vec<ecdsa::Public>;
 	/// Generate a new ecdsa key pair for the given key type and an optional seed.
@@ -84,11 +76,7 @@ pub trait BareCryptoStore: Send + Sync {
 	/// If the given seed is `Some(_)`, the key pair will only be stored in memory.
 	///
 	/// Returns the public key of the generated key pair.
-	fn ecdsa_generate_new(
-		&mut self,
-		id: KeyTypeId,
-		seed: Option<&str>,
-	) -> Result<ecdsa::Public, Error>;
+	fn ecdsa_generate_new(&mut self, id: KeyTypeId, seed: Option<&str>) -> Result<ecdsa::Public, Error>;
 
 	/// Insert a new key. This doesn't require any known of the crypto; but a public key must be
 	/// manually provided.
@@ -96,12 +84,7 @@ pub trait BareCryptoStore: Send + Sync {
 	/// Places it into the file system store.
 	///
 	/// `Err` if there's some sort of weird filesystem error, but should generally be `Ok`.
-	fn insert_unknown(
-		&mut self,
-		_key_type: KeyTypeId,
-		_suri: &str,
-		_public: &[u8],
-	) -> Result<(), ()>;
+	fn insert_unknown(&mut self, _key_type: KeyTypeId, _suri: &str, _public: &[u8]) -> Result<(), ()>;
 
 	/// Get the password for this store.
 	fn password(&self) -> Option<&str>;
@@ -131,12 +114,7 @@ pub trait BareCryptoStore: Send + Sync {
 	///
 	/// Returns the SCALE encoded signature if key is found & supported,
 	/// an error otherwise.
-	fn sign_with(
-		&self,
-		id: KeyTypeId,
-		key: &CryptoTypePublicPair,
-		msg: &[u8],
-	) -> Result<Vec<u8>, Error>;
+	fn sign_with(&self, id: KeyTypeId, key: &CryptoTypePublicPair, msg: &[u8]) -> Result<Vec<u8>, Error>;
 
 	/// Sign with any key
 	///
@@ -151,11 +129,11 @@ pub trait BareCryptoStore: Send + Sync {
 		msg: &[u8],
 	) -> Result<(CryptoTypePublicPair, Vec<u8>), Error> {
 		if keys.len() == 1 {
-			return self.sign_with(id, &keys[0], msg).map(|s| (keys[0].clone(), s))
+			return self.sign_with(id, &keys[0], msg).map(|s| (keys[0].clone(), s));
 		} else {
 			for k in self.supported_keys(id, keys)? {
 				if let Ok(sign) = self.sign_with(id, &k, msg) {
-					return Ok((k, sign))
+					return Ok((k, sign));
 				}
 			}
 		}
@@ -279,7 +257,11 @@ impl<'a> RuntimeCode<'a> {
 	///
 	/// This is only useful for tests that don't want to execute any code.
 	pub fn empty() -> Self {
-		Self { code_fetcher: &NoneFetchRuntimeCode, hash: Vec::new(), heap_pages: None }
+		Self {
+			code_fetcher: &NoneFetchRuntimeCode,
+			hash: Vec::new(),
+			heap_pages: None,
+		}
 	}
 }
 
