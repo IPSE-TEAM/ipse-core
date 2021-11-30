@@ -221,7 +221,7 @@ decl_module! {
 			ensure!(!<AccountIdOfPid<T>>::contains_key(pid), Error::<T>::NumericIdInUsing);
 
 			let price = T::GetPrice::get_price();
-			let miner_should_staking = Percent::from_percent(10u8) * disk.saturated_into::<BalanceOf<T>>().saturating_mul(price);
+			let miner_should_staking = Percent::from_percent(10u8) * plot_size.saturated_into::<BalanceOf<T>>().saturating_mul(price);
 			T::StakingCurrency::reserve(&miner, miner_should_staking)?;
 
 			<DeclaredCapacity>::mutate(|h| *h = h.saturating_add(disk));
