@@ -28,6 +28,7 @@ Moved ./ipfs to /usr/local/bin
 安装之后，用法可以参考ipfs --help ,基本流程如下：
 
 ``step1: 初始化本地配置(ipfs init)``
+
 ```
 ➜  go-ipfs ipfs init
 initializing IPFS node at /root/.ipfs
@@ -60,10 +61,20 @@ Daemon is ready
 ### 2.1 前提
 本地已安装IPFS，请查看上一步ipfs安装！
 已部署ipse节点，[部署请查阅如何搭建本地节点章节](https://github.com/IPSE-TEAM/ipse-core/blob/ipse/document/IPSE2.0_PoC Miner Manual_Linux.md)
+
 ### 2.2 miner安装
-ipse2.0-miner 是存储出块的工具。下面展示miner工具的主要用法。安装和开发访问https://github.com/IPSE-TEAM/ipse2.0-miner/releases下
+ipse2.0-miner 是存储出块的工具。请下载[miner-1.0.0.zip](https://github.com/IPSE-TEAM/ipse2.0-miner/files/6457794/miner-1.0.0.zip) 进行安装。
+
+```
+sudo mkdir ipse2.0-miner 
+cd ipse2.0-miner
+sudo wget https://github.com/IPSE-TEAM/ipse2.0-miner/files/6457794/miner-1.0.0.zip 
+sudo unzip miner-1.0.0.zip
+sudo chmod +x miner && sudo ./install.sh
+```
 
 安装之后，用法可以参考 miner --help
+
 ```
 ➜  miner --help
 miner 1.0.0
@@ -117,15 +128,15 @@ config.toml  db  keystore
 [miner]
 nickname = "the_name_of_miner" #节点方昵称-别名
 region = "the_regin_of_miner"  #地区
-url = "http://localhost"       # 节点方对外上传访问的url
+url = "http://xxxx:8888"       # 节点方本地开放对外上传访问的url，必须是自己的ip且通外网(如http://113.168.22.28:8888)
 capacity = 1024000000          # 容量(10GB，则输入10*1024*1024*1024的结果)
-unit_price = 100               # 单价（ipse/byte,每字节多少ipse;建议单价写小一点，如0.000001或0.0000001）
-public_key = "刚刚生成的public_key"
-secret_seed = "刚刚生成的secret_seed"
+unit_price = 0.000001               # 单价（ipse/byte,每字节多少ipse;建议单价写小一点，如0.000001或0.0000001）
+public_key = "刚刚生成的public_key"   #自己的公钥，去掉前面的0x
+secret_seed = "刚刚生成的secret_seed" #自己的私钥，去掉前面的0x
 income_address = "你的收益地址" #如果非节点方自己的地址(其他地址)，则该地址可用余额必须大于1
 
 [chain]
-url = "ws://localhost:9944"  # ipse 链上节点地址
+url = "ws://localhost:9948"  # ipse链上节点地址
 #下面的信息不需要更改
 [data]
 db = "db"
@@ -140,7 +151,7 @@ uri = "http://127.0.0.1:5001"
 local = false
 
 [serve]
-secret_key = "QlKHBX8H7RYN5nksrZf3R1ePoDceXLNMLvyxTQ7MldMf"
+secret_key = "QlKHBX8H7RYN5nksrZf3R1ePoDceXLNMLvyxTQ7MldMf"  
 ```
 
 ``step3: 启动项目``
@@ -230,4 +241,4 @@ end rm expired data file
 浏览器打开www.ipse.io，输入已确认订单的hash，可以查看到所上传的文件信息
 
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/IPSE/ipse_explorer.png) 
-   
+

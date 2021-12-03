@@ -438,7 +438,9 @@ E:\IPSE\plot\win10>
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方停止出块.png) 
              
 ### 4.6 节点方重新启动出块
-节点方出块状态为停止状态，需要启动出块，可以重新出块。
+进入“Poc质押”-“节点方管理”页面，节点方出块状态为停止状态，需要启动出块，可以重新出块。
+
+**注:如果抵押金额足够(10 IPSE/1GB),但节点方每次出块奖励为9.5 IPSE，则需要手动重启节点方！**
 
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/PoC_Staking/节点方重启出块.png)  
 
