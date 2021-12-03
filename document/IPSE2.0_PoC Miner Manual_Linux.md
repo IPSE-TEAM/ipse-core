@@ -128,7 +128,7 @@ engraver_gpu
 
 P盘参数说明:
 ```
-engraver_gpu.exe [FLAGS] [OPTIONS] --n <nonces> --id <numeric_ID> --sn <start_nonce> --path <path>
+engraver_cpu.exe [FLAGS] [OPTIONS] --n <nonces> --id <numeric_ID> --sn <start_nonce> --path <path>
 
 -----------------------------------------------------------------------------
 --n <nonces>  P盘大小对应的nonce
@@ -196,7 +196,7 @@ nonce计算：
 
 通过执行以下命令进行P盘:
 ```
-sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
+sudo ./engraver_cpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
 ```
 提示指定的P盘文件存放路径不存在，那么我们先新建该文件路径
 ```
@@ -208,10 +208,10 @@ ll /data/data10064825431032897
 
 再次执行P盘操作
 ```
-sudo ./engraver_gpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
+sudo ./engraver_cpu --n 409600 --id 10064825431032897 --path /data/data10064825431032897 --sn 0  &
 ```
 
-**如果使用engraver_cpu进行绘图，cpu太慢，占用cpu过多，温度过高，则请使用engraver_gpu进行绘图;**
+**如果机器支持engraver_gpu进行绘图，则使用engraver_gpu**
 
 完成P盘后或进行P盘的过程中，接着下一步操作。
 

@@ -178,7 +178,7 @@ nonce计算：
 
 通过执行以下命令进行P盘(以1GiB为例):
 ```
-engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
+engraver_cpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
 ```
 提示指定的P盘文件存放路径不存在，那么我们先新建该文件路径
 ```
@@ -186,11 +186,11 @@ mkdir F:\plot\data
 ```
 再次执行P盘操作
 ```
-engraver_gpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
+engraver_cpu.exe --n 4096 --id 10008312345600028  --path F:\plot\data  --sn 0
 ```
 ![avatar](https://cdn.jsdelivr.net/gh/IPSE-TEAM/ipse-core@ipse/document/ipse_img/plot_win_img/cmd_start_plotting.png) 
 
-**注意:如果使用engraver_cpu进行绘图，cpu太慢，占用cpu过多，温度过高，则请使用engraver_gpu进行绘图;**
+**如果机器支持engraver_gpu进行绘图，则使用engraver_gpu**
 
 
 
@@ -256,7 +256,7 @@ I/O：
 
 Engraver支持绘图恢复。要恢复绘图文件(P盘文件)，用户将转到“file”菜单，然后选择“Resume file”选项，导航到不完整的绘图文件，选择它，然后单击“Start Plotting”按钮恢复绘图。
 
-**注意:如果使用engraver_cpu进行绘图，cpu太慢，占用cpu过多，温度过高，则请使用engraver_gpu进行绘图;**
+**如果机器支持engraver_gpu进行绘图，则使用engraver_gpu**
 
 完成P盘后或进行P盘的过程中，接着下一步操作。
 
