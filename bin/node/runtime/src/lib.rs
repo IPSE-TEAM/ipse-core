@@ -876,7 +876,7 @@ impl pallet_im_online::Trait for Runtime {
 	type AuthorityId = ImOnlineId;
 	type Event = Event;
 	type SessionDuration = SessionDuration;
-	type ReportUnresponsiveness = Offences;
+	type ReportUnresponsiveness = ();
 	type UnsignedPriority = ImOnlineUnsignedPriority;
 	type WeightInfo = weights::pallet_im_online::WeightInfo<Runtime>;
 }
