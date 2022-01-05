@@ -265,7 +265,7 @@ Engraver支持绘图恢复。要恢复绘图文件(P盘文件)，用户将转到
 ### 建议节点方程序放在单独的挂载盘中启动，不要放在系统盘进行启动出块！
 
 ### 3.1 下载出块程序
-[poc-mining(Windows版本)下载链接](https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.5.0/ipse2.0-mining_1.0-x86_64-pc-windows-msvc.zip)
+[poc-mining(Windows版本)下载链接](https://github.com/IPSE-TEAM/ipse2.0-mining/releases/download/v3.4.0/ipse2.0-mining_1.0-x86_64-pc-windows-msvc.zip)
 
 下载出块软件poc-mining最新版本(Windows版本)，压缩包包含三个文件：出块配置文件config.yaml、监控工具w10supervision、出块软件poc-mining，解压到对应目录:
 
