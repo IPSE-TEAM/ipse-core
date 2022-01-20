@@ -8,16 +8,10 @@ Ubuntu18.04或Ubuntu20.04系统
 
 [链程序下载地址](https://github.com/IPSE-TEAM/ipse-core/releases/download/release/IPSE)
 
-节点服务器本地创建文件夹，下载链程序
+节点服务器本地创建文件夹，下载链程序,并赋予IPSE可执行权限。
 ```
-sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https://github.com/IPSE-TEAM/ipse-core/releases/download/release/IPSE
+sudo mkdir -p ipse2.0/ipse2.0-node && cd ipse2.0/ipse2.0-node && sudo wget https://github.com/IPSE-TEAM/ipse-core/releases/download/release/IPSE  && sudo chmod +x IPSE
 ```
-赋予IPSE可执行权限：
-```
-sudo chmod +x IPSE
-```
-
-
 
 ### 1.2 同步节点数据
 
@@ -25,38 +19,12 @@ sudo chmod +x IPSE
 ```
 sudo ./IPSE --chain  main --ws-port 9948 --base-path ./db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
 ```
-如果出现ipse.log权限报错，则给上级及上上级目录赋予权限(如当前用户为test):
+如果出现无法创建ipse.log权限报错，则给上级及上上级目录赋予权限(如当前用户为test),并再次允许同步节点数据命令:
 ```
-sudo chown -R test:test ~/ipse2.0/ipse2.0-node ~/ipse2.0
-```
-再次同步节点数据:
-```
-sudo ./IPSE --chain  main --ws-port 9948 --base-path ./db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
-```
-
-如果您不想马上运行验证模式下。
---pruning=archive选项意味着--validator和-sentry选项，因此仅如果在没有这两个选项之一的情况下启动节点，则必须明确要求。 如果您不设置为 archive 节点，即使不在运行验证人和哨兵模式时，也需要切换时重新同步数据库。
-根据当时链的大小，此步可能需要几分钟到几个小时不等。
-如果您想估计还需要再多少时间，服务器日志(通过命令 tail –f ipse.log)显示了您的节点已处理和最新验证的区块。 然后您可以与 Telemetry 或当前 PolkadotJS 区块链浏览器比较。
-
-### 1.3 关闭本地节点
-节点同步数据完成，关闭IPSE程序，查看IPSE进程号，并杀掉进程，命令如下:
-```
-ps -ef |grep IPSE                                              
-root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path ./db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
-root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
-
-sudo  kill -9 1795222
-```
-
-### 1.4 启动本地节点
-
-节点同步数据完成，关闭IPSE程序，重新启动本地节点，运行以下命令(写入日志文件及后台运行):
+sudo chown -R test:test ~/ipse2.0/ipse2.0-node ~/ipse2.0 && sleep 3 && sudo ./IPSE --chain  main --ws-port 9948 --base-path ./db --pruning=archive  --execution=NativeElseWasm --wasm-execution Compiled --name 节点名字自定义  > ipse.log 2>&1 &
 
 ```
-sudo ./IPSE --chain  main  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path ./db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
-```
-通过tail –f ipse.log查看日志详情.
+通过tail –f ipse.log查看日志详情:
 ```
 Mar 25 15:31:19.327  WARN It isn't safe to expose RPC publicly without a proxy server that filters available set of RPC methods.
 Mar 25 15:31:19.328  WARN It isn't safe to expose RPC publicly without a proxy server that filters available set of RPC methods.
@@ -75,8 +43,31 @@ Mar 25 15:31:21.077  INFO execute_block: staking_poc----当前打印的高度是
 Mar 25 15:31:21.079  INFO execute_block: poc_staking era start_time: 69449, chill end_time: 69499    {block}
 Mar 25 15:31:21.081  INFO execute_block:apply_extrinsic: 节点方: 16c3ab6a5c4213de6a396cb1f899dbcadcc76f6865aae1c2b10e08339990de0a (5CaZ35VM...),  提交出块!, height = 69580, deadline = 494    {ext}
 ```
-之后出块程序可以直接连ws://localhost:9948进行出块。
 
+之后出块程序(第三章)可以直接连ws://localhost:9948进行出块。
+
+
+### 1.3 链程序异常(重启关闭本地节点)
+
+查看IPSE进程号，并杀掉进程，命令如下:
+```
+ps -ef |grep IPSE
+```
+日志如下:
+```
+root     1795222       1  2 Mar24 ?        00:47:46 ./IPSE --chain   staging --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --ws-port 9948 --rpc-port 30339 --base-path ./db --rpc-methods=Unsafe  --pool-limit 100000 --ws-max-connections 50000
+root     1833766 1833711  0 15:26 pts/0    00:00:00 grep --color=auto --exclude-dir=.bzr --exclude-dir=CVS --exclude-dir=.git --exclude-dir=.hg --exclude-dir=.svn --exclude-dir=.idea --exclude-dir=.tox IPSE
+```
+根据进程ID,杀掉该进程：
+```
+sudo  kill -9 1795222
+```
+
+重新启动本地节点，运行以下命令(写入日志文件及后台运行):
+
+```
+sudo ./IPSE --chain  main  --ws-port 9948 --rpc-port 30339 --execution=NativeElseWasm  --unsafe-ws-external --unsafe-rpc-external  --rpc-cors=all --base-path ./db --rpc-methods=Unsafe  --pruning=archive --wasm-execution Compiled --name 节点名字自定义   > ipse.log 2>&1 &
+```
 
 #### 如果想成为验证人节点，则参考以下文档:
 
